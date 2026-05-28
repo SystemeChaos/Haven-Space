@@ -120,8 +120,9 @@ import {
   HeartOff,
   Umbrella,
   DoorOpen,
+  Save,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme } from './types';
+import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, Subsystem, ChatMessage, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import { jsPDF } from 'jspdf';
 
@@ -167,6 +168,12 @@ export default function App() {
   const [resourcesOpen, setResourcesOpen] = useState(false);
   const t = translations[lang];
 
+  const sortedFrontStatusKeys = Object.keys(t.frontStatuses).sort((a, b) => {
+    const valA = t.frontStatuses[a as keyof typeof t.frontStatuses] || '';
+    const valB = t.frontStatuses[b as keyof typeof t.frontStatuses] || '';
+    return valA.localeCompare(valB, lang);
+  });
+
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
@@ -205,6 +212,104 @@ export default function App() {
   const [profileImage, setProfileImage] = useState<string>('');
   const [description, setDescription] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+  const [frontStatus, setFrontStatus] = useState<string>('none');
+  const [mainSystemName, setMainSystemName] = useState<string>(() => {
+    return localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System');
+  });
+
+  // Custom dialogue boxes to bypass sandboxed iframe restrictions
+  const [deleteConfirmAlterId, setDeleteConfirmAlterId] = useState<string | null>(null);
+  const [deleteConfirmSubsystemId, setDeleteConfirmSubsystemId] = useState<string | null>(null);
+  const [deleteConfirmSwitchLogId, setDeleteConfirmSwitchLogId] = useState<string | null>(null);
+  const [deleteConfirmJournalId, setDeleteConfirmJournalId] = useState<string | null>(null);
+  const [loadConfirmAlter, setLoadConfirmAlter] = useState<SavedAlter | null>(null);
+
+  // --- DID Local Form States ---
+  const [newSubName, setNewSubName] = useState('');
+  const [newSubParentId, setNewSubParentId] = useState('');
+  
+  const [chatSpeakerId, setChatSpeakerId] = useState<string>('external');
+  const [chatText, setChatText] = useState('');
+
+  const [switchSelectedAlterIds, setSwitchSelectedAlterIds] = useState<string[]>([]);
+  const [switchSelectedStatus, setSwitchSelectedStatus] = useState<string>('co_front');
+  const [switchRetroDate, setSwitchRetroDate] = useState<string>('');
+  const [switchNotes, setSwitchNotes] = useState('');
+
+  const [journalTitleInput, setJournalTitleInput] = useState('');
+  const [journalContentInput, setJournalContentInput] = useState('');
+  const [journalImages, setJournalImages] = useState<string[]>([]);
+  const [journalSearch, setJournalSearch] = useState('');
+
+  // --- DID LocalStorage Tabs & State ---
+  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'journal'>('creator');
+  const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
+  const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
+  
+  const [savedAlters, setSavedAlters] = useState<SavedAlter[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('savedAlters') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [subsystems, setSubsystems] = useState<Subsystem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('subsystems') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('chatMessages') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [switchLogs, setSwitchLogs] = useState<SwitchLog[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('switchLogs') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('journalEntries') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  // LocalStorage Sync Effects
+  useEffect(() => {
+    localStorage.setItem('savedAlters', JSON.stringify(savedAlters));
+  }, [savedAlters]);
+
+  useEffect(() => {
+    localStorage.setItem('mainSystemName', mainSystemName);
+  }, [mainSystemName]);
+
+  useEffect(() => {
+    localStorage.setItem('subsystems', JSON.stringify(subsystems));
+  }, [subsystems]);
+
+  useEffect(() => {
+    localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+
+  useEffect(() => {
+    localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
+  }, [switchLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
+  }, [journalEntries]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -239,6 +344,7 @@ export default function App() {
         profileImage,
         description,
         internalNotes,
+        frontStatus,
       };
 
       // Only save if different from current history head
@@ -258,7 +364,7 @@ export default function App() {
     } catch (error) {
       console.error('Failed to save to history:', error);
     }
-  }, [selectedRoles, selectedGenders, selectedSexualities, traitDecorations, patternLayers, decorations, alterName, customRoleColors, customGenderColors, customSexualityColors, theme, history, historyIndex, profileImage, description, internalNotes]);
+  }, [selectedRoles, selectedGenders, selectedSexualities, traitDecorations, patternLayers, decorations, alterName, customRoleColors, customGenderColors, customSexualityColors, theme, history, historyIndex, profileImage, description, internalNotes, frontStatus]);
 
   const undo = () => {
     if (historyIndex > 0) {
@@ -306,6 +412,7 @@ export default function App() {
     setProfileImage(state.profileImage || '');
     setDescription(state.description || '');
     setInternalNotes(state.internalNotes || '');
+    setFrontStatus(state.frontStatus || 'none');
   };
 
   // Initial history save
@@ -484,6 +591,400 @@ export default function App() {
       setInternalNotes(notes);
       setTimeout(saveToHistory, 0);
     }
+  };
+
+  // --- DID System Management Handlers ---
+  const handleSaveAlter = (forceTargetId: string | null = null, forceNew: boolean = false) => {
+    const trimmedName = alterName.trim() || (lang === 'fr' ? 'Anonyme' : 'Anonymous');
+    
+    // Check if we already have an existing alter with the SAME name (case-insensitive, trimmed)
+    // but a different ID.
+    // If we are passing forceTargetId or forceNew, we bypass this check since the user made a choice.
+    if (forceTargetId === null && !forceNew) {
+      const conflict = savedAlters.find(
+        a => a.id !== editingAlterId && a.alterName.toLowerCase().trim() === trimmedName.toLowerCase().trim()
+      );
+      if (conflict) {
+        setSaveConflictAlter(conflict);
+        return;
+      }
+    }
+
+    // Determine target ID
+    let targetId = editingAlterId;
+    if (forceNew) {
+      targetId = null; // force creation of flat new alter
+    } else if (forceTargetId) {
+      targetId = forceTargetId; // force saving into the existing same-name alter
+    }
+
+    const freshId = targetId || Math.random().toString(36).substring(2, 11);
+    const existingSubsystemId = savedAlters.find(a => a.id === targetId)?.subsystemId;
+
+    const freshAlter: SavedAlter = {
+      id: freshId,
+      alterName: trimmedName,
+      selectedRoles,
+      selectedGenders,
+      selectedSexualities,
+      traitDecorations,
+      patternLayers,
+      decorations,
+      customRoleColors,
+      customGenderColors,
+      customSexualityColors,
+      theme,
+      profileImage,
+      description,
+      internalNotes,
+      subsystemId: existingSubsystemId,
+      frontStatus: frontStatus || 'none',
+    };
+
+    if (savedAlters.some(a => a.id === freshId)) {
+      setSavedAlters(prev => prev.map(a => a.id === freshId ? freshAlter : a));
+      setEditingAlterId(freshId);
+    } else {
+      setSavedAlters(prev => [...prev, freshAlter]);
+      setEditingAlterId(freshId);
+    }
+    
+    setSaveConflictAlter(null);
+  };
+
+  const executeLoadAlter = (alter: SavedAlter) => {
+    setSelectedRoles(alter.selectedRoles || [AlterRole.HOST]);
+    setSelectedGenders(alter.selectedGenders || [Gender.NEUTRAL]);
+    setSelectedSexualities(alter.selectedSexualities || [Sexuality.OTHER]);
+    setTraitDecorations(alter.traitDecorations || []);
+    setPatternLayers(alter.patternLayers || []);
+    setDecorations(alter.decorations || []);
+    setAlterName(alter.alterName || '');
+    setCustomRoleColors(alter.customRoleColors || {});
+    setCustomGenderColors(alter.customGenderColors || {});
+    setCustomSexualityColors(alter.customSexualityColors || {});
+    setTheme(alter.theme || Theme.LIGHT);
+    setProfileImage(alter.profileImage || '');
+    setDescription(alter.description || '');
+    setInternalNotes(alter.internalNotes || '');
+    setFrontStatus(alter.frontStatus || 'none');
+    setEditingAlterId(alter.id);
+    setCurrentTab('creator');
+    setLoadConfirmAlter(null);
+  };
+
+  const handleLoadAlter = (alter: SavedAlter) => {
+    // If the creator already has current work, confirm it via state dialog
+    if (editingAlterId || alterName || description || internalNotes || traitDecorations.length > 0) {
+      setLoadConfirmAlter(alter);
+      return;
+    }
+    executeLoadAlter(alter);
+  };
+
+  const handleResetCreator = () => {
+    setSelectedRoles([AlterRole.HOST]);
+    setSelectedGenders([Gender.NEUTRAL]);
+    setSelectedSexualities([Sexuality.OTHER]);
+    setTraitDecorations([]);
+    setPatternLayers([]);
+    setDecorations([]);
+    setAlterName('');
+    setCustomRoleColors({});
+    setCustomGenderColors({});
+    setCustomSexualityColors({});
+    setTheme(Theme.LIGHT);
+    setProfileImage('');
+    setDescription('');
+    setInternalNotes('');
+    setFrontStatus('none');
+    setEditingAlterId(null);
+    setCurrentTab('creator'); // Route user directly to creator
+  };
+
+  const handleDeleteAlter = (alterId: string) => {
+    setDeleteConfirmAlterId(alterId);
+  };
+
+  const executeDeleteAlter = (alterId: string) => {
+    setSavedAlters(prev => prev.filter(a => a.id !== alterId));
+    if (editingAlterId === alterId) {
+      setEditingAlterId(null);
+    }
+    setDeleteConfirmAlterId(null);
+  };
+
+  const handleAssignSubsystem = (alterId: string, subsystemId?: string) => {
+    setSavedAlters(prev => prev.map(a => a.id === alterId ? { ...a, subsystemId: subsystemId || undefined } : a));
+  };
+
+  const handleCreateSubsystem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSubName.trim()) return;
+    const newSub: Subsystem = {
+      id: Math.random().toString(36).substring(2, 11),
+      name: newSubName.trim(),
+      parentId: newSubParentId || undefined,
+    };
+    setSubsystems(prev => [...prev, newSub]);
+    setNewSubName('');
+    setNewSubParentId('');
+  };
+
+  const handleDeleteSubsystem = (subId: string) => {
+    setDeleteConfirmSubsystemId(subId);
+  };
+
+  const executeDeleteSubsystem = (subId: string) => {
+    setSubsystems(prev => prev.filter(s => s.id !== subId).map(s => s.parentId === subId ? { ...s, parentId: undefined } : s));
+    setSavedAlters(prev => prev.map(a => a.subsystemId === subId ? { ...a, subsystemId: undefined } : a));
+    setDeleteConfirmSubsystemId(null);
+  };
+
+  const handleSendChatMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatText.trim()) return;
+    const newMsg: ChatMessage = {
+      id: Math.random().toString(36).substring(2, 11),
+      senderAlterId: chatSpeakerId,
+      text: chatText.trim(),
+      timestamp: Date.now(),
+    };
+    setChatMessages(prev => [...prev, newMsg]);
+    setChatText('');
+  };
+
+  const handleClearChat = () => {
+    if (confirm(t.deleteConf)) {
+      setChatMessages([]);
+    }
+  };
+
+  const handleLogSwitch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (switchSelectedAlterIds.length === 0) return;
+    const finalTimestamp = switchRetroDate ? new Date(switchRetroDate).getTime() : Date.now();
+    const newLog: SwitchLog = {
+      id: Math.random().toString(36).substring(2, 11),
+      alterIds: switchSelectedAlterIds,
+      timestamp: finalTimestamp,
+      notes: switchNotes.trim() || undefined,
+      status: switchSelectedStatus,
+    };
+    
+    // Update switch logs list
+    setSwitchLogs(prev => [newLog, ...prev].sort((a,b) => b.timestamp - a.timestamp));
+
+    // Automatically update the fronting status of the selected alters in the savedAlters state
+    setSavedAlters(prev => prev.map(a => {
+      if (switchSelectedAlterIds.includes(a.id)) {
+        return {
+          ...a,
+          frontStatus: switchSelectedStatus
+        };
+      }
+      return a;
+    }));
+
+    // Clear form inputs
+    setSwitchSelectedAlterIds([]);
+    setSwitchRetroDate('');
+    setSwitchNotes('');
+  };
+
+  const handleDeleteSwitchLog = (logId: string) => {
+    setDeleteConfirmSwitchLogId(logId);
+  };
+
+  const executeDeleteSwitchLog = (logId: string) => {
+    setSwitchLogs(prev => prev.filter(l => l.id !== logId));
+    setDeleteConfirmSwitchLogId(null);
+  };
+
+  const handleCompressAndStoreFiles = (files: FileList | null, onComplete: (urls: string[]) => void) => {
+    if (!files) return;
+    const promises = Array.from(files).map(file => {
+      return new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const max_size = 800;
+            let width = img.width;
+            let height = img.height;
+            if (width > height) {
+              if (width > max_size) {
+                height *= max_size / width;
+                width = max_size;
+              }
+            } else {
+              if (height > max_size) {
+                width *= max_size / height;
+                height = max_size;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(dataUrl);
+          };
+          img.src = e.target?.result as string;
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    Promise.all(promises).then(onComplete);
+  };
+
+  const handleSaveJournalEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!journalContentInput.trim() && !journalTitleInput.trim() && journalImages.length === 0) return;
+    const newEntry: JournalEntry = {
+      id: Math.random().toString(36).substring(2, 11),
+      title: journalTitleInput.trim() || (lang === 'fr' ? 'Note sans titre' : 'Untitled Note'),
+      content: journalContentInput.trim(),
+      timestamp: Date.now(),
+      images: journalImages,
+    };
+    setJournalEntries(prev => [newEntry, ...prev]);
+    setJournalTitleInput('');
+    setJournalContentInput('');
+    setJournalImages([]);
+  };
+
+  const handleDeleteJournalEntry = (id: string) => {
+    setDeleteConfirmJournalId(id);
+  };
+
+  const executeDeleteJournalEntry = (id: string) => {
+    setJournalEntries(prev => prev.filter(j => j.id !== id));
+    setDeleteConfirmJournalId(null);
+  };
+
+  const renderAlterCard = (alter: SavedAlter) => {
+    return (
+      <div key={alter.id} className="p-4 bg-app-card/65 rounded-2xl border border-app-border/30 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow relative">
+        <div className="flex gap-3">
+          {alter.profileImage ? (
+            <img 
+              src={alter.profileImage} 
+              alt={alter.alterName} 
+              className="w-12 h-12 rounded-xl object-cover border border-app-border/30 shrink-0" 
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <div className="w-12 h-12 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-accent font-black shrink-0">
+              {alter.alterName.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          
+          <div className="min-w-0 flex-1">
+            <h4 className="font-black text-sm text-app-text truncate text-left">{alter.alterName}</h4>
+            <div className="flex flex-wrap gap-1 mt-1 justify-start">
+              {alter.frontStatus && alter.frontStatus !== 'none' && (
+                <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block ${
+                  alter.frontStatus === 'primary' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
+                  alter.frontStatus === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
+                  alter.frontStatus === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
+                  alter.frontStatus === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                  'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
+                }`}>
+                  {t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}
+                </span>
+              )}
+              {alter.selectedRoles.slice(0, 2).map(r => (
+                <span 
+                  key={r} 
+                  style={{ 
+                    backgroundColor: `${alter.customRoleColors?.[r] || ROLE_CONFIGS[r]?.color || '#9CA3AF'}15`, 
+                    color: alter.customRoleColors?.[r] || ROLE_CONFIGS[r]?.color || '#9CA3AF',
+                    borderColor: `${alter.customRoleColors?.[r] || ROLE_CONFIGS[r]?.color || '#9CA3AF'}40`
+                  }}
+                  className="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block"
+                >
+                  {t.roleNames[r as keyof typeof t.roleNames]}
+                </span>
+              ))}
+              {alter.selectedRoles.length > 2 && (
+                <span className="px-1.5 py-0.5 rounded bg-app-bg text-app-muted text-[8px] font-extrabold">
+                  +{alter.selectedRoles.length - 2}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Subsystem & Load trigger */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-app-border/15">
+          <select
+            value={alter.subsystemId || ''}
+            onChange={(e) => handleAssignSubsystem(alter.id, e.target.value)}
+            className="text-[9px] bg-app-bg border border-app-border/40 rounded-lg px-2 py-1 max-w-[130px] font-bold uppercase tracking-wider text-app-muted cursor-pointer focus:outline-none"
+          >
+            <option value="">{lang === 'fr' ? 'Aucun ss-système' : 'No ss-system'}</option>
+            {subsystems.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => handleLoadAlter(alter)}
+              className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest bg-app-bg hover:bg-app-accent hover:text-white border border-app-border/40 hover:border-transparent rounded-lg transition-all"
+            >
+              {lang === 'fr' ? 'Charger' : 'Load'}
+            </button>
+            <button
+              onClick={() => handleDeleteAlter(alter.id)}
+              className="p-1 text-app-muted hover:text-red-500 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderSubsystemNode = (subId: string, depth = 0) => {
+    const sub = subsystems.find(s => s.id === subId);
+    if (!sub) return null;
+
+    const childSubs = subsystems.filter(s => s.parentId === subId);
+    const subAlters = savedAlters.filter(a => a.subsystemId === subId);
+
+    return (
+      <div key={subId} className="space-y-3" style={{ marginLeft: `${depth * 16}px` }}>
+        <div className="flex items-center justify-between p-3.5 bg-app-card border border-app-border/45 rounded-xl">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-app-accent" />
+            <span className="font-bold text-sm text-app-text">{sub.name}</span>
+            <span className="text-[10px] bg-app-bg text-app-muted px-2 py-0.5 rounded-full font-bold">
+              {subAlters.length} alters
+            </span>
+          </div>
+          <button
+            onClick={() => handleDeleteSubsystem(sub.id)}
+            className="p-1.5 hover:bg-app-bg text-app-muted hover:text-red-500 rounded-lg transition-colors"
+            title="Supprimer le sous-système"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        {/* Alters in this subsystem */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 border-l border-app-border/25">
+          {subAlters.map(a => renderAlterCard(a))}
+        </div>
+
+        {/* Recursive Children Subsystems */}
+        {childSubs.map(child => renderSubsystemNode(child.id, depth + 1))}
+      </div>
+    );
   };
 
   const toggleGender = (g: Gender) => {
@@ -1198,9 +1699,84 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-8 py-12 grid grid-cols-1 lg:grid-cols-12 gap-12">
-        
-        {/* Left Column: Controls */}
+      {/* Secondary Navigation Menu & System Info */}
+      <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4.5 px-8 sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+            <button
+              onClick={() => setCurrentTab('system')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                currentTab === 'system'
+                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>{t.menuMySystem}</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('creator')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                currentTab === 'creator'
+                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
+              }`}
+            >
+              <Hammer className="w-3.5 h-3.5" />
+              <span>{t.menuCreator}</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('chat')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                currentTab === 'chat'
+                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
+              }`}
+            >
+              <MessageSquareQuote className="w-3.5 h-3.5" />
+              <span>{t.menuChat}</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('switch')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                currentTab === 'switch'
+                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
+              }`}
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              <span>{t.menuSwitches}</span>
+            </button>
+
+            <button
+              onClick={() => setCurrentTab('journal')}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
+                currentTab === 'journal'
+                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
+              }`}
+            >
+              <Book className="w-3.5 h-3.5" />
+              <span>{t.menuJournal}</span>
+            </button>
+          </div>
+
+          {/* Nombre d'Alter count element */}
+          <div className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-app-card/60 border border-app-border/30 text-xs font-semibold select-none">
+            <Users className="w-3.5 h-3.5 text-app-accent" />
+            <span className="text-app-muted uppercase tracking-widest text-[9px] font-black">{t.altersCount}</span>
+            <span className="font-black text-app-accent text-sm leading-none">{savedAlters.length}</span>
+          </div>
+        </div>
+      </div>
+
+      <main className={`max-w-7xl mx-auto px-8 py-12 ${currentTab === 'creator' ? 'grid grid-cols-1 lg:grid-cols-12 gap-12' : 'block space-y-8'}`}>
+        {currentTab === 'creator' && (
+          <>
+            {/* Left Column: Controls */}
         <div className="lg:col-span-5 space-y-10">
           
           {/* Name Input */}
@@ -1216,6 +1792,8 @@ export default function App() {
               className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-lg"
             />
           </section>
+
+
 
           {/* Description Section */}
           <section className="space-y-4">
@@ -1951,25 +2529,57 @@ export default function App() {
             </div>
 
             {/* Export and Action Panel */}
-            <div className="grid grid-cols-2 gap-4 w-full">
-              <button
-                onClick={handleDownload}
-                disabled={isDownloading}
-                className="flex items-center justify-center gap-2.5 py-4 px-4 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
-              >
-                <Download className="w-3.5 h-3.5 text-app-accent" />
-                <span>{lang === 'fr' ? 'Télécharger PNG' : 'Download PNG'}</span>
-              </button>
+            <div className="flex flex-col gap-4 w-full">
+              {/* Primary Save Action */}
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    handleSaveAlter();
+                    const trimmedName = alterName.trim() || (lang === 'fr' ? 'Anonyme' : 'Anonymous');
+                    const hasConflict = savedAlters.some(
+                      a => a.id !== editingAlterId && a.alterName.toLowerCase().trim() === trimmedName.toLowerCase().trim()
+                    );
+                    if (!hasConflict) {
+                      alert(lang === 'fr' ? 'Fiche enregistrée avec succès !' : 'Card successfully saved!');
+                    }
+                  }}
+                  className="flex-1 flex items-center justify-center gap-2.5 py-4 px-5 bg-app-accent hover:opacity-90 active:scale-[0.99] text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md select-none border border-transparent"
+                >
+                  <Save className="w-4 h-4" />
+                  <span>{editingAlterId ? t.updateAlter : t.saveCurrentAlter}</span>
+                </button>
+                {editingAlterId && (
+                  <button
+                    onClick={handleResetCreator}
+                    className="px-4 bg-app-card border border-app-border/40 hover:border-red-500/35 hover:text-red-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center"
+                    title={lang === 'fr' ? 'Créer une nouvelle fiche' : 'Create new card'}
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
 
-              <button
-                onClick={handleDownloadPdf}
-                disabled={isDownloading}
-                style={{ contentVisibility: 'auto' }}
-                className="flex items-center justify-center gap-2.5 py-4 px-4 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
-              >
-                <FileText className="w-3.5 h-3.5 text-app-accent" />
-                <span>{t.downloadPdf}</span>
-              </button>
+              {/* Download Buttons */}
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  className="flex items-center justify-center gap-2.5 py-4 px-4 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
+                >
+                  <Download className="w-3.5 h-3.5 text-app-accent" />
+                  <span>{lang === 'fr' ? 'Télécharger PNG' : 'Download PNG'}</span>
+                </button>
+
+                <button
+                  onClick={handleDownloadPdf}
+                  disabled={isDownloading}
+                  style={{ contentVisibility: 'auto' }}
+                  className="flex items-center justify-center gap-2.5 py-4 px-4 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
+                >
+                  <FileText className="w-3.5 h-3.5 text-app-accent" />
+                  <span>{t.downloadPdf}</span>
+                </button>
+              </div>
             </div>
 
             {/* Meaning Card */}
@@ -2054,6 +2664,638 @@ export default function App() {
             </p>
           </div>
         </div>
+          </>
+        )}
+
+        {/* --- SYSTEM VIEW --- */}
+        {currentTab === 'system' && (
+          <div className="space-y-10 animate-fade-in duration-300">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{t.menuMySystem}</h2>
+              </div>
+
+              {/* Reset or Save active alter triggers */}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  onClick={handleResetCreator}
+                  className="px-4.5 py-2.5 bg-app-card border border-app-border/40 hover:border-app-accent/40 rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>{t.createNewAlter}</span>
+                </button>
+                <button
+                  onClick={() => {
+                    handleSaveAlter();
+                    alert(lang === 'fr' ? 'Fiche enregistrée avec succès !' : 'Card successfully saved!');
+                  }}
+                  className="px-4.5 py-2.5 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>{editingAlterId ? t.updateAlter : t.saveCurrentAlter}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Tree grid & Subsystem Creation Panel */}
+            <div className="space-y-10">
+              
+              {/* Top Section: Display hierarchy & files */}
+              <div className="w-full space-y-8">
+                {subsystems.length === 0 && savedAlters.length === 0 ? (
+                  <div className="p-12 text-center bg-app-card/30 rounded-2xl border border-app-border/20 max-w-xl mx-auto space-y-4">
+                    <Users className="w-12 h-12 text-app-muted mx-auto opacity-35" />
+                    <p className="text-sm text-app-muted leading-relaxed uppercase tracking-wider font-semibold">{t.noAltersSaved}</p>
+                  </div>
+                ) : (
+                  /* Main/Primary System Parent Wrap Card */
+                  <div className="p-6 bg-app-accent/[0.015] border-2 border-dashed border-app-accent/20 rounded-3xl space-y-6 relative">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent text-lg">
+                        🛡️
+                      </div>
+                      <div>
+                        <h3 className="font-black text-sm uppercase tracking-wider text-app-text leading-tight">
+                          {mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System')}
+                        </h3>
+                        <p className="text-[10px] text-app-muted uppercase font-bold tracking-widest">
+                          {lang === 'fr' ? 'Système Parent Principal' : 'Primary Parent System'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-6 pl-4 border-l-2 border-app-accent/10 ml-5">
+                      {/* Root-Level Subsystems Tree Rendering */}
+                      {subsystems.filter(s => !s.parentId).map(rootSub => renderSubsystemNode(rootSub.id))}
+
+                      {/* Unassigned Alters Section - Without header label as requested */}
+                      {savedAlters.filter(a => !a.subsystemId).length > 0 && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {savedAlters.filter(a => !a.subsystemId).map(a => renderAlterCard(a))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Bottom Section: Create new subsystem form & name principal system side-by-side */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-app-border/20">
+                {/* Rename Principal System Panel */}
+                <div className="p-6 bg-app-card/65 rounded-2xl border border-app-border/30 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-app-accent flex items-center gap-2">
+                    <Settings2 className="w-4 h-4" />
+                    <span>{t.mainSystemLabel}</span>
+                  </h3>
+                  <div className="space-y-2">
+                    <input 
+                      type="text"
+                      value={mainSystemName}
+                      onChange={(e) => setMainSystemName(e.target.value)}
+                      placeholder={t.mainSystemPlaceholder}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    />
+                  </div>
+                </div>
+
+                {/* Create Subsystem Panel */}
+                <div className="p-6 bg-app-card/65 rounded-2xl border border-app-border/30 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-app-accent flex items-center gap-2">
+                    <LayoutGrid className="w-4 h-4" />
+                    <span>{t.subsystemAdd}</span>
+                  </h3>
+                  
+                  <form onSubmit={handleCreateSubsystem} className="space-y-4">
+                    <div className="space-y-2">
+                      <input 
+                        type="text"
+                        value={newSubName}
+                        onChange={(e) => setNewSubName(e.target.value)}
+                        placeholder={t.subsystemNamePlaceholder}
+                        className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <select
+                        value={newSubParentId}
+                        onChange={(e) => setNewSubParentId(e.target.value)}
+                        className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+                      >
+                        <option value="">{lang === 'fr' ? `Sous : ${mainSystemName} (Principal)` : `Under: ${mainSystemName} (Primary)`}</option>
+                        {subsystems.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-3 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors"
+                    >
+                      {lang === 'fr' ? 'Créer le sous-système' : 'Create subsystem'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* --- CHAT VIEW --- */}
+        {currentTab === 'chat' && (
+          <div className="space-y-6 max-w-4xl mx-auto w-full animate-fade-in duration-300">
+            <div className="flex justify-between items-center pb-4 border-b border-app-border/30">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{t.chatTitle}</h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">{t.chatSubtitle}</p>
+              </div>
+              {chatMessages.length > 0 && (
+                <button
+                  onClick={handleClearChat}
+                  className="px-4 py-2 bg-app-card border border-app-border hover:border-red-500 hover:text-red-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors animate-pulse"
+                >
+                  {lang === 'fr' ? 'Effacer la conversation' : 'Clear Chat'}
+                </button>
+              )}
+            </div>
+
+            {/* Chat Area Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+              
+              {/* Speaker Control sidebar */}
+              <div className="md:col-span-4 p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
+                <label className="text-xs font-bold uppercase tracking-wider text-app-muted flex items-center gap-2">
+                  <UserCheck className="w-4.5 h-4.5 text-app-accent" /> {t.selectSpeakingAlter}
+                </label>
+                <select
+                  value={chatSpeakerId}
+                  onChange={(e) => setChatSpeakerId(e.target.value)}
+                  className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-app-accent/20 outline-none"
+                >
+                  <option value="external">{lang === 'fr' ? 'Hôte / Système' : 'Host / System'}</option>
+                  {savedAlters.map(a => (
+                    <option key={a.id} value={a.id}>{a.alterName}</option>
+                  ))}
+                </select>
+
+                {/* Speaker preview identity card */}
+                {chatSpeakerId !== 'external' && (() => {
+                  const alt = savedAlters.find(a => a.id === chatSpeakerId);
+                  if (!alt) return null;
+                  return (
+                    <div className="p-3 bg-app-bg/50 border border-app-border/25 rounded-xl space-y-2">
+                      <div className="flex items-center gap-2.5">
+                        {alt.profileImage ? (
+                          <img src={alt.profileImage} className="w-8 h-8 rounded-lg object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-lg bg-app-accent/10 border border-app-accent/20 flex items-center justify-center font-bold text-xs">
+                            {alt.alterName.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
+                        <span className="text-xs font-black truncate">{alt.alterName}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Chat view workspace */}
+              <div className="md:col-span-8 flex flex-col h-[520px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shrink-0 shadow-sm">
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  {chatMessages.length === 0 && (
+                    <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
+                      <MessageSquareQuote className="w-10 h-10 text-app-muted opacity-30 animate-bounce" />
+                      <p className="text-xs text-app-muted uppercase tracking-widest font-black">
+                        {lang === 'fr' ? 'Aucun message interne.' : 'No internal messages logged.'}
+                      </p>
+                    </div>
+                  )}
+
+                  {chatMessages.map(msg => {
+                    const matchedAlter = savedAlters.find(a => a.id === msg.senderAlterId);
+                    const isSystem = msg.senderAlterId === 'external';
+                    return (
+                      <div key={msg.id} className="group flex gap-3.5 items-start">
+                        {matchedAlter && matchedAlter.profileImage ? (
+                          <img src={matchedAlter.profileImage} className="w-9 h-9 rounded-xl object-cover shrink-0" referrerPolicy="no-referrer" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center font-bold text-xs shrink-0 text-app-accent uppercase">
+                            {isSystem ? 'SYS' : matchedAlter?.alterName.slice(0,2) || 'ALT'}
+                          </div>
+                        )}
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-extrabold text-xs text-app-text">
+                              {isSystem ? (lang === 'fr' ? 'Hôte / Système' : 'Host / System') : matchedAlter?.alterName}
+                            </span>
+                            <span className="text-[9px] text-app-muted font-bold font-mono">
+                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-app-text/90 mt-1 bg-app-card/75 p-3 rounded-2xl rounded-tl-none border border-app-border/20 whitespace-pre-wrap leading-relaxed select-text">
+                            {msg.text}
+                          </p>
+                        </div>
+
+                        {/* Quick Delete Message trigger */}
+                        <button
+                          onClick={() => setChatMessages(prev => prev.filter(m => m.id !== msg.id))}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-app-bg text-app-muted hover:text-red-500 rounded-lg transition-all shrink-0 self-center"
+                          title="Supprimer ce message"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Chat Input form */}
+                <form onSubmit={handleSendChatMessage} className="p-4 border-t border-app-border/30 bg-app-card/65 flex gap-3 items-center">
+                  <input
+                    type="text"
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    placeholder={t.chatPlaceholder}
+                    className="flex-1 bg-app-bg border border-app-border rounded-xl px-5 py-3.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/25"
+                  />
+                  <button
+                    type="submit"
+                    className="px-6 py-3.5 bg-app-text text-app-bg hover:opacity-90 rounded-xl font-bold text-xs uppercase tracking-widest transition-opacity"
+                  >
+                    {lang === 'fr' ? 'Envoyer' : 'Send'}
+                  </button>
+                </form>
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* --- SWITCH VIEW --- */}
+        {currentTab === 'switch' && (
+          <div className="space-y-8 max-w-4xl mx-auto w-full animate-fade-in duration-300">
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-wider">{t.switchTitle}</h2>
+              <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">{t.switchSubtitle}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
+              
+              {/* Log Switch Form */}
+              <div className="md:col-span-12 lg:col-span-5 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-6">
+                <h3 className="text-xs font-black uppercase tracking-widest text-app-accent flex items-center gap-2">
+                  <UserCheck className="w-4 h-4" />
+                  <span>{lang === 'fr' ? 'Déclarer un Front' : 'Declare Front'}</span>
+                </h3>
+
+                <form onSubmit={handleLogSwitch} className="space-y-5">
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
+                      {lang === 'fr' ? '1. Sélectionner l\'alter / les alters :' : '1. Select the alter(s):'}
+                    </label>
+                    
+                    {savedAlters.length === 0 ? (
+                      <p className="text-xs text-app-muted">{lang === 'fr' ? 'Aucun alter disponible. Créez des fiches d\'abord !' : 'No alters available. Create cards first!'}</p>
+                    ) : (
+                      <div className="max-h-40 overflow-y-auto border border-app-border py-1 px-2 rounded-xl bg-app-bg/50 space-y-2">
+                        {savedAlters.map(a => (
+                          <label key={a.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-app-card/65 cursor-pointer leading-tight">
+                            <input
+                              type="checkbox"
+                              checked={switchSelectedAlterIds.includes(a.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSwitchSelectedAlterIds(prev => [...prev, a.id]);
+                                } else {
+                                  setSwitchSelectedAlterIds(prev => prev.filter(did => did !== a.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-app-border text-app-accent focus:ring-0"
+                            />
+                            <span className="text-xs font-bold leading-none">{a.alterName}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Fronting & Presence Status Grid */}
+                  <div className="space-y-3">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-app-accent" />
+                      <span>{t.frontStatusLabel}</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      {sortedFrontStatusKeys.map((statusKey) => (
+                        <button
+                          key={statusKey}
+                          type="button"
+                          onClick={() => {
+                            setSwitchSelectedStatus(statusKey);
+                          }}
+                          className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center select-none leading-normal ${
+                            switchSelectedStatus === statusKey
+                              ? 'bg-app-accent border-transparent text-white shadow-sm active:scale-95'
+                              : 'bg-app-bg border-app-border/45 text-app-text/75 hover:border-app-accent/30'
+                          }`}
+                        >
+                          {t.frontStatuses[statusKey as keyof typeof t.frontStatuses]}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Retro-dating input field */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
+                      <Timer className="w-3.5 h-3.5" />
+                      <span>{t.retrodateLabel}</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={switchRetroDate}
+                      onChange={(e) => setSwitchRetroDate(e.target.value)}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    />
+                  </div>
+
+                  {/* Notes fields */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
+                      {lang === 'fr' ? 'Notes du Switch (optionnel)' : 'Switch Notes (optional)'}
+                    </label>
+                    <textarea
+                      value={switchNotes}
+                      onChange={(e) => setSwitchNotes(e.target.value)}
+                      placeholder={lang === 'fr' ? 'Triggers, contexte, observations...' : 'Triggers, context, markers...'}
+                      rows={3}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none text-app-text"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={switchSelectedAlterIds.length === 0}
+                    className="w-full py-3.5 bg-app-accent hover:opacity-90 disabled:opacity-20 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                  >
+                    {t.logSwitchButton}
+                  </button>
+                </form>
+              </div>
+
+              {/* Switches History Logging */}
+              <div className="md:col-span-12 lg:col-span-7 space-y-4">
+                <h3 className="text-xs font-black uppercase tracking-widest text-app-muted flex items-center gap-2 border-b border-app-border/30 pb-2">
+                  <ArrowLeftRight className="w-4 h-4" />
+                  <span>{t.recentSwitches}</span>
+                </h3>
+
+                {switchLogs.length === 0 ? (
+                  <div className="text-center p-12 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted font-bold uppercase tracking-widest text-[10px] space-y-2">
+                    <Timer className="w-8 h-8 mx-auto opacity-35" />
+                    <span>{lang === 'fr' ? 'Aucun switch enregistré.' : 'No switch logs found.'}</span>
+                  </div>
+                ) : (
+                  <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                    {switchLogs.map((log, index) => {
+                      const nextLog = switchLogs[index - 1]; // because switchLogs is sorted descending, the next chronograph occurs "previous" in array
+                      let durationStr = '';
+                      if (nextLog) {
+                        const seconds = Math.floor((nextLog.timestamp - log.timestamp) / 1000);
+                        const hours = Math.floor(seconds / 3600);
+                        const mins = Math.floor((seconds % 3600) / 60);
+                        if (hours > 0) {
+                          durationStr = lang === 'fr' ? `${hours}h ${mins}m` : `${hours}h ${mins}m`;
+                        } else {
+                          durationStr = lang === 'fr' ? `${mins} m` : `${mins} mins`;
+                        }
+                      }
+
+                      return (
+                        <div key={log.id} className="p-4 bg-app-card/65 rounded-xl border border-app-border/30 flex justify-between gap-4">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              {log.alterIds.map(id => {
+                                const alt = savedAlters.find(a => a.id === id);
+                                return (
+                                  <span key={id} className="px-2.5 py-1 text-xs font-extrabold bg-app-bg border border-app-border/45 rounded-lg text-app-text">
+                                    {alt?.alterName || 'Anonymous'}
+                                  </span>
+                                );
+                              })}
+                              {log.status && log.status !== 'none' && (
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block ${
+                                  log.status === 'primary' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
+                                  log.status === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
+                                  log.status === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
+                                  log.status === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                                  'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
+                                }`}>
+                                  {t.frontStatuses[log.status as keyof typeof t.frontStatuses] || log.status}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {log.notes && (
+                              <p className="text-xs text-app-text/80 leading-relaxed bg-app-bg/40 p-2.5 rounded-lg border border-app-border/10">
+                                {log.notes}
+                              </p>
+                            )}
+                            
+                            <div className="text-[10px] font-mono text-app-muted">
+                              {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} @ {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </div>
+                          </div>
+
+                          {/* Delete switch log or duration bubble */}
+                          <div className="flex flex-col justify-between items-end shrink-0 select-none">
+                            <button
+                              onClick={() => handleDeleteSwitchLog(log.id)}
+                              className="p-1 hover:bg-app-bg text-app-muted hover:text-red-500 rounded transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            {durationStr && (
+                              <span className="text-[9px] font-black uppercase tracking-widest bg-app-accent/15 text-app-accent px-2 py-1 rounded-full border border-app-accent/20">
+                                {durationStr}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* --- JOURNAL VIEW --- */}
+        {currentTab === 'journal' && (
+          <div className="space-y-8 max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{t.journalTitle}</h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">{t.journalSubtitle}</p>
+              </div>
+
+              {/* Search bar inside Journal */}
+              <div className="w-full md:w-72 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted" />
+                <input
+                  type="text"
+                  value={journalSearch}
+                  onChange={(e) => setJournalSearch(e.target.value)}
+                  placeholder={lang === 'fr' ? 'Chercher une note...' : 'Search notes...'}
+                  className="w-full bg-app-card border border-app-border/45 rounded-xl pl-11 pr-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+              
+              {/* Note Editor Area */}
+              <div className="lg:col-span-12 md:col-span-12 lg:col-span-4 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-5">
+                <h3 className="text-xs font-black uppercase tracking-widest text-app-accent flex items-center gap-1.5 border-b border-app-border/20 pb-2">
+                  <Feather className="w-4 h-4" />
+                  <span>{lang === 'fr' ? 'Rédiger une Note' : 'Compose Note'}</span>
+                </h3>
+
+                <form onSubmit={handleSaveJournalEntry} className="space-y-4">
+                  <div className="space-y-1">
+                    <input
+                      type="text"
+                      value={journalTitleInput}
+                      onChange={(e) => setJournalTitleInput(e.target.value)}
+                      placeholder={t.journalTitlePlaceholder}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <textarea
+                      value={journalContentInput}
+                      onChange={(e) => setJournalContentInput(e.target.value)}
+                      placeholder={t.journalContentPlaceholder}
+                      rows={6}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none text-app-text leading-relaxed"
+                    />
+                  </div>
+
+                  {/* Add Images/Photos */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-app-muted flex items-center gap-1.5 cursor-pointer hover:text-all">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{t.addPhotos}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          handleCompressAndStoreFiles(e.target.files, (urls) => {
+                            setJournalImages(prev => [...prev, ...urls]);
+                          });
+                        }}
+                      />
+                    </label>
+
+                    {/* Pre-upload previews */}
+                    {journalImages.length > 0 && (
+                      <div className="flex flex-wrap gap-2 p-2 bg-app-bg border border-app-border/30 rounded-xl">
+                        {journalImages.map((img, i) => (
+                          <div key={i} className="relative w-12 h-12 rounded-lg overflow-hidden border border-app-border/40 shrink-0">
+                            <img src={img} className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => setJournalImages(prev => prev.filter((_, idx) => idx !== i))}
+                              className="absolute inset-0 bg-black/60 flex items-center justify-center text-white font-all text-[9px]"
+                            >
+                              X
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                  >
+                    {t.createJournalEntry}
+                  </button>
+                </form>
+              </div>
+
+              {/* Journal Logs */}
+              <div className="lg:col-span-12 md:col-span-12 lg:col-span-8 space-y-6">
+                {(() => {
+                  const filteredEntries = journalEntries.filter(entry => 
+                    entry.title.toLowerCase().includes(journalSearch.toLowerCase()) || 
+                    entry.content.toLowerCase().includes(journalSearch.toLowerCase())
+                  );
+
+                  if (filteredEntries.length === 0) {
+                    return (
+                      <div className="text-center p-14 bg-app-card/35 rounded-2xl border border-app-border/20 text-app-muted uppercase tracking-widest text-[10px]">
+                        {t.noJournalEntries}
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[580px] overflow-y-auto pr-2">
+                      {filteredEntries.map(entry => (
+                        <div key={entry.id} className="p-5.5 bg-app-card/65 hover:bg-app-card/85 transition-colors border border-app-border/35 rounded-2xl shadow-sm space-y-4 flex flex-col justify-between">
+                          <div className="space-y-2">
+                            <h4 className="font-extrabold text-sm text-app-text">{entry.title}</h4>
+                            <p className="text-xs text-app-text/90 leading-relaxed whitespace-pre-wrap select-text">
+                              {entry.content}
+                            </p>
+                            
+                            {/* Images slider gallery grid */}
+                            {entry.images && entry.images.length > 0 && (
+                              <div className="grid grid-cols-3 gap-2 pt-2">
+                                {entry.images.map((img, i) => (
+                                  <a key={i} href={img} target="_blank" rel="noopener noreferrer" className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block">
+                                    <img src={img} className="w-full h-full object-cover" />
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex justify-between items-center pt-3 border-t border-app-border/15">
+                            <span className="text-[10px] font-mono text-app-muted">
+                              {new Date(entry.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteJournalEntry(entry.id)}
+                              className="p-1 px-2.5 bg-app-bg text-[10px] font-bold text-app-muted uppercase tracking-widest border border-app-border rounded-lg hover:text-red-500 hover:border-red-500/40 transition-colors"
+                            >
+                              {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Footer */}
@@ -2070,6 +3312,286 @@ export default function App() {
           </div>
         </div>
       </footer>
+      {/* Save Conflict Resolution Modal */}
+      <AnimatePresence>
+        {saveConflictAlter && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-lg rounded-3xl p-7 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent mx-auto">
+                <AlertCircle className="w-7 h-7" />
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-lg font-black uppercase tracking-wider text-app-text">
+                  {t.saveConflictTitle}
+                </h3>
+                <p className="text-sm text-app-muted leading-relaxed">
+                  {t.saveConflictDesc.replace('{name}', saveConflictAlter.alterName)}
+                </p>
+              </div>
+
+              {/* Quick Preview card details */}
+              <div className="p-4 bg-app-bg/55 border border-app-border/40 rounded-2xl flex items-center gap-4 text-left">
+                {saveConflictAlter.profileImage ? (
+                  <img src={saveConflictAlter.profileImage} className="w-12 h-12 rounded-xl object-cover shrink-0 border border-app-border/30" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-app-accent/10 border border-app-accent/20 text-app-accent font-black text-sm flex items-center justify-center shrink-0">
+                    {saveConflictAlter.alterName.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <div className="font-bold text-sm text-app-text truncate">{saveConflictAlter.alterName}</div>
+                  <div className="text-xs text-app-muted truncate">
+                    {saveConflictAlter.description || (lang === 'fr' ? 'Pas de description.' : 'No description.')}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    handleSaveAlter(saveConflictAlter.id, false);
+                    alert(
+                      lang === 'fr' 
+                        ? `Fiche mise à jour et rangée sous l'alter « ${saveConflictAlter.alterName} » !` 
+                        : `Card successfully updated and stored under alter "${saveConflictAlter.alterName}"!`
+                    );
+                  }}
+                  className="w-full py-3.5 bg-app-accent hover:opacity-95 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                >
+                  {t.saveOptionOverwrite}
+                </button>
+                
+                <button
+                  onClick={() => {
+                    handleSaveAlter(null, true);
+                    alert(lang === 'fr' ? 'Fiche enregistrée en tant que nouvel alter !' : 'Saved as a new separate alter!');
+                  }}
+                  className="w-full py-3.5 bg-app-bg border border-app-border hover:border-app-accent/30 text-app-text font-bold text-xs uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {t.saveOptionDuplicate}
+                </button>
+
+                <button
+                  onClick={() => setSaveConflictAlter(null)}
+                  className="w-full py-3.5 bg-transparent hover:bg-app-bg/10 text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {t.saveOptionCancel}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Alter Custom Confirmation Modal */}
+        {deleteConfirmAlterId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                  {lang === 'fr' ? 'Supprimer cet Alter ?' : 'Delete this Alter?'}
+                </h3>
+                <p className="text-xs text-app-muted leading-relaxed">
+                  {lang === 'fr' 
+                    ? 'Êtes-vous sûr de vouloir supprimer définitivement cette fiche ? Cette action est irréversible.' 
+                    : 'Are you sure you want to permanently delete this card? This action cannot be undone.'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => {
+                    const alter = savedAlters.find(a => a.id === deleteConfirmAlterId);
+                    executeDeleteAlter(deleteConfirmAlterId);
+                    alert(lang === 'fr' ? `L'alter « ${alter?.alterName || ''} » a été supprimé.` : `The alter "${alter?.alterName || ''}" has been deleted.`);
+                  }}
+                  className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                >
+                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmAlterId(null)}
+                  className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Subsystem Custom Confirmation Modal */}
+        {deleteConfirmSubsystemId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                  {lang === 'fr' ? 'Supprimer le sous-système ?' : 'Delete Subsystem?'}
+                </h3>
+                <p className="text-xs text-app-muted leading-relaxed">
+                  {lang === 'fr' 
+                    ? 'Voulez-vous supprimer ce sous-système ? Les sous-systèmes enfants et les alters associés seront rattachés au système parent supérieur.' 
+                    : 'Do you want to delete this subsystem? Child subsystems and associated alters will be attached to the parent system above.'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => executeDeleteSubsystem(deleteConfirmSubsystemId)}
+                  className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                >
+                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmSubsystemId(null)}
+                  className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Load Alter Custom Confirmation Modal */}
+        {loadConfirmAlter && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent mx-auto">
+                <Download className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                  {lang === 'fr' ? 'Charger cette fiche ?' : 'Load this card?'}
+                </h3>
+                <p className="text-xs text-app-muted leading-relaxed">
+                  {lang === 'fr' 
+                    ? 'Charger cette fiche écrasera les modifications en cours dans le créateur. Continuer ?' 
+                    : 'Loading this card will overwrite any unsaved modifications in the creator. Continue?'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => executeLoadAlter(loadConfirmAlter)}
+                  className="w-full py-3 bg-app-accent hover:opacity-90 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                >
+                  {lang === 'fr' ? 'Charger' : 'Load'}
+                </button>
+                <button
+                  onClick={() => setLoadConfirmAlter(null)}
+                  className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Switch Log Custom Confirmation Modal */}
+        {deleteConfirmSwitchLogId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                  {lang === 'fr' ? 'Supprimer ce switch ?' : 'Delete Switch Log?'}
+                </h3>
+                <p className="text-xs text-app-muted leading-relaxed">
+                  {lang === 'fr' 
+                    ? 'Êtes-vous sûr de vouloir supprimer définitivement ce switch enregistré ? Cette action est irréversible.' 
+                    : 'Are you sure you want to permanently delete this logged switch? This action cannot be undone.'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => executeDeleteSwitchLog(deleteConfirmSwitchLogId)}
+                  className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                >
+                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmSwitchLogId(null)}
+                  className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Delete Journal Entry Custom Confirmation Modal */}
+        {deleteConfirmJournalId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                <Trash2 className="w-7 h-7" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                  {lang === 'fr' ? 'Supprimer cette note ?' : 'Delete Note?'}
+                </h3>
+                <p className="text-xs text-app-muted leading-relaxed">
+                  {lang === 'fr' 
+                    ? 'Êtes-vous sûr de vouloir supprimer définitivement cette note de journal ? Cette action est irréversible.' 
+                    : 'Are you sure you want to permanently delete this journal note? This action cannot be undone.'}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => executeDeleteJournalEntry(deleteConfirmJournalId)}
+                  className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                >
+                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmJournalId(null)}
+                  className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                >
+                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

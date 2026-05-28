@@ -506,3 +506,53 @@ export const GENDER_COLORS: Record<Gender, string> = {
   [Gender.QUESTIONING]: '#6B7280',
   [Gender.OTHER]: '#4B5563',
 };
+
+export interface Subsystem {
+  id: string;
+  name: string;
+  parentId?: string; // hierarchical subsystem tree
+}
+
+export interface SavedAlter {
+  id: string;
+  alterName: string;
+  selectedRoles: AlterRole[];
+  selectedGenders: Gender[];
+  selectedSexualities: Sexuality[];
+  traitDecorations: TraitDecoration[];
+  patternLayers: PatternLayer[];
+  decorations: Decoration[];
+  customRoleColors: Record<string, string>;
+  customGenderColors: Record<string, string>;
+  customSexualityColors: Record<string, string>;
+  theme: Theme;
+  profileImage: string;
+  description: string;
+  internalNotes: string;
+  subsystemId?: string; // linked subsystem
+  frontStatus?: string; // e.g., 'none', 'primary', 'co_front', 'co_conscious', 'passive', 'dormant'
+}
+
+export interface ChatMessage {
+  id: string;
+  senderAlterId: string; // linked SavedAlter ID, or "external" for others
+  text: string;
+  timestamp: number;
+}
+
+export interface SwitchLog {
+  id: string;
+  alterIds: string[]; // support co-fronting
+  timestamp: number;
+  notes?: string;
+  status?: string; // the presence or front status associated with the switch
+}
+
+export interface JournalEntry {
+  id: string;
+  title: string;
+  content: string;
+  timestamp: number;
+  images: string[]; // array of base64 data URLs
+  authorAlterIds?: string[]; // optionally linked alters
+}
