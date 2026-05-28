@@ -1,5 +1,5 @@
 {
-  "name": "AlterProfile Creator",
+  "name": "Haven Space",
   "description": "Créez de superbes fiches de profils et d'identité pour les alters de votre système TDI/ATDS, basées sur leurs rôles, genres, sexualités et traits de personnalité et découvrez nos fiches interactives.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
