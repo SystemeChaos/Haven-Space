@@ -531,6 +531,7 @@ export interface SavedAlter {
   internalNotes: string;
   subsystemId?: string; // linked subsystem
   frontStatus?: string; // e.g., 'none', 'primary', 'co_front', 'co_conscious', 'passive', 'dormant'
+  pkId?: string; // optional PluralKit member ID
 }
 
 export interface ChatMessage {

@@ -241,8 +241,18 @@ export default function App() {
   const [journalImages, setJournalImages] = useState<string[]>([]);
   const [journalSearch, setJournalSearch] = useState('');
 
+  // --- PluralKit & Navigation Dropdown States ---
+  const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const [pkToken, setPkToken] = useState<string>(() => localStorage.getItem('pk_token') || '');
+  const [pkSystem, setPkSystem] = useState<any | null>(null);
+  const [pkMembers, setPkMembers] = useState<any[]>([]);
+  const [pkLoading, setPkLoading] = useState<boolean>(false);
+  const [pkError, setPkError] = useState<string | null>(null);
+  const [pkSuccess, setPkSuccess] = useState<string | null>(null);
+  const [isExportingPkId, setIsExportingPkId] = useState<string | null>(null);
+
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'journal'>('creator');
+  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'journal' | 'pluralkit'>('creator');
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
@@ -310,6 +320,157 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
   }, [journalEntries]);
+
+  // --- PluralKit Sync & Export Logic ---
+  const fetchPluralKitSystem = async (tokenValue: string) => {
+    if (!tokenValue) return;
+    setPkLoading(true);
+    setPkError(null);
+    setPkSuccess(null);
+    try {
+      const sysResponse = await fetch('https://api.pluralkit.me/v2/systems/@me', {
+        headers: {
+          'Authorization': tokenValue,
+        }
+      });
+      if (!sysResponse.ok) {
+        throw new Error(lang === 'fr' ? 'Jeton PluralKit invalide ou expiré.' : 'Invalid or expired PluralKit token.');
+      }
+      const sysData = await sysResponse.json();
+      setPkSystem(sysData);
+
+      const memResponse = await fetch('https://api.pluralkit.me/v2/systems/@me/members', {
+        headers: {
+          'Authorization': tokenValue,
+        }
+      });
+      if (!memResponse.ok) {
+        throw new Error(lang === 'fr' ? 'Impossible de récupérer les membres.' : 'Could not retrieve PluralKit members.');
+      }
+      const memData = await memResponse.json();
+      setPkMembers(memData);
+      
+      localStorage.setItem('pk_token', tokenValue);
+      setPkToken(tokenValue);
+    } catch (err: any) {
+      setPkError(err.message || 'Error connecting to PluralKit');
+      setPkSystem(null);
+      setPkMembers([]);
+    } finally {
+      setPkLoading(false);
+    }
+  };
+
+  const handleDisconnectPk = () => {
+    localStorage.removeItem('pk_token');
+    setPkToken('');
+    setPkSystem(null);
+    setPkMembers([]);
+    setPkSuccess(null);
+    setPkError(null);
+  };
+
+  const syncPluralKitToLocal = () => {
+    if (pkMembers.length === 0) return;
+    
+    setSavedAlters(prev => {
+      const updated = [...prev];
+      
+      pkMembers.forEach(member => {
+        const existingIndex = updated.findIndex(a => a.pkId === member.id || a.alterName.toLowerCase() === member.name.toLowerCase());
+        
+        const alterData: SavedAlter = {
+          id: existingIndex >= 0 ? updated[existingIndex].id : Date.now().toString() + Math.random().toString(36).substring(2, 9),
+          pkId: member.id,
+          alterName: member.name,
+          selectedRoles: existingIndex >= 0 ? updated[existingIndex].selectedRoles : [],
+          selectedGenders: existingIndex >= 0 ? updated[existingIndex].selectedGenders : [],
+          selectedSexualities: existingIndex >= 0 ? updated[existingIndex].selectedSexualities : [],
+          traitDecorations: existingIndex >= 0 ? updated[existingIndex].traitDecorations : [],
+          patternLayers: existingIndex >= 0 ? updated[existingIndex].patternLayers : [],
+          decorations: existingIndex >= 0 ? updated[existingIndex].decorations : [],
+          customRoleColors: existingIndex >= 0 ? updated[existingIndex].customRoleColors : {},
+          customGenderColors: existingIndex >= 0 ? updated[existingIndex].customGenderColors : {},
+          customSexualityColors: existingIndex >= 0 ? updated[existingIndex].customSexualityColors : {},
+          theme: existingIndex >= 0 ? updated[existingIndex].theme : Theme.LIGHT,
+          profileImage: member.avatar_url || (existingIndex >= 0 ? updated[existingIndex].profileImage : ''),
+          description: member.description || (existingIndex >= 0 ? updated[existingIndex].description : ''),
+          internalNotes: member.pronouns ? `${lang === 'fr' ? 'Pronoms' : 'Pronouns'}: ${member.pronouns}` : (existingIndex >= 0 ? updated[existingIndex].internalNotes : ''),
+          frontStatus: existingIndex >= 0 ? updated[existingIndex].frontStatus : 'none',
+          subsystemId: existingIndex >= 0 ? updated[existingIndex].subsystemId : undefined,
+        };
+        
+        if (existingIndex >= 0) {
+          updated[existingIndex] = alterData;
+        } else {
+          updated.push(alterData);
+        }
+      });
+      
+      return updated;
+    });
+    
+    setPkSuccess(lang === 'fr' ? 'Profils synchronisés avec succès dans la base d\'alters locale !' : 'Profiles successfully synced to your local alter database!');
+  };
+
+  const exportAlterToPluralKit = async (alter: SavedAlter) => {
+    if (!pkToken || !alter.pkId) return;
+    setIsExportingPkId(alter.pkId);
+    setPkError(null);
+    setPkSuccess(null);
+    try {
+      let pronouns = '';
+      if (alter.internalNotes) {
+        const matches = alter.internalNotes.match(/(?:Pronouns|Pronoms|Prons):\s*(.*)/i);
+        if (matches && matches[1]) pronouns = matches[1].trim();
+      }
+
+      const bodyData: Record<string, any> = {
+        name: alter.alterName,
+        description: alter.description || null,
+        avatar_url: alter.profileImage || null
+      };
+      if (pronouns) {
+        bodyData.pronouns = pronouns;
+      }
+
+      const response = await fetch(`https://api.pluralkit.me/v2/members/${alter.pkId}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': pkToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bodyData)
+      });
+
+      if (!response.ok) {
+        throw new Error(lang === 'fr' ? 'Erreur de mise à jour sur PluralKit. Jeton invalide ou expiré.' : 'PluralKit update failed. Token might be invalid/expired.');
+      }
+
+      // Re-fetch members to keep sync fresh
+      const memResponse = await fetch('https://api.pluralkit.me/v2/systems/@me/members', {
+        headers: {
+          'Authorization': pkToken,
+        }
+      });
+      if (memResponse.ok) {
+        const memData = await memResponse.json();
+        setPkMembers(memData);
+      }
+
+      setPkSuccess(lang === 'fr' ? `Membre ${alter.alterName} mis à jour sur PluralKit !` : `Member ${alter.alterName} successfully updated on PluralKit!`);
+    } catch (err: any) {
+      setPkError(err.message || 'Error exporting to PluralKit');
+    } finally {
+      setIsExportingPkId(null);
+    }
+  };
+
+  useEffect(() => {
+    if (pkToken) {
+      fetchPluralKitSystem(pkToken);
+    }
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -619,7 +780,9 @@ export default function App() {
     }
 
     const freshId = targetId || Math.random().toString(36).substring(2, 11);
-    const existingSubsystemId = savedAlters.find(a => a.id === targetId)?.subsystemId;
+    const existingAlter = savedAlters.find(a => a.id === targetId) || (editingAlterId ? savedAlters.find(a => a.id === editingAlterId) : null);
+    const existingSubsystemId = existingAlter?.subsystemId;
+    const existingPkId = existingAlter?.pkId;
 
     const freshAlter: SavedAlter = {
       id: freshId,
@@ -639,6 +802,7 @@ export default function App() {
       internalNotes,
       subsystemId: existingSubsystemId,
       frontStatus: frontStatus || 'none',
+      pkId: existingPkId,
     };
 
     if (savedAlters.some(a => a.id === freshId)) {
@@ -1699,69 +1863,87 @@ export default function App() {
         </div>
       </header>
 
-      {/* Secondary Navigation Menu & System Info */}
-      <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4.5 px-8 sticky top-0 z-40">
+      {/* Secondary Navigation Dropdown Menu & System Info */}
+      <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4 px-8 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center justify-center md:justify-start gap-2">
+          <div className="relative w-full md:w-80 z-50">
+            {/* The Dropdown Trigger Button */}
             <button
-              onClick={() => setCurrentTab('system')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                currentTab === 'system'
-                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
-                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
-              }`}
+              onClick={() => setNavMenuOpen(!navMenuOpen)}
+              className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 active:scale-98 transition-all shadow-md select-none"
             >
-              <Users className="w-3.5 h-3.5" />
-              <span>{t.menuMySystem}</span>
+              <div className="flex items-center gap-3">
+                {(() => {
+                  const options = [
+                    { value: 'system', label: t.menuMySystem, icon: Users },
+                    { value: 'creator', label: t.menuCreator, icon: Hammer },
+                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
+                    { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
+                    { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
+                  ];
+                  const currentOpt = options.find(o => o.value === currentTab) || options[0];
+                  const CurrentIcon = currentOpt.icon;
+                  return (
+                    <>
+                      <CurrentIcon className="w-4 h-4 text-app-accent animate-pulse" />
+                      <span className="text-app-text font-black tracking-widest">{currentOpt.label}</span>
+                    </>
+                  );
+                })()}
+              </div>
+              <ChevronDown className={`w-4 h-4 text-app-muted transition-transform duration-300 ${navMenuOpen ? 'rotate-180 text-app-accent' : ''}`} />
             </button>
 
-            <button
-              onClick={() => setCurrentTab('creator')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                currentTab === 'creator'
-                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
-                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
-              }`}
-            >
-              <Hammer className="w-3.5 h-3.5" />
-              <span>{t.menuCreator}</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentTab('chat')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                currentTab === 'chat'
-                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
-                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
-              }`}
-            >
-              <MessageSquareQuote className="w-3.5 h-3.5" />
-              <span>{t.menuChat}</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentTab('switch')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                currentTab === 'switch'
-                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
-                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
-              }`}
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5" />
-              <span>{t.menuSwitches}</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentTab('journal')}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${
-                currentTab === 'journal'
-                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
-                  : 'bg-app-card border-app-border/45 text-app-text/70 hover:border-app-accent/40 hover:text-app-text'
-              }`}
-            >
-              <Book className="w-3.5 h-3.5" />
-              <span>{t.menuJournal}</span>
-            </button>
+            {/* Dropdown Options Drawer Overlay */}
+            {navMenuOpen && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40 bg-transparent" 
+                  onClick={() => setNavMenuOpen(false)} 
+                />
+                <motion.div
+                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                  transition={{ duration: 0.15 }}
+                  className="absolute left-0 right-0 mt-2 z-50 rounded-2xl border border-app-border bg-app-card/95 backdrop-blur-xl shadow-2xl p-1.5 space-y-1"
+                >
+                  {[
+                    { value: 'system', label: t.menuMySystem, icon: Users },
+                    { value: 'creator', label: t.menuCreator, icon: Hammer },
+                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
+                    { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
+                    { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
+                  ].map((opt) => {
+                    const IconComponent = opt.icon;
+                    const isActive = currentTab === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          setCurrentTab(opt.value as any);
+                          setNavMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-left text-xs font-black uppercase tracking-widest transition-all ${
+                          isActive
+                            ? 'bg-app-accent text-white shadow-md'
+                            : 'text-app-text/75 hover:bg-app-bg hover:text-app-text border border-transparent'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-app-muted'}`} />
+                          <span>{opt.label}</span>
+                        </div>
+                        {isActive && <div className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />}
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              </>
+            )}
           </div>
 
           {/* Nombre d'Alter count element */}
@@ -2530,6 +2712,39 @@ export default function App() {
 
             {/* Export and Action Panel */}
             <div className="flex flex-col gap-4 w-full">
+              {(() => {
+                const editingAlter = editingAlterId ? savedAlters.find(a => a.id === editingAlterId) : null;
+                if (editingAlter && editingAlter.pkId && pkToken) {
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: -5 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-green-500/10 border border-green-500/15 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Link2 className="w-3.5 h-3.5 text-green-500 animate-pulse" />
+                        <span className="font-extrabold uppercase tracking-widest text-[9px] text-green-500">
+                          {lang === 'fr' ? 'Lié à PluralKit' : 'Linked to PluralKit'}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => exportAlterToPluralKit(editingAlter)}
+                        disabled={isExportingPkId === editingAlter.pkId}
+                        className="w-full sm:w-auto px-4 py-2 bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-extrabold text-[9px] uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center justify-center gap-1.5"
+                      >
+                        {isExportingPkId === editingAlter.pkId ? (
+                          <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                        ) : (
+                          <Upload className="w-3 h-3" />
+                        )}
+                        <span>{t.pkExportBtn}</span>
+                      </button>
+                    </motion.div>
+                  );
+                }
+                return null;
+              })()}
+
               {/* Primary Save Action */}
               <div className="flex gap-3">
                 <button
@@ -3294,6 +3509,238 @@ export default function App() {
               </div>
 
             </div>
+          </div>
+        )}
+
+        {/* --- PLURALKIT VIEW --- */}
+        {currentTab === 'pluralkit' && (
+          <div className="space-y-8 max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <div>
+              <h2 className="text-2xl font-black uppercase tracking-wider">{t.pkTitle}</h2>
+              <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">{t.pkSubtitle}</p>
+            </div>
+
+            {/* Notifications / Error/Success Statuses */}
+            {pkError && (
+              <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{pkError}</span>
+              </div>
+            )}
+            {pkSuccess && (
+              <div className="p-4 bg-green-500/10 border border-green-500/30 text-green-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 animate-bounce" />
+                <span>{pkSuccess}</span>
+              </div>
+            )}
+
+            {/* Setup & Connection Box */}
+            {!pkSystem ? (
+              <div className="p-6 bg-app-card border border-app-border rounded-2xl md:p-8 space-y-6">
+                <div className="space-y-2">
+                  <h3 className="font-extrabold text-sm uppercase tracking-widest text-app-text">
+                    {lang === 'fr' ? 'Configuration de la connexion API' : 'API Connection Configuration'}
+                  </h3>
+                  <p className="text-xs text-app-muted leading-relaxed">
+                    {lang === 'fr' 
+                      ? "Pour synchroniser vos alters et automatiser leurs fiches, saisissez votre jeton secret d'API PluralKit. Vous pouvez l'obtenir sur Discord en envoyant la commande pk;token au bot PluralKit." 
+                      : 'To synchronize and configure your alters, enter your secret PluralKit API token. You can retrieve it on Discord by typing the pk;token command to the PluralKit bot.'}
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <label className="block text-[10px] font-black uppercase tracking-widest text-app-muted">{t.pkTokenLabel}</label>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input
+                      type="password"
+                      value={pkToken}
+                      onChange={(e) => setPkToken(e.target.value)}
+                      placeholder={t.pkTokenPlaceholder}
+                      className="flex-1 bg-app-bg px-4 py-3 border border-app-border rounded-xl text-xs font-semibold focus:outline-none focus:border-app-accent text-app-text"
+                    />
+                    <button
+                      onClick={() => fetchPluralKitSystem(pkToken)}
+                      disabled={pkLoading || !pkToken}
+                      className="px-6 py-3 bg-app-accent hover:opacity-90 disabled:opacity-50 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all flex items-center justify-center gap-2"
+                    >
+                      {pkLoading ? (
+                        <>
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>{lang === 'fr' ? 'Connexion...' : 'Connecting...'}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Link className="w-3.5 h-3.5" />
+                          <span>{t.pkConnectBtn}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-6 bg-app-card border border-app-border rounded-2xl md:p-8 space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-app-accent/10 border border-app-accent/25 flex items-center justify-center text-app-accent text-sm font-black uppercase">
+                      {pkSystem.name ? pkSystem.name.substring(0, 2) : 'PK'}
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-app-text">{pkSystem.name || 'PluralKit System'}</h3>
+                      <p className="text-[10px] text-app-muted font-mono">ID: {pkSystem.id}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleDisconnectPk}
+                    className="px-4.5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/25 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                  >
+                    {t.pkDisconnectBtn}
+                  </button>
+                </div>
+
+                {pkSystem.description && (
+                  <p className="text-xs text-app-text/90 italic leading-relaxed whitespace-pre-wrap">
+                    "{pkSystem.description}"
+                  </p>
+                )}
+
+                <div className="pt-4 border-t border-app-border/15 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase text-app-muted tracking-wider">{lang === 'fr' ? 'Actions de synchronisation' : 'Sync Actions'}</p>
+                    <p className="text-[10px] text-app-muted leading-relaxed mt-1">
+                      {lang === 'fr' 
+                        ? "En cliquant ci-dessous, tous vos membres PluralKit seront sauvegardés comme fiches d'alters modifiables dans l'application." 
+                        : 'By syncing, all of your PluralKit members will be saved as fully editable alter profiles in this application.'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={syncPluralKitToLocal}
+                    className="w-full sm:w-auto px-6 py-3 bg-app-text text-app-bg hover:opacity-90 font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-md"
+                  >
+                    <Repeat className="w-3.5 h-3.5" />
+                    <span>{t.pkSyncAllBtn}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PluralKit Members Cards Roster */}
+            {pkSystem && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between border-b border-app-border/20 pb-3">
+                  <h3 className="font-black text-sm uppercase tracking-widest text-app-text">
+                    {lang === 'fr' ? 'Membres du Système' : 'System Members'} ({pkMembers.length})
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {pkMembers.map((member) => {
+                    const localAlter = savedAlters.find(a => a.pkId === member.id || a.alterName.toLowerCase() === member.name.toLowerCase());
+                    return (
+                      <div key={member.id} className="p-5.5 bg-app-card/65 rounded-2xl border border-app-border/35 hover:border-app-accent/20 transition-all flex flex-col justify-between space-y-4 shadow-sm">
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-full overflow-hidden border border-app-border flex-shrink-0 bg-app-bg aspect-square">
+                              {member.avatar_url ? (
+                                <img src={member.avatar_url} referrerPolicy="no-referrer" className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full bg-app-accent/5 flex items-center justify-center font-bold text-xs text-app-text">
+                                  {member.name.substring(0, 2).toUpperCase()}
+                                </div>
+                              )}
+                            </div>
+                            <div className="overflow-hidden">
+                              <h4 className="font-extrabold text-sm text-app-text truncate">{member.name}</h4>
+                              {member.pronouns && (
+                                <span className="inline-block px-2 py-0.5 rounded-md bg-app-bg border border-app-border text-[9px] font-bold text-app-muted mt-1 uppercase tracking-wider">
+                                  {member.pronouns}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {member.description && (
+                            <p className="text-xs text-app-muted line-clamp-3 select-text leading-relaxed">
+                              {member.description}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="pt-3.5 border-t border-app-border/15 flex flex-col gap-2">
+                          {localAlter ? (
+                            <>
+                              <div className="flex items-center justify-between text-[10px] text-green-500 font-bold uppercase tracking-wider bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/15">
+                                <span className="flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  {lang === 'fr' ? 'Synchronisé' : 'Synchronized'}
+                                </span>
+                                <span className="font-mono text-[9px] opacity-75">PK: {member.id}</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => {
+                                    executeLoadAlter(localAlter);
+                                    setCurrentTab('creator');
+                                    alert(lang === 'fr' ? 'Alter chargé dans le créateur !' : 'Alter loaded into card creator!');
+                                  }}
+                                  className="flex-1 py-3 px-3 bg-app-accent hover:opacity-90 text-[10px] font-black uppercase tracking-widest text-white rounded-lg transition-all"
+                                >
+                                  {lang === 'fr' ? 'Modifier la Fiche' : 'Edit Profile'}
+                                </button>
+                                
+                                <button
+                                  onClick={() => exportAlterToPluralKit(localAlter)}
+                                  disabled={isExportingPkId === member.id}
+                                  className="py-3 px-3 bg-app-bg border border-app-border hover:border-app-accent/30 text-[10px] font-black uppercase tracking-widest text-app-text rounded-lg transition-all flex items-center justify-center"
+                                  title={lang === 'fr' ? "Remplacer les données de PluralKit par la fiche locale" : "Overwrite PluralKit data with this local card"}
+                                >
+                                  {isExportingPkId === member.id ? (
+                                    <div className="w-3 h-3 border border-app-text border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Upload className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              </div>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSavedAlters(prev => {
+                                  const alterData: SavedAlter = {
+                                    id: Date.now().toString() + Math.random().toString(36).substring(2, 9),
+                                    pkId: member.id,
+                                    alterName: member.name,
+                                    selectedRoles: [],
+                                    selectedGenders: [],
+                                    selectedSexualities: [],
+                                    traitDecorations: [],
+                                    patternLayers: [],
+                                    decorations: [],
+                                    customRoleColors: {},
+                                    customGenderColors: {},
+                                    customSexualityColors: {},
+                                    theme: Theme.LIGHT,
+                                    profileImage: member.avatar_url || '',
+                                    description: member.description || '',
+                                    internalNotes: member.pronouns ? `${lang === 'fr' ? 'Pronoms' : 'Pronouns'}: ${member.pronouns}` : '',
+                                    frontStatus: 'none',
+                                  };
+                                  return [...prev, alterData];
+                                });
+                                setPkSuccess(lang === 'fr' ? `Membre ${member.name} importé avec succès !` : `Member ${member.name} successfully imported!`);
+                              }}
+                              className="w-full py-2 bg-app-bg border border-app-border hover:border-app-accent/30 text-[10px] font-black uppercase tracking-widest text-app-text rounded-lg transition-all"
+                            >
+                              {lang === 'fr' ? 'Importer comme Alter' : 'Import as Alter'}
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
