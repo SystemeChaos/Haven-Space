@@ -130,6 +130,7 @@ import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_C
 import { translations } from './translations';
 import { jsPDF } from 'jspdf';
 import LegalPages, { LegalPage } from './components/LegalPages';
+import SwitchAnalytics from './components/SwitchAnalytics';
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
@@ -4039,6 +4040,9 @@ export default function App() {
               </div>
 
             </div>
+
+            {/* Diagramme continu quotidien/hebdomadaire des switchs */}
+            <SwitchAnalytics switchLogs={switchLogs} savedAlters={savedAlters} lang={lang} t={t} />
           </div>
         )}
 
