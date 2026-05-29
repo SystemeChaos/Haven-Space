@@ -107,6 +107,9 @@ import {
   Laugh,
   MessageSquareQuote,
   Timer,
+  BarChart3,
+  Vote,
+  Clock,
   Home,
   ArrowLeftRight,
   UserCheck,
@@ -121,15 +124,18 @@ import {
   Umbrella,
   DoorOpen,
   Save,
+  FileJson,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, Subsystem, ChatMessage, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import { jsPDF } from 'jspdf';
+import LegalPages, { LegalPage } from './components/LegalPages';
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
   const [font, setFont] = useState<string>('font-sans');
   const [theme, setTheme] = useState<Theme>(Theme.LIGHT);
+  const [activeLegalPage, setActiveLegalPage] = useState<LegalPage | null>(null);
 
   const fonts = [
     { name: 'Sans', value: 'font-sans' },
@@ -231,6 +237,13 @@ export default function App() {
   
   const [chatSpeakerId, setChatSpeakerId] = useState<string>('external');
   const [chatText, setChatText] = useState('');
+  
+  // --- Chat Poll Creator States ---
+  const [showPollCreator, setShowPollCreator] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState<string[]>(['', '']);
+  const [pollDuration, setPollDuration] = useState<number>(5);
+  const [pollDurationUnit, setPollDurationUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
 
   const [switchSelectedAlterIds, setSwitchSelectedAlterIds] = useState<string[]>([]);
   const [switchSelectedStatus, setSwitchSelectedStatus] = useState<string>('co_front');
@@ -254,6 +267,12 @@ export default function App() {
   const [pkError, setPkError] = useState<string | null>(null);
   const [pkSuccess, setPkSuccess] = useState<string | null>(null);
   const [isExportingPkId, setIsExportingPkId] = useState<string | null>(null);
+
+  // --- JSON Synchronisation / Backup States ---
+  const [jsonError, setJsonError] = useState<string | null>(null);
+  const [jsonSuccess, setJsonSuccess] = useState<string | null>(null);
+  const [jsonDragOver, setJsonDragOver] = useState<boolean>(false);
+  const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
   const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'journal' | 'pluralkit'>('system');
@@ -476,12 +495,252 @@ export default function App() {
     }
   }, []);
 
+  // --- JSON Backup Synchronisation Logical Handlers ---
+  const handleExportJSON = () => {
+    try {
+      const dataToExport = {
+        version: 1,
+        exportedAt: Date.now(),
+        mainSystemName: localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
+        savedAlters,
+        subsystems,
+        chatMessages,
+        switchLogs,
+        journalEntries
+      };
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `heaven_space_backup_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+
+      setJsonSuccess(lang === 'fr' ? "Fichier de sauvegarde exporté avec succès !" : "Backup file exported successfully!");
+      setJsonError(null);
+    } catch (err: any) {
+      setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
+      setJsonSuccess(null);
+    }
+  };
+
+  const readAndParseJSONFile = (file: File) => {
+    setJsonError(null);
+    setJsonSuccess(null);
+    setImportPreview(null);
+
+    // Some systems export JSON with standard type or raw file system extensions
+    const isJsonFile = file.type === "application/json" || file.name.endsWith('.json');
+    if (!isJsonFile) {
+      setJsonError(lang === 'fr' 
+        ? "Format de fichier invalide. Veuillez importer un fichier .json de sauvegarde." 
+        : "Invalid file format. Please import a .json backup file."
+      );
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const text = event.target?.result as string;
+        const parsed = JSON.parse(text);
+
+        if (!parsed || typeof parsed !== 'object') {
+          throw new Error(lang === 'fr' ? "Le fichier n'contient pas un objet JSON valide." : "The file does not contain a valid JSON object.");
+        }
+
+        const altersCount = Array.isArray(parsed.savedAlters) ? parsed.savedAlters.length : 0;
+        const subsystemsCount = Array.isArray(parsed.subsystems) ? parsed.subsystems.length : 0;
+        const chatsCount = Array.isArray(parsed.chatMessages) ? parsed.chatMessages.length : 0;
+        const switchesCount = Array.isArray(parsed.switchLogs) ? parsed.switchLogs.length : 0;
+        const journalsCount = Array.isArray(parsed.journalEntries) ? parsed.journalEntries.length : 0;
+
+        if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0) {
+          throw new Error(lang === 'fr' 
+            ? "Le fichier ne contient aucune donnée compatible ou aucune donnée de système." 
+            : "The file contains no compatible system data."
+          );
+        }
+
+        setImportPreview({
+          data: parsed,
+          fileName: file.name,
+          altersCount,
+          subsystemsCount,
+          chatsCount,
+          switchesCount,
+          journalsCount,
+          systemName: parsed.mainSystemName || (lang === 'fr' ? 'Système Importé' : 'Imported System')
+        });
+      } catch (err: any) {
+        setJsonError(lang === 'fr' ? `Erreur de lecture du JSON : ${err.message}` : `JSON Error parsing: ${err.message}`);
+      }
+    };
+    reader.onerror = () => {
+      setJsonError(lang === 'fr' ? "Erreur de lecture du fichier." : "File read error.");
+    };
+    reader.readAsText(file);
+  };
+
+  const handleJSONFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      readAndParseJSONFile(file);
+    }
+  };
+
+  const handleJSONDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setJsonDragOver(true);
+  };
+
+  const handleJSONDragLeave = () => {
+    setJsonDragOver(false);
+  };
+
+  const handleJSONDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setJsonDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      readAndParseJSONFile(file);
+    }
+  };
+
+  const handleApplyImportOverwrite = () => {
+    if (!importPreview) return;
+    const { data } = importPreview;
+
+    try {
+      if (data.mainSystemName) {
+        setMainSystemName(data.mainSystemName);
+        localStorage.setItem('mainSystemName', data.mainSystemName);
+      }
+      
+      const importedAlters = Array.isArray(data.savedAlters) ? data.savedAlters : [];
+      setSavedAlters(importedAlters);
+      localStorage.setItem('savedAlters', JSON.stringify(importedAlters));
+
+      const importedSubsystems = Array.isArray(data.subsystems) ? data.subsystems : [];
+      setSubsystems(importedSubsystems);
+      localStorage.setItem('subsystems', JSON.stringify(importedSubsystems));
+
+      const importedChat = Array.isArray(data.chatMessages) ? data.chatMessages : [];
+      setChatMessages(importedChat);
+      localStorage.setItem('chatMessages', JSON.stringify(importedChat));
+
+      const importedSwitches = Array.isArray(data.switchLogs) ? data.switchLogs : [];
+      setSwitchLogs(importedSwitches);
+      localStorage.setItem('switchLogs', JSON.stringify(importedSwitches));
+
+      const importedJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
+      setJournalEntries(importedJournals);
+      localStorage.setItem('journalEntries', JSON.stringify(importedJournals));
+
+      setJsonSuccess(lang === 'fr' 
+        ? "Toutes vos données ont été remplacées par la sauvegarde !" 
+        : "Successfully replaced all local data with the backup!"
+      );
+      setJsonError(null);
+      setImportPreview(null);
+    } catch (err: any) {
+      setJsonError(lang === 'fr' ? `Échec du remplacement : ${err.message}` : `Overwrite failed: ${err.message}`);
+    }
+  };
+
+  const handleApplyImportMerge = () => {
+    if (!importPreview) return;
+    const { data } = importPreview;
+
+    try {
+      // 1. System Name: only replace if empty/unset
+      if (data.mainSystemName && (!mainSystemName || mainSystemName === 'Système Principal' || mainSystemName === 'Primary System')) {
+        setMainSystemName(data.mainSystemName);
+        localStorage.setItem('mainSystemName', data.mainSystemName);
+      }
+
+      // 2. savedAlters: overwrite duplicates by ID or name, add new
+      const currentAlters = [...savedAlters];
+      const incomingAlters = Array.isArray(data.savedAlters) ? data.savedAlters : [];
+      incomingAlters.forEach((incoming: SavedAlter) => {
+        const existingIndex = currentAlters.findIndex(a => a.id === incoming.id || a.alterName.toLowerCase() === incoming.alterName.toLowerCase());
+        if (existingIndex > -1) {
+          currentAlters[existingIndex] = { ...currentAlters[existingIndex], ...incoming };
+        } else {
+          currentAlters.push(incoming);
+        }
+      });
+      setSavedAlters(currentAlters);
+      localStorage.setItem('savedAlters', JSON.stringify(currentAlters));
+
+      // 3. Subsystems
+      const currentSubsystems = [...subsystems];
+      const incomingSubsystems = Array.isArray(data.subsystems) ? data.subsystems : [];
+      incomingSubsystems.forEach((incoming: Subsystem) => {
+        const existingIndex = currentSubsystems.findIndex(s => s.id === incoming.id || s.name.toLowerCase() === incoming.name.toLowerCase());
+        if (existingIndex > -1) {
+          currentSubsystems[existingIndex] = { ...currentSubsystems[existingIndex], ...incoming };
+        } else {
+          currentSubsystems.push(incoming);
+        }
+      });
+      setSubsystems(currentSubsystems);
+      localStorage.setItem('subsystems', JSON.stringify(currentSubsystems));
+
+      // 4. Chat Messages: merge unique by id
+      const currentChat = [...chatMessages];
+      const incomingChat = Array.isArray(data.chatMessages) ? data.chatMessages : [];
+      incomingChat.forEach((incoming: ChatMessage) => {
+        if (!currentChat.some(msg => msg.id === incoming.id)) {
+          currentChat.push(incoming);
+        }
+      });
+      currentChat.sort((a, b) => a.timestamp - b.timestamp);
+      setChatMessages(currentChat);
+      localStorage.setItem('chatMessages', JSON.stringify(currentChat));
+
+      // 5. Switch Logs: merge unique by id or timestamp
+      const currentSwitches = [...switchLogs];
+      const incomingSwitches = Array.isArray(data.switchLogs) ? data.switchLogs : [];
+      incomingSwitches.forEach((incoming: SwitchLog) => {
+        if (!currentSwitches.some(sw => sw.id === incoming.id || sw.timestamp === incoming.timestamp)) {
+          currentSwitches.push(incoming);
+        }
+      });
+      currentSwitches.sort((a, b) => b.timestamp - a.timestamp);
+      setSwitchLogs(currentSwitches);
+      localStorage.setItem('switchLogs', JSON.stringify(currentSwitches));
+
+      // 6. Journal Entries: merge unique by id or identical title & date
+      const currentJournals = [...journalEntries];
+      const incomingJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
+      incomingJournals.forEach((incoming: JournalEntry) => {
+        if (!currentJournals.some(j => j.id === incoming.id || (j.title === incoming.title && j.timestamp === incoming.timestamp))) {
+          currentJournals.push(incoming);
+        }
+      });
+      currentJournals.sort((a, b) => b.timestamp - a.timestamp);
+      setJournalEntries(currentJournals);
+      localStorage.setItem('journalEntries', JSON.stringify(currentJournals));
+
+      setJsonSuccess(lang === 'fr' 
+        ? "Les données ont été fusionnées avec vos données existantes avec succès !" 
+        : "Backup data successfully merged with your current local data!"
+      );
+      setJsonError(null);
+      setImportPreview(null);
+    } catch (err: any) {
+      setJsonError(lang === 'fr' ? `Échec de la fusion : ${err.message}` : `Merge failed: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     const root = document.documentElement;
     const styles = getThemeStyles();
     
     // Reset properties first to ensure clean state
-    ['--color-app-bg', '--color-app-text', '--color-app-card', '--color-app-border', '--color-app-accent', '--color-app-muted'].forEach(prop => {
+    ['--color-app-bg', '--color-app-text', '--color-app-card', '--color-app-border', '--color-app-accent', '--color-app-muted', '--color-app-accent-text'].forEach(prop => {
       root.style.removeProperty(prop);
     });
 
@@ -728,7 +987,7 @@ export default function App() {
     }
 
     content += `\n==========================================\n`;
-    content += `Generated by Haven Space © 2026`;
+    content += `Generated by Heaven Space © 2026`;
 
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -922,6 +1181,174 @@ export default function App() {
     setChatText('');
   };
 
+  const handleSendChatPoll = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pollQuestion.trim()) return;
+    const validOptions = pollOptions.filter(o => o.trim() !== '');
+    if (validOptions.length < 2) return;
+
+    let durationMs = 0;
+    let durationMinutesCalculated = 0;
+    if (pollDurationUnit === 'minutes') {
+      durationMs = pollDuration * 60 * 1000;
+      durationMinutesCalculated = pollDuration;
+    } else if (pollDurationUnit === 'hours') {
+      durationMs = pollDuration * 60 * 60 * 1000;
+      durationMinutesCalculated = pollDuration * 60;
+    } else {
+      durationMs = pollDuration * 24 * 60 * 60 * 1000;
+      durationMinutesCalculated = pollDuration * 24 * 60;
+    }
+
+    const newMsg: ChatMessage = {
+      id: Math.random().toString(36).substring(2, 11),
+      senderAlterId: chatSpeakerId,
+      text: `${lang === 'fr' ? 'Sondage :' : 'Poll :'} ${pollQuestion.trim()}`,
+      timestamp: Date.now(),
+      poll: {
+        question: pollQuestion.trim(),
+        options: validOptions.map(txt => ({
+          id: Math.random().toString(36).substring(2, 11),
+          text: txt.trim(),
+          votes: []
+        })),
+        expiresAt: Date.now() + durationMs,
+        durationMinutes: durationMinutesCalculated,
+      }
+    };
+
+    setChatMessages(prev => [...prev, newMsg]);
+    setPollQuestion('');
+    setPollOptions(['', '']);
+    setShowPollCreator(false);
+  };
+
+  const handleVoteOnPoll = (messageId: string, optionId: string) => {
+    setChatMessages(prev => prev.map(msg => {
+      if (msg.id !== messageId || !msg.poll) return msg;
+
+      // Check if poll is already closed
+      if (Date.now() > msg.poll.expiresAt) return msg;
+
+      const voterId = chatSpeakerId; // Cast vote as the currently selected speaking alter
+
+      const updatedOptions = msg.poll.options.map(opt => {
+        const hasVotedThis = opt.votes.includes(voterId);
+        if (opt.id === optionId) {
+          if (hasVotedThis) {
+            // Unvote
+            return { ...opt, votes: opt.votes.filter(v => v !== voterId) };
+          } else {
+            // Vote for this
+            return { ...opt, votes: [...opt.votes, voterId] };
+          }
+        } else {
+          // Remove from other options
+          return { ...opt, votes: opt.votes.filter(v => v !== voterId) };
+        }
+      });
+
+      return {
+        ...msg,
+        poll: {
+          ...msg.poll,
+          options: updatedOptions
+        }
+      };
+    }));
+  };
+
+  const renderPollWidget = (msg: ChatMessage) => {
+    if (!msg.poll) return null;
+    const poll = msg.poll;
+    const totalVotes = poll.options.reduce((acc, curr) => acc + curr.votes.length, 0);
+    const isExpired = Date.now() > poll.expiresAt;
+    
+    const getRemainingTimeText = (expiresAt: number) => {
+      const diffMs = expiresAt - Date.now();
+      if (diffMs <= 0) {
+        return lang === 'fr' ? 'Sondage clos' : 'Poll closed';
+      }
+      const diffMins = Math.ceil(diffMs / (60 * 1000));
+      if (diffMins < 60) {
+        return lang === 'fr' ? `Ferme dans ${diffMins} min` : `Closes in ${diffMins} min`;
+      }
+      const diffHours = Math.ceil(diffMins / 60);
+      if (diffHours < 24) {
+        return lang === 'fr' ? `Ferme dans ${diffHours} h` : `Closes in ${diffHours} h`;
+      }
+      const diffDays = Math.ceil(diffHours / 24);
+      return lang === 'fr' ? `Ferme dans ${diffDays} j` : `Closes in ${diffDays} d`;
+    };
+
+    return (
+      <div className="mt-1.5 p-4.5 bg-app-card border border-app-border rounded-xl space-y-4 shadow-sm max-w-md">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2 text-[9px] text-app-muted font-black uppercase tracking-widest">
+            <BarChart3 className="w-3.5 h-3.5 text-app-accent" />
+            <span>{lang === 'fr' ? 'Sondage interne' : 'Internal Poll'}</span>
+          </div>
+          <h4 className="text-sm font-black text-app-text leading-tight w-full break-words select-text">
+            {poll.question}
+          </h4>
+          <div className="flex items-center gap-2 text-[10px] text-app-muted font-bold tracking-wider">
+            <Clock className="w-3.5 h-3.5" />
+            <span>{getRemainingTimeText(poll.expiresAt)}</span>
+            <span>•</span>
+            <span>{totalVotes} {totalVotes > 1 ? (lang === 'fr' ? 'votes' : 'votes') : (lang === 'fr' ? 'vote' : 'vote')}</span>
+          </div>
+        </div>
+
+        <div className="space-y-2.5">
+          {poll.options.map(opt => {
+            const count = opt.votes.length;
+            const percent = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+            const hasVoted = opt.votes.includes(chatSpeakerId);
+            
+            // Get names of alters who voted
+            const voterNames = opt.votes.map(vId => {
+              if (vId === 'external') return lang === 'fr' ? 'Hôte' : 'Host';
+              return savedAlters.find(a => a.id === vId)?.alterName || 'Alter';
+            }).join(', ');
+
+            return (
+              <div key={opt.id} className="space-y-1">
+                <button
+                  type="button"
+                  disabled={isExpired}
+                  onClick={() => handleVoteOnPoll(msg.id, opt.id)}
+                  className={`relative w-full overflow-hidden text-left p-3.5 rounded-xl border transition-all text-xs flex justify-between items-center ${
+                    isExpired 
+                      ? 'border-app-border/40 bg-app-bg/20 cursor-default' 
+                      : 'border-app-border cursor-pointer hover:border-app-accent/40 hover:bg-app-accent/5'
+                  } ${hasVoted ? 'border-app-accent ring-2 ring-app-accent/20 bg-app-accent/5' : ''}`}
+                >
+                  <div 
+                    className="absolute left-0 top-0 bottom-0 bg-app-accent/15 transition-all duration-500 ease-out z-0"
+                    style={{ width: `${percent}%` }}
+                  />
+                  <span className="relative z-10 font-bold flex items-center gap-2 text-app-text">
+                    {hasVoted && <div className="w-1.5 h-1.5 rounded-full bg-app-text" />}
+                    {opt.text}
+                  </span>
+                  <span className="relative z-10 text-[10px] font-mono font-black text-app-muted">
+                    {percent}% ({count})
+                  </span>
+                </button>
+                
+                {opt.votes.length > 0 && (
+                  <div className="px-1 text-[9px] text-app-muted font-bold uppercase tracking-wider truncate">
+                    {lang === 'fr' ? 'Voté par :' : 'Voted by :'} <span className="text-app-text/90 normal-case font-semibold">{voterNames}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
   const handleClearChat = () => {
     setDeleteConfirmClearChat(true);
   };
@@ -1048,7 +1475,7 @@ export default function App() {
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-12 h-12 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-accent font-black shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0">
               {alter.alterName.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -1126,13 +1553,15 @@ export default function App() {
     if (!sub) return null;
 
     const childSubs = subsystems.filter(s => s.parentId === subId);
-    const subAlters = savedAlters.filter(a => a.subsystemId === subId);
+    const subAlters = savedAlters
+      .filter(a => a.subsystemId === subId)
+      .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang));
 
     return (
       <div key={subId} className="space-y-3" style={{ marginLeft: `${depth * 16}px` }}>
         <div className="flex items-center justify-between p-3.5 bg-app-card border border-app-border/45 rounded-xl">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-app-accent" />
+            <Layers className="w-4 h-4 text-app-text" />
             <span className="font-bold text-sm text-app-text">{sub.name}</span>
             <span className="text-[10px] bg-app-bg text-app-muted px-2 py-0.5 rounded-full font-bold">
               {subAlters.length} alters
@@ -1667,12 +2096,13 @@ export default function App() {
     switch (theme) {
       case Theme.DARK:
         return {
-          '--color-app-bg': '#3f424d',
-          '--color-app-card': '#2a2d36',
-          '--color-app-text': '#e6d8ba',
-          '--color-app-muted': 'rgba(230, 216, 186, 0.6)',
-          '--color-app-border': 'rgba(230, 216, 186, 0.2)',
-          '--color-app-accent': '#b16b5e',
+          '--color-app-bg': '#273F4F',
+          '--color-app-card': '#1D313E',
+          '--color-app-text': '#efe9e3',
+          '--color-app-muted': 'rgba(239, 233, 227, 0.6)',
+          '--color-app-border': 'rgba(239, 233, 227, 0.15)',
+          '--color-app-accent': '#EADED4',
+          '--color-app-accent-text': '#202940',
         } as React.CSSProperties;
       case Theme.DID_FLAG:
         return {
@@ -1682,6 +2112,7 @@ export default function App() {
           '--color-app-muted': 'rgba(28, 28, 28, 0.6)',
           '--color-app-border': 'rgba(28, 28, 28, 0.1)',
           '--color-app-accent': '#ffffff',
+          '--color-app-accent-text': '#1c1c1c',
         } as React.CSSProperties;
       case Theme.PASTEL:
         return {
@@ -1691,6 +2122,7 @@ export default function App() {
           '--color-app-muted': 'rgba(234, 123, 123, 0.6)',
           '--color-app-border': 'rgba(234, 123, 123, 0.1)',
           '--color-app-accent': '#8D77AB',
+          '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
       case Theme.SPRING:
         return {
@@ -1700,6 +2132,7 @@ export default function App() {
           '--color-app-muted': 'rgba(6, 66, 50, 0.6)',
           '--color-app-border': 'rgba(6, 66, 50, 0.1)',
           '--color-app-accent': '#D70654',
+          '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
       case Theme.SUMMER:
         return {
@@ -1709,6 +2142,7 @@ export default function App() {
           '--color-app-muted': 'rgba(207, 75, 0, 0.6)',
           '--color-app-border': 'rgba(207, 75, 0, 0.1)',
           '--color-app-accent': '#7B542F',
+          '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
       case Theme.AUTUMN:
         return {
@@ -1718,6 +2152,7 @@ export default function App() {
           '--color-app-muted': 'rgba(214, 125, 62, 0.6)',
           '--color-app-border': 'rgba(214, 125, 62, 0.1)',
           '--color-app-accent': '#521C0D',
+          '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
       case Theme.WINTER:
         return {
@@ -1727,6 +2162,7 @@ export default function App() {
           '--color-app-muted': 'rgba(46, 80, 119, 0.6)',
           '--color-app-border': 'rgba(46, 80, 119, 0.1)',
           '--color-app-accent': '#305669',
+          '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
       default:
         return {};
@@ -1739,17 +2175,34 @@ export default function App() {
       <header className="border-b border-app-border py-6 px-8 bg-app-card/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 flex items-center justify-center text-app-accent bg-app-accent/15 rounded-2xl border border-app-accent/20 shrink-0">
-              <svg viewBox="0 0 24 24" className="w-6.5 h-6.5" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                {/* Crafted letter 'H' with elegant top and bottom serifs and a flowing central connector */}
-                <path d="M7 5v14M5 5h4M5 19h4" />
-                <path d="M17 5v14M15 5h4M15 19h4" />
-                <path d="M7 12c3.5-1.5 6.5 1.5 10 0" />
+            <div className="w-12 h-12 flex items-center justify-center text-[#273F4F] dark:text-zinc-100 bg-app-accent/15 rounded-2xl border border-app-accent/20 shrink-0">
+              <svg viewBox="0 0 100 100" className="w-9 h-9 text-[#273F4F] dark:text-zinc-100" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                {/* Elegant Crescent Moon background representing Space */}
+                <path d="M 50 15 C 31 15, 15 31, 15 50 C 15 69, 31 85, 50 85 C 57 85, 63 83, 69 80 C 53 78, 40 64, 40 48 C 40 32, 53 18, 69 16 C 63 15, 57 15, 50 15 Z" fill="currentColor" className="text-app-accent/50" fillOpacity="0.12" stroke="none" />
+                
+                {/* Clean left stem of H */}
+                <path d="M 30 25 L 30 75" strokeWidth="3.2" />
+                
+                {/* Clean right stem of H */}
+                <path d="M 54 25 L 54 75" strokeWidth="3.2" />
+                
+                {/* Connection line for crossbar of H */}
+                <path d="M 30 50 L 54 50" strokeWidth="2.5" />
+                
+                {/* Compass star of clarity centered in H */}
+                <path d="M 42 42 Q 42 50 50 50 Q 42 50 42 58 Q 42 50 34 50 Q 42 50 42 42 Z" fill="currentColor" className="text-app-accent" stroke="none" />
+
+                {/* Elegant calligraphic S ribbon scaling perfectly */}
+                <path d="M 72 30 C 65 22, 52 26, 52 38 C 52 52, 74 48, 74 62 C 74 74, 61 78, 52 72" strokeWidth="3.2" />
+                
+                {/* Sparkle decorative points */}
+                <path d="M 80 18 Q 80 22 84 22 Q 80 22 80 26 Q 80 22 76 22 Q 80 22 80 18 Z" fill="currentColor" className="text-app-accent" stroke="none" />
+                <path d="M 22 76 Q 22 80 26 80 Q 22 80 22 84 Q 22 80 18 80 Q 22 80 22 76 Z" fill="currentColor" className="text-app-accent" stroke="none" />
               </svg>
             </div>
             <div>
-              <h1 className="text-xl font-black uppercase tracking-wider text-app-text">{t.title}</h1>
-              <p className="text-[10px] text-app-muted uppercase tracking-widest font-black font-mono">{t.subtitle}</p>
+              <h1 className="text-xl font-black uppercase tracking-wider text-[#273F4F]">{t.title}</h1>
+              <p className="text-[10px] text-[#273F4F]/80 uppercase tracking-widest font-black font-mono">{t.subtitle}</p>
             </div>
           </div>
           
@@ -1758,10 +2211,10 @@ export default function App() {
             <div className="relative">
               <button
                 onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-                className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-app-accent rounded-full transition-all text-app-text shadow-sm flex items-center justify-center cursor-pointer"
+                className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-[#273F4F] rounded-full transition-all text-[#273F4F] shadow-sm flex items-center justify-center cursor-pointer"
                 title={lang === 'fr' ? 'Paramètres' : 'Settings'}
               >
-                <Settings2 className={`w-5 h-5 transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90 text-app-accent' : ''}`} />
+                <Settings2 className={`w-5 h-5 text-[#273F4F] transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -1930,14 +2383,18 @@ export default function App() {
         </div>
       </header>
 
-      {/* Secondary Navigation Dropdown Menu & System Info */}
-      <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4 px-8 sticky top-0 z-40">
+      {activeLegalPage ? (
+        <LegalPages initialPage={activeLegalPage} onBack={() => setActiveLegalPage(null)} lang={lang} />
+      ) : (
+        <>
+          {/* Secondary Navigation Dropdown Menu & System Info */}
+          <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4 px-8 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="relative w-full md:w-80 z-50">
             {/* The Dropdown Trigger Button */}
             <button
               onClick={() => setNavMenuOpen(!navMenuOpen)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 active:scale-98 transition-all shadow-md select-none"
+              className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-[#273F4F] hover:border-app-accent/40 active:scale-98 transition-all shadow-md select-none"
             >
               <div className="flex items-center gap-3">
                 {(() => {
@@ -1953,13 +2410,13 @@ export default function App() {
                   const CurrentIcon = currentOpt.icon;
                   return (
                     <>
-                      <CurrentIcon className="w-4 h-4 text-app-accent animate-pulse" />
-                      <span className="text-app-text font-black tracking-widest">{currentOpt.label}</span>
+                      <CurrentIcon className="w-4 h-4 text-[#273F4F] animate-pulse" />
+                      <span className="text-[#273F4F] font-black tracking-widest">{currentOpt.label}</span>
                     </>
                   );
                 })()}
               </div>
-              <ChevronDown className={`w-4 h-4 text-app-muted transition-transform duration-300 ${navMenuOpen ? 'rotate-180 text-app-accent' : ''}`} />
+              <ChevronDown className={`w-4 h-4 text-[#273F4F] transition-transform duration-300 ${navMenuOpen ? 'rotate-180' : ''}`} />
             </button>
 
             {/* Dropdown Options Drawer Overlay */}
@@ -2014,10 +2471,10 @@ export default function App() {
           </div>
 
           {/* Nombre d'Alter count element */}
-          <div className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-app-card/60 border border-app-border/30 text-xs font-semibold select-none">
-            <Users className="w-3.5 h-3.5 text-app-accent" />
-            <span className="text-app-muted uppercase tracking-widest text-[9px] font-black">{t.altersCount}</span>
-            <span className="font-black text-app-accent text-sm leading-none">{savedAlters.length}</span>
+          <div className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-app-card/60 border border-app-border/30 text-xs font-semibold select-none text-[#273F4F]">
+            <Users className="w-3.5 h-3.5 text-[#273F4F]" />
+            <span className="text-[#273F4F]/75 uppercase tracking-widest text-[9px] font-black">{t.altersCount}</span>
+            <span className="font-black text-[#273F4F] text-sm leading-none">{savedAlters.length}</span>
           </div>
         </div>
       </div>
@@ -3014,7 +3471,10 @@ export default function App() {
                       {savedAlters.filter(a => !a.subsystemId).length > 0 && (
                         <div className="space-y-4">
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {savedAlters.filter(a => !a.subsystemId).map(a => renderAlterCard(a))}
+                            {[...savedAlters]
+                              .filter(a => !a.subsystemId)
+                              .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
+                              .map(a => renderAlterCard(a))}
                           </div>
                         </div>
                       )}
@@ -3027,7 +3487,7 @@ export default function App() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-app-border/20">
                 {/* Rename Principal System Panel */}
                 <div className="p-6 bg-app-card/65 rounded-2xl border border-app-border/30 space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-app-accent flex items-center gap-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-app-text flex items-center gap-2">
                     <Settings2 className="w-4 h-4" />
                     <span>{t.mainSystemLabel}</span>
                   </h3>
@@ -3044,7 +3504,7 @@ export default function App() {
 
                 {/* Create Subsystem Panel */}
                 <div className="p-6 bg-app-card/65 rounded-2xl border border-app-border/30 space-y-4">
-                  <h3 className="text-xs font-black uppercase tracking-wider text-app-accent flex items-center gap-2">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-app-text flex items-center gap-2">
                     <LayoutGrid className="w-4 h-4" />
                     <span>{t.subsystemAdd}</span>
                   </h3>
@@ -3111,7 +3571,7 @@ export default function App() {
               {/* Speaker Control sidebar */}
               <div className="md:col-span-4 p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-app-muted flex items-center gap-2">
-                  <UserCheck className="w-4.5 h-4.5 text-app-accent" /> {t.selectSpeakingAlter}
+                  <UserCheck className="w-4.5 h-4.5 text-app-text" /> {t.selectSpeakingAlter}
                 </label>
                 <select
                   value={chatSpeakerId}
@@ -3119,9 +3579,11 @@ export default function App() {
                   className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-app-accent/20 outline-none"
                 >
                   <option value="external">{lang === 'fr' ? 'Hôte / Système' : 'Host / System'}</option>
-                  {savedAlters.map(a => (
-                    <option key={a.id} value={a.id}>{a.alterName}</option>
-                  ))}
+                  {[...savedAlters]
+                    .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
+                    .map(a => (
+                      <option key={a.id} value={a.id}>{a.alterName}</option>
+                    ))}
                 </select>
 
                 {/* Speaker preview identity card */}
@@ -3146,7 +3608,7 @@ export default function App() {
               </div>
 
               {/* Chat view workspace */}
-              <div className="md:col-span-8 flex flex-col h-[520px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shrink-0 shadow-sm">
+              <div className="md:col-span-8 flex flex-col h-[560px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shrink-0 shadow-sm">
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {chatMessages.length === 0 && (
                     <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
@@ -3179,9 +3641,12 @@ export default function App() {
                               {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
-                          <p className="text-sm text-app-text/90 mt-1 bg-app-card/75 p-3 rounded-2xl rounded-tl-none border border-app-border/20 whitespace-pre-wrap leading-relaxed select-text">
-                            {msg.text}
-                          </p>
+                          
+                          {msg.poll ? renderPollWidget(msg) : (
+                            <p className="text-sm text-app-text/90 mt-1 bg-app-card/75 p-3 rounded-2xl rounded-tl-none border border-app-border/20 whitespace-pre-wrap leading-relaxed select-text">
+                              {msg.text}
+                            </p>
+                          )}
                         </div>
 
                         {/* Quick Delete Message trigger */}
@@ -3196,6 +3661,143 @@ export default function App() {
                     );
                   })}
                 </div>
+
+                {/* Poll Creator Panel */}
+                <AnimatePresence>
+                  {showPollCreator && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 15, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: 15, height: 0 }}
+                      className="border-t border-app-border/40 bg-app-card/95 p-5 space-y-4 overflow-hidden"
+                    >
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2">
+                          <BarChart3 className="w-4.5 h-4.5 text-app-accent animate-pulse" />
+                          <h4 className="text-xs font-black uppercase tracking-widest text-app-text">
+                            {lang === 'fr' ? 'Créer un sondage' : 'Create Poll'}
+                          </h4>
+                        </div>
+                        <button 
+                          type="button" 
+                          onClick={() => setShowPollCreator(false)}
+                          className="p-1 hover:bg-app-bg rounded-lg text-app-muted transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleSendChatPoll} className="space-y-3.5">
+                        <div className="space-y-1">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
+                            {lang === 'fr' ? 'Question du sondage' : 'Poll Question'}
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={pollQuestion}
+                            onChange={(e) => setPollQuestion(e.target.value)}
+                            placeholder={lang === 'fr' ? "Qu'allons-nous décider ?" : "What should we decide?"}
+                            className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-app-accent focus:outline-none"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
+                            Options
+                          </label>
+                          <div className="space-y-2 max-h-32 overflow-y-auto">
+                            {pollOptions.map((opt, idx) => (
+                              <div key={idx} className="flex gap-2 items-center">
+                                <input
+                                  type="text"
+                                  required
+                                  value={opt}
+                                  onChange={(e) => {
+                                    const updated = [...pollOptions];
+                                    updated[idx] = e.target.value;
+                                    setPollOptions(updated);
+                                  }}
+                                  placeholder={`${lang === 'fr' ? 'Option' : 'Option'} ${idx + 1}`}
+                                  className="flex-1 bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-xs focus:ring-1 focus:ring-app-accent focus:outline-none"
+                                />
+                                {pollOptions.length > 2 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setPollOptions(prev => prev.filter((_, i) => i !== idx))}
+                                    className="p-1.5 hover:bg-app-bg text-app-muted hover:text-red-500 rounded-lg transition-colors"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <button
+                            type="button"
+                            onClick={() => setPollOptions(prev => [...prev, ''])}
+                            className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-app-accent bg-app-accent/10 px-3 py-1.5 rounded-lg hover:bg-app-accent/15 transition-all text-xs border border-transparent"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {lang === 'fr' ? 'Ajouter une option' : 'Add option'}
+                          </button>
+                        </div>
+
+                        {/* Custom timers selection */}
+                        <div className="grid grid-cols-2 gap-3 pb-2">
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
+                              {lang === 'fr' ? 'Durée du timer' : 'Timer Duration'}
+                            </label>
+                            <input
+                              type="number"
+                              min="1"
+                              required
+                              value={pollDuration}
+                              onChange={(e) => setPollDuration(Math.max(1, Number(e.target.value) || 1))}
+                              className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-xs focus:ring-1 focus:ring-app-accent focus:outline-none"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
+                              {lang === 'fr' ? 'Unité de temps' : 'Time Unit'}
+                            </label>
+                            <select
+                              value={pollDurationUnit}
+                              onChange={(e) => setPollDurationUnit(e.target.value as any)}
+                              className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-xs focus:outline-none"
+                            >
+                              <option value="minutes">{lang === 'fr' ? 'Minutes' : 'Minutes'}</option>
+                              <option value="hours">{lang === 'fr' ? 'Heures' : 'Hours'}</option>
+                              <option value="days">{lang === 'fr' ? 'Jours' : 'Days'}</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2.5 pt-2 border-t border-app-border/20 justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowPollCreator(false);
+                              setPollQuestion('');
+                              setPollOptions(['', '']);
+                            }}
+                            className="px-4 py-2 bg-app-bg border border-app-border text-[9px] font-black uppercase tracking-widest text-app-text rounded-xl hover:bg-app-accent/5 transition-all"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                          <button
+                            type="submit"
+                            className="px-5 py-2 bg-app-text text-app-bg hover:opacity-90 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
+                          >
+                            {lang === 'fr' ? 'Créer le Sondage' : 'Create Poll'}
+                          </button>
+                        </div>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
 
                 {/* Chat Input form */}
                 <form onSubmit={handleSendChatMessage} className="p-4 border-t border-app-border/30 bg-app-card/65 flex gap-3 items-center">
@@ -3213,6 +3815,23 @@ export default function App() {
                     {lang === 'fr' ? 'Envoyer' : 'Send'}
                   </button>
                 </form>
+
+                {/* Poll Trigger Button placed UNDER the messaging block */}
+                <div className="p-3 bg-app-card/30 border-t border-app-border/20 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowPollCreator(!showPollCreator)}
+                    className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
+                      showPollCreator 
+                        ? 'bg-[#273F4F] text-white border-transparent' 
+                        : 'bg-app-bg/50 border-app-border hover:bg-app-bg text-[#273F4F]'
+                    }`}
+                    title={lang === 'fr' ? 'Créer un sondage' : 'Create a poll'}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>{lang === 'fr' ? 'Créer un sondage' : 'Create Poll'}</span>
+                  </button>
+                </div>
               </div>
 
             </div>
@@ -3231,7 +3850,7 @@ export default function App() {
               
               {/* Log Switch Form */}
               <div className="md:col-span-12 lg:col-span-5 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-6">
-                <h3 className="text-xs font-black uppercase tracking-widest text-app-accent flex items-center gap-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
                   <UserCheck className="w-4 h-4" />
                   <span>{lang === 'fr' ? 'Déclarer un Front' : 'Declare Front'}</span>
                 </h3>
@@ -3246,23 +3865,25 @@ export default function App() {
                       <p className="text-xs text-app-muted">{lang === 'fr' ? 'Aucun alter disponible. Créez des fiches d\'abord !' : 'No alters available. Create cards first!'}</p>
                     ) : (
                       <div className="max-h-40 overflow-y-auto border border-app-border py-1 px-2 rounded-xl bg-app-bg/50 space-y-2">
-                        {savedAlters.map(a => (
-                          <label key={a.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-app-card/65 cursor-pointer leading-tight">
-                            <input
-                              type="checkbox"
-                              checked={switchSelectedAlterIds.includes(a.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSwitchSelectedAlterIds(prev => [...prev, a.id]);
-                                } else {
-                                  setSwitchSelectedAlterIds(prev => prev.filter(did => did !== a.id));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-app-border text-app-accent focus:ring-0"
-                            />
-                            <span className="text-xs font-bold leading-none">{a.alterName}</span>
-                          </label>
-                        ))}
+                        {[...savedAlters]
+                          .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
+                          .map(a => (
+                            <label key={a.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-app-card/65 cursor-pointer leading-tight">
+                              <input
+                                type="checkbox"
+                                checked={switchSelectedAlterIds.includes(a.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSwitchSelectedAlterIds(prev => [...prev, a.id]);
+                                  } else {
+                                    setSwitchSelectedAlterIds(prev => prev.filter(did => did !== a.id));
+                                  }
+                                }}
+                                className="w-4 h-4 rounded border-app-border text-app-accent focus:ring-0"
+                              />
+                              <span className="text-xs font-bold leading-none">{a.alterName}</span>
+                            </label>
+                          ))}
                       </div>
                     )}
                   </div>
@@ -3270,7 +3891,7 @@ export default function App() {
                   {/* Fronting & Presence Status Grid */}
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-app-accent" />
+                      <Sparkles className="w-3.5 h-3.5 text-app-text" />
                       <span>{t.frontStatusLabel}</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2.5">
@@ -3447,7 +4068,7 @@ export default function App() {
               
               {/* Note Editor Area */}
               <div className="lg:col-span-12 md:col-span-12 lg:col-span-4 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-5">
-                <h3 className="text-xs font-black uppercase tracking-widest text-app-accent flex items-center gap-1.5 border-b border-app-border/20 pb-2">
+                <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-1.5 border-b border-app-border/20 pb-2">
                   <Feather className="w-4 h-4" />
                   <span>{lang === 'fr' ? 'Rédiger une Note' : 'Compose Note'}</span>
                 </h3>
@@ -3808,9 +4429,198 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Divider or Header for Local JSON backup */}
+            <div className="border-t border-app-border/40 pt-10 space-y-6">
+              <div>
+                <h3 className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
+                  <FileJson className="w-5 h-5 text-app-text" />
+                  {lang === 'fr' ? 'Synchronisation par Fichier JSON (Sans Compte)' : 'JSON File Synchronization (Accountless)'}
+                </h3>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
+                  {lang === 'fr' 
+                    ? 'Sauvegardez l\'intégralité de vos données dans un fichier local pour les transférer sur un autre appareil.' 
+                    : 'Save all your application data into a local file to restore or transfer to another device.'}
+                </p>
+              </div>
+
+              {/* Status Notifications of JSON Synchronization */}
+              {jsonError && (
+                <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2 animate-shake">
+                  <AlertCircle className="w-4 h-4" />
+                  <span>{jsonError}</span>
+                </div>
+              )}
+              {jsonSuccess && (
+                <div className="p-4 bg-green-500/10 border border-green-500/30 text-green-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 animate-bounce" />
+                  <span>{jsonSuccess}</span>
+                </div>
+              )}
+
+              {/* Grid 2 Columns: Export on Left, Import on Right */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Save details / Export Box */}
+                <div className="p-6 bg-app-card border border-app-border rounded-2xl flex flex-col justify-between space-y-6">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-app-text">
+                      <Download className="w-4.5 h-4.5" />
+                      <h4 className="font-extrabold text-xs uppercase tracking-widest text-app-text">
+                        {lang === 'fr' ? 'Sauvegarder et Exporter' : 'Backup & Export'}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-app-muted leading-relaxed">
+                      {lang === 'fr'
+                        ? 'Téléchargez une sauvegarde chiffrée en local de toutes vos fiches d\'alters, enregistrements de switchs, messages de chat et journal de bord.'
+                        : 'Download a total offline backup containing all your alter cards, switch registration logs, inner chat history, and journals info.'}
+                    </p>
+                    
+                    {/* Quick Stats of local database */}
+                    <div className="p-3.5 bg-app-bg/50 border border-app-border/40 rounded-xl space-y-1.5 font-mono text-[10px] text-app-muted">
+                      <div><strong className="text-app-text">{lang === 'fr' ? 'Système actuel :' : 'Current System :'}</strong> {mainSystemName}</div>
+                      <div><strong className="text-app-text">{savedAlters.length}</strong> {lang === 'fr' ? 'alters' : 'alters'}</div>
+                      <div><strong className="text-app-text">{subsystems.length}</strong> {lang === 'fr' ? 'sous-systèmes' : 'subsystems'}</div>
+                      <div><strong className="text-app-text">{chatMessages.length}</strong> {lang === 'fr' ? 'messages de discussion' : 'chats'}</div>
+                      <div><strong className="text-app-text">{switchLogs.length}</strong> {lang === 'fr' ? 'entrées de switch' : 'switches'}</div>
+                      <div><strong className="text-app-text">{journalEntries.length}</strong> {lang === 'fr' ? 'notes de journal' : 'journals'}</div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleExportJSON}
+                    className="w-full px-5 py-3 bg-app-accent hover:opacity-90 font-extrabold uppercase text-xs tracking-widest text-white rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span>{lang === 'fr' ? 'Exporter en JSON' : 'Export JSON Backup'}</span>
+                  </button>
+                </div>
+
+                {/* Import Box */}
+                <div className="p-6 bg-app-card border border-app-border rounded-2xl flex flex-col justify-between space-y-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-app-text">
+                      <Upload className="w-4.5 h-4.5" />
+                      <h4 className="font-extrabold text-xs uppercase tracking-widest text-app-text">
+                        {lang === 'fr' ? 'Restaurer ou Importer' : 'Restore & Import'}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-app-muted leading-relaxed">
+                      {lang === 'fr'
+                        ? 'Glissez-déposez ou sélectionnez un fichier de sauvegarde (.json) pour importer vos données.'
+                        : 'Drag-and-drop or click to upload a backup file (.json) to import elements.'}
+                    </p>
+
+                    {/* Drag and Drop Zone according to Usability Guidelines */}
+                    <div
+                      onDragOver={handleJSONDragOver}
+                      onDragLeave={handleJSONDragLeave}
+                      onDrop={handleJSONDrop}
+                      className={`relative border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all ${
+                        jsonDragOver
+                          ? 'border-app-accent bg-app-accent/10 scale-[0.99]'
+                          : 'border-app-border hover:border-app-accent/30 bg-app-bg/20'
+                      }`}
+                      onClick={() => document.getElementById('json-file-input')?.click()}
+                    >
+                      <input
+                        id="json-file-input"
+                        type="file"
+                        accept="application/json"
+                        onChange={handleJSONFileChange}
+                        className="hidden"
+                      />
+                      <Upload className="w-8 h-8 text-app-muted mb-2.5" />
+                      <div className="text-xs font-bold text-app-text">
+                        {lang === 'fr' ? 'Sélectionner ou glisser le fichier' : 'Click or drag file here'}
+                      </div>
+                      <div className="text-[10px] text-app-muted mt-1 uppercase tracking-wider font-extrabold">
+                        JSON BACKUP (*.json)
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Import Preview Information Card */}
+              {importPreview && (
+                <div className="mt-8 p-6 bg-app-accent/5 border border-app-accent/20 rounded-2xl space-y-6 animate-fade-in shadow-inner">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-app-border/20 pb-4 gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-app-accent/10 flex items-center justify-center text-app-accent border border-app-accent/15">
+                        <FileJson className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="font-black text-sm text-app-text">{lang === 'fr' ? 'Aperçu de la Sauvegarde' : 'Backup Preview'}</h4>
+                        <p className="text-[10px] font-mono text-app-muted">{importPreview.fileName}</p>
+                      </div>
+                    </div>
+                    <div className="px-3 py-1 bg-app-accent/15 text-app-accent text-[9px] font-black uppercase tracking-wider rounded-md border border-app-accent/20">
+                      {lang === 'fr' ? 'Fichier valide chargé' : 'Valid backup loaded'}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Contenu compatible détecté :' : 'Detected compatible content :'}</h5>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.altersCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Alters' : 'Alters'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.subsystemsCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Sous-systèmes' : 'Subsystems'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.chatsCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Mini-chats' : 'Chats'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.switchesCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Switchs' : 'Switches'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm col-span-2 sm:col-span-1">
+                        <div className="text-sm font-black text-app-text">{importPreview.journalsCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Notes Journal' : 'Journal'}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-4 border-t border-app-border/15 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                    <div className="space-y-1 max-w-lg">
+                      <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Méthode de Restauration' : 'Restoration Method'}</h5>
+                      <p className="text-[11px] text-app-text/90 leading-relaxed">
+                        {lang === 'fr'
+                          ? 'Choisissez "Écraser" pour vider vos données locales actuelles et utiliser uniquement la sauvegarde. Choisissez "Fusionner" pour combiner de manière sécurisée sans aucune perte.'
+                          : 'Choose "Overwrite" to discard existing local data and load the backup exclusively. Choose "Merge" to combine items securely.'}
+                      </p>
+                    </div>
+
+                    <div className="flex gap-3 w-full lg:w-auto">
+                      <button
+                        type="button"
+                        onClick={handleApplyImportMerge}
+                        className="flex-1 lg:flex-none px-5 py-3 bg-app-bg border border-app-border hover:border-app-accent/30 text-[10px] font-black uppercase tracking-widest text-app-text rounded-xl transition-all cursor-pointer"
+                      >
+                        {lang === 'fr' ? 'Fusionner les données' : 'Merge Data'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyImportOverwrite}
+                        className="flex-1 lg:flex-none px-5 py-3 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer border-none"
+                      >
+                        {lang === 'fr' ? 'Écraser et Remplacer' : 'Overwrite Current'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </main>
+        </>
+      )}
 
       {/* Footer */}
       <footer className="border-t border-app-border py-12 px-8 mt-20">
@@ -3820,9 +4630,33 @@ export default function App() {
             <span className="text-xs font-bold uppercase tracking-widest">{t.copyright}</span>
           </div>
           <div className="flex gap-8 text-xs font-bold uppercase tracking-widest text-app-muted">
-            <a href="#" className="hover:text-app-text transition-colors">{t.privacy}</a>
-            <a href="#" className="hover:text-app-text transition-colors">{t.about}</a>
-            <a href="#" className="hover:text-app-text transition-colors">{t.contact}</a>
+            <button
+              onClick={() => {
+                setActiveLegalPage('privacy');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
+            >
+              {t.privacy}
+            </button>
+            <button
+              onClick={() => {
+                setActiveLegalPage('about');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
+            >
+              {t.about}
+            </button>
+            <button
+              onClick={() => {
+                setActiveLegalPage('contact');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
+            >
+              {t.contact}
+            </button>
           </div>
         </div>
       </footer>

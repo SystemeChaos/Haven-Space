@@ -26,16 +26,22 @@
   --font-soria: "Soria", serif;
   --font-arvo: "Arvo", serif;
 
-  --color-app-bg: #FDFDFB;
-  --color-app-text: #1A1A1A;
+  --color-app-bg: #efe9e3;
+  --color-app-text: #273F4F;
   --color-app-card: #FFFFFF;
-  --color-app-border: rgba(26, 26, 26, 0.08);
-  --color-app-accent: #4A4A38;
-  --color-app-muted: rgba(26, 26, 26, 0.4);
+  --color-app-border: rgba(39, 63, 79, 0.12);
+  --color-app-accent: #efe9e3;
+  --color-app-accent-text: #273F4F;
+  --color-app-muted: rgba(39, 63, 79, 0.6);
 }
 
 body {
   @apply antialiased bg-app-bg text-app-text transition-colors duration-300;
+}
+
+/* Make sure primary accent-colored buttons use our dynamic text color */
+button.bg-app-accent, a.bg-app-accent {
+  color: var(--color-app-accent-text, #ffffff) !important;
 }
 
 /* Custom scrollbar */
@@ -44,14 +50,14 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #FDFDFB;
+  background: var(--color-app-bg, #efe9e3);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(26, 26, 26, 0.08);
+  background: var(--color-app-border, rgba(39, 63, 79, 0.15));
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4A4A38;
+  background: var(--color-app-accent, #273F4F);
 }

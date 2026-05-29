@@ -534,11 +534,25 @@ export interface SavedAlter {
   pkId?: string; // optional PluralKit member ID
 }
 
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: string[]; // List of alterIds (or "external") who voted for this option
+}
+
+export interface PollData {
+  question: string;
+  options: PollOption[];
+  expiresAt: number; // timestamp
+  durationMinutes: number; // duration in minutes selected
+}
+
 export interface ChatMessage {
   id: string;
   senderAlterId: string; // linked SavedAlter ID, or "external" for others
   text: string;
   timestamp: number;
+  poll?: PollData;
 }
 
 export interface SwitchLog {
