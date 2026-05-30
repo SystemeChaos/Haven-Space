@@ -2097,19 +2097,19 @@ export default function App() {
     switch (theme) {
       case Theme.DARK:
         return {
-          '--color-app-bg': '#273f4f',
+          '--color-app-bg': '#273F4F',
           '--color-app-card': '#1D313E',
           '--color-app-text': '#efe9e3',
           '--color-app-muted': 'rgba(239, 233, 227, 0.6)',
-          '--color-app-border': '#273f4f',
+          '--color-app-border': 'rgba(239, 233, 227, 0.15)',
           '--color-app-accent': '#EADED4',
           '--color-app-accent-text': '#202940',
         } as React.CSSProperties;
       case Theme.DID_FLAG:
         return {
           '--color-app-bg': '#f9ad59',
-          '--color-app-accent': '#273F4F',
-          '--color-app-accent-text': '#ffffff',
+          '--color-app-card': '#ffffff',
+          '--color-app-text': '#1c1c1c',
           '--color-app-muted': 'rgba(28, 28, 28, 0.6)',
           '--color-app-border': 'rgba(28, 28, 28, 0.1)',
           '--color-app-accent': '#ffffff',
@@ -2176,21 +2176,34 @@ export default function App() {
       <header className="border-b border-app-border py-6 px-8 bg-app-card/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-<div className="w-12 h-12 flex items-center justify-center text-app-text bg-app-accent/15 rounded-2xl border border-app-accent/20 shrink-0">
-              <svg viewBox="0 0 100 100" className="w-9 h-9 text-app-text" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <div className="w-12 h-12 flex items-center justify-center text-[#273F4F] dark:text-zinc-100 bg-app-accent/15 rounded-2xl border border-app-accent/20 shrink-0">
+              <svg viewBox="0 0 100 100" className="w-9 h-9 text-[#273F4F] dark:text-zinc-100" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 {/* Elegant Crescent Moon background representing Space */}
                 <path d="M 50 15 C 31 15, 15 31, 15 50 C 15 69, 31 85, 50 85 C 57 85, 63 83, 69 80 C 53 78, 40 64, 40 48 C 40 32, 53 18, 69 16 C 63 15, 57 15, 50 15 Z" fill="currentColor" className="text-app-accent/50" fillOpacity="0.12" stroke="none" />
+                
+                {/* Clean left stem of H */}
                 <path d="M 30 25 L 30 75" strokeWidth="3.2" />
+                
+                {/* Clean right stem of H */}
                 <path d="M 54 25 L 54 75" strokeWidth="3.2" />
+                
+                {/* Connection line for crossbar of H */}
                 <path d="M 30 50 L 54 50" strokeWidth="2.5" />
+                
+                {/* Compass star of clarity centered in H */}
                 <path d="M 42 42 Q 42 50 50 50 Q 42 50 42 58 Q 42 50 34 50 Q 42 50 42 42 Z" fill="currentColor" className="text-app-accent" stroke="none" />
+
+                {/* Elegant calligraphic S ribbon scaling perfectly */}
                 <path d="M 72 30 C 65 22, 52 26, 52 38 C 52 52, 74 48, 74 62 C 74 74, 61 78, 52 72" strokeWidth="3.2" />
+                
+                {/* Sparkle decorative points */}
                 <path d="M 80 18 Q 80 22 84 22 Q 80 22 80 26 Q 80 22 76 22 Q 80 22 80 18 Z" fill="currentColor" className="text-app-accent" stroke="none" />
                 <path d="M 22 76 Q 22 80 26 80 Q 22 80 22 84 Q 22 80 18 80 Q 22 80 22 76 Z" fill="currentColor" className="text-app-accent" stroke="none" />
               </svg>
-            </div>            <div>
-              <h1 className="text-xl font-black uppercase tracking-wider text-app-text">{t.title}</h1>
-              <p className="text-[10px] text-app-muted uppercase tracking-widest font-black font-mono">{t.subtitle}</p>
+            </div>
+            <div>
+              <h1 className="text-xl font-black uppercase tracking-wider text-[#273F4F]">{t.title}</h1>
+              <p className="text-[10px] text-[#273F4F]/80 uppercase tracking-widest font-black font-mono">{t.subtitle}</p>
             </div>
           </div>
           
@@ -2199,10 +2212,11 @@ export default function App() {
             <div className="relative">
               <button
                 onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-                className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-app-text rounded-full transition-all text-app-text shadow-sm flex items-center justify-center cursor-pointer"
+                className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-[#273F4F] rounded-full transition-all text-[#273F4F] shadow-sm flex items-center justify-center cursor-pointer"
                 title={lang === 'fr' ? 'Paramètres' : 'Settings'}
               >
-                <Settings2 className={`w-5 h-5 text-app-text transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
+                <Settings2 className={`w-5 h-5 text-[#273F4F] transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
+              </button>
 
               <AnimatePresence>
                 {settingsMenuOpen && (
@@ -2216,11 +2230,8 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
->
-                <Settings2 className={`w-5 h-5 text-app-text transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
-              </button>
-
-              <AnimatePresence>                    >
+                      className="absolute right-0 mt-3 w-64 bg-app-card border border-app-border rounded-3xl shadow-2xl p-5 space-y-4 z-50 overflow-y-auto max-h-[80vh]"
+                    >
                       <div className="border-b border-app-border/20 pb-2 flex items-center gap-2">
                         <Settings2 className="w-4 h-4 text-app-accent animate-spin" style={{ animationDuration: '4s' }} />
                         <span className="text-[10px] font-black uppercase tracking-wider text-app-muted">
