@@ -2177,8 +2177,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
 <div className="w-12 h-12 flex items-center justify-center text-app-text bg-app-accent/15 rounded-2xl border border-app-accent/20 shrink-0">
-  <svg viewBox="0 0 100 100" className="w-9 h-9 text-app-text"
-              <svg viewBox="0 0 100 100" className="w-9 h-9 text-[#273F4F] dark:text-zinc-100" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+  <svg viewBox="0 0 100 100" className="w-9 h-9 text-app-text" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 {/* Elegant Crescent Moon background representing Space */}
                 <path d="M 50 15 C 31 15, 15 31, 15 50 C 15 69, 31 85, 50 85 C 57 85, 63 83, 69 80 C 53 78, 40 64, 40 48 C 40 32, 53 18, 69 16 C 63 15, 57 15, 50 15 Z" fill="currentColor" className="text-app-accent/50" fillOpacity="0.12" stroke="none" />
                 
