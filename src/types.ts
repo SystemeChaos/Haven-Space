@@ -227,7 +227,6 @@ export enum ShapeType {
 export enum Theme {
   LIGHT = 'LIGHT',
   DARK = 'DARK',
-  DID_FLAG = 'DID_FLAG',
   PASTEL = 'PASTEL',
   SPRING = 'SPRING',
   SUMMER = 'SUMMER',

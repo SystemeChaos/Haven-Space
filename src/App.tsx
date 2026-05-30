@@ -2105,16 +2105,6 @@ export default function App() {
           '--color-app-accent': '#EADED4',
           '--color-app-accent-text': '#202940',
         } as React.CSSProperties;
-      case Theme.DID_FLAG:
-        return {
-          '--color-app-bg': '#f9ad59',
-          '--color-app-card': '#ffffff',
-          '--color-app-text': '#1c1c1c',
-          '--color-app-muted': 'rgba(28, 28, 28, 0.6)',
-          '--color-app-border': 'rgba(28, 28, 28, 0.1)',
-          '--color-app-accent': '#ffffff',
-          '--color-app-accent-text': '#1c1c1c',
-        } as React.CSSProperties;
       case Theme.PASTEL:
         return {
           '--color-app-bg': '#BADFDB',
