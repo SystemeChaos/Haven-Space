@@ -2216,8 +2216,11 @@ export default function App() {
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-3 w-64 bg-app-card border border-app-border rounded-3xl shadow-2xl p-5 space-y-4 z-50 overflow-y-auto max-h-[80vh]"
-                    >
+>
+                <Settings2 className={`w-5 h-5 text-app-text transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
+              </button>
+
+              <AnimatePresence>                    >
                       <div className="border-b border-app-border/20 pb-2 flex items-center gap-2">
                         <Settings2 className="w-4 h-4 text-app-accent animate-spin" style={{ animationDuration: '4s' }} />
                         <span className="text-[10px] font-black uppercase tracking-wider text-app-muted">
