@@ -558,6 +558,7 @@ export interface SwitchLog {
   id: string;
   alterIds: string[]; // support co-fronting
   timestamp: number;
+  endTimestamp?: number;
   notes?: string;
   status?: string; // the presence or front status associated with the switch
 }

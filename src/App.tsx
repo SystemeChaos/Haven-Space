@@ -249,6 +249,7 @@ export default function App() {
   const [switchSelectedAlterIds, setSwitchSelectedAlterIds] = useState<string[]>([]);
   const [switchSelectedStatus, setSwitchSelectedStatus] = useState<string>('co_front');
   const [switchRetroDate, setSwitchRetroDate] = useState<string>('');
+  const [switchEndDate, setSwitchEndDate] = useState<string>('');
   const [switchNotes, setSwitchNotes] = useState('');
 
   const [journalTitleInput, setJournalTitleInput] = useState('');
@@ -1363,10 +1364,12 @@ export default function App() {
     e.preventDefault();
     if (switchSelectedAlterIds.length === 0) return;
     const finalTimestamp = switchRetroDate ? new Date(switchRetroDate).getTime() : Date.now();
+    const finalEndTimestamp = switchEndDate ? new Date(switchEndDate).getTime() : undefined;
     const newLog: SwitchLog = {
       id: Math.random().toString(36).substring(2, 11),
       alterIds: switchSelectedAlterIds,
       timestamp: finalTimestamp,
+      endTimestamp: finalEndTimestamp,
       notes: switchNotes.trim() || undefined,
       status: switchSelectedStatus,
     };
@@ -1388,6 +1391,7 @@ export default function App() {
     // Clear form inputs
     setSwitchSelectedAlterIds([]);
     setSwitchRetroDate('');
+    setSwitchEndDate('');
     setSwitchNotes('');
   };
 
@@ -3911,6 +3915,19 @@ export default function App() {
                       <Timer className="w-3.5 h-3.5" />
                       <span>{t.retrodateLabel}</span>
                     </label>
+                    {/* End time input */}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
+                      <Timer className="w-3.5 h-3.5" />
+                      <span>{lang === 'fr' ? 'Heure de sortie (optionnel)' : 'End time (optional)'}</span>
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={switchEndDate}
+                      onChange={(e) => setSwitchEndDate(e.target.value)}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+                    />
+                  </div>
                     <input
                       type="datetime-local"
                       value={switchRetroDate}
@@ -4002,8 +4019,11 @@ export default function App() {
                               </p>
                             )}
                             
-                            <div className="text-[10px] font-mono text-app-muted">
-                              {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} @ {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            <div className="text-[10px] font-mono text-app-muted space-y-0.5">
+                              <div>↓ {new Date(log.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} @ {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                              {log.endTimestamp && (
+                                <div>↑ {new Date(log.endTimestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })} @ {new Date(log.endTimestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                              )}
                             </div>
                           </div>
 
