@@ -172,8 +172,8 @@ export const translations = {
       Archivist: "Conserve l'histoire, les documents et les archives internes du système.",
       "Age Slider": "Alter dont l'âge ressenti fluctue en fonction des situations ou des besoins.",
       Social: "Gère les interactions sociales externes et maintient les liens avec l'entourage.",
-      "Opposite Gender": "Alter dont le genre est opposé à celui du corps physique."
-      "Abuseur": "Reproduit des comportements abusifs internalisés lors du traumatisme.",
+      "Opposite Gender": "Alter dont le genre est opposé à celui du corps physique.",
+      "Abuser": "Reproduit des comportements abusifs internalisés lors du traumatisme.",
     },
     roleNames: {
       Host: "Hôte",
