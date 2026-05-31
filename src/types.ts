@@ -36,6 +36,7 @@ export enum AlterRole {
   AGE_SLIDER = 'Age Slider',
   SOCIAL = 'Social',
   OPPOSITE_GENDER = 'Opposite Gender',
+  ABUSER = 'Abuseur',
 }
 
 export enum Gender {
@@ -336,6 +337,7 @@ export const ROLE_CONFIGS: Record<AlterRole, RoleConfig> = {
   [AlterRole.AGE_SLIDER]: { color: '#F59E0B', description: 'Alter dont l\'âge varie' },
   [AlterRole.SOCIAL]: { color: '#EC4899', description: 'Gère les relations sociales' },
   [AlterRole.OPPOSITE_GENDER]: { color: '#6366F1', description: 'Alter de genre opposé au corps' },
+  [AlterRole.ABUSEUR]: { color: '#7C2020', description: 'Reproduit des comportements abusifs vécus lors du trauma' },
 };
 
 export enum Sexuality {

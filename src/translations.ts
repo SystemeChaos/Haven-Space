@@ -173,6 +173,7 @@ export const translations = {
       "Age Slider": "Alter dont l'âge ressenti fluctue en fonction des situations ou des besoins.",
       Social: "Gère les interactions sociales externes et maintient les liens avec l'entourage.",
       "Opposite Gender": "Alter dont le genre est opposé à celui du corps physique."
+      "Abuseur": "Reproduit des comportements abusifs internalisés lors du traumatisme.",
     },
     roleNames: {
       Host: "Hôte",
@@ -212,6 +213,7 @@ export const translations = {
       "Age Slider": "Age Slider",
       Social: "Social",
       "Opposite Gender": "Genre Opposé"
+      "Abuser": "Abuseur"
     },
     genders: {
       Masculin: "Masculin",
@@ -894,6 +896,7 @@ export const translations = {
       "Age Slider": "Alter whose perceived age fluctuates depending on situations or needs.",
       Social: "Manages external social interactions and maintains links with the environment.",
       "Opposite Gender": "Alter whose gender is opposite to that of the physical body."
+      "Abuser": "Reproduces abusive behaviors internalized during trauma.",
     },
     roleNames: {
       Host: "Host",
@@ -933,6 +936,7 @@ export const translations = {
       "Age Slider": "Age Slider",
       Social: "Social",
       "Opposite Gender": "Opposite Gender"
+      "Abuser": "Abuser"
     },
     genders: {
       Masculin: "Male",
