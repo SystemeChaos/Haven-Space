@@ -909,21 +909,22 @@ export default function App() {
   const handleDownloadPdf = useCallback(async () => {
     if (flagRef.current === null) return;
     
-    const node = flagRef.current;
-const dataUrl = await toPng(node, {
-  const node = flagRef.current;
-const dataUrl = await toPng(node, {
-  cacheBust: true,
-  pixelRatio: 2.5,
-  backgroundColor: '#FFFFFF',
-  width: node.scrollWidth,
-  height: node.scrollHeight,
-  style: {
-    transform: 'scale(1)',
-    transformOrigin: 'top left',
-    width: node.scrollWidth + 'px',
-    height: node.scrollHeight + 'px',
-  },
+    setIsDownloading(true);
+    try {
+      const node = flagRef.current;
+      const dataUrl = await toPng(node, {
+        cacheBust: true,
+        pixelRatio: 2.5,
+        backgroundColor: '#FFFFFF',
+        width: node.scrollWidth,
+        height: node.scrollHeight,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left',
+          width: node.scrollWidth + 'px',
+          height: node.scrollHeight + 'px',
+        },
+      });
       
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = 210;
