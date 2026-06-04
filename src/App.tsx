@@ -909,6 +909,8 @@ export default function App() {
   const handleDownloadPdf = useCallback(async () => {
     if (flagRef.current === null) return;
     
+    const node = flagRef.current;
+const dataUrl = await toPng(node, {
   const node = flagRef.current;
 const dataUrl = await toPng(node, {
   cacheBust: true,
