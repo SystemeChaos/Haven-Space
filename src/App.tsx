@@ -922,12 +922,15 @@ export default function App() {
       document.body.removeChild(wrapper);
 
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        // Sur mobile, ouvrir dans un nouvel onglet — l'utilisateur peut appuyer longuement pour sauvegarder
-        const newTab = window.open();
-        if (newTab) {
-          newTab.document.write(`<img src="${dataUrl}" style="max-width:100%" />`);
-          newTab.document.title = `alter-card-${alterName || 'creator'}`;
+      if (isMobile && navigator.canShare) {
+        const res = await fetch(dataUrl);
+        const blob = await res.blob();
+        const file = new File([blob], `alter-card-${alterName || 'creator'}.png`, { type: 'image/png' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ files: [file] });
+        } else {
+          const newTab = window.open();
+          if (newTab) newTab.document.write(`<img src="${dataUrl}" style="max-width:100%" />`);
         }
       } else {
         const link = document.createElement('a');
