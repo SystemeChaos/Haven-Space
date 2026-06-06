@@ -178,11 +178,10 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     const rect = canvasRef.current.getBoundingClientRect();
     const x = Math.max(50, Math.min(canvasSize.w - 50, e.clientX - rect.left - dragging.current.offsetX));
     const y = Math.max(50, Math.min(canvasSize.h - 50, e.clientY - rect.top - dragging.current.offsetY));
-    setMapping(prev => {
-      const updated = { ...prev, nodes: prev.nodes.map(n => n.id === dragging.current!.id ? { ...n, x, y } : n) };
-      saveMapping(updated);
-      return updated;
-    });
+    setMapping(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => n.id === dragging.current!.id ? { ...n, x, y } : n),
+    }));
   }, [canvasSize]);
 
   const onTouchMove = useCallback((e: React.TouchEvent) => {
@@ -192,14 +191,18 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     const touch = e.touches[0];
     const x = Math.max(50, Math.min(canvasSize.w - 50, touch.clientX - rect.left - dragging.current.offsetX));
     const y = Math.max(50, Math.min(canvasSize.h - 50, touch.clientY - rect.top - dragging.current.offsetY));
-    setMapping(prev => {
-      const updated = { ...prev, nodes: prev.nodes.map(n => n.id === dragging.current!.id ? { ...n, x, y } : n) };
-      saveMapping(updated);
-      return updated;
-    });
+    setMapping(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => n.id === dragging.current!.id ? { ...n, x, y } : n),
+    }));
   }, [canvasSize]);
 
-  const onMouseUp = useCallback(() => { dragging.current = null; }, []);
+  const onMouseUp = useCallback(() => {
+    if (dragging.current) {
+      setMapping(prev => { saveMapping(prev); return prev; });
+    }
+    dragging.current = null;
+  }, []);
 
   const handleAddRelation = () => {
     if (!newRel.sourceId || !newRel.targetId || newRel.sourceId === newRel.targetId) return;
