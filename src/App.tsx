@@ -1,3 +1,4 @@
+import MappingPage from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -124,6 +125,7 @@ import {
   Umbrella,
   DoorOpen,
   Save,
+  GitBranch,
   FileJson,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, Subsystem, ChatMessage, SwitchLog, JournalEntry } from './types';
@@ -277,7 +279,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'journal' | 'pluralkit'>('system');
+  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'pluralkit'>('system');
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
@@ -2469,6 +2471,7 @@ export default function App() {
                     { value: 'creator', label: t.menuCreator, icon: Hammer },
                     { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
+                    { value: 'mapping', label: t.menuMapping, icon: GitBranch },
                     { value: 'journal', label: t.menuJournal, icon: Book },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ];
@@ -2504,6 +2507,7 @@ export default function App() {
                     { value: 'creator', label: t.menuCreator, icon: Hammer },
                     { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
+                    { value: 'mapping', label: t.menuMapping, icon: GitBranch },
                     { value: 'journal', label: t.menuJournal, icon: Book },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ].map((opt) => {
@@ -4124,6 +4128,13 @@ export default function App() {
 
             {/* Diagramme continu quotidien/hebdomadaire des switchs */}
             <SwitchAnalytics switchLogs={switchLogs} savedAlters={savedAlters} lang={lang} t={t} />
+          </div>
+        )}
+
+        {/* --- MAPPING VIEW --- */}
+        {currentTab === 'mapping' && (
+          <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <MappingPage savedAlters={savedAlters} lang={lang} />
           </div>
         )}
 
