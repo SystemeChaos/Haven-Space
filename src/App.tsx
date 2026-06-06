@@ -1543,7 +1543,56 @@ export default function App() {
 
   const renderAlterCard = (alter: SavedAlter) => {
     return (
-      <div key={alter.id} className="p-4 bg-app-card/65 rounded-2xl border border-app-border/30 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-shadow relative">
+      <div key={alter.id} className="bg-app-card/65 rounded-2xl border border-app-border/30 shadow-sm hover:shadow-md transition-shadow relative">
+        {/* Version mobile — liste compacte */}
+        <div className="flex md:hidden items-center gap-3 px-3 py-2.5">
+          {alter.profileImage ? (
+            <img src={alter.profileImage} alt={alter.alterName} className="w-10 h-10 rounded-xl object-cover border border-app-border/30 shrink-0" referrerPolicy="no-referrer" />
+          ) : (
+            <div className="w-10 h-10 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-xs">
+              {alter.alterName.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="font-black text-sm text-app-text truncate">{alter.alterName}</span>
+              {alter.frontStatus && alter.frontStatus !== 'none' && (
+                <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border shrink-0 ${
+                  alter.frontStatus === 'primary' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
+                  alter.frontStatus === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
+                  alter.frontStatus === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
+                  alter.frontStatus === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                  'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
+                }`}>{t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}</span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {alter.selectedRoles?.slice(0, 2).map(role => {
+                const cfg = ROLE_CONFIGS[role];
+                return (
+                  <span key={role} className="px-1.5 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wide border"
+                    style={{ color: cfg?.color || '#888', borderColor: `${cfg?.color || '#888'}40`, backgroundColor: `${cfg?.color || '#888'}15` }}>
+                    {t.roleNames[role as keyof typeof t.roleNames] || role}
+                  </span>
+                );
+              })}
+              {(alter.selectedRoles?.length || 0) > 2 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-bold text-app-muted border border-app-border">+{alter.selectedRoles.length - 2}</span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={() => loadAlter(alter)} className="px-2 py-1 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-lg text-app-muted hover:text-app-text hover:border-app-accent transition-all">
+              {lang === 'fr' ? 'Charger' : 'Load'}
+            </button>
+            <button onClick={() => { setDeleteConfirmId(alter.id); }} className="p-1.5 text-app-muted hover:text-red-400 transition-colors">
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {/* Version desktop — carte complète */}
+        <div className="hidden md:flex p-4 flex-col justify-between gap-4">
         <div className="flex gap-3">
           {alter.profileImage ? (
             <img 
@@ -1622,6 +1671,7 @@ export default function App() {
             </button>
           </div>
         </div>
+        </div> {/* fin version desktop */}
       </div>
     );
   };
@@ -3540,7 +3590,7 @@ export default function App() {
                       {/* Unassigned Alters Section - Without header label as requested */}
                       {savedAlters.filter(a => !a.subsystemId).length > 0 && (
                         <div className="space-y-4">
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-1 md:gap-4">
                             {[...savedAlters]
                               .filter(a => !a.subsystemId)
                               .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))

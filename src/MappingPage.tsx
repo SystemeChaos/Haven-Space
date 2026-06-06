@@ -156,6 +156,18 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     return () => window.removeEventListener('resize', update);
   }, []);
 
+  // Wheel non-passive pour que preventDefault() fonctionne sur PC
+  useEffect(() => {
+    const svg = canvasRef.current;
+    if (!svg) return;
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      setZoom(prev => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.001)));
+    };
+    svg.addEventListener('wheel', handleWheel, { passive: false });
+    return () => svg.removeEventListener('wheel', handleWheel);
+  }, []);
+
   const onNodeMouseDown = useCallback((e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
@@ -164,7 +176,6 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     const rect = svg.getBoundingClientRect();
     const node = mapping.nodes.find(n => n.id === id);
     if (!node) return;
-    // Tenir compte du zoom et du pan
     dragging.current = {
       id,
       offsetX: (e.clientX - rect.left) / zoom - pan.x - node.x,
@@ -187,21 +198,26 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     };
   }, [mapping.nodes, zoom, pan]);
 
-  // Pan sur fond (clic sur zone vide)
   const onCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (dragging.current) return;
     panning.current = { startX: e.clientX, startY: e.clientY, originX: pan.x, originY: pan.y };
   }, [pan]);
+
+  const rafRef = useRef<number | null>(null);
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragging.current && canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left) / zoom - pan.x - dragging.current.offsetX;
       const y = (e.clientY - rect.top) / zoom - pan.y - dragging.current.offsetY;
-      setMapping(prev => ({
-        ...prev,
-        nodes: prev.nodes.map(n => n.id === dragging.current!.id ? { ...n, x, y } : n),
-      }));
+      const id = dragging.current.id;
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        setMapping(prev => ({
+          ...prev,
+          nodes: prev.nodes.map(n => n.id === id ? { ...n, x, y } : n),
+        }));
+      });
     } else if (panning.current) {
       const dx = (e.clientX - panning.current.startX) / zoom;
       const dy = (e.clientY - panning.current.startY) / zoom;
@@ -216,24 +232,23 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     const touch = e.touches[0];
     const x = (touch.clientX - rect.left) / zoom - pan.x - dragging.current.offsetX;
     const y = (touch.clientY - rect.top) / zoom - pan.y - dragging.current.offsetY;
-    setMapping(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => n.id === dragging.current!.id ? { ...n, x, y } : n),
-    }));
+    const id = dragging.current.id;
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(() => {
+      setMapping(prev => ({
+        ...prev,
+        nodes: prev.nodes.map(n => n.id === id ? { ...n, x, y } : n),
+      }));
+    });
   }, [zoom, pan]);
 
   const onMouseUp = useCallback(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (dragging.current) {
       setMapping(prev => { saveMapping(prev); return prev; });
     }
     dragging.current = null;
     panning.current = null;
-  }, []);
-
-  // Zoom molette
-  const onWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    setZoom(prev => Math.min(3, Math.max(0.3, prev - e.deltaY * 0.001)));
   }, []);
 
   const zoomIn = () => setZoom(prev => Math.min(3, prev + 0.2));
@@ -317,7 +332,6 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
           onMouseLeave={onMouseUp}
           onTouchMove={onTouchMove}
           onTouchEnd={onMouseUp}
-          onWheel={onWheel}
           className="w-full"
           style={{ touchAction: 'none', cursor: panning.current ? 'grabbing' : 'default' }}
         >
