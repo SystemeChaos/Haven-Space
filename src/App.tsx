@@ -1543,20 +1543,20 @@ export default function App() {
 
   const renderAlterCard = (alter: SavedAlter) => {
     return (
-      <div key={alter.id} className="bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
+      <div key={alter.id} className="w-full bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
         {/* Version mobile — liste compacte style Simply Plural */}
-        <div className="flex md:hidden items-center gap-3 px-4 py-3 border-b border-app-border/20 last:border-b-0">
+        <div className="flex md:hidden items-center gap-3 w-full px-3 py-3">
           {alter.profileImage ? (
             <img src={alter.profileImage} alt={alter.alterName} className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-app-border/30" referrerPolicy="no-referrer" />
           ) : (
-            <div className="w-12 h-12 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0">
+            <div className="w-12 h-12 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-sm">
               {alter.alterName.slice(0, 2).toUpperCase()}
             </div>
           )}
-          <div className="flex-1 min-w-0">
-            <span className="font-bold text-base text-app-text truncate block">{alter.alterName}</span>
+          <div className="flex-1 overflow-hidden">
+            <span className="font-bold text-base text-app-text block overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
             {alter.selectedRoles?.length > 0 && (
-              <span className="text-xs text-app-muted truncate block">
+              <span className="text-xs text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
                 {t.roleNames[alter.selectedRoles[0] as keyof typeof t.roleNames] || alter.selectedRoles[0]}
                 {alter.selectedRoles.length > 1 && ` +${alter.selectedRoles.length - 1}`}
               </span>
@@ -1564,17 +1564,17 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {alter.frontStatus && alter.frontStatus !== 'none' && (
-              <div className={`w-2 h-2 rounded-full ${
+              <div className={`w-2 h-2 rounded-full shrink-0 ${
                 alter.frontStatus === 'primary' ? 'bg-emerald-500' :
                 alter.frontStatus === 'co_front' ? 'bg-sky-500' :
                 alter.frontStatus === 'co_conscious' ? 'bg-violet-500' :
                 alter.frontStatus === 'passive' ? 'bg-amber-500' : 'bg-zinc-500'
               }`} />
             )}
-            <button onClick={() => handleLoadAlter(alter)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all">
+            <button onClick={() => handleLoadAlter(alter)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
               {lang === 'fr' ? 'Charger' : 'Load'}
             </button>
-            <button onClick={() => handleDeleteAlter(alter.id)} className="p-1.5 text-app-muted hover:text-red-400 transition-colors">
+            <button onClick={() => handleDeleteAlter(alter.id)} className="p-1.5 text-app-muted hover:text-red-400 transition-colors shrink-0">
               <Trash2 className="w-4 h-4" />
             </button>
           </div>
