@@ -3557,7 +3557,7 @@ export default function App() {
                   </div>
                 ) : (
                   /* Main/Primary System Parent Wrap Card */
-                  <div className="p-6 bg-app-accent/[0.015] border-2 border-dashed border-app-accent/20 rounded-3xl space-y-6 relative">
+                    <div className="px-2 py-4 md:p-6 bg-app-accent/[0.015] border-2 border-dashed border-app-accent/20 rounded-3xl space-y-6 relative">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent text-lg">
                         🛡️
@@ -3572,7 +3572,7 @@ export default function App() {
                       </div>
                     </div>
 
-                    <div className="space-y-6 pl-4 border-l-2 border-app-accent/10 ml-5">
+                    <div className="space-y-6 md:pl-4 md:border-l-2 border-app-accent/10 md:ml-5">
                       {/* Root-Level Subsystems Tree Rendering */}
                       {subsystems.filter(s => !s.parentId).map(rootSub => renderSubsystemNode(rootSub.id))}
 
