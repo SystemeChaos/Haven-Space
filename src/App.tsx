@@ -2222,7 +2222,7 @@ export default function App() {
       case Theme.PASTEL:
         return {
           '--color-app-bg': '#BADFDB',
-          '--color-app-card': 'rgba(255, 255, 255, 0.4)',
+          '--color-app-card': '#e8f7f6',
           '--color-app-text': '#EA7B7B',
           '--color-app-muted': 'rgba(234, 123, 123, 0.6)',
           '--color-app-border': 'rgba(234, 123, 123, 0.1)',
@@ -2232,7 +2232,7 @@ export default function App() {
       case Theme.SPRING:
         return {
           '--color-app-bg': '#FDAAAA',
-          '--color-app-card': 'rgba(255, 255, 255, 0.4)',
+          '--color-app-card': '#fde8e8',
           '--color-app-text': '#064232',
           '--color-app-muted': 'rgba(6, 66, 50, 0.6)',
           '--color-app-border': 'rgba(6, 66, 50, 0.1)',
@@ -2242,7 +2242,7 @@ export default function App() {
       case Theme.SUMMER:
         return {
           '--color-app-bg': '#FFF085',
-          '--color-app-card': 'rgba(255, 255, 255, 0.4)',
+          '--color-app-card': '#fffbe0',
           '--color-app-text': '#CF4B00',
           '--color-app-muted': 'rgba(207, 75, 0, 0.6)',
           '--color-app-border': 'rgba(207, 75, 0, 0.1)',
@@ -2252,7 +2252,7 @@ export default function App() {
       case Theme.AUTUMN:
         return {
           '--color-app-bg': '#E2B59A',
-          '--color-app-card': 'rgba(255, 255, 255, 0.4)',
+          '--color-app-card': '#f5e6dc',
           '--color-app-text': '#D67D3E',
           '--color-app-muted': 'rgba(214, 125, 62, 0.6)',
           '--color-app-border': 'rgba(214, 125, 62, 0.1)',
@@ -2262,7 +2262,7 @@ export default function App() {
       case Theme.WINTER:
         return {
           '--color-app-bg': '#79D7BE',
-          '--color-app-card': 'rgba(255, 255, 255, 0.4)',
+          '--color-app-card': '#d6f5ee',
           '--color-app-text': '#2E5077',
           '--color-app-muted': 'rgba(46, 80, 119, 0.6)',
           '--color-app-border': 'rgba(46, 80, 119, 0.1)',
@@ -2272,7 +2272,7 @@ export default function App() {
       default: // LIGHT
         return {
           '--color-app-bg': '#f2ede9',
-          '--color-app-card': '#ffffff',
+          '--color-app-card': 'rgba(255,255,255,0.6)',
           '--color-app-text': '#273f4f',
           '--color-app-muted': 'rgba(39,63,79,0.5)',
           '--color-app-border': 'rgba(39,63,79,0.12)',
