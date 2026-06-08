@@ -891,7 +891,7 @@ export default function App() {
     setIsDownloading(true);
     try {
       const node = flagRef.current;
-      const exportWidth = 1080;
+      const exportWidth = 600;
 
       // Clone dans un conteneur hors-écran pour forcer le rendu desktop
       const wrapper = document.createElement('div');
@@ -912,40 +912,33 @@ export default function App() {
       // Laisser le temps au navigateur de calculer le layout
       await new Promise(r => setTimeout(r, 200));
 
+      // Forcer les images base64 dans le clone
+      clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
+        img.crossOrigin = 'anonymous';
+      });
+
+      await new Promise(r => setTimeout(r, 100));
+
       const dataUrl = await toPng(clone, {
-        cacheBust: true,
-        pixelRatio: 3,
+        pixelRatio: 4,
         backgroundColor: '#FFFFFF',
         width: exportWidth,
         height: clone.scrollHeight,
+        skipAutoScale: true,
       });
 
       document.body.removeChild(wrapper);
 
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        try {
-          const res = await fetch(dataUrl);
-          const blob = await res.blob();
-          const blobUrl = URL.createObjectURL(blob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = `alter-card-${alterName || 'creator'}.png`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
-        } catch {
-          // Fallback nouvel onglet
-          const newTab = window.open();
-          if (newTab) newTab.document.write(`<img src="${dataUrl}" style="max-width:100%" />`);
-        }
-      } else {
-        const link = document.createElement('a');
-        link.download = `alter-card-${alterName || 'creator'}.png`;
-        link.href = dataUrl;
-        link.click();
-      }
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `alter-card-${alterName || 'creator'}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err) {
       console.error('oops, something went wrong!', err);
     } finally {
@@ -959,7 +952,7 @@ export default function App() {
     setIsDownloading(true);
     try {
       const node = flagRef.current;
-      const exportWidth = 1080;
+      const exportWidth = 600;
 
       // Clone dans un conteneur hors-écran pour forcer le rendu desktop
       const wrapper = document.createElement('div');
@@ -3048,7 +3041,7 @@ export default function App() {
               <div 
                 ref={flagRef}
                 className={`w-full max-w-[600px] rounded-[2rem] shadow-2xl border-8 border-app-card relative bg-app-bg text-app-text select-none flex flex-col justify-between ${
-                  isDownloading ? 'h-auto min-h-[900px] overflow-visible' : 'aspect-[2/3] overflow-hidden'
+                  isDownloading ? 'h-auto overflow-visible' : 'aspect-[2/3] overflow-hidden'
                 }`}
                 style={{ backgroundColor: 'var(--color-app-bg)' }}
               >
