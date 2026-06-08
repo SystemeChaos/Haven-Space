@@ -4064,15 +4064,6 @@ export default function App() {
                     />
                   </div>
 
-                  {/* Mood & Spoon Theory Widget */}
-                  <MoodSpoonWidget
-                    spoons={switchSpoons}
-                    onSpoonsChange={setSwitchSpoons}
-                    selectedMoods={switchMoods}
-                    onMoodsChange={setSwitchMoods}
-                    lang={lang}
-                  />
-
                   {/* Notes fields */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
@@ -4097,8 +4088,26 @@ export default function App() {
                 </form>
               </div>
 
+              {/* Colonne droite : Mood/Spoons + Historique */}
+              <div className="md:col-span-12 lg:col-span-7 space-y-6">
+
+                {/* Bloc Énergie & Humeur */}
+                <div className="p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
+                    <HeartPulse className="w-4 h-4" />
+                    <span>{lang === 'fr' ? 'Énergie & État du moment' : 'Energy & Current State'}</span>
+                  </h3>
+                  <MoodSpoonWidget
+                    spoons={switchSpoons}
+                    onSpoonsChange={setSwitchSpoons}
+                    selectedMoods={switchMoods}
+                    onMoodsChange={setSwitchMoods}
+                    lang={lang}
+                  />
+                </div>
+
               {/* Switches History Logging */}
-              <div className="md:col-span-12 lg:col-span-7 space-y-4">
+              <div className="space-y-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-app-muted flex items-center gap-2 border-b border-app-border/30 pb-2">
                   <ArrowLeftRight className="w-4 h-4" />
                   <span>{t.recentSwitches}</span>
@@ -4189,6 +4198,8 @@ export default function App() {
                   </div>
                 )}
               </div>
+
+              </div>{/* fin colonne droite */}
 
             </div>
 
