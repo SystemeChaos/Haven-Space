@@ -1,3 +1,4 @@
+
 import MappingPage from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1163,7 +1164,7 @@ export default function App() {
     setCustomRoleColors(alter.customRoleColors || {});
     setCustomGenderColors(alter.customGenderColors || {});
     setCustomSexualityColors(alter.customSexualityColors || {});
-    setTheme(alter.theme || Theme.LIGHT);
+    // Le thème global n'est pas lié à la fiche
     setProfileImage(alter.profileImage || '');
     setDescription(alter.description || '');
     setInternalNotes(alter.internalNotes || '');
