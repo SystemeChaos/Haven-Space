@@ -891,7 +891,7 @@ export default function App() {
     setIsDownloading(true);
     try {
       const node = flagRef.current;
-      const exportWidth = 900;
+      const exportWidth = 1080;
 
       // Clone dans un conteneur hors-écran pour forcer le rendu desktop
       const wrapper = document.createElement('div');
@@ -914,7 +914,7 @@ export default function App() {
 
       const dataUrl = await toPng(clone, {
         cacheBust: true,
-        pixelRatio: 2,
+        pixelRatio: 3,
         backgroundColor: '#FFFFFF',
         width: exportWidth,
         height: clone.scrollHeight,
@@ -959,7 +959,7 @@ export default function App() {
     setIsDownloading(true);
     try {
       const node = flagRef.current;
-      const exportWidth = 900;
+      const exportWidth = 1080;
 
       // Clone dans un conteneur hors-écran pour forcer le rendu desktop
       const wrapper = document.createElement('div');
