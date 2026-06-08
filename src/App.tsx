@@ -1079,14 +1079,14 @@ export default function App() {
   };
 
   const updateDescription = (desc: string) => {
-    if (desc.length <= 1000) {
+    if (desc.length <= 5000) {
       setDescription(desc);
       setTimeout(saveToHistory, 0);
     }
   };
 
   const updateInternalNotes = (notes: string) => {
-    if (notes.length <= 1000) {
+    if (notes.length <= 5000) {
       setInternalNotes(notes);
       setTimeout(saveToHistory, 0);
     }
@@ -2596,7 +2596,7 @@ export default function App() {
           
           {/* Name Input */}
           <section className="space-y-4">
-            <label className="text-xs font-bold uppercase tracking-wider text-app-muted flex items-center gap-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
               <User className="w-3 h-3" /> {t.alterName}
             </label>
             <input 
@@ -2613,11 +2613,11 @@ export default function App() {
           {/* Description Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-app-muted flex items-center gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                 <FileText className="w-3 h-3" /> {t.descriptionTitle}
               </label>
               <span className="text-[10px] font-mono opacity-50">
-                {description.length}/1000
+                {description.length}/5000
               </span>
             </div>
             <textarea 
@@ -2625,7 +2625,7 @@ export default function App() {
               onChange={(e) => updateDescription(e.target.value)}
               placeholder={t.descriptionPlaceholder}
               rows={4}
-              maxLength={1000}
+              maxLength={5000}
               className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-sans"
             />
           </section>
@@ -2633,11 +2633,11 @@ export default function App() {
           {/* Internal Notes Section */}
           <section className="space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold uppercase tracking-wider text-app-muted flex items-center gap-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                 <Lock className="w-3 h-3" /> {t.internalNotesTitle}
               </label>
               <span className="text-[10px] font-mono opacity-50">
-                {internalNotes.length}/1000
+                {internalNotes.length}/5000
               </span>
             </div>
             <textarea 
@@ -2645,7 +2645,7 @@ export default function App() {
               onChange={(e) => updateInternalNotes(e.target.value)}
               placeholder={t.internalNotesPlaceholder}
               rows={4}
-              maxLength={1000}
+              maxLength={5000}
               className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-mono text-app-text/90"
             />
           </section>
@@ -3211,14 +3211,14 @@ export default function App() {
                       {/* Traits & Disorders Section */}
                       {traitDecorations.length > 0 && (
                         <div className="space-y-4">
-                          <div className="text-[10px] font-bold uppercase tracking-widest text-app-accent animate-pulse">
+                          <div className="text-[10px] font-bold uppercase tracking-widest text-app-text animate-pulse">
                             {lang === 'fr' ? 'Traits & Troubles' : 'Traits & Conditions'}
                           </div>
 
                           {/* Personality Traits Sub-section */}
                           {traitDecorations.filter(td => !Object.values(Disorder).includes(td.trait as Disorder)).length > 0 && (
                             <div className="space-y-1.5">
-                              <div className="text-[8px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
+                              <div className="text-[8px] font-black uppercase tracking-widest text-app-text/70 px-1 font-mono">
                                 {t.personalityTraitsTitle}
                               </div>
                               <div className="flex flex-wrap gap-x-2 gap-y-1.5">
@@ -3245,7 +3245,7 @@ export default function App() {
                           {/* Disorders Sub-section */}
                           {traitDecorations.filter(td => Object.values(Disorder).includes(td.trait as Disorder)).length > 0 && (
                             <div className="space-y-1.5">
-                              <div className="text-[8px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
+                              <div className="text-[8px] font-black uppercase tracking-widest text-app-text/70 px-1 font-mono">
                                 {t.disordersTitle}
                               </div>
                               <div className="flex flex-wrap gap-x-2 gap-y-1.5">
@@ -3685,7 +3685,7 @@ export default function App() {
               
               {/* Speaker Control sidebar */}
               <div className="md:col-span-4 p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
-                <label className="text-xs font-bold uppercase tracking-wider text-app-muted flex items-center gap-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                   <UserCheck className="w-4.5 h-4.5 text-app-text" /> {t.selectSpeakingAlter}
                 </label>
                 <select
