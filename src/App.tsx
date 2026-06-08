@@ -134,6 +134,7 @@ import { translations } from './translations';
 import { jsPDF } from 'jspdf';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
+import MoodSpoonWidget, { SwitchLogMoodDisplay } from './components/MoodSpoonWidget';
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
@@ -254,6 +255,8 @@ export default function App() {
   const [switchRetroDate, setSwitchRetroDate] = useState<string>('');
   const [switchEndDate, setSwitchEndDate] = useState<string>('');
   const [switchNotes, setSwitchNotes] = useState('');
+  const [switchSpoons, setSwitchSpoons] = useState<number>(12);
+  const [switchMoods, setSwitchMoods] = useState<string[]>([]);
 
   const [journalTitleInput, setJournalTitleInput] = useState('');
   const [journalContentInput, setJournalContentInput] = useState('');
@@ -1436,6 +1439,8 @@ export default function App() {
       endTimestamp: finalEndTimestamp,
       notes: switchNotes.trim() || undefined,
       status: switchSelectedStatus,
+      spoons: switchSpoons,
+      moods: switchMoods.length > 0 ? switchMoods : undefined,
     };
     
     // Update switch logs list
@@ -1457,6 +1462,8 @@ export default function App() {
     setSwitchRetroDate('');
     setSwitchEndDate('');
     setSwitchNotes('');
+    setSwitchSpoons(12);
+    setSwitchMoods([]);
   };
 
   const handleDeleteSwitchLog = (logId: string) => {
@@ -4057,6 +4064,15 @@ export default function App() {
                     />
                   </div>
 
+                  {/* Mood & Spoon Theory Widget */}
+                  <MoodSpoonWidget
+                    spoons={switchSpoons}
+                    onSpoonsChange={setSwitchSpoons}
+                    selectedMoods={switchMoods}
+                    onMoodsChange={setSwitchMoods}
+                    lang={lang}
+                  />
+
                   {/* Notes fields */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
@@ -4138,6 +4154,10 @@ export default function App() {
                               <p className="text-xs text-app-text/80 leading-relaxed bg-app-bg/40 p-2.5 rounded-lg border border-app-border/10">
                                 {log.notes}
                               </p>
+                            )}
+
+                            {(log.spoons !== undefined || (log.moods && log.moods.length > 0)) && (
+                              <SwitchLogMoodDisplay spoons={log.spoons} moods={log.moods} lang={lang} />
                             )}
                             
                             <div className="text-[10px] font-mono text-app-muted space-y-0.5">

@@ -563,6 +563,8 @@ export interface SwitchLog {
   endTimestamp?: number;
   notes?: string;
   status?: string; // the presence or front status associated with the switch
+  spoons?: number; // Spoon Theory — énergie disponible au moment du switch (0-12)
+  moods?: string[]; // États d'humeur sélectionnés au moment du switch
 }
 
 export interface JournalEntry {
