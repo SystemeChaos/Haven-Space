@@ -748,11 +748,9 @@ export default function App() {
       root.style.removeProperty(prop);
     });
 
-    if (theme !== Theme.LIGHT) {
-      Object.entries(styles).forEach(([key, value]) => {
-        root.style.setProperty(key, value as string);
-      });
-    }
+    Object.entries(styles).forEach(([key, value]) => {
+      root.style.setProperty(key, value as string);
+    });
   }, [theme]);
 
   const saveToHistory = useCallback(() => {
@@ -2271,8 +2269,16 @@ export default function App() {
           '--color-app-accent': '#305669',
           '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
-      default:
-        return {};
+      default: // LIGHT
+        return {
+          '--color-app-bg': '#f2ede9',
+          '--color-app-card': 'rgba(255,255,255,0.6)',
+          '--color-app-text': '#273f4f',
+          '--color-app-muted': 'rgba(39,63,79,0.5)',
+          '--color-app-border': 'rgba(39,63,79,0.12)',
+          '--color-app-accent': '#273f4f',
+          '--color-app-accent-text': '#f2ede9',
+        } as React.CSSProperties;
     }
   };
 
@@ -2626,7 +2632,7 @@ export default function App() {
               placeholder={t.descriptionPlaceholder}
               rows={4}
               maxLength={5000}
-              className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-sans"
+              className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-sans text-app-text placeholder:text-app-muted"
             />
           </section>
 
@@ -2646,7 +2652,7 @@ export default function App() {
               placeholder={t.internalNotesPlaceholder}
               rows={4}
               maxLength={5000}
-              className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-mono text-app-text/90"
+              className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-mono text-app-text placeholder:text-app-muted"
             />
           </section>
 
