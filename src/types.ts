@@ -514,6 +514,12 @@ export interface Subsystem {
   parentId?: string; // hierarchical subsystem tree
 }
 
+export interface CustomField {
+  id: string;
+  label: string;
+  value: string;
+}
+
 export interface SavedAlter {
   id: string;
   alterName: string;
@@ -530,9 +536,17 @@ export interface SavedAlter {
   profileImage: string;
   description: string;
   internalNotes: string;
-  subsystemId?: string; // linked subsystem
-  frontStatus?: string; // e.g., 'none', 'primary', 'co_front', 'co_conscious', 'passive', 'dormant'
-  pkId?: string; // optional PluralKit member ID
+  subsystemId?: string;
+  frontStatus?: string;
+  pkId?: string;
+  alterAge?: string;
+  alterColor?: string;
+  triggersPositive?: string;
+  triggersNegative?: string;
+  alterLanguages?: string;
+  alterOriginWorld?: string;
+  customFields?: CustomField[];
+  archived?: boolean;
 }
 
 export interface PollOption {
