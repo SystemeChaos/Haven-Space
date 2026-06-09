@@ -1,12 +1,12 @@
 {
-  "name": "Heaven Space",
-  "short_name": "Heaven Space",
+  "name": "Haven Space",
+  "short_name": "Haven Space",
   "description": "Outil de gestion de système pluriel",
   "theme_color": "#efe9e3",
   "background_color": "#efe9e3",
   "display": "standalone",
-  "scope": "/Heaven-Space/",
-  "start_url": "/Heaven-Space/",
+  "scope": "/Haven-Space/",
+  "start_url": "/Haven-Space/",
   "icons": [
     {
       "src": "icons/icon-192.png",
