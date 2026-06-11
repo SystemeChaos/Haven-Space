@@ -1039,18 +1039,21 @@ export default function App() {
       const computedPdfHeight = imgHeight * ratio;
       
       let heightLeft = computedPdfHeight;
-      let position = 0;
+      let pageCount = 0;
       
       // Draw first page
-      pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, computedPdfHeight, undefined, 'FAST');
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, computedPdfHeight, undefined, 'FAST');
       heightLeft -= pdfPageHeight;
+      pageCount++;
       
       // If the card is taller than one A4 page, slice it vertically across subsequent pages
-      while (heightLeft > 0) {
-        position = heightLeft - computedPdfHeight;
+      // Seuil de 2mm pour éviter les pages fantômes avec juste quelques pixels
+      while (heightLeft > 2) {
+        const position = -(pdfPageHeight * pageCount);
         pdf.addPage();
         pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, computedPdfHeight, undefined, 'FAST');
         heightLeft -= pdfPageHeight;
+        pageCount++;
       }
       
       pdf.save(`alter-card-${alterName || 'creator'}.pdf`);
