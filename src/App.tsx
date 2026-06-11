@@ -1038,22 +1038,18 @@ export default function App() {
       const ratio = pdfWidth / imgWidth;
       const computedPdfHeight = imgHeight * ratio;
       
-      let heightLeft = computedPdfHeight;
-      let pageCount = 0;
-      
-      // Draw first page
+      // Calcul : combien de pages A4 sont nécessaires pour couvrir computedPdfHeight mm ?
+      // On ajoute une page uniquement si le contenu restant dépasse 10mm (évite les pages fantômes)
+      const totalPages = Math.ceil((computedPdfHeight - 10) / pdfPageHeight);
+
+      // Page 1
       pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, computedPdfHeight, undefined, 'FAST');
-      heightLeft -= pdfPageHeight;
-      pageCount++;
-      
-      // If the card is taller than one A4 page, slice it vertically across subsequent pages
-      // Seuil de 2mm pour éviter les pages fantômes avec juste quelques pixels
-      while (heightLeft > 2) {
-        const position = -(pdfPageHeight * pageCount);
+
+      // Pages suivantes si nécessaire
+      for (let page = 1; page < totalPages; page++) {
         pdf.addPage();
+        const position = -(pdfPageHeight * page);
         pdf.addImage(dataUrl, 'PNG', 0, position, pdfWidth, computedPdfHeight, undefined, 'FAST');
-        heightLeft -= pdfPageHeight;
-        pageCount++;
       }
       
       pdf.save(`alter-card-${alterName || 'creator'}.pdf`);
@@ -3351,39 +3347,44 @@ export default function App() {
                         accept="image/*" 
                         onChange={handleImageChange} 
                       />
-                      <div 
+                      {/* Outer wrapper porte le border coloré — pas de overflow-hidden ici */}
+                      <div
                         onClick={() => { if (!isDownloading) fileInputRef.current?.click(); }}
-                        className={`relative w-24 h-24 sm:w-[120px] sm:h-[120px] shrink-0 rounded-2xl overflow-hidden border-2 bg-app-card/30 flex items-center justify-center transition-all ${
-                          isDownloading 
-                            ? 'pointer-events-none' 
+                        className={`relative w-24 h-24 sm:w-[120px] sm:h-[120px] shrink-0 rounded-2xl flex items-center justify-center transition-all ${
+                          isDownloading
+                            ? 'pointer-events-none'
                             : 'hover:scale-105 cursor-pointer group/avatar'
                         }`}
                         style={{
-                          borderColor: alterColor || undefined,
-                          boxShadow: alterColor ? `0 0 0 2px ${alterColor}40` : undefined,
+                          border: alterColor ? `3px solid ${alterColor}` : '2px solid color-mix(in srgb, var(--color-app-border) 30%, transparent)',
+                          boxShadow: alterColor ? `0 0 0 3px ${alterColor}30` : undefined,
+                          padding: '2px',
                         }}
                       >
-                        {profileImage ? (
-                          <>
-                            <img 
-                              src={profileImage} 
-                              className="w-full h-full object-cover" 
-                              alt="Profile" 
-                              referrerPolicy="no-referrer"
-                            />
-                            {!isDownloading && (
-                              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center gap-0.5 text-[8px] text-white font-extrabold tracking-widest uppercase transition-opacity">
-                                <Upload className="w-3.5 h-3.5" />
-                                <span>{lang === 'fr' ? 'Modifier' : 'Change'}</span>
-                              </div>
-                            )}
-                          </>
-                        ) : (
-                          <div className={`w-full h-full flex flex-col items-center justify-center gap-1 border-2 border-dashed border-app-border/20 rounded-2xl p-1 text-app-muted ${isDownloading ? '' : 'group-hover/avatar:border-app-accent/30'}`}>
-                            <User className={`w-9 h-9 opacity-40 ${isDownloading ? '' : 'group-hover/avatar:text-app-accent group-hover/avatar:opacity-75 transition-all'}`} />
-                            <span className="text-[7.5px] font-black uppercase tracking-widest opacity-40">{lang === 'fr' ? 'Photo' : 'Photo'}</span>
-                          </div>
-                        )}
+                        {/* Inner wrapper porte overflow-hidden pour arrondir l'image */}
+                        <div className="w-full h-full rounded-xl overflow-hidden bg-app-card/30 flex items-center justify-center relative">
+                          {profileImage ? (
+                            <>
+                              <img
+                                src={profileImage}
+                                className="w-full h-full object-cover"
+                                alt="Profile"
+                                referrerPolicy="no-referrer"
+                              />
+                              {!isDownloading && (
+                                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center gap-0.5 text-[8px] text-white font-extrabold tracking-widest uppercase transition-opacity">
+                                  <Upload className="w-3.5 h-3.5" />
+                                  <span>{lang === 'fr' ? 'Modifier' : 'Change'}</span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <div className={`w-full h-full flex flex-col items-center justify-center gap-1 border-2 border-dashed border-app-border/20 rounded-xl p-1 text-app-muted ${isDownloading ? '' : 'group-hover/avatar:border-app-accent/30'}`}>
+                              <User className={`w-9 h-9 opacity-40 ${isDownloading ? '' : 'group-hover/avatar:text-app-accent group-hover/avatar:opacity-75 transition-all'}`} />
+                              <span className="text-[7.5px] font-black uppercase tracking-widest opacity-40">{lang === 'fr' ? 'Photo' : 'Photo'}</span>
+                            </div>
+                          )}
+                        </div>
                       </div>
 
                       {/* Small floating trash/remove button when an image exists (only if not downloading) */}
