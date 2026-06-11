@@ -922,10 +922,24 @@ export default function App() {
       clone.style.maxWidth = exportWidth + 'px';
       clone.style.height = 'auto';
       clone.style.overflow = 'visible';
+      // Remove aspect-ratio and overflow constraints from all descendants
+      clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
+        el.style.overflow = 'visible';
+        el.style.maxHeight = 'none';
+        if (el.style.aspectRatio) el.style.aspectRatio = '';
+        // Remove Tailwind overflow-hidden / max-h classes that limit height
+        el.classList.remove('overflow-hidden', 'overflow-y-auto', 'overflow-x-auto');
+        // Remove aspect ratio classes
+        el.classList.forEach(cls => {
+          if (cls.startsWith('aspect-') || cls.startsWith('max-h-')) {
+            el.classList.remove(cls);
+          }
+        });
+      });
       wrapper.appendChild(clone);
 
       // Laisser le temps au navigateur de calculer le layout
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 300));
 
       // Forcer les images base64 dans le clone
       clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
@@ -983,9 +997,21 @@ export default function App() {
       clone.style.maxWidth = exportWidth + 'px';
       clone.style.height = 'auto';
       clone.style.overflow = 'visible';
+      // Remove aspect-ratio and overflow constraints from all descendants
+      clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
+        el.style.overflow = 'visible';
+        el.style.maxHeight = 'none';
+        if (el.style.aspectRatio) el.style.aspectRatio = '';
+        el.classList.remove('overflow-hidden', 'overflow-y-auto', 'overflow-x-auto');
+        el.classList.forEach(cls => {
+          if (cls.startsWith('aspect-') || cls.startsWith('max-h-')) {
+            el.classList.remove(cls);
+          }
+        });
+      });
       wrapper.appendChild(clone);
 
-      await new Promise(r => setTimeout(r, 200));
+      await new Promise(r => setTimeout(r, 300));
 
       const dataUrl = await toPng(clone, {
         cacheBust: true,
@@ -3326,9 +3352,13 @@ export default function App() {
                         onClick={() => { if (!isDownloading) fileInputRef.current?.click(); }}
                         className={`relative w-24 h-24 sm:w-[120px] sm:h-[120px] shrink-0 rounded-2xl overflow-hidden border-2 bg-app-card/30 flex items-center justify-center transition-all ${
                           isDownloading 
-                            ? 'border-app-border/20 pointer-events-none' 
-                            : 'border-app-border/30 hover:border-app-accent hover:scale-105 cursor-pointer group/avatar'
+                            ? 'pointer-events-none' 
+                            : 'hover:scale-105 cursor-pointer group/avatar'
                         }`}
+                        style={{
+                          borderColor: alterColor || undefined,
+                          boxShadow: alterColor ? `0 0 0 2px ${alterColor}40` : undefined,
+                        }}
                       >
                         {profileImage ? (
                           <>
