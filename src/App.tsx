@@ -907,13 +907,16 @@ export default function App() {
       const node = flagRef.current;
       const exportWidth = 600;
 
-      // Clone dans un conteneur hors-écran pour forcer le rendu desktop
+      // Clone dans un conteneur visible mais caché pour un layout correct
       const wrapper = document.createElement('div');
-      wrapper.style.position = 'fixed';
-      wrapper.style.top = '-99999px';
-      wrapper.style.left = '-99999px';
+      wrapper.style.position = 'absolute';
+      wrapper.style.top = '0';
+      wrapper.style.left = '0';
       wrapper.style.width = exportWidth + 'px';
       wrapper.style.background = '#FFFFFF';
+      wrapper.style.visibility = 'hidden';
+      wrapper.style.pointerEvents = 'none';
+      wrapper.style.zIndex = '-1';
       document.body.appendChild(wrapper);
 
       const clone = node.cloneNode(true) as HTMLElement;
@@ -982,13 +985,16 @@ export default function App() {
       const node = flagRef.current;
       const exportWidth = 600;
 
-      // Clone dans un conteneur hors-écran pour forcer le rendu desktop
+      // Clone dans un conteneur visible mais caché pour un layout correct
       const wrapper = document.createElement('div');
-      wrapper.style.position = 'fixed';
-      wrapper.style.top = '-99999px';
-      wrapper.style.left = '-99999px';
+      wrapper.style.position = 'absolute';
+      wrapper.style.top = '0';
+      wrapper.style.left = '0';
       wrapper.style.width = exportWidth + 'px';
       wrapper.style.background = '#FFFFFF';
+      wrapper.style.visibility = 'hidden';
+      wrapper.style.pointerEvents = 'none';
+      wrapper.style.zIndex = '-1';
       document.body.appendChild(wrapper);
 
       const clone = node.cloneNode(true) as HTMLElement;
