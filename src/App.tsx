@@ -3407,8 +3407,8 @@ export default function App() {
                 </div>
 
                 {/* Lower Section: Traits & Disorders (List / Scroll) */}
-                <div className="flex-1 p-5 flex flex-col justify-between relative z-10 overflow-hidden bg-app-card/20 backdrop-blur-sm">
-                  <div className="h-full flex flex-col justify-between">
+                <div className={`flex-1 p-5 flex flex-col justify-between relative z-10 bg-app-card/20 backdrop-blur-sm ${isDownloading ? "overflow-visible" : "overflow-hidden"}`}>
+                  <div className={`flex flex-col justify-between ${isDownloading ? "" : "h-full"}`}>
                     <div className={`flex-1 pr-1 ${
                       isDownloading ? 'max-h-none overflow-visible' : 'max-h-[380px] overflow-y-auto'
                     } space-y-4`}>
@@ -3585,7 +3585,7 @@ export default function App() {
 
                     {/* Quiet card footer */}
                     <div className="flex items-center justify-between text-[8px] font-bold tracking-widest uppercase opacity-45 pt-3 border-t border-app-border/10">
-                      <span>AlterProfile © 2026</span>
+                      <span>HavenSpace © 2026</span>
                       <span className="flex items-center gap-1 text-app-accent/80 font-black">
                         {selectedRoles[0] ? t.roleNames[selectedRoles[0] as keyof typeof t.roleNames] : ''}
                       </span>
