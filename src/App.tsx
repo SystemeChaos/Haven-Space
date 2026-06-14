@@ -3743,16 +3743,7 @@ export default function App() {
                   <UserPlus className="w-3.5 h-3.5" />
                   <span>{t.createNewAlter}</span>
                 </button>
-                <button
-                  onClick={() => {
-                    handleSaveAlter();
-                    alert(lang === 'fr' ? 'Fiche enregistrée avec succès !' : 'Card successfully saved!');
-                  }}
-                  className="px-4.5 py-2.5 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center gap-2"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{editingAlterId ? t.updateAlter : t.saveCurrentAlter}</span>
-                </button>
+
               </div>
             </div>
 
