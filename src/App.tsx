@@ -1,4 +1,4 @@
-
+git add src/App.tsx && git commit -m "feat(notifications): add toast and browser notifications on switch log" && git push
 import MappingPage from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -442,6 +442,56 @@ export default function App() {
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [settingsFontOpen, setSettingsFontOpen] = useState(false);
   const [settingsThemeOpen, setSettingsThemeOpen] = useState(false);
+
+  // --- Notifications ---
+  const [notifBrowser, setNotifBrowser] = useState<boolean>(() => localStorage.getItem('hs-notif-browser') === 'true');
+  const [notifToast, setNotifToast] = useState<boolean>(() => localStorage.getItem('hs-notif-toast') !== 'false'); // activé par défaut
+  const [toasts, setToasts] = useState<{ id: string; alterName: string; status: string; avatar?: string }[]>([]);
+
+  const addToast = (alterName: string, status: string, avatar?: string) => {
+    const id = Math.random().toString(36).slice(2, 9);
+    setToasts(prev => [...prev, { id, alterName, status, avatar }]);
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4500);
+  };
+
+  const requestBrowserNotifPermission = async () => {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  };
+
+  const toggleBrowserNotif = async () => {
+    if (!notifBrowser) {
+      const granted = await requestBrowserNotifPermission();
+      if (!granted) return;
+      setNotifBrowser(true);
+      localStorage.setItem('hs-notif-browser', 'true');
+    } else {
+      setNotifBrowser(false);
+      localStorage.setItem('hs-notif-browser', 'false');
+    }
+  };
+
+  const toggleToastNotif = () => {
+    setNotifToast(prev => {
+      localStorage.setItem('hs-notif-toast', String(!prev));
+      return !prev;
+    });
+  };
+
+  const fireSwitchNotifications = (alterNames: string[], status: string, avatar?: string) => {
+    const label = alterNames.join(', ');
+    const statusLabel = t.frontStatuses[status as keyof typeof t.frontStatuses] || status;
+    const body = `${label} · ${statusLabel}`;
+    if (notifToast) alterNames.forEach((name, i) => {
+      const av = i === 0 ? avatar : undefined;
+      setTimeout(() => addToast(name, statusLabel, av), i * 300);
+    });
+    if (notifBrowser && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification('✦ Haven Space — Switch', { body, icon: avatar || '/icon-192.png', badge: '/icon-192.png' });
+    }
+  };
   const [pkToken, setPkToken] = useState<string>(() => localStorage.getItem('pk_token') || '');
   const [pkSystem, setPkSystem] = useState<any | null>(null);
   const [pkMembers, setPkMembers] = useState<any[]>([]);
@@ -1649,6 +1699,11 @@ export default function App() {
       return a;
     }));
 
+    // Fire notifications
+    const alterNames = switchSelectedAlterIds.map(id => savedAlters.find(a => a.id === id)?.alterName || id);
+    const firstAvatar = savedAlters.find(a => a.id === switchSelectedAlterIds[0])?.profileImage;
+    fireSwitchNotifications(alterNames, switchSelectedStatus, firstAvatar);
+
     // Clear form inputs
     setSwitchSelectedAlterIds([]);
     setSwitchRetroDate('');
@@ -2498,6 +2553,32 @@ export default function App() {
 
   return (
     <div className={`min-h-screen bg-app-bg text-app-text ${font} selection:bg-app-accent selection:text-app-bg transition-colors duration-300`}>
+
+      {/* ── Toast notifications stack ── */}
+      <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none">
+        <AnimatePresence>
+          {toasts.map(toast => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 24, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.95 }}
+              transition={{ duration: 0.25 }}
+              className="flex items-center gap-3 px-5 py-3 bg-app-card border border-app-border/60 rounded-2xl shadow-2xl backdrop-blur-md pointer-events-auto min-w-[220px] max-w-xs"
+            >
+              {toast.avatar
+                ? <img src={toast.avatar} className="w-8 h-8 rounded-xl object-cover shrink-0" />
+                : <div className="w-8 h-8 rounded-xl bg-app-accent/15 border border-app-accent/20 flex items-center justify-center text-xs font-black text-app-accent shrink-0">{toast.alterName.slice(0,2).toUpperCase()}</div>
+              }
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-black text-app-text truncate">{toast.alterName}</span>
+                <span className="text-[10px] text-app-muted font-bold truncate">{toast.status}</span>
+              </div>
+              <div className="ml-auto w-1.5 h-1.5 rounded-full bg-app-accent shrink-0 animate-pulse" />
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
       {/* Header */}
       <header className="border-b border-app-border py-6 px-8 bg-app-card/50 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
@@ -2675,6 +2756,45 @@ export default function App() {
                             )}
                           </AnimatePresence>
                         </div>
+                      </div>
+
+                      {/* Notifications section */}
+                      <div className="pt-3 border-t border-app-border/20 flex flex-col gap-2">
+                        <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
+                          {lang === 'fr' ? 'Notifications' : 'Notifications'}
+                        </span>
+                        {/* Toast toggle */}
+                        <button
+                          onClick={toggleToastNotif}
+                          className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                        >
+                          <span className="text-xs font-bold text-app-text">
+                            {lang === 'fr' ? 'Notifications dans l'app' : 'In-app notifications'}
+                          </span>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative ${notifToast ? 'bg-app-accent' : 'bg-app-border'}`}>
+                            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifToast ? 'left-[18px]' : 'left-0.5'}`} />
+                          </div>
+                        </button>
+                        {/* Browser notif toggle */}
+                        <button
+                          onClick={toggleBrowserNotif}
+                          className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="text-xs font-bold text-app-text">
+                              {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
+                            </span>
+                            {!('Notification' in window) && (
+                              <span className="text-[10px] text-app-muted">{lang === 'fr' ? 'Non supporté' : 'Not supported'}</span>
+                            )}
+                            {('Notification' in window) && Notification.permission === 'denied' && (
+                              <span className="text-[10px] text-red-400">{lang === 'fr' ? 'Bloqué — à autoriser dans le navigateur' : 'Blocked — allow in browser settings'}</span>
+                            )}
+                          </div>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative ${notifBrowser ? 'bg-app-accent' : 'bg-app-border'}`}>
+                            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifBrowser ? 'left-[18px]' : 'left-0.5'}`} />
+                          </div>
+                        </button>
                       </div>
 
                       {/* TDI Resources section embedded directly inside settings at the very bottom */}
