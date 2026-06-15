@@ -2769,7 +2769,7 @@ export default function App() {
                           className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                         >
                           <span className="text-xs font-bold text-app-text">
-                            {lang === 'fr' ? 'Notifications dans l'app' : 'In-app notifications'}
+                            {lang === 'fr' ? "Notifications dans l'app" : 'In-app notifications'}
                           </span>
                           <div className={`w-8 h-4 rounded-full transition-colors relative ${notifToast ? 'bg-app-accent' : 'bg-app-border'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifToast ? 'left-[18px]' : 'left-0.5'}`} />
