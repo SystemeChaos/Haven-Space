@@ -175,6 +175,7 @@ export const translations = {
       Social: "Gère les interactions sociales externes et maintient les liens avec l'entourage.",
       "Opposite Gender": "Alter dont le genre est opposé à celui du corps physique.",
       "Abuser": "Reproduit des comportements abusifs internalisés lors du traumatisme.",
+      "Secret Holder": "Garde les secrets du système ou d'un hôte, protégeant ainsi le reste du système.",
     },
     roleNames: {
       Host: "Hôte",
@@ -928,6 +929,7 @@ export const translations = {
       Social: "Manages external social interactions and maintains links with the environment.",
       "Opposite Gender": "Alter whose gender is opposite to that of the physical body.",
       "Abuser": "Reproduces abusive behaviors internalized during trauma.",
+      "Secret Holder": "Keeps the secrets of the system or a host, protecting the rest of the system.",
     },
     roleNames: {
       Host: "Host",
