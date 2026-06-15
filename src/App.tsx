@@ -4350,9 +4350,9 @@ export default function App() {
                       </div>
                     );
                   })}
-                </div>
                   </>
                   )}{/* fin accès bloqué/autorisé */}
+                </div>{/* fin div scrollable */}
 
                 {/* Poll Creator Panel */}
                 <AnimatePresence>
