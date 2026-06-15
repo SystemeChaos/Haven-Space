@@ -132,6 +132,8 @@ import {
   Tag,
   Hash,
   Pencil,
+  Shield,
+  Lock,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ChatMessage, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
@@ -329,13 +331,13 @@ export default function App() {
 
   // --- Salons (canaux internes) ---
   const DEFAULT_SALON_ID = 'salon-general';
-  const [chatSalons, setChatSalons] = useState<{ id: string; name: string; emoji: string; createdAt: number }[]>(() => {
+  const [chatSalons, setChatSalons] = useState<{ id: string; name: string; emoji: string; createdAt: number; accessMode: 'blacklist' | 'whitelist'; blockedOrAllowedIds: string[] }[]>(() => {
     try {
       const stored = localStorage.getItem('chatSalons');
       if (stored) return JSON.parse(stored);
-      return [{ id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now() }];
+      return [{ id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now(), accessMode: 'blacklist' as const, blockedOrAllowedIds: [] }];
     } catch {
-      return [{ id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now() }];
+      return [{ id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now(), accessMode: 'blacklist' as const, blockedOrAllowedIds: [] }];
     }
   });
   const [activeSalonId, setActiveSalonId] = useState<string>(DEFAULT_SALON_ID);
@@ -343,6 +345,7 @@ export default function App() {
   const [salonFormName, setSalonFormName] = useState('');
   const [salonFormEmoji, setSalonFormEmoji] = useState('💬');
   const [editingSalonId, setEditingSalonId] = useState<string | null>(null);
+  const [rightsOpenSalonId, setRightsOpenSalonId] = useState<string | null>(null); // salon dont le panneau droits est ouvert
 
   const [switchLogs, setSwitchLogs] = useState<SwitchLog[]>(() => {
     try {
@@ -1265,6 +1268,14 @@ export default function App() {
   const handleSendChatMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatText.trim()) return;
+    // Vérifier les droits d'accès au salon actif
+    const currentSalon = chatSalons.find(s => s.id === activeSalonId);
+    if (currentSalon && chatSpeakerId !== 'external') {
+      const isBlacklist = (currentSalon.accessMode || 'blacklist') === 'blacklist';
+      const ids = currentSalon.blockedOrAllowedIds || [];
+      const blocked = isBlacklist ? ids.includes(chatSpeakerId) : !ids.includes(chatSpeakerId);
+      if (blocked) return;
+    }
     const newMsg: ChatMessage = {
       id: Math.random().toString(36).substring(2, 11),
       senderAlterId: chatSpeakerId,
@@ -4090,7 +4101,7 @@ export default function App() {
                             ));
                           } else {
                             const newId = 'salon-' + Math.random().toString(36).slice(2, 9);
-                            setChatSalons(prev => [...prev, { id: newId, name: salonFormName.trim(), emoji: salonFormEmoji || '💬', createdAt: Date.now() }]);
+                            setChatSalons(prev => [...prev, { id: newId, name: salonFormName.trim(), emoji: salonFormEmoji || '💬', createdAt: Date.now(), accessMode: 'blacklist' as const, blockedOrAllowedIds: [] }]);
                             setActiveSalonId(newId);
                           }
                           setShowSalonForm(false);
@@ -4114,55 +4125,181 @@ export default function App() {
 
                 {/* Liste des salons */}
                 <div className="space-y-1">
-                  {chatSalons.map(salon => (
-                    <div key={salon.id} className="group flex items-center gap-1">
-                      <button
-                        onClick={() => setActiveSalonId(salon.id)}
-                        className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold truncate transition-all ${
-                          salon.id === activeSalonId
-                            ? 'bg-app-accent text-white shadow-sm'
-                            : 'hover:bg-app-bg text-app-text'
-                        }`}
-                      >
-                        <span className="shrink-0">{salon.emoji}</span>
-                        <span className="truncate">{salon.name}</span>
-                      </button>
-                      {/* Bouton édition visible au hover */}
-                      <button
-                        onClick={() => {
-                          setEditingSalonId(salon.id);
-                          setSalonFormName(salon.name);
-                          setSalonFormEmoji(salon.emoji);
-                          setShowSalonForm(true);
-                        }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-app-bg text-app-muted hover:text-app-text transition-all shrink-0"
-                        title={lang === 'fr' ? 'Modifier' : 'Edit'}
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      {/* Bouton supprimer — uniquement si > 1 salon */}
-                      {chatSalons.length > 1 && (
-                        <button
-                          onClick={() => {
-                            setChatSalons(prev => prev.filter(s => s.id !== salon.id));
-                            if (activeSalonId === salon.id) setActiveSalonId(chatSalons.find(s => s.id !== salon.id)?.id || DEFAULT_SALON_ID);
-                          }}
-                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all shrink-0"
-                          title={lang === 'fr' ? 'Supprimer' : 'Delete'}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {chatSalons.map(salon => {
+                    // Calcul accès pour l'alter actif
+                    const isBlacklist = (salon.accessMode || 'blacklist') === 'blacklist';
+                    const ids = salon.blockedOrAllowedIds || [];
+                    const currentAlterBlocked = chatSpeakerId !== 'external' && (
+                      isBlacklist ? ids.includes(chatSpeakerId) : !ids.includes(chatSpeakerId)
+                    );
+                    const rightsOpen = rightsOpenSalonId === salon.id;
+
+                    return (
+                      <div key={salon.id} className="space-y-1">
+                        <div className="group flex items-center gap-1">
+                          <button
+                            onClick={() => setActiveSalonId(salon.id)}
+                            className={`flex-1 flex items-center gap-2 px-3 py-2 rounded-xl text-left text-xs font-bold truncate transition-all ${
+                              salon.id === activeSalonId
+                                ? 'bg-app-accent text-white shadow-sm'
+                                : 'hover:bg-app-bg text-app-text'
+                            }`}
+                          >
+                            <span className="shrink-0">{salon.emoji}</span>
+                            <span className="truncate">{salon.name}</span>
+                            {ids.length > 0 && (
+                              <Shield className={`w-3 h-3 ml-auto shrink-0 ${salon.id === activeSalonId ? 'opacity-70' : 'text-app-muted'}`} />
+                            )}
+                          </button>
+
+                          {/* Bouton droits */}
+                          <button
+                            onClick={() => setRightsOpenSalonId(rightsOpen ? null : salon.id)}
+                            className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all shrink-0 ${
+                              rightsOpen ? 'opacity-100 bg-app-accent/10 text-app-accent' : 'hover:bg-app-bg text-app-muted hover:text-app-accent'
+                            }`}
+                            title={lang === 'fr' ? 'Droits d'accès' : 'Access rights'}
+                          >
+                            <Shield className="w-3 h-3" />
+                          </button>
+
+                          {/* Bouton édition */}
+                          <button
+                            onClick={() => {
+                              setEditingSalonId(salon.id);
+                              setSalonFormName(salon.name);
+                              setSalonFormEmoji(salon.emoji);
+                              setShowSalonForm(true);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-app-bg text-app-muted hover:text-app-text transition-all shrink-0"
+                            title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+
+                          {/* Bouton supprimer */}
+                          {chatSalons.length > 1 && (
+                            <button
+                              onClick={() => {
+                                setChatSalons(prev => prev.filter(s => s.id !== salon.id));
+                                if (activeSalonId === salon.id) setActiveSalonId(chatSalons.find(s => s.id !== salon.id)?.id || DEFAULT_SALON_ID);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all shrink-0"
+                              title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Panneau droits inline */}
+                        {rightsOpen && (
+                          <div className="ml-2 p-3 bg-app-bg border border-app-border/40 rounded-xl space-y-3 text-xs">
+                            {/* Toggle whitelist / blacklist */}
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => setChatSalons(prev => prev.map(s => s.id === salon.id ? { ...s, accessMode: 'blacklist' } : s))}
+                                className={`flex-1 py-1.5 rounded-lg font-bold uppercase tracking-widest transition-all ${
+                                  isBlacklist ? 'bg-app-accent text-white' : 'bg-app-card text-app-muted hover:text-app-text'
+                                }`}
+                              >
+                                {lang === 'fr' ? 'Bloquer' : 'Block'}
+                              </button>
+                              <button
+                                onClick={() => setChatSalons(prev => prev.map(s => s.id === salon.id ? { ...s, accessMode: 'whitelist' } : s))}
+                                className={`flex-1 py-1.5 rounded-lg font-bold uppercase tracking-widest transition-all ${
+                                  !isBlacklist ? 'bg-app-accent text-white' : 'bg-app-card text-app-muted hover:text-app-text'
+                                }`}
+                              >
+                                {lang === 'fr' ? 'Autoriser' : 'Allow'}
+                              </button>
+                            </div>
+                            <p className="text-app-muted text-[10px] leading-tight">
+                              {isBlacklist
+                                ? (lang === 'fr' ? 'Les alters cochés sont bloqués.' : 'Checked alters are blocked.')
+                                : (lang === 'fr' ? 'Seuls les alters cochés ont accès.' : 'Only checked alters can access.')
+                              }
+                            </p>
+                            {/* Liste des alters */}
+                            <div className="space-y-1 max-h-40 overflow-y-auto">
+                              {savedAlters.length === 0 && (
+                                <p className="text-app-muted italic">{lang === 'fr' ? 'Aucun alter enregistré.' : 'No alters saved.'}</p>
+                              )}
+                              {[...savedAlters].sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang)).map(alter => {
+                                const checked = ids.includes(alter.id);
+                                return (
+                                  <label key={alter.id} className="flex items-center gap-2 cursor-pointer hover:bg-app-card/50 px-1.5 py-1 rounded-lg transition-colors">
+                                    <input
+                                      type="checkbox"
+                                      checked={checked}
+                                      onChange={() => {
+                                        setChatSalons(prev => prev.map(s => {
+                                          if (s.id !== salon.id) return s;
+                                          const newIds = checked
+                                            ? s.blockedOrAllowedIds.filter(id => id !== alter.id)
+                                            : [...s.blockedOrAllowedIds, alter.id];
+                                          return { ...s, blockedOrAllowedIds: newIds };
+                                        }));
+                                      }}
+                                      className="accent-app-accent"
+                                    />
+                                    {alter.profileImage
+                                      ? <img src={alter.profileImage} className="w-5 h-5 rounded object-cover" />
+                                      : <div className="w-5 h-5 rounded bg-app-accent/10 flex items-center justify-center font-bold text-[9px] text-app-accent">{alter.alterName.slice(0,2).toUpperCase()}</div>
+                                    }
+                                    <span className="font-bold truncate">{alter.alterName}</span>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               </div>{/* fin colonne gauche */}
 
               {/* Chat view workspace */}
+              {(() => {
+                const activeSalon = chatSalons.find(s => s.id === activeSalonId);
+                const salonIsBlacklist = (activeSalon?.accessMode || 'blacklist') === 'blacklist';
+                const salonIds = activeSalon?.blockedOrAllowedIds || [];
+                const currentAlterBlocked = chatSpeakerId !== 'external' && activeSalon && (
+                  salonIsBlacklist ? salonIds.includes(chatSpeakerId) : !salonIds.includes(chatSpeakerId)
+                );
+                return (
               <div className="md:col-span-8 flex flex-col h-[560px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shrink-0 shadow-sm">
+                {/* Header salon actif */}
+                <div className="px-5 py-2.5 border-b border-app-border/20 flex items-center gap-2 bg-app-card/30">
+                  <span className="text-sm">{activeSalon?.emoji || '💬'}</span>
+                  <span className="text-xs font-black uppercase tracking-wider">{activeSalon?.name || 'Général'}</span>
+                  {salonIds.length > 0 && (
+                    <span className="ml-auto text-[10px] text-app-muted font-bold">
+                      {salonIsBlacklist
+                        ? `${salonIds.length} ${lang === 'fr' ? 'bloqué(s)' : 'blocked'}`
+                        : `${salonIds.length} ${lang === 'fr' ? 'autorisé(s)' : 'allowed'}`}
+                    </span>
+                  )}
+                </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  {/* Accès refusé */}
+                  {currentAlterBlocked ? (
+                    <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
+                      <Lock className="w-10 h-10 text-app-muted opacity-40" />
+                      <p className="text-xs text-app-muted uppercase tracking-widest font-black">
+                        {lang === 'fr' ? 'Accès refusé à ce salon.' : 'Access denied to this channel.'}
+                      </p>
+                      <p className="text-[10px] text-app-muted opacity-70">
+                        {lang === 'fr'
+                          ? `${savedAlters.find(a => a.id === chatSpeakerId)?.alterName || ''} n'a pas accès à ce salon.`
+                          : `${savedAlters.find(a => a.id === chatSpeakerId)?.alterName || ''} cannot access this channel.`}
+                      </p>
+                    </div>
+                  ) : (
+                  <>
                   {chatMessages.length === 0 && (
                     <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
                       <MessageSquareQuote className="w-10 h-10 text-app-muted opacity-30 animate-bounce" />
@@ -4214,6 +4351,8 @@ export default function App() {
                     );
                   })}
                 </div>
+                  </>
+                  )}{/* fin accès bloqué/autorisé */}
 
                 {/* Poll Creator Panel */}
                 <AnimatePresence>
@@ -4386,6 +4525,7 @@ export default function App() {
                   </button>
                 </div>
               </div>
+              );})()} {/* fin IIFE chat workspace */}
 
             </div>
           </div>
