@@ -141,6 +141,162 @@ import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
 import MoodSpoonWidget, { SwitchLogMoodDisplay } from './components/MoodSpoonWidget';
 
+
+// ─── Markdown renderer + editor ────────────────────────────────────────────
+function renderMarkdown(text: string): React.ReactNode[] {
+  const lines = text.split('\n');
+  const nodes: React.ReactNode[] = [];
+
+  const parseInline = (line: string, key: string): React.ReactNode => {
+    const parts: React.ReactNode[] = [];
+    let rest = line;
+    let i = 0;
+    const patterns: [RegExp, (m: string, k: string) => React.ReactNode][] = [
+      [/\*\*(.+?)\*\*/,  (m, k) => <strong key={k}>{m}</strong>],
+      [/_(.+?)_/,          (m, k) => <em key={k}>{m}</em>],
+      [/`(.+?)`/,          (m, k) => <code key={k} className="bg-app-card px-1 py-0.5 rounded text-[11px] font-mono">{m}</code>],
+    ];
+    while (rest.length > 0) {
+      let earliest = rest.length;
+      let matchedPat: null | typeof patterns[0] = null;
+      let matchedIdx = -1;
+      for (const pat of patterns) {
+        const m = pat[0].exec(rest);
+        if (m && m.index < earliest) { earliest = m.index; matchedPat = pat; matchedIdx = m.index; }
+      }
+      if (!matchedPat) { parts.push(rest); break; }
+      if (matchedIdx > 0) parts.push(rest.slice(0, matchedIdx));
+      const m2 = matchedPat[0].exec(rest)!;
+      parts.push(matchedPat[1](m2[1], `${key}-${i++}`));
+      rest = rest.slice(matchedIdx + m2[0].length);
+    }
+    return <>{parts}</>;
+  };
+
+  let listItems: React.ReactNode[] = [];
+  const flushList = () => {
+    if (listItems.length) {
+      nodes.push(<ul key={`ul-${nodes.length}`} className="list-disc ml-5 space-y-1 text-sm text-app-text/90">{listItems}</ul>);
+      listItems = [];
+    }
+  };
+
+  lines.forEach((line, idx) => {
+    const k = `line-${idx}`;
+    if (/^### (.+)/.test(line)) { flushList(); const m = line.match(/^### (.+)/)!; nodes.push(<h3 key={k} className="text-base font-black text-app-text mt-3 mb-1">{m[1]}</h3>); }
+    else if (/^## (.+)/.test(line)) { flushList(); const m = line.match(/^## (.+)/)!; nodes.push(<h2 key={k} className="text-lg font-black text-app-text mt-4 mb-1">{m[1]}</h2>); }
+    else if (/^# (.+)/.test(line)) { flushList(); const m = line.match(/^# (.+)/)!; nodes.push(<h1 key={k} className="text-xl font-black text-app-text mt-4 mb-2">{m[1]}</h1>); }
+    else if (/^- (.+)/.test(line) || /^\* (.+)/.test(line)) { const m = line.match(/^[-*] (.+)/)!; listItems.push(<li key={k}>{parseInline(m[1], k)}</li>); }
+    else if (/^---+$/.test(line.trim())) { flushList(); nodes.push(<hr key={k} className="border-app-border my-3" />); }
+    else if (line.trim() === '') { flushList(); nodes.push(<div key={k} className="h-2" />); }
+    else { flushList(); nodes.push(<p key={k} className="text-sm text-app-text/90 leading-relaxed">{parseInline(line, k)}</p>); }
+  });
+  flushList();
+  return nodes;
+}
+
+interface MarkdownEditorProps {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  rows?: number;
+  maxLength?: number;
+  className?: string;
+}
+
+function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, className = '' }: MarkdownEditorProps) {
+  const [preview, setPreview] = React.useState(false);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+
+  const wrap = (before: string, after: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const sel = value.slice(start, end) || 'texte';
+    const next = value.slice(0, start) + before + sel + after + value.slice(end);
+    onChange(next);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + before.length, start + before.length + sel.length);
+    }, 0);
+  };
+
+  const insertLine = (prefix: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const next = value.slice(0, lineStart) + prefix + value.slice(lineStart);
+    onChange(next);
+    setTimeout(() => { ta.focus(); ta.setSelectionRange(lineStart + prefix.length, lineStart + prefix.length); }, 0);
+  };
+
+  const toolbarBtns: { label: string; title: string; action: () => void }[] = [
+    { label: 'B',  title: 'Gras',     action: () => wrap('**', '**') },
+    { label: 'I',  title: 'Italique', action: () => wrap('_', '_') },
+    { label: '`',  title: 'Code',     action: () => wrap('`', '`') },
+    { label: 'H1', title: 'Titre 1',  action: () => insertLine('# ') },
+    { label: 'H2', title: 'Titre 2',  action: () => insertLine('## ') },
+    { label: 'H3', title: 'Titre 3',  action: () => insertLine('### ') },
+    { label: '—',  title: 'Liste',    action: () => insertLine('- ') },
+  ];
+
+  return (
+    <div className={`space-y-1 ${className}`}>
+      {/* Toolbar */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {toolbarBtns.map(btn => (
+          <button
+            key={btn.label}
+            type="button"
+            title={btn.title}
+            onClick={btn.action}
+            disabled={preview}
+            className="px-2 py-1 rounded-lg bg-app-card border border-app-border text-[11px] font-black hover:bg-app-accent/10 hover:text-app-accent hover:border-app-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+          >
+            {btn.label}
+          </button>
+        ))}
+        <div className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setPreview(false)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all border ${!preview ? 'bg-app-accent text-white border-app-accent' : 'bg-app-card border-app-border text-app-muted hover:text-app-text'}`}
+          >
+            Éditer
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreview(true)}
+            className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all border ${preview ? 'bg-app-accent text-white border-app-accent' : 'bg-app-card border-app-border text-app-muted hover:text-app-text'}`}
+          >
+            Aperçu
+          </button>
+        </div>
+      </div>
+
+      {/* Zone édition ou prévisualisation */}
+      {preview ? (
+        <div className="w-full min-h-[7rem] bg-app-card border border-app-border rounded-2xl px-6 py-4 text-sm leading-relaxed space-y-1">
+          {value.trim() ? renderMarkdown(value) : <span className="text-app-muted italic">{placeholder || 'Rien à afficher.'}</span>}
+        </div>
+      ) : (
+        <textarea
+          ref={textareaRef}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          rows={rows}
+          maxLength={maxLength}
+          className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-sans text-app-text placeholder:text-app-muted"
+        />
+      )}
+    </div>
+  );
+}
+// ────────────────────────────────────────────────────────────────────────────
+
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
   const [font, setFont] = useState<string>(() => localStorage.getItem('hs-font') || 'font-sans');
@@ -2676,13 +2832,12 @@ export default function App() {
                 {description.length}/5000
               </span>
             </div>
-            <textarea 
+            <MarkdownEditor
               value={description}
-              onChange={(e) => updateDescription(e.target.value)}
+              onChange={updateDescription}
               placeholder={t.descriptionPlaceholder}
               rows={4}
               maxLength={5000}
-              className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-sans text-app-text placeholder:text-app-muted"
             />
           </section>
 
@@ -2696,13 +2851,12 @@ export default function App() {
                 {internalNotes.length}/5000
               </span>
             </div>
-            <textarea 
+            <MarkdownEditor
               value={internalNotes}
-              onChange={(e) => updateInternalNotes(e.target.value)}
+              onChange={updateInternalNotes}
               placeholder={t.internalNotesPlaceholder}
               rows={4}
               maxLength={5000}
-              className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-sm leading-relaxed resize-none font-mono text-app-text placeholder:text-app-muted"
             />
           </section>
 
@@ -4828,12 +4982,11 @@ export default function App() {
                   </div>
 
                   <div className="space-y-1">
-                    <textarea
+                    <MarkdownEditor
                       value={journalContentInput}
-                      onChange={(e) => setJournalContentInput(e.target.value)}
+                      onChange={setJournalContentInput}
                       placeholder={t.journalContentPlaceholder}
                       rows={6}
-                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none text-app-text leading-relaxed"
                     />
                   </div>
 
@@ -4905,9 +5058,9 @@ export default function App() {
                         <div key={entry.id} className="p-5.5 bg-app-card/65 hover:bg-app-card/85 transition-colors border border-app-border/35 rounded-2xl shadow-sm space-y-4 flex flex-col justify-between">
                           <div className="space-y-2">
                             <h4 className="font-extrabold text-sm text-app-text">{entry.title}</h4>
-                            <p className="text-xs text-app-text/90 leading-relaxed whitespace-pre-wrap select-text">
-                              {entry.content}
-                            </p>
+                            <div className="text-xs leading-relaxed select-text space-y-1">
+                              {renderMarkdown(entry.content)}
+                            </div>
                             
                             {/* Images slider gallery grid */}
                             {entry.images && entry.images.length > 0 && (
