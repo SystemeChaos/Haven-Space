@@ -4158,7 +4158,7 @@ export default function App() {
                             className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all shrink-0 ${
                               rightsOpen ? 'opacity-100 bg-app-accent/10 text-app-accent' : 'hover:bg-app-bg text-app-muted hover:text-app-accent'
                             }`}
-                            title={lang === 'fr' ? 'Droits d'accès' : 'Access rights'}
+                            title={lang === 'fr' ? "Droits d'accès" : 'Access rights'}
                           >
                             <Shield className="w-3 h-3" />
                           </button>
