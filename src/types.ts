@@ -37,6 +37,7 @@ export enum AlterRole {
   SOCIAL = 'Social',
   OPPOSITE_GENDER = 'Opposite Gender',
   ABUSER = 'Abuser',
+  SECRET_HOLDER = 'Secret Holder',
 }
 
 export enum Gender {
@@ -128,6 +129,21 @@ export enum PersonalityTrait {
   INTROVERTED = 'INTROVERTED',
   EXTROVERTED = 'EXTROVERTED',
   AMBIVERT = 'AMBIVERT',
+  // Traits sombres / négatifs
+  AGGRESSIVE = 'AGGRESSIVE',
+  CRUEL = 'CRUEL',
+  COLD = 'COLD',
+  MANIPULATIVE = 'MANIPULATIVE',
+  VINDICTIVE = 'VINDICTIVE',
+  NIHILISTIC = 'NIHILISTIC',
+  VOLATILE = 'VOLATILE',
+  DISTRUSTFUL = 'DISTRUSTFUL',
+  DESTRUCTIVE = 'DESTRUCTIVE',
+  POSSESSIVE = 'POSSESSIVE',
+  CONTROLLING = 'CONTROLLING',
+  APATHETIC = 'APATHETIC',
+  IMPULSIVE = 'IMPULSIVE',
+  DECEITFUL = 'DECEITFUL',
 }
 
 export enum Disorder {
@@ -338,6 +354,7 @@ export const ROLE_CONFIGS: Record<AlterRole, RoleConfig> = {
   [AlterRole.SOCIAL]: { color: '#EC4899', description: 'Gère les relations sociales' },
   [AlterRole.OPPOSITE_GENDER]: { color: '#6366F1', description: 'Alter de genre opposé au corps' },
   [AlterRole.ABUSER]: { color: '#7C2020', description: 'Reproduit des comportements abusifs internalisés lors du traumatisme' },
+  [AlterRole.SECRET_HOLDER]: { color: '#1E3A5F', description: "Garde les secrets du système ou de l'hôte" },
 };
 
 export enum Sexuality {
