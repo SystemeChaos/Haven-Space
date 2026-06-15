@@ -2473,6 +2473,16 @@ export default function App() {
           '--color-app-accent': '#305669',
           '--color-app-accent-text': '#ffffff',
         } as React.CSSProperties;
+      case Theme.ARCANE:
+        return {
+          '--color-app-bg': '#0d1117',
+          '--color-app-card': '#161b27',
+          '--color-app-text': '#e8dcc8',
+          '--color-app-muted': 'rgba(232, 220, 200, 0.45)',
+          '--color-app-border': 'rgba(180, 150, 80, 0.15)',
+          '--color-app-accent': '#b8952a',
+          '--color-app-accent-text': '#0d1117',
+        } as React.CSSProperties;
       default: // LIGHT
         return {
           '--color-app-bg': '#f2ede9',
