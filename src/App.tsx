@@ -4001,8 +4001,11 @@ export default function App() {
             {/* Chat Area Grid */}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
               
-              {/* Speaker Control sidebar */}
-              <div className="md:col-span-4 p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
+              {/* Colonne gauche : Qui parle + Salons */}
+              <div className="md:col-span-4 space-y-4">
+
+              {/* Speaker Control */}
+              <div className="p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
                 <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                   <UserCheck className="w-4.5 h-4.5 text-app-text" /> {t.selectSpeakingAlter}
                 </label>
@@ -4040,8 +4043,8 @@ export default function App() {
                 })()}
               </div>
 
-              {/* Salons sidebar */}
-              <div className="md:col-span-3 p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
+              {/* Salons */}
+              <div className="p-5 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                     <Hash className="w-4 h-4 text-app-text" />
@@ -4155,8 +4158,10 @@ export default function App() {
                 </div>
               </div>
 
+              </div>{/* fin colonne gauche */}
+
               {/* Chat view workspace */}
-              <div className="md:col-span-5 flex flex-col h-[560px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shrink-0 shadow-sm">
+              <div className="md:col-span-8 flex flex-col h-[560px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shrink-0 shadow-sm">
                 <div className="flex-1 overflow-y-auto p-6 space-y-4">
                   {chatMessages.length === 0 && (
                     <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
