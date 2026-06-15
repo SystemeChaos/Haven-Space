@@ -1,4 +1,4 @@
-git add src/App.tsx && git commit -m "feat(notifications): add toast and browser notifications on switch log" && git push
+
 import MappingPage from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
