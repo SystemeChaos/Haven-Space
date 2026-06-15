@@ -63,7 +63,7 @@ const RELATION_CONFIG: Record<RelationType, {
 
 const STORAGE_KEY = 'heaven_space_mapping';
 
-function loadMapping(): MappingData {
+export function loadMapping(): MappingData {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) return JSON.parse(raw);
@@ -71,7 +71,7 @@ function loadMapping(): MappingData {
   return { nodes: [], relations: [] };
 }
 
-function saveMapping(data: MappingData) {
+export function saveMapping(data: MappingData) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 

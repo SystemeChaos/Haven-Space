@@ -1,5 +1,5 @@
 
-import MappingPage from './MappingPage';
+import MappingPage, { loadMapping, saveMapping } from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -760,7 +760,8 @@ export default function App() {
         subsystems,
         chatMessages,
         switchLogs,
-        journalEntries
+        journalEntries,
+        mappingData: loadMapping()
       };
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
@@ -892,6 +893,10 @@ export default function App() {
       setJournalEntries(importedJournals);
       localStorage.setItem('journalEntries', JSON.stringify(importedJournals));
 
+      if (data.mappingData && typeof data.mappingData === 'object') {
+        saveMapping(data.mappingData);
+      }
+
       setJsonSuccess(lang === 'fr' 
         ? "Toutes vos données ont été remplacées par la sauvegarde !" 
         : "Successfully replaced all local data with the backup!"
@@ -977,6 +982,26 @@ export default function App() {
       currentJournals.sort((a, b) => b.timestamp - a.timestamp);
       setJournalEntries(currentJournals);
       localStorage.setItem('journalEntries', JSON.stringify(currentJournals));
+
+      if (data.mappingData && typeof data.mappingData === 'object') {
+        const current = loadMapping();
+        const incoming = data.mappingData;
+        // Merge nodes (positions) — priorité à l'import
+        const mergedNodes = [...current.nodes];
+        (incoming.nodes || []).forEach((n: { id: string; x: number; y: number }) => {
+          const idx = mergedNodes.findIndex(existing => existing.id === n.id);
+          if (idx > -1) mergedNodes[idx] = n;
+          else mergedNodes.push(n);
+        });
+        // Merge relations par id
+        const mergedRelations = [...current.relations];
+        (incoming.relations || []).forEach((r: { id: string }) => {
+          if (!mergedRelations.some(existing => existing.id === r.id)) {
+            mergedRelations.push(r);
+          }
+        });
+        saveMapping({ nodes: mergedNodes, relations: mergedRelations });
+      }
 
       setJsonSuccess(lang === 'fr' 
         ? "Les données ont été fusionnées avec vos données existantes avec succès !" 
