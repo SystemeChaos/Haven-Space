@@ -233,7 +233,6 @@ export enum Theme {
   SUMMER = 'SUMMER',
   AUTUMN = 'AUTUMN',
   WINTER = 'WINTER',
-  ARCANE = 'ARCANE',
 }
 
 export enum PatternType {
@@ -548,6 +547,9 @@ export interface SavedAlter {
   alterOriginWorld?: string;
   customFields?: CustomField[];
   archived?: boolean;
+  pronouns?: string;
+  birthday?: string;
+  pkColor?: string;
 }
 
 export interface PollOption {

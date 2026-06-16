@@ -647,47 +647,165 @@ export default function App() {
     setPkError(null);
   };
 
+
+  // ─── Parser description PluralKit → champs structurés Haven Space ──────────
+  const parsePluralKitDescription = (desc: string | null, existingAlter?: SavedAlter) => {
+    if (!desc) return {
+      roles: existingAlter?.selectedRoles || [] as string[],
+      genders: existingAlter?.selectedGenders || [] as string[],
+      sexualities: existingAlter?.selectedSexualities || [] as string[],
+      traits: existingAlter?.traitDecorations || [] as any[],
+      cleanDescription: '',
+    };
+
+    // Construire des maps inversés label → clé enum pour FR et EN
+    const allTranslations = [translations.fr, translations.en];
+
+    const buildReverseMap = (obj: Record<string, string>) =>
+      Object.entries(obj).reduce((acc, [k, v]) => {
+        acc[v.toLowerCase().trim()] = k;
+        return acc;
+      }, {} as Record<string, string>);
+
+    const roleMapFR = buildReverseMap(translations.fr.roleNames as Record<string,string>);
+    const roleMapEN = buildReverseMap(translations.en.roleNames as Record<string,string>);
+    const genderMapFR = buildReverseMap(translations.fr.genders as Record<string,string>);
+    const genderMapEN = buildReverseMap(translations.en.genders as Record<string,string>);
+    const sexMapFR = buildReverseMap(translations.fr.sexualityNames as Record<string,string>);
+    const sexMapEN = buildReverseMap(translations.en.sexualityNames as Record<string,string>);
+    const traitMapFR = buildReverseMap(translations.fr.personalityTraits as Record<string,string>);
+    const traitMapEN = buildReverseMap(translations.en.personalityTraits as Record<string,string>);
+    const disorderMapFR = buildReverseMap(translations.fr.disorders as Record<string,string>);
+    const disorderMapEN = buildReverseMap(translations.en.disorders as Record<string,string>);
+
+    const lookupRole = (s: string) => roleMapFR[s.toLowerCase().trim()] || roleMapEN[s.toLowerCase().trim()] || null;
+    const lookupGender = (s: string) => genderMapFR[s.toLowerCase().trim()] || genderMapEN[s.toLowerCase().trim()] || null;
+    const lookupSex = (s: string) => sexMapFR[s.toLowerCase().trim()] || sexMapEN[s.toLowerCase().trim()] || null;
+    const lookupTrait = (s: string) => traitMapFR[s.toLowerCase().trim()] || traitMapEN[s.toLowerCase().trim()] || null;
+    const lookupDisorder = (s: string) => disorderMapFR[s.toLowerCase().trim()] || disorderMapEN[s.toLowerCase().trim()] || null;
+
+    const roles: string[] = existingAlter?.selectedRoles ? [...existingAlter.selectedRoles] : [];
+    const genders: string[] = existingAlter?.selectedGenders ? [...existingAlter.selectedGenders] : [];
+    const sexualities: string[] = existingAlter?.selectedSexualities ? [...existingAlter.selectedSexualities] : [];
+    const traits: any[] = existingAlter?.traitDecorations ? [...existingAlter.traitDecorations] : [];
+
+    const addRole = (r: string) => { if (!roles.includes(r)) roles.push(r); };
+    const addGender = (g: string) => { if (!genders.includes(g)) genders.push(g); };
+    const addSex = (s: string) => { if (!sexualities.includes(s)) sexualities.push(s); };
+    const addTrait = (t: string) => { if (!traits.some((td: any) => td.trait === t)) traits.push({ trait: t }); };
+
+    const lines = desc.split('\n');
+    const unusedLines: string[] = [];
+
+    lines.forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed) return;
+
+      // Ligne de rôles séparés par " - " ou " / " (première ligne typiquement)
+      const roleLine = trimmed.replace(/\.$/,'');
+      const roleParts = roleLine.split(/\s*[-\/]\s*/);
+      if (roleParts.length > 1) {
+        let allRoles = true;
+        const foundRoles: string[] = [];
+        for (const part of roleParts) {
+          const r = lookupRole(part.trim());
+          if (r) foundRoles.push(r);
+          else { allRoles = false; break; }
+        }
+        if (allRoles && foundRoles.length > 0) {
+          foundRoles.forEach(addRole);
+          return;
+        }
+      }
+
+      // Genre : Valeur
+      const genreMatch = trimmed.match(/^(?:Genre|Gender)\s*[:\s]+(.+)$/i);
+      if (genreMatch) {
+        const g = lookupGender(genreMatch[1].trim());
+        if (g) { addGender(g); return; }
+      }
+
+      // Sexualité : Valeur (peut contenir plusieurs séparés par " - " ou " / ")
+      const sexMatch = trimmed.match(/^(?:Sexualit[eé]|Sexuality)\s*[:\s]+(.+)$/i);
+      if (sexMatch) {
+        const parts = sexMatch[1].split(/\s*[-\/]\s*/);
+        parts.forEach(p => { const s = lookupSex(p.trim()); if (s) addSex(s); });
+        return;
+      }
+
+      // Trait de personnalité seul sur une ligne
+      const trait = lookupTrait(trimmed);
+      if (trait) { addTrait(trait); return; }
+
+      // Trouble seul sur une ligne
+      const disorder = lookupDisorder(trimmed);
+      if (disorder) { addTrait(disorder); return; }
+
+      // Rôle seul sur une ligne
+      const role = lookupRole(trimmed.replace(/\.$/,''));
+      if (role) { addRole(role); return; }
+
+      // Ligne non reconnue → garder dans la description propre
+      unusedLines.push(line);
+    });
+
+    return { roles, genders, sexualities, traits, cleanDescription: unusedLines.join('\n').trim() };
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   const syncPluralKitToLocal = () => {
     if (pkMembers.length === 0) return;
-    
+
     setSavedAlters(prev => {
       const updated = [...prev];
-      
+
       pkMembers.forEach(member => {
         const existingIndex = updated.findIndex(a => a.pkId === member.id || a.alterName.toLowerCase() === member.name.toLowerCase());
-        
+        const existing = existingIndex >= 0 ? updated[existingIndex] : undefined;
+
+        // Parser la description PK
+        const parsed = parsePluralKitDescription(member.description || null, existing);
+
+        // Couleur PK (hex sans #)
+        const pkColor = member.color ? '#' + member.color : ((existing as any)?.pkColor || '');
+
         const alterData: SavedAlter = {
-          id: existingIndex >= 0 ? updated[existingIndex].id : Date.now().toString() + Math.random().toString(36).substring(2, 9),
+          id: existing ? existing.id : Date.now().toString() + Math.random().toString(36).substring(2, 9),
           pkId: member.id,
           alterName: member.name,
-          selectedRoles: existingIndex >= 0 ? updated[existingIndex].selectedRoles : [],
-          selectedGenders: existingIndex >= 0 ? updated[existingIndex].selectedGenders : [],
-          selectedSexualities: existingIndex >= 0 ? updated[existingIndex].selectedSexualities : [],
-          traitDecorations: existingIndex >= 0 ? updated[existingIndex].traitDecorations : [],
-          patternLayers: existingIndex >= 0 ? updated[existingIndex].patternLayers : [],
-          decorations: existingIndex >= 0 ? updated[existingIndex].decorations : [],
-          customRoleColors: existingIndex >= 0 ? updated[existingIndex].customRoleColors : {},
-          customGenderColors: existingIndex >= 0 ? updated[existingIndex].customGenderColors : {},
-          customSexualityColors: existingIndex >= 0 ? updated[existingIndex].customSexualityColors : {},
-          theme: existingIndex >= 0 ? updated[existingIndex].theme : Theme.LIGHT,
-          profileImage: member.avatar_url || (existingIndex >= 0 ? updated[existingIndex].profileImage : ''),
-          description: member.description || (existingIndex >= 0 ? updated[existingIndex].description : ''),
-          internalNotes: member.pronouns ? `${lang === 'fr' ? 'Pronoms' : 'Pronouns'}: ${member.pronouns}` : (existingIndex >= 0 ? updated[existingIndex].internalNotes : ''),
-          frontStatus: existingIndex >= 0 ? updated[existingIndex].frontStatus : 'none',
-          subsystemId: existingIndex >= 0 ? updated[existingIndex].subsystemId : undefined,
+          selectedRoles: parsed.roles.length > 0 ? parsed.roles : (existing?.selectedRoles || []),
+          selectedGenders: parsed.genders.length > 0 ? parsed.genders : (existing?.selectedGenders || []),
+          selectedSexualities: parsed.sexualities.length > 0 ? parsed.sexualities : (existing?.selectedSexualities || []),
+          traitDecorations: parsed.traits.length > 0 ? parsed.traits : (existing?.traitDecorations || []),
+          description: parsed.cleanDescription || (existing?.description || ''),
+          pronouns: member.pronouns || (existing as any)?.pronouns || '',
+          birthday: member.birthday || (existing as any)?.birthday || '',
+          internalNotes: existing?.internalNotes || '',
+          profileImage: member.avatar_url || (existing?.profileImage || ''),
+          pkColor,
+          patternLayers: existing?.patternLayers || [],
+          decorations: existing?.decorations || [],
+          customRoleColors: existing?.customRoleColors || {},
+          customGenderColors: existing?.customGenderColors || {},
+          customSexualityColors: existing?.customSexualityColors || {},
+          theme: existing?.theme || Theme.LIGHT,
+          frontStatus: existing?.frontStatus || 'none',
+          subsystemId: existing?.subsystemId || undefined,
         };
-        
+
         if (existingIndex >= 0) {
           updated[existingIndex] = alterData;
         } else {
           updated.push(alterData);
         }
       });
-      
+
       return updated;
     });
-    
-    setPkSuccess(lang === 'fr' ? 'Profils synchronisés avec succès dans la base d\'alters locale !' : 'Profiles successfully synced to your local alter database!');
+
+    setPkSuccess(lang === 'fr'
+      ? 'Profils synchronisés ! Rôles, genre, sexualité et traits extraits automatiquement.'
+      : 'Profiles synced! Roles, gender, sexuality and traits extracted automatically.');
   };
 
   const exportAlterToPluralKit = async (alter: SavedAlter) => {
