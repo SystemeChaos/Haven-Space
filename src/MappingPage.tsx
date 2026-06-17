@@ -4,7 +4,7 @@
  * Drag & drop, relations typées, légende, adapté aux thèmes
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, X, Save, GitBranch } from 'lucide-react';
 import { SavedAlter } from './types';
 
@@ -104,7 +104,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [mapping, setMapping] = useState<MappingData>(() => loadMapping(activeSystemId));
 
   // Recharger le mapping quand on change de système
-  React.useEffect(() => {
+  useEffect(() => {
     setMapping(loadMapping(activeSystemId));
   }, [activeSystemId]);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
