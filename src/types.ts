@@ -233,6 +233,7 @@ export enum Theme {
   SUMMER = 'SUMMER',
   AUTUMN = 'AUTUMN',
   WINTER = 'WINTER',
+  ARCANE = 'ARCANE',
 }
 
 export enum PatternType {

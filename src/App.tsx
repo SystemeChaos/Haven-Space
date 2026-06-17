@@ -1,5 +1,5 @@
 
-import MappingPage, { loadMapping, saveMapping } from './MappingPage';
+import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode } from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -128,12 +128,9 @@ import {
   Save,
   GitBranch,
   FileJson,
-  Archive,
   Tag,
   Hash,
   Pencil,
-  Shield,
-  Lock,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
@@ -796,10 +793,10 @@ export default function App() {
           id: existing ? existing.id : Date.now().toString() + Math.random().toString(36).substring(2, 9),
           pkId: member.id,
           alterName: member.name,
-          selectedRoles: parsed.roles.length > 0 ? parsed.roles : (existing?.selectedRoles || []),
-          selectedGenders: parsed.genders.length > 0 ? parsed.genders : (existing?.selectedGenders || []),
-          selectedSexualities: parsed.sexualities.length > 0 ? parsed.sexualities : (existing?.selectedSexualities || []),
-          traitDecorations: parsed.traits.length > 0 ? parsed.traits : (existing?.traitDecorations || []),
+          selectedRoles: parsed.roles.length > 0 ? parsed.roles as AlterRole[] : (existing?.selectedRoles || []),
+          selectedGenders: parsed.genders.length > 0 ? parsed.genders as Gender[] : (existing?.selectedGenders || []),
+          selectedSexualities: parsed.sexualities.length > 0 ? parsed.sexualities as Sexuality[] : (existing?.selectedSexualities || []),
+          traitDecorations: parsed.traits.length > 0 ? parsed.traits as TraitDecoration[] : (existing?.traitDecorations || []),
           description: parsed.cleanDescription || (existing?.description || ''),
           pronouns: member.pronouns || (existing as any)?.pronouns || '',
           birthday: member.birthday || (existing as any)?.birthday || '',
@@ -1129,15 +1126,15 @@ export default function App() {
         const incoming = data.mappingData;
         // Merge nodes (positions) — priorité à l'import
         const mergedNodes = [...current.nodes];
-        (incoming.nodes || []).forEach((n: { id: string; x: number; y: number }) => {
-          const idx = mergedNodes.findIndex(existing => existing.id === n.id);
+        (incoming.nodes || []).forEach((n: MappingNode) => {
+          const idx = mergedNodes.findIndex((existing: MappingNode) => existing.id === n.id);
           if (idx > -1) mergedNodes[idx] = n;
           else mergedNodes.push(n);
         });
         // Merge relations par id
         const mergedRelations = [...current.relations];
-        (incoming.relations || []).forEach((r: { id: string }) => {
-          if (!mergedRelations.some(existing => existing.id === r.id)) {
+        (incoming.relations || []).forEach((r: MappingRelation) => {
+          if (!mergedRelations.some((existing: MappingRelation) => existing.id === r.id)) {
             mergedRelations.push(r);
           }
         });

@@ -92,15 +92,20 @@ function getRoleLabel(alter: SavedAlter): string {
 interface MappingPageProps {
   savedAlters: SavedAlter[];
   lang: 'fr' | 'en';
+  activeSystemId?: string;
 }
 
-export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
+export default function MappingPage({ savedAlters, lang, activeSystemId = 'main' }: MappingPageProps) {
   const canvasRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const panning = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
   const [mapping, setMapping] = useState<MappingData>(() => loadMapping(activeSystemId));
+
+  React.useEffect(() => {
+    setMapping(loadMapping(activeSystemId));
+  }, [activeSystemId]);
 
   // Recharger le mapping quand on change de système
   React.useEffect(() => {
