@@ -4311,17 +4311,19 @@ export default function App() {
                       </div>
                       <div>
                         <h3 className="font-black text-sm uppercase tracking-wider text-app-text leading-tight">
-                          {mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System')}
+                          {activeSystemName}
                         </h3>
                         <p className="text-[10px] text-app-muted uppercase font-bold tracking-widest">
-                          {lang === 'fr' ? 'Système Parent Principal' : 'Primary Parent System'}
+                          {activeSystemId === 'main'
+                            ? (lang === 'fr' ? 'Système Parent Principal' : 'Primary Parent System')
+                            : (lang === 'fr' ? 'Système Parallèle' : 'Parallel System')}
                         </p>
                       </div>
                     </div>
 
                     <div className="space-y-6 md:pl-4 md:border-l-2 border-app-accent/10 md:ml-5">
                       {/* Root-Level Subsystems Tree Rendering */}
-                      {subsystems.filter(s => !s.parentId).map(rootSub => renderSubsystemNode(rootSub.id))}
+                      {activeSystemSubsystems.filter(s => !s.parentId).map(rootSub => renderSubsystemNode(rootSub.id))}
 
                       {/* Unassigned Alters Section */}
                       {activeSystemAlters.filter(a => !a.subsystemId && !a.archived).length > 0 && (
