@@ -3953,8 +3953,8 @@ export default function App() {
                             <FileText className="w-2.5 h-2.5" />
                             {t.descriptionTitle}
                           </div>
-                          <div className={`px-4 py-3 bg-app-card/45 backdrop-blur-sm rounded-2xl border border-app-border/10 text-[11px] leading-relaxed text-app-text/90 italic whitespace-pre-wrap ${font}`}>
-                            {description}
+                          <div className={`px-4 py-3 bg-app-card/45 backdrop-blur-sm rounded-2xl border border-app-border/10 text-[11px] leading-relaxed text-app-text/90 space-y-1 ${font}`}>
+                            {renderMarkdown(description)}
                           </div>
                         </div>
                       )}
@@ -3966,8 +3966,8 @@ export default function App() {
                             <Lock className="w-2.5 h-2.5" />
                             {t.internalNotesTitle}
                           </div>
-                          <div className="px-4 py-3 bg-app-card/30 backdrop-blur-sm rounded-2xl border border-dashed border-app-border/20 text-[10px] leading-relaxed font-mono text-app-text/85 break-words whitespace-pre-wrap">
-                            {internalNotes}
+                          <div className="px-4 py-3 bg-app-card/30 backdrop-blur-sm rounded-2xl border border-dashed border-app-border/20 text-[10px] leading-relaxed text-app-text/85 break-words space-y-1">
+                            {renderMarkdown(internalNotes)}
                           </div>
                         </div>
                       )}
