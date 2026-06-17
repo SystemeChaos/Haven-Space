@@ -3907,7 +3907,7 @@ export default function App() {
                                         className="px-2.5 py-1.5 bg-app-card/75 backdrop-blur-sm rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-app-border/15 shadow-sm text-app-text/90 animate-fade-in duration-300 hover:border-app-accent/30 transition-colors"
                                       >
                                         <span className="text-app-accent bg-app-accent/10 p-1 rounded-full shrink-0">
-                                          {React.cloneElement(getTraitIcon(td.trait) as React.ReactElement, { className: "w-3 h-3" })}
+                                          <span className="w-3 h-3 flex items-center justify-center [&>svg]:w-3 [&>svg]:h-3">{getTraitIcon(td.trait)}</span>
                                         </span>
                                         <span>{name}</span>
                                       </div>
@@ -3934,7 +3934,7 @@ export default function App() {
                                         className="px-2.5 py-1.5 bg-app-card/75 backdrop-blur-sm rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-app-border/15 shadow-sm text-app-text/90 animate-fade-in duration-300 hover:border-app-accent/30 transition-colors"
                                       >
                                         <span className="text-app-accent bg-app-accent/10 p-1 rounded-full shrink-0">
-                                          {React.cloneElement(getTraitIcon(td.trait) as React.ReactElement, { className: "w-3 h-3" })}
+                                          <span className="w-3 h-3 flex items-center justify-center [&>svg]:w-3 [&>svg]:h-3">{getTraitIcon(td.trait)}</span>
                                         </span>
                                         <span>{name}</span>
                                       </div>
@@ -4065,9 +4065,7 @@ export default function App() {
                   {/* Watermark Logo of the primary role in the background center of lower panel */}
                   {selectedRoles[0] && !isDownloading && (
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-60 h-60 opacity-[0.03] text-app-text pointer-events-none flex items-center justify-center z-0">
-                      {React.cloneElement(getRoleIcon(selectedRoles[0]) as React.ReactElement, {
-                        className: "w-full h-full stroke-[1.2]"
-                      })}
+                      <span className="w-full h-full [&>svg]:w-full [&>svg]:h-full [&>svg]:stroke-[1.2]">{getRoleIcon(selectedRoles[0])}</span>
                     </div>
                   )}
                 </div>
@@ -5386,7 +5384,7 @@ export default function App() {
         {/* --- MAPPING VIEW --- */}
         {currentTab === 'mapping' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
-            <MappingPage savedAlters={activeSystemAlters} lang={lang} activeSystemId={activeSystemId} />
+            <MappingPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} />
           </div>
         )}
 

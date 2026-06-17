@@ -103,10 +103,6 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
   const [mapping, setMapping] = useState<MappingData>(() => loadMapping(activeSystemId));
 
-  React.useEffect(() => {
-    setMapping(loadMapping(activeSystemId));
-  }, [activeSystemId]);
-
   // Recharger le mapping quand on change de système
   React.useEffect(() => {
     setMapping(loadMapping(activeSystemId));
