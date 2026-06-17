@@ -63,16 +63,18 @@ const RELATION_CONFIG: Record<RelationType, {
 
 const STORAGE_KEY = 'heaven_space_mapping';
 
-export function loadMapping(): MappingData {
+export function loadMapping(systemId: string = 'main'): MappingData {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
+    const raw = localStorage.getItem(key);
     if (raw) return JSON.parse(raw);
   } catch {}
   return { nodes: [], relations: [] };
 }
 
-export function saveMapping(data: MappingData) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+export function saveMapping(data: MappingData, systemId: string = 'main') {
+  const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
+  localStorage.setItem(key, JSON.stringify(data));
 }
 
 function getAlterColor(alter: SavedAlter): string {
@@ -98,7 +100,12 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
   const dragging = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const panning = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
-  const [mapping, setMapping] = useState<MappingData>(loadMapping);
+  const [mapping, setMapping] = useState<MappingData>(() => loadMapping(activeSystemId));
+
+  // Recharger le mapping quand on change de système
+  React.useEffect(() => {
+    setMapping(loadMapping(activeSystemId));
+  }, [activeSystemId]);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
   const [zoom, setZoom] = useState(0.6);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -140,7 +147,7 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
         nodes: [...prev.nodes.filter(n => validIds.has(n.id)), ...newNodes],
         relations: prev.relations.filter(r => validIds.has(r.sourceId) && validIds.has(r.targetId)),
       };
-      saveMapping(updated);
+      saveMapping(updated, activeSystemId);
       return updated;
     });
   }, [savedAlters]);
@@ -277,7 +284,7 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
   const onMouseUp = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (dragging.current) {
-      setMapping(prev => { saveMapping(prev); return prev; });
+      setMapping(prev => { saveMapping(prev, activeSystemId); return prev; });
     }
     dragging.current = null;
     panning.current = null;
@@ -302,7 +309,7 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
     };
     setMapping(prev => {
       const updated = { ...prev, relations: [...prev.relations, rel] };
-      saveMapping(updated);
+      saveMapping(updated, activeSystemId);
       return updated;
     });
     setShowAddRelation(false);
@@ -312,7 +319,7 @@ export default function MappingPage({ savedAlters, lang }: MappingPageProps) {
   const handleDeleteRelation = (id: string) => {
     setMapping(prev => {
       const updated = { ...prev, relations: prev.relations.filter(r => r.id !== id) };
-      saveMapping(updated);
+      saveMapping(updated, activeSystemId);
       return updated;
     });
     setSelectedRelId(null);

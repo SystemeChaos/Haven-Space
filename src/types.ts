@@ -508,10 +508,17 @@ export const GENDER_COLORS: Record<Gender, string> = {
   [Gender.OTHER]: '#4B5563',
 };
 
+export interface ParallelSystem {
+  id: string;
+  name: string;
+  createdAt: number;
+}
+
 export interface Subsystem {
   id: string;
   name: string;
   parentId?: string; // hierarchical subsystem tree
+  systemId?: string; // système parallèle auquel appartient ce sous-système
 }
 
 export interface CustomField {
@@ -550,6 +557,7 @@ export interface SavedAlter {
   pronouns?: string;
   birthday?: string;
   pkColor?: string;
+  systemId?: string; // 'main' ou id d'un système parallèle
 }
 
 export interface PollOption {

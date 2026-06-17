@@ -135,7 +135,7 @@ import {
   Shield,
   Lock,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ChatMessage, SwitchLog, JournalEntry } from './types';
+import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
@@ -527,6 +527,21 @@ export default function App() {
     }
   });
 
+  // --- Systèmes parallèles ---
+  const [parallelSystems, setParallelSystems] = useState<ParallelSystem[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('parallelSystems') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [activeSystemId, setActiveSystemId] = useState<string>(() =>
+    localStorage.getItem('activeSystemId') || 'main'
+  );
+  const [showParallelSystemForm, setShowParallelSystemForm] = useState(false);
+  const [parallelSystemFormName, setParallelSystemFormName] = useState('');
+  const [editingParallelSystemId, setEditingParallelSystemId] = useState<string | null>(null);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('chatMessages') || '[]');
@@ -581,6 +596,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('subsystems', JSON.stringify(subsystems));
   }, [subsystems]);
+
+  useEffect(() => {
+    localStorage.setItem('parallelSystems', JSON.stringify(parallelSystems));
+  }, [parallelSystems]);
+
+  useEffect(() => {
+    localStorage.setItem('activeSystemId', activeSystemId);
+  }, [activeSystemId]);
 
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
@@ -1443,6 +1466,43 @@ export default function App() {
   };
 
   // --- DID System Management Handlers ---
+  // ─── Systèmes parallèles ────────────────────────────────────────────────────
+  // Alters filtrés pour le système actif
+  const activeSystemAlters = savedAlters.filter(a => (a.systemId || 'main') === activeSystemId);
+  const activeSystemSubsystems = subsystems.filter(s => (s.systemId || 'main') === activeSystemId);
+  const activeSystemName = activeSystemId === 'main'
+    ? (mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Main System'))
+    : (parallelSystems.find(s => s.id === activeSystemId)?.name || '');
+
+  const handleCreateParallelSystem = () => {
+    if (!parallelSystemFormName.trim()) return;
+    if (editingParallelSystemId) {
+      setParallelSystems(prev => prev.map(s =>
+        s.id === editingParallelSystemId ? { ...s, name: parallelSystemFormName.trim() } : s
+      ));
+      setEditingParallelSystemId(null);
+    } else {
+      const newSys: ParallelSystem = {
+        id: 'sys-' + Math.random().toString(36).slice(2, 9),
+        name: parallelSystemFormName.trim(),
+        createdAt: Date.now(),
+      };
+      setParallelSystems(prev => [...prev, newSys]);
+    }
+    setParallelSystemFormName('');
+    setShowParallelSystemForm(false);
+  };
+
+  const handleDeleteParallelSystem = (sysId: string) => {
+    // Supprimer les alters et sous-systèmes liés
+    setSavedAlters(prev => prev.filter(a => (a.systemId || 'main') !== sysId));
+    setSubsystems(prev => prev.filter(s => (s.systemId || 'main') !== sysId));
+    setParallelSystems(prev => prev.filter(s => s.id !== sysId));
+    // Revenir au système principal si on était dessus
+    if (activeSystemId === sysId) setActiveSystemId('main');
+  };
+  // ────────────────────────────────────────────────────────────────────────────
+
   const handleSaveAlter = (forceTargetId: string | null = null, forceNew: boolean = false) => {
     const trimmedName = alterName.trim() || (lang === 'fr' ? 'Anonyme' : 'Anonymous');
     
@@ -1499,6 +1559,7 @@ export default function App() {
       alterOriginWorld: alterOriginWorld || undefined,
       customFields: customFields.length > 0 ? customFields : undefined,
       archived: existingAlter?.archived || false,
+      systemId: existingAlter?.systemId || activeSystemId,
     };
 
     if (savedAlters.some(a => a.id === freshId)) {
@@ -1598,6 +1659,7 @@ export default function App() {
       id: Math.random().toString(36).substring(2, 11),
       name: newSubName.trim(),
       parentId: newSubParentId || undefined,
+      systemId: activeSystemId,
     };
     setSubsystems(prev => [...prev, newSub]);
     setNewSubName('');
@@ -2033,7 +2095,7 @@ export default function App() {
             className="text-[9px] bg-app-bg border border-app-border/40 rounded-lg px-2 py-1 max-w-[130px] font-bold uppercase tracking-wider text-app-muted cursor-pointer focus:outline-none"
           >
             <option value="">{lang === 'fr' ? 'Aucun ss-système' : 'No ss-system'}</option>
-            {subsystems.map(s => (
+            {activeSystemSubsystems.map(s => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>
@@ -2758,6 +2820,26 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-4">
+            {/* Sélecteur système actif */}
+            {parallelSystems.length > 0 && (
+              <div className="relative">
+                <select
+                  value={activeSystemId}
+                  onChange={e => setActiveSystemId(e.target.value)}
+                  className="pl-3 pr-8 py-2 bg-app-card border border-app-border rounded-xl text-xs font-black uppercase tracking-widest text-app-text focus:outline-none focus:ring-2 focus:ring-app-accent/20 cursor-pointer appearance-none"
+                  title={lang === 'fr' ? 'Système actif' : 'Active system'}
+                >
+                  <option value="main">{mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Main System')}</option>
+                  {parallelSystems.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-app-muted">
+                  <ChevronDown className="w-3 h-3" />
+                </div>
+              </div>
+            )}
+
             {/* Unified Settings Dropdown */}
             <div className="relative">
               <button
@@ -4176,7 +4258,14 @@ export default function App() {
           <div className="space-y-10 animate-fade-in duration-300">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
               <div className="flex items-center gap-4 flex-wrap">
-                <h2 className="text-2xl font-black uppercase tracking-wider">{t.menuMySystem}</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-2xl font-black uppercase tracking-wider">{t.menuMySystem}</h2>
+                  {activeSystemId !== 'main' && (
+                    <span className="px-3 py-1 bg-app-accent/10 border border-app-accent/20 rounded-xl text-xs font-black text-app-accent uppercase tracking-widest">
+                      {activeSystemName}
+                    </span>
+                  )}
+                </div>
                 {/* Barre de recherche */}
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
@@ -4213,7 +4302,7 @@ export default function App() {
               
               {/* Top Section: Display hierarchy & files */}
               <div className="w-full space-y-8">
-                {subsystems.length === 0 && savedAlters.length === 0 ? (
+                {activeSystemSubsystems.length === 0 && activeSystemAlters.length === 0 ? (
                   <div className="p-12 text-center bg-app-card/30 rounded-2xl border border-app-border/20 max-w-xl mx-auto space-y-4">
                     <Users className="w-12 h-12 text-app-muted mx-auto opacity-35" />
                     <p className="text-sm text-app-muted leading-relaxed uppercase tracking-wider font-semibold">{t.noAltersSaved}</p>
@@ -4240,16 +4329,16 @@ export default function App() {
                       {subsystems.filter(s => !s.parentId).map(rootSub => renderSubsystemNode(rootSub.id))}
 
                       {/* Unassigned Alters Section */}
-                      {savedAlters.filter(a => !a.subsystemId && !a.archived).length > 0 && (
+                      {activeSystemAlters.filter(a => !a.subsystemId && !a.archived).length > 0 && (
                         <div className="space-y-4">
                           <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
-                            {[...savedAlters]
+                            {[...activeSystemAlters]
                               .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
                               .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                               .map(a => renderAlterCard(a))}
                           </div>
                           <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {[...savedAlters]
+                            {[...activeSystemAlters]
                               .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
                               .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                               .map(a => renderAlterCard(a))}
@@ -4324,7 +4413,7 @@ export default function App() {
 
                     {/* List */}
                     <div className="flex-1 overflow-y-auto p-6">
-                      {savedAlters.filter(a => a.archived).length === 0 ? (
+                      {activeSystemAlters.filter(a => a.archived).length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-16 text-app-muted gap-3">
                           <Archive className="w-10 h-10 opacity-20" />
                           <p className="text-sm font-semibold opacity-50">
@@ -4332,7 +4421,7 @@ export default function App() {
                           </p>
                         </div>
                       ) : (() => {
-                        const filtered = [...savedAlters]
+                        const filtered = [...activeSystemAlters]
                           .filter(a => a.archived)
                           .filter(a => !archivesSearch || (a.alterName || '').toLowerCase().includes(archivesSearch.toLowerCase()))
                           .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
@@ -4398,7 +4487,7 @@ export default function App() {
                         className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
                       >
                         <option value="">{lang === 'fr' ? `Sous : ${mainSystemName} (Principal)` : `Under: ${mainSystemName} (Primary)`}</option>
-                        {subsystems.map(s => (
+                        {activeSystemSubsystems.map(s => (
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
                       </select>
@@ -4411,6 +4500,98 @@ export default function App() {
                       {lang === 'fr' ? 'Créer le sous-système' : 'Create subsystem'}
                     </button>
                   </form>
+                </div>
+
+                {/* Systèmes Parallèles Panel */}
+                <div className="p-6 bg-app-card/65 rounded-2xl border border-app-border/30 space-y-4">
+                  <h3 className="text-xs font-black uppercase tracking-wider text-app-text flex items-center gap-2">
+                    <GitBranch className="w-4 h-4" />
+                    <span>{lang === 'fr' ? 'Systèmes Parallèles' : 'Parallel Systems'}</span>
+                  </h3>
+                  <p className="text-[10px] text-app-muted leading-relaxed">
+                    {lang === 'fr'
+                      ? 'Un système parallèle est indépendant du système principal — il a ses propres alters, ses propres sous-systèmes et son propre mapping.'
+                      : 'A parallel system is independent from the main system — it has its own alters, subsystems and mapping.'}
+                  </p>
+
+                  {/* Liste des systèmes parallèles */}
+                  {parallelSystems.length > 0 && (
+                    <div className="space-y-2">
+                      {parallelSystems.map(sys => (
+                        <div key={sys.id} className="group flex items-center gap-2 px-3 py-2.5 bg-app-bg border border-app-border/40 rounded-xl">
+                          <button
+                            onClick={() => setActiveSystemId(sys.id)}
+                            className={`flex-1 text-left text-xs font-bold truncate transition-colors ${activeSystemId === sys.id ? 'text-app-accent' : 'text-app-text hover:text-app-accent'}`}
+                          >
+                            {activeSystemId === sys.id && <span className="mr-1.5 text-app-accent">✦</span>}
+                            {sys.name}
+                            <span className="ml-2 text-app-muted font-normal text-[10px]">
+                              ({savedAlters.filter(a => a.systemId === sys.id).length} {lang === 'fr' ? 'alters' : 'alters'})
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setEditingParallelSystemId(sys.id);
+                              setParallelSystemFormName(sys.name);
+                              setShowParallelSystemForm(true);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-app-card text-app-muted hover:text-app-text transition-all"
+                            title={lang === 'fr' ? 'Renommer' : 'Rename'}
+                          >
+                            <Pencil className="w-3 h-3" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(lang === 'fr'
+                                ? `Supprimer "${sys.name}" et tous ses alters ? Cette action est irréversible.`
+                                : `Delete "${sys.name}" and all its alters? This cannot be undone.`
+                              )) handleDeleteParallelSystem(sys.id);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all"
+                            title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Formulaire création/renommage */}
+                  {showParallelSystemForm ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        value={parallelSystemFormName}
+                        onChange={e => setParallelSystemFormName(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Nom du système parallèle...' : 'Parallel system name...'}
+                        className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={handleCreateParallelSystem}
+                          className="flex-1 py-2.5 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          {editingParallelSystemId
+                            ? (lang === 'fr' ? 'Renommer' : 'Rename')
+                            : (lang === 'fr' ? 'Créer' : 'Create')}
+                        </button>
+                        <button
+                          onClick={() => { setShowParallelSystemForm(false); setEditingParallelSystemId(null); setParallelSystemFormName(''); }}
+                          className="px-4 py-2.5 bg-app-card border border-app-border rounded-xl text-xs font-bold hover:opacity-80 transition-opacity"
+                        >✕</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => { setEditingParallelSystemId(null); setParallelSystemFormName(''); setShowParallelSystemForm(true); }}
+                      className="w-full py-3 bg-app-card border border-dashed border-app-border hover:border-app-accent hover:text-app-accent rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {lang === 'fr' ? 'Ajouter un système parallèle' : 'Add a parallel system'}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -5208,7 +5389,7 @@ export default function App() {
         {/* --- MAPPING VIEW --- */}
         {currentTab === 'mapping' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
-            <MappingPage savedAlters={savedAlters} lang={lang} />
+            <MappingPage savedAlters={activeSystemAlters} lang={lang} activeSystemId={activeSystemId} />
           </div>
         )}
 
