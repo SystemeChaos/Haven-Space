@@ -5712,38 +5712,40 @@ export default function App() {
                     const lastMsg = directMessages.filter(m => m.conversationId === conv.id).at(-1);
                     const isActive = conv.id === activeConvId;
                     return (
-                      <button
-                        key={conv.id}
-                        onClick={() => { setActiveConvId(conv.id); setMsgSenderId(id1); }}
-                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isActive ? 'bg-app-accent/10 border border-app-accent/30' : 'hover:bg-app-card border border-transparent'}`}
-                      >
-                        {/* Avatars empilés */}
-                        <div className="relative w-10 h-8 shrink-0">
-                          {a1?.profileImage
-                            ? <img src={a1.profileImage} className="absolute top-0 left-0 w-7 h-7 rounded-lg object-cover border-2 border-app-bg" />
-                            : <div className="absolute top-0 left-0 w-7 h-7 rounded-lg bg-app-accent/20 border-2 border-app-bg flex items-center justify-center text-[9px] font-black">{a1?.alterName.slice(0,2).toUpperCase()}</div>
-                          }
-                          {a2?.profileImage
-                            ? <img src={a2.profileImage} className="absolute bottom-0 right-0 w-7 h-7 rounded-lg object-cover border-2 border-app-bg" />
-                            : <div className="absolute bottom-0 right-0 w-7 h-7 rounded-lg bg-app-accent/10 border-2 border-app-bg flex items-center justify-center text-[9px] font-black">{a2?.alterName.slice(0,2).toUpperCase()}</div>
-                          }
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-black text-app-text truncate">{a1?.alterName} & {a2?.alterName}</p>
-                          {lastMsg && (
-                            <p className="text-[10px] text-app-muted truncate mt-0.5">
-                              {getAlterDisplayName(lastMsg.senderAlterId)}: {lastMsg.text}
-                            </p>
-                          )}
-                        </div>
-                        {/* Supprimer conv */}
+                      <div key={conv.id} className="group relative">
                         <button
-                          onClick={e => { e.stopPropagation(); setConversations(prev => prev.filter(c => c.id !== conv.id)); setDirectMessages(prev => prev.filter(m => m.conversationId !== conv.id)); if (activeConvId === conv.id) setActiveConvId(null); }}
-                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all shrink-0"
+                          onClick={() => { setActiveConvId(conv.id); setMsgSenderId(id1); }}
+                          className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isActive ? 'bg-app-accent/10 border border-app-accent/30' : 'hover:bg-app-card border border-transparent'}`}
                         >
-                          <Trash2 className="w-3 h-3" />
+                          {/* Avatars empilés */}
+                          <div className="relative w-10 h-8 shrink-0">
+                            {a1?.profileImage
+                              ? <img src={a1.profileImage} className="absolute top-0 left-0 w-7 h-7 rounded-lg object-cover border-2 border-app-bg" />
+                              : <div className="absolute top-0 left-0 w-7 h-7 rounded-lg bg-app-accent/20 border-2 border-app-bg flex items-center justify-center text-[9px] font-black">{a1?.alterName.slice(0,2).toUpperCase()}</div>
+                            }
+                            {a2?.profileImage
+                              ? <img src={a2.profileImage} className="absolute bottom-0 right-0 w-7 h-7 rounded-lg object-cover border-2 border-app-bg" />
+                              : <div className="absolute bottom-0 right-0 w-7 h-7 rounded-lg bg-app-accent/10 border-2 border-app-bg flex items-center justify-center text-[9px] font-black">{a2?.alterName.slice(0,2).toUpperCase()}</div>
+                            }
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-black text-app-text truncate">{a1?.alterName} & {a2?.alterName}</p>
+                            {lastMsg && (
+                              <p className="text-[10px] text-app-muted truncate mt-0.5">
+                                {getAlterDisplayName(lastMsg.senderAlterId)}: {lastMsg.text}
+                              </p>
+                            )}
+                          </div>
                         </button>
-                      </button>
+                        {/* Supprimer conv — visible au hover */}
+                        <button
+                          onClick={() => { setConversations(prev => prev.filter(c => c.id !== conv.id)); setDirectMessages(prev => prev.filter(m => m.conversationId !== conv.id)); if (activeConvId === conv.id) setActiveConvId(null); }}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-app-bg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all"
+                          title={lang === 'fr' ? 'Supprimer la conversation' : 'Delete conversation'}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     );
                   })}
                 </div>
