@@ -131,8 +131,10 @@ import {
   Tag,
   Hash,
   Pencil,
+  Mail,
+  Send,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, SwitchLog, JournalEntry } from './types';
+import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
@@ -504,7 +506,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'pluralkit'>('system');
+  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'pluralkit'>('system');
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
@@ -549,6 +551,20 @@ export default function App() {
 
   // --- Salons (canaux internes) ---
   const DEFAULT_SALON_ID = 'salon-general';
+  // --- Messagerie inter-alters ---
+  const [conversations, setConversations] = useState<DirectConversation[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-conversations') || '[]'); } catch { return []; }
+  });
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-direct-messages') || '[]'); } catch { return []; }
+  });
+  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [msgText, setMsgText] = useState('');
+  const [msgSenderId, setMsgSenderId] = useState<string>('');
+  const [showNewConvPanel, setShowNewConvPanel] = useState(false);
+  const [newConvAlter1, setNewConvAlter1] = useState<string>('');
+  const [newConvAlter2, setNewConvAlter2] = useState<string>('');
+
   const [chatSalons, setChatSalons] = useState<{ id: string; name: string; emoji: string; createdAt: number; accessMode: 'blacklist' | 'whitelist'; blockedOrAllowedIds: string[] }[]>(() => {
     try {
       const stored = localStorage.getItem('chatSalons');
@@ -609,6 +625,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('chatSalons', JSON.stringify(chatSalons));
   }, [chatSalons]);
+
+  useEffect(() => {
+    localStorage.setItem('hs-conversations', JSON.stringify(conversations));
+  }, [conversations]);
+
+  useEffect(() => {
+    localStorage.setItem('hs-direct-messages', JSON.stringify(directMessages));
+  }, [directMessages]);
 
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
@@ -1463,6 +1487,67 @@ export default function App() {
   };
 
   // --- DID System Management Handlers ---
+  // ─── Messagerie inter-alters ────────────────────────────────────────────────
+  // Tous les alters de tous les systèmes (pour le picker)
+  const allAlters = savedAlters;
+
+  const getAlterDisplayName = (alterId: string) => {
+    const a = allAlters.find(a => a.id === alterId);
+    return a?.alterName || alterId;
+  };
+
+  const getAlterAvatar = (alterId: string) => {
+    return allAlters.find(a => a.id === alterId)?.profileImage;
+  };
+
+  const getConvPartner = (conv: DirectConversation, currentAlterId: string) => {
+    return conv.participantIds[0] === currentAlterId ? conv.participantIds[1] : conv.participantIds[0];
+  };
+
+  const handleCreateConversation = () => {
+    if (!newConvAlter1 || !newConvAlter2 || newConvAlter1 === newConvAlter2) return;
+    // Vérifier si une conv existe déjà entre ces deux alters
+    const existing = conversations.find(c =>
+      (c.participantIds[0] === newConvAlter1 && c.participantIds[1] === newConvAlter2) ||
+      (c.participantIds[0] === newConvAlter2 && c.participantIds[1] === newConvAlter1)
+    );
+    if (existing) { setActiveConvId(existing.id); setShowNewConvPanel(false); return; }
+    const a1 = allAlters.find(a => a.id === newConvAlter1);
+    const a2 = allAlters.find(a => a.id === newConvAlter2);
+    const newConv: DirectConversation = {
+      id: 'conv-' + Math.random().toString(36).slice(2, 9),
+      participantIds: [newConvAlter1, newConvAlter2],
+      participantSystemIds: [a1?.systemId || 'main', a2?.systemId || 'main'],
+      createdAt: Date.now(),
+    };
+    setConversations(prev => [...prev, newConv]);
+    setActiveConvId(newConv.id);
+    setMsgSenderId(newConvAlter1);
+    setShowNewConvPanel(false);
+    setNewConvAlter1('');
+    setNewConvAlter2('');
+  };
+
+  const handleSendDirectMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!msgText.trim() || !activeConvId || !msgSenderId) return;
+    const conv = conversations.find(c => c.id === activeConvId);
+    if (!conv || !conv.participantIds.includes(msgSenderId)) return;
+    const msg: DirectMessage = {
+      id: 'dm-' + Math.random().toString(36).slice(2, 9),
+      conversationId: activeConvId,
+      senderAlterId: msgSenderId,
+      text: msgText.trim(),
+      timestamp: Date.now(),
+    };
+    setDirectMessages(prev => [...prev, msg]);
+    setMsgText('');
+  };
+
+  const activeConv = conversations.find(c => c.id === activeConvId) || null;
+  const activeConvMessages = directMessages.filter(m => m.conversationId === activeConvId);
+  // ────────────────────────────────────────────────────────────────────────────
+
   // ─── Systèmes parallèles ────────────────────────────────────────────────────
   // Alters filtrés pour le système actif
   const activeSystemAlters = savedAlters.filter(a => (a.systemId || 'main') === activeSystemId);
@@ -3076,6 +3161,7 @@ export default function App() {
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
                     { value: 'mapping', label: t.menuMapping, icon: GitBranch },
                     { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'messaging', label: t.menuMessaging, icon: Mail },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ];
                   const currentOpt = options.find(o => o.value === currentTab) || options[0];
@@ -3112,6 +3198,7 @@ export default function App() {
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
                     { value: 'mapping', label: t.menuMapping, icon: GitBranch },
                     { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'messaging', label: t.menuMessaging, icon: Mail },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ].map((opt) => {
                     const IconComponent = opt.icon;
@@ -5548,6 +5635,222 @@ export default function App() {
         )}
 
         {/* --- PLURALKIT VIEW --- */}
+        {/* --- MESSAGING VIEW --- */}
+        {currentTab === 'messaging' && (
+          <div className="space-y-6 max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <div className="flex justify-between items-center pb-4 border-b border-app-border/30">
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{t.messagingTitle}</h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">{t.messagingSubtitle}</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-start">
+
+              {/* Liste des conversations */}
+              <div className="md:col-span-4 space-y-2">
+                <button
+                  onClick={() => setShowNewConvPanel(v => !v)}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {t.messagingNewConv}
+                </button>
+
+                {/* Formulaire nouvelle conversation */}
+                {showNewConvPanel && (
+                  <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                      {lang === 'fr' ? 'Choisir les deux alters' : 'Choose two alters'}
+                    </p>
+                    <select
+                      value={newConvAlter1}
+                      onChange={e => setNewConvAlter1(e.target.value)}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    >
+                      <option value="">{lang === 'fr' ? 'Alter 1...' : 'Alter 1...'}</option>
+                      {[...allAlters].sort((a,b) => a.alterName.localeCompare(b.alterName)).map(a => (
+                        <option key={a.id} value={a.id}>{a.alterName}{a.systemId && a.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===a.systemId)?.name || a.systemId})` : ''}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={newConvAlter2}
+                      onChange={e => setNewConvAlter2(e.target.value)}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    >
+                      <option value="">{lang === 'fr' ? 'Alter 2...' : 'Alter 2...'}</option>
+                      {[...allAlters].filter(a => a.id !== newConvAlter1).sort((a,b) => a.alterName.localeCompare(b.alterName)).map(a => (
+                        <option key={a.id} value={a.id}>{a.alterName}{a.systemId && a.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===a.systemId)?.name || a.systemId})` : ''}</option>
+                      ))}
+                    </select>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleCreateConversation}
+                        disabled={!newConvAlter1 || !newConvAlter2}
+                        className="flex-1 py-2 bg-app-accent text-white rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40 transition-all"
+                      >
+                        {lang === 'fr' ? 'Créer' : 'Create'}
+                      </button>
+                      <button onClick={() => setShowNewConvPanel(false)} className="px-3 py-2 bg-app-card border border-app-border rounded-xl text-xs font-bold hover:opacity-80">✕</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Liste conversations */}
+                <div className="space-y-1">
+                  {conversations.length === 0 && (
+                    <p className="text-xs text-app-muted text-center py-6 italic">{t.messagingNoConv}</p>
+                  )}
+                  {[...conversations].sort((a,b) => {
+                    const lastA = directMessages.filter(m => m.conversationId === a.id).at(-1)?.timestamp || a.createdAt;
+                    const lastB = directMessages.filter(m => m.conversationId === b.id).at(-1)?.timestamp || b.createdAt;
+                    return lastB - lastA;
+                  }).map(conv => {
+                    const [id1, id2] = conv.participantIds;
+                    const a1 = allAlters.find(a => a.id === id1);
+                    const a2 = allAlters.find(a => a.id === id2);
+                    const lastMsg = directMessages.filter(m => m.conversationId === conv.id).at(-1);
+                    const isActive = conv.id === activeConvId;
+                    return (
+                      <button
+                        key={conv.id}
+                        onClick={() => { setActiveConvId(conv.id); setMsgSenderId(id1); }}
+                        className={`w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-left transition-all ${isActive ? 'bg-app-accent/10 border border-app-accent/30' : 'hover:bg-app-card border border-transparent'}`}
+                      >
+                        {/* Avatars empilés */}
+                        <div className="relative w-10 h-8 shrink-0">
+                          {a1?.profileImage
+                            ? <img src={a1.profileImage} className="absolute top-0 left-0 w-7 h-7 rounded-lg object-cover border-2 border-app-bg" />
+                            : <div className="absolute top-0 left-0 w-7 h-7 rounded-lg bg-app-accent/20 border-2 border-app-bg flex items-center justify-center text-[9px] font-black">{a1?.alterName.slice(0,2).toUpperCase()}</div>
+                          }
+                          {a2?.profileImage
+                            ? <img src={a2.profileImage} className="absolute bottom-0 right-0 w-7 h-7 rounded-lg object-cover border-2 border-app-bg" />
+                            : <div className="absolute bottom-0 right-0 w-7 h-7 rounded-lg bg-app-accent/10 border-2 border-app-bg flex items-center justify-center text-[9px] font-black">{a2?.alterName.slice(0,2).toUpperCase()}</div>
+                          }
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-black text-app-text truncate">{a1?.alterName} & {a2?.alterName}</p>
+                          {lastMsg && (
+                            <p className="text-[10px] text-app-muted truncate mt-0.5">
+                              {getAlterDisplayName(lastMsg.senderAlterId)}: {lastMsg.text}
+                            </p>
+                          )}
+                        </div>
+                        {/* Supprimer conv */}
+                        <button
+                          onClick={e => { e.stopPropagation(); setConversations(prev => prev.filter(c => c.id !== conv.id)); setDirectMessages(prev => prev.filter(m => m.conversationId !== conv.id)); if (activeConvId === conv.id) setActiveConvId(null); }}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all shrink-0"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Zone messages */}
+              <div className="md:col-span-8 flex flex-col h-[580px] bg-app-card/35 border border-app-border/30 rounded-2xl overflow-hidden shadow-sm">
+                {!activeConv ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8 space-y-3">
+                    <Mail className="w-10 h-10 text-app-muted opacity-30" />
+                    <p className="text-xs text-app-muted uppercase tracking-widest font-black">{t.messagingSelectConv}</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Header conversation */}
+                    <div className="px-5 py-3 border-b border-app-border/20 bg-app-card/50 flex items-center gap-3">
+                      {(() => {
+                        const [id1, id2] = activeConv.participantIds;
+                        const a1 = allAlters.find(a => a.id === id1);
+                        const a2 = allAlters.find(a => a.id === id2);
+                        return (
+                          <>
+                            <div className="relative w-10 h-8 shrink-0">
+                              {a1?.profileImage ? <img src={a1.profileImage} className="absolute top-0 left-0 w-6 h-6 rounded-lg object-cover border-2 border-app-bg" /> : <div className="absolute top-0 left-0 w-6 h-6 rounded-lg bg-app-accent/20 border-2 border-app-bg flex items-center justify-center text-[8px] font-black">{a1?.alterName.slice(0,2).toUpperCase()}</div>}
+                              {a2?.profileImage ? <img src={a2.profileImage} className="absolute bottom-0 right-0 w-6 h-6 rounded-lg object-cover border-2 border-app-bg" /> : <div className="absolute bottom-0 right-0 w-6 h-6 rounded-lg bg-app-accent/10 border-2 border-app-bg flex items-center justify-center text-[8px] font-black">{a2?.alterName.slice(0,2).toUpperCase()}</div>}
+                            </div>
+                            <span className="text-xs font-black uppercase tracking-wider">{a1?.alterName} & {a2?.alterName}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    {/* Messages */}
+                    <div className="flex-1 overflow-y-auto px-4 py-5 space-y-3">
+                      {activeConvMessages.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full text-center space-y-2">
+                          <MessageSquareQuote className="w-8 h-8 text-app-muted opacity-30" />
+                          <p className="text-xs text-app-muted uppercase tracking-widest font-black">{t.messagingNoMessages}</p>
+                        </div>
+                      )}
+                      {activeConvMessages.map(msg => {
+                        const isLeft = msg.senderAlterId === activeConv.participantIds[0];
+                        const sender = allAlters.find(a => a.id === msg.senderAlterId);
+                        return (
+                          <div key={msg.id} className={`flex items-end gap-2 ${isLeft ? 'flex-row' : 'flex-row-reverse'}`}>
+                            {sender?.profileImage
+                              ? <img src={sender.profileImage} className="w-7 h-7 rounded-xl object-cover shrink-0" />
+                              : <div className="w-7 h-7 rounded-xl bg-app-accent/15 flex items-center justify-center text-[9px] font-black shrink-0">{sender?.alterName.slice(0,2).toUpperCase()}</div>
+                            }
+                            <div className={`max-w-[70%] space-y-0.5 ${isLeft ? 'items-start' : 'items-end'} flex flex-col`}>
+                              <span className="text-[9px] font-black text-app-muted uppercase tracking-widest px-1">{sender?.alterName}</span>
+                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isLeft ? 'bg-app-card border border-app-border/30 text-app-text rounded-tl-sm' : 'bg-app-accent text-white rounded-tr-sm'}`}>
+                                {msg.text}
+                              </div>
+                              <span className="text-[9px] text-app-muted px-1">
+                                {new Date(msg.timestamp).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            {/* Supprimer */}
+                            <button onClick={() => setDirectMessages(prev => prev.filter(m => m.id !== msg.id))} className="opacity-0 hover:opacity-100 p-1 rounded text-app-muted hover:text-red-500 transition-all self-center">
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Input */}
+                    <div className="border-t border-app-border/20 bg-app-card/50 p-4 space-y-2">
+                      {/* Sélecteur qui parle */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-app-muted shrink-0">{lang === 'fr' ? 'Qui écrit' : 'Speaking'}:</span>
+                        <select
+                          value={msgSenderId}
+                          onChange={e => setMsgSenderId(e.target.value)}
+                          className="flex-1 bg-app-bg border border-app-border rounded-xl px-3 py-1.5 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        >
+                          {activeConv.participantIds.map(id => {
+                            const a = allAlters.find(a => a.id === id);
+                            return <option key={id} value={id}>{a?.alterName || id}</option>;
+                          })}
+                        </select>
+                      </div>
+                      <form onSubmit={handleSendDirectMessage} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={msgText}
+                          onChange={e => setMsgText(e.target.value)}
+                          placeholder={t.messagingPlaceholder}
+                          className="flex-1 bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                        <button
+                          type="submit"
+                          disabled={!msgText.trim()}
+                          className="px-4 py-2.5 bg-app-accent hover:opacity-90 text-white rounded-xl disabled:opacity-40 transition-all flex items-center gap-2"
+                        >
+                          <Send className="w-4 h-4" />
+                        </button>
+                      </form>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {currentTab === 'pluralkit' && (
           <div className="space-y-8 max-w-5xl mx-auto w-full animate-fade-in duration-300">
             <div>

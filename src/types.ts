@@ -582,6 +582,22 @@ export interface ChatMessage {
   poll?: PollData;
 }
 
+export interface DirectMessage {
+  id: string;
+  conversationId: string;
+  senderAlterId: string;
+  text: string;
+  timestamp: number;
+}
+
+export interface DirectConversation {
+  id: string;
+  participantIds: [string, string];
+  participantSystemIds: [string, string];
+  createdAt: number;
+  label?: string;
+}
+
 export interface SwitchLog {
   id: string;
   alterIds: string[]; // support co-fronting
