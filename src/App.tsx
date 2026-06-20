@@ -2839,6 +2839,28 @@ export default function App() {
   };
 
   return (
+    <>
+    <style>{`
+      .alter-scroll-container {
+        direction: rtl;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-app-accent) transparent;
+      }
+      .alter-scroll-container > * {
+        direction: ltr;
+      }
+      .alter-scroll-container::-webkit-scrollbar {
+        width: 4px;
+      }
+      .alter-scroll-container::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .alter-scroll-container::-webkit-scrollbar-thumb {
+        background-color: var(--color-app-accent);
+        border-radius: 99px;
+        opacity: 0.5;
+      }
+    `}</style>
     <div className={`min-h-screen bg-app-bg text-app-text ${font} selection:bg-app-accent selection:text-app-bg transition-colors duration-300`}>
 
       {/* ── Toast notifications stack ── */}
@@ -4415,17 +4437,22 @@ export default function App() {
                       {/* Unassigned Alters Section */}
                       {activeSystemAlters.filter(a => !a.subsystemId && !a.archived).length > 0 && (
                         <div className="space-y-4">
-                          <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
-                            {[...activeSystemAlters]
-                              .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
-                              .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
-                              .map(a => renderAlterCard(a))}
-                          </div>
-                          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {[...activeSystemAlters]
-                              .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
-                              .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
-                              .map(a => renderAlterCard(a))}
+                          {/* Conteneur scrollable avec scrollbar à gauche */}
+                          <div className={`flex flex-row-reverse gap-2 ${activeSystemAlters.filter(a => !a.subsystemId && !a.archived).length > 10 ? 'max-h-[72vh] overflow-y-auto pr-1' : ''} alter-scroll-container`}>
+                            <div className="flex-1">
+                              <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
+                                {[...activeSystemAlters]
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
+                                  .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
+                                  .map(a => renderAlterCard(a))}
+                              </div>
+                              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {[...activeSystemAlters]
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
+                                  .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
+                                  .map(a => renderAlterCard(a))}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -6633,5 +6660,6 @@ export default function App() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }
