@@ -3179,11 +3179,11 @@ export default function App() {
                   const options = [
                     { value: 'system', label: t.menuMySystem, icon: Users },
                     { value: 'creator', label: t.menuCreator, icon: Hammer },
-                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
                     { value: 'mapping', label: t.menuMapping, icon: GitBranch },
-                    { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'messaging', label: t.menuMessaging, icon: Mail },
+                    { value: 'journal', label: t.menuJournal, icon: Book },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ];
                   const currentOpt = options.find(o => o.value === currentTab) || options[0];
@@ -3216,11 +3216,11 @@ export default function App() {
                   {[
                     { value: 'system', label: t.menuMySystem, icon: Users },
                     { value: 'creator', label: t.menuCreator, icon: Hammer },
-                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
                     { value: 'mapping', label: t.menuMapping, icon: GitBranch },
-                    { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'messaging', label: t.menuMessaging, icon: Mail },
+                    { value: 'journal', label: t.menuJournal, icon: Book },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ].map((opt) => {
                     const IconComponent = opt.icon;
