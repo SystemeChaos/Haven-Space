@@ -1340,9 +1340,12 @@ export default function App() {
       node.style.height = 'auto';
 
       // Sauvegarder/libérer overflow des descendants
-      const saved = new Map<HTMLElement, {ov: string, mh: string}>();
-      node.querySelectorAll<HTMLElement>('*').forEach(el => {
-        saved.set(el, { ov: el.style.overflow, mh: el.style.maxHeight });
+      const savedOverflow: string[] = [];
+      const savedMaxHeight: string[] = [];
+      const allEls = Array.from(node.querySelectorAll<HTMLElement>('*'));
+      allEls.forEach(el => {
+        savedOverflow.push(el.style.overflow);
+        savedMaxHeight.push(el.style.maxHeight);
         el.style.overflow = 'visible';
         el.style.maxHeight = 'none';
       });
@@ -1369,9 +1372,9 @@ export default function App() {
       node.style.maxWidth = origStyle.maxWidth;
       node.style.overflow = origStyle.overflow;
       node.style.height = origStyle.height;
-      node.querySelectorAll<HTMLElement>('*').forEach(el => {
-        const s = saved.get(el);
-        if (s) { el.style.overflow = s.ov; el.style.maxHeight = s.mh; }
+      allEls.forEach((el, i) => {
+        el.style.overflow = savedOverflow[i] || '';
+        el.style.maxHeight = savedMaxHeight[i] || '';
       });
 
       const res = await fetch(dataUrl);
