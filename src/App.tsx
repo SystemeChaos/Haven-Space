@@ -1414,6 +1414,31 @@ export default function App() {
       // Laisser le navigateur calculer le layout complet
       await new Promise(r => setTimeout(r, 300));
 
+      // Inliner les styles calculés pour que html-to-image capture tout correctement
+      // (Tailwind classes perdues dans le contexte hors-écran)
+      const inlineStyles = (source: HTMLElement, target: HTMLElement) => {
+        const computed = window.getComputedStyle(source);
+        const props = [
+          'background-color', 'background', 'color', 'border-color', 'border-width',
+          'border-style', 'border-radius', 'padding', 'padding-top', 'padding-bottom',
+          'padding-left', 'padding-right', 'margin', 'font-size', 'font-weight',
+          'font-family', 'line-height', 'letter-spacing', 'text-transform',
+          'display', 'flex-direction', 'align-items', 'justify-content', 'gap',
+          'width', 'height', 'min-width', 'max-width', 'flex-wrap',
+          'opacity', 'box-shadow', 'text-decoration',
+        ];
+        props.forEach(prop => {
+          const val = computed.getPropertyValue(prop);
+          if (val) (target.style as any)[prop.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase())] = val;
+        });
+        const srcChildren = source.children;
+        const tgtChildren = target.children;
+        for (let i = 0; i < srcChildren.length; i++) {
+          if (tgtChildren[i]) inlineStyles(srcChildren[i] as HTMLElement, tgtChildren[i] as HTMLElement);
+        }
+      };
+      inlineStyles(node, clone);
+
       // Forcer crossOrigin sur les images
       clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
         img.crossOrigin = 'anonymous';
