@@ -1332,13 +1332,31 @@ export default function App() {
       const node = flagRef.current;
       const exportWidth = 600;
 
+      // Récupérer les vraies valeurs CSS du thème actuel
+      const themeStyles = getThemeStyles() as Record<string, string>;
+      const themeBg = themeStyles['--color-app-bg'] || '#ffffff';
+      const themeCard = themeStyles['--color-app-card'] || '#ffffff';
+      const themeText = themeStyles['--color-app-text'] || '#000000';
+      const themeMuted = themeStyles['--color-app-muted'] || 'rgba(0,0,0,0.5)';
+      const themeBorder = themeStyles['--color-app-border'] || 'rgba(0,0,0,0.1)';
+      const themeAccent = themeStyles['--color-app-accent'] || '#273f4f';
+      const themeAccentText = themeStyles['--color-app-accent-text'] || '#ffffff';
+
       // Clone dans un conteneur hors-écran pour forcer le rendu desktop
       const wrapper = document.createElement('div');
       wrapper.style.position = 'fixed';
       wrapper.style.top = '-99999px';
       wrapper.style.left = '-99999px';
       wrapper.style.width = exportWidth + 'px';
-      wrapper.style.background = '#FFFFFF';
+      wrapper.style.background = themeBg;
+      // Injecter les variables CSS du thème sur le wrapper
+      wrapper.style.setProperty('--color-app-bg', themeBg);
+      wrapper.style.setProperty('--color-app-card', themeCard);
+      wrapper.style.setProperty('--color-app-text', themeText);
+      wrapper.style.setProperty('--color-app-muted', themeMuted);
+      wrapper.style.setProperty('--color-app-border', themeBorder);
+      wrapper.style.setProperty('--color-app-accent', themeAccent);
+      wrapper.style.setProperty('--color-app-accent-text', themeAccentText);
       document.body.appendChild(wrapper);
 
       const clone = node.cloneNode(true) as HTMLElement;
@@ -1346,6 +1364,14 @@ export default function App() {
       clone.style.maxWidth = exportWidth + 'px';
       clone.style.height = 'auto';
       clone.style.overflow = 'visible';
+      // Propager les variables CSS sur le clone aussi
+      clone.style.setProperty('--color-app-bg', themeBg);
+      clone.style.setProperty('--color-app-card', themeCard);
+      clone.style.setProperty('--color-app-text', themeText);
+      clone.style.setProperty('--color-app-muted', themeMuted);
+      clone.style.setProperty('--color-app-border', themeBorder);
+      clone.style.setProperty('--color-app-accent', themeAccent);
+      clone.style.setProperty('--color-app-accent-text', themeAccentText);
 
       // Retirer les contraintes de hauteur/overflow sur tous les descendants
       clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
@@ -1397,7 +1423,7 @@ export default function App() {
 
       const dataUrl = await toPng(clone, {
         pixelRatio: 4,
-        backgroundColor: '#FFFFFF',
+        backgroundColor: themeBg,
         width: exportWidth,
         height: clone.scrollHeight,
         skipAutoScale: true,
