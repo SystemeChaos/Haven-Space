@@ -1323,138 +1323,56 @@ export default function App() {
 
   const handleDownload = useCallback(async () => {
     if (flagRef.current === null) return;
-    
     setIsDownloading(true);
-    // Attendre que React applique le re-render (isDownloading=true change le DOM)
-    await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => setTimeout(r, 150));
 
     try {
       const node = flagRef.current;
       const exportWidth = 600;
 
-      // Récupérer les vraies valeurs CSS du thème actuel
-      const themeStyles = getThemeStyles() as Record<string, string>;
-      const themeBg = themeStyles['--color-app-bg'] || '#ffffff';
-      const themeCard = themeStyles['--color-app-card'] || '#ffffff';
-      const themeText = themeStyles['--color-app-text'] || '#000000';
-      const themeMuted = themeStyles['--color-app-muted'] || 'rgba(0,0,0,0.5)';
-      const themeBorder = themeStyles['--color-app-border'] || 'rgba(0,0,0,0.1)';
-      const themeAccent = themeStyles['--color-app-accent'] || '#273f4f';
-      const themeAccentText = themeStyles['--color-app-accent-text'] || '#ffffff';
+      // Sauvegarder styles originaux du nœud
+      const origStyle = { width: node.style.width, maxWidth: node.style.maxWidth, overflow: node.style.overflow, height: node.style.height };
 
-      // Clone dans un conteneur hors-écran pour forcer le rendu desktop
-      const wrapper = document.createElement('div');
-      wrapper.style.position = 'fixed';
-      wrapper.style.top = '-99999px';
-      wrapper.style.left = '-99999px';
-      wrapper.style.width = exportWidth + 'px';
-      wrapper.style.background = themeBg;
-      // Injecter les variables CSS du thème sur le wrapper
-      wrapper.style.setProperty('--color-app-bg', themeBg);
-      wrapper.style.setProperty('--color-app-card', themeCard);
-      wrapper.style.setProperty('--color-app-text', themeText);
-      wrapper.style.setProperty('--color-app-muted', themeMuted);
-      wrapper.style.setProperty('--color-app-border', themeBorder);
-      wrapper.style.setProperty('--color-app-accent', themeAccent);
-      wrapper.style.setProperty('--color-app-accent-text', themeAccentText);
-      document.body.appendChild(wrapper);
+      // Appliquer temporairement sur le nœud réel (styles déjà calculés par le navigateur)
+      node.style.width = exportWidth + 'px';
+      node.style.maxWidth = exportWidth + 'px';
+      node.style.overflow = 'visible';
+      node.style.height = 'auto';
 
-      const clone = node.cloneNode(true) as HTMLElement;
-      clone.style.width = exportWidth + 'px';
-      clone.style.maxWidth = exportWidth + 'px';
-      clone.style.height = 'auto';
-      clone.style.overflow = 'visible';
-      // Propager les variables CSS sur le clone aussi
-      clone.style.setProperty('--color-app-bg', themeBg);
-      clone.style.setProperty('--color-app-card', themeCard);
-      clone.style.setProperty('--color-app-text', themeText);
-      clone.style.setProperty('--color-app-muted', themeMuted);
-      clone.style.setProperty('--color-app-border', themeBorder);
-      clone.style.setProperty('--color-app-accent', themeAccent);
-      clone.style.setProperty('--color-app-accent-text', themeAccentText);
-
-      // Retirer les contraintes de hauteur/overflow sur tous les descendants
-      clone.querySelectorAll<HTMLElement>('*').forEach((el) => {
+      // Sauvegarder/libérer overflow des descendants
+      const saved = new Map<HTMLElement, {ov: string, mh: string}>();
+      node.querySelectorAll<HTMLElement>('*').forEach(el => {
+        saved.set(el, { ov: el.style.overflow, mh: el.style.maxHeight });
         el.style.overflow = 'visible';
         el.style.maxHeight = 'none';
-        if (el.style.aspectRatio) el.style.aspectRatio = '';
-        el.classList.remove('overflow-hidden', 'overflow-y-auto', 'overflow-x-auto');
-        el.classList.forEach(cls => {
-          if (cls.startsWith('aspect-') || cls.startsWith('max-h-')) {
-            el.classList.remove(cls);
-          }
-        });
       });
 
-      // Forcer les dimensions de la photo de profil (Tailwind perdu dans le clone)
-      const profileImgContainer = clone.querySelector<HTMLElement>('[style*="width: 120px"]');
-      if (profileImgContainer) {
-        profileImgContainer.style.width = '120px';
-        profileImgContainer.style.height = '120px';
-        profileImgContainer.style.flexShrink = '0';
-      }
-      // Cibler le conteneur photo par sa position dans la structure
-      clone.querySelectorAll<HTMLElement>('img[alt="Profile"]').forEach((img) => {
-        img.style.width = '100%';
-        img.style.height = '100%';
-        img.style.objectFit = 'cover';
-        img.style.display = 'block';
-        const parent = img.parentElement;
-        if (parent) {
-          parent.style.width = '120px';
-          parent.style.height = '120px';
-          parent.style.overflow = 'hidden';
-          parent.style.flexShrink = '0';
-          parent.style.borderRadius = '1rem';
-        }
-      });
+      // crossOrigin sur les images
+      node.querySelectorAll('img').forEach((img: HTMLImageElement) => { img.crossOrigin = 'anonymous'; });
 
-      wrapper.appendChild(clone);
+      await new Promise(r => setTimeout(r, 200));
 
-      // Laisser le navigateur calculer le layout complet
-      await new Promise(r => setTimeout(r, 300));
+      // Lire la couleur de fond réelle depuis les CSS vars du document
+      const docStyle = getComputedStyle(document.documentElement);
+      const themeBg = docStyle.getPropertyValue('--color-app-bg').trim() || '#ffffff';
 
-      // Inliner les styles calculés pour que html-to-image capture tout correctement
-      // (Tailwind classes perdues dans le contexte hors-écran)
-      const inlineStyles = (source: HTMLElement, target: HTMLElement) => {
-        const computed = window.getComputedStyle(source);
-        const props = [
-          'background-color', 'background', 'color', 'border-color', 'border-width',
-          'border-style', 'border-radius', 'padding', 'padding-top', 'padding-bottom',
-          'padding-left', 'padding-right', 'margin', 'font-size', 'font-weight',
-          'font-family', 'line-height', 'letter-spacing', 'text-transform',
-          'display', 'flex-direction', 'align-items', 'justify-content', 'gap',
-          'width', 'height', 'min-width', 'max-width', 'flex-wrap',
-          'opacity', 'box-shadow', 'text-decoration',
-        ];
-        props.forEach(prop => {
-          const val = computed.getPropertyValue(prop);
-          if (val) (target.style as any)[prop.replace(/-([a-z])/g, (_: string, c: string) => c.toUpperCase())] = val;
-        });
-        const srcChildren = source.children;
-        const tgtChildren = target.children;
-        for (let i = 0; i < srcChildren.length; i++) {
-          if (tgtChildren[i]) inlineStyles(srcChildren[i] as HTMLElement, tgtChildren[i] as HTMLElement);
-        }
-      };
-      inlineStyles(node, clone);
-
-      // Forcer crossOrigin sur les images
-      clone.querySelectorAll('img').forEach((img: HTMLImageElement) => {
-        img.crossOrigin = 'anonymous';
-      });
-
-      await new Promise(r => setTimeout(r, 100));
-
-      const dataUrl = await toPng(clone, {
-        pixelRatio: 4,
-        backgroundColor: themeBg,
+      const dataUrl = await toPng(node, {
+        pixelRatio: 3,
+        backgroundColor: themeBg || '#ffffff',
         width: exportWidth,
-        height: clone.scrollHeight,
+        height: node.scrollHeight,
         skipAutoScale: true,
       });
 
-      document.body.removeChild(wrapper);
+      // Restaurer les styles
+      node.style.width = origStyle.width;
+      node.style.maxWidth = origStyle.maxWidth;
+      node.style.overflow = origStyle.overflow;
+      node.style.height = origStyle.height;
+      node.querySelectorAll<HTMLElement>('*').forEach(el => {
+        const s = saved.get(el);
+        if (s) { el.style.overflow = s.ov; el.style.maxHeight = s.mh; }
+      });
 
       const res = await fetch(dataUrl);
       const blob = await res.blob();
