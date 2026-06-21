@@ -1487,7 +1487,20 @@ export default function App() {
   };
 
   // --- DID System Management Handlers ---
-  // ─── Messagerie inter-alters ────────────────────────────────────────────────
+  // ─── Bouton retour mobile ────────────────────────────────────────────────────
+  useEffect(() => {
+    // Empêche le bouton retour de quitter l'app en mode PWA
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.history.pushState(null, '', window.location.href);
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // ─── Messagerie inter-alters ────────────────────────────────────────────────────
   // Tous les alters de tous les systèmes (pour le picker)
   const allAlters = savedAlters;
 
@@ -3166,7 +3179,7 @@ export default function App() {
       ) : (
         <>
           {/* Secondary Navigation Dropdown Menu & System Info */}
-          <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4 px-8 sticky top-0 z-40">
+          <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4 px-8 sticky top-[89px] z-40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="relative w-full md:w-80 z-50">
             {/* The Dropdown Trigger Button */}
