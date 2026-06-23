@@ -133,6 +133,8 @@ import {
   Pencil,
   Mail,
   Send,
+  Anchor,
+  ChevronRight,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
@@ -506,7 +508,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'pluralkit'>('system');
+  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit'>('system');
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
@@ -1459,6 +1461,9 @@ export default function App() {
   };
 
   // --- DID System Management Handlers ---
+  const [groundingOpenSections, setGroundingOpenSections] = useState<string[]>(['move']);
+  const toggleGroundingSection = (id: string) => setGroundingOpenSections(prev => prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]);
+
   // ─── Bouton retour mobile ────────────────────────────────────────────────────
   useEffect(() => {
     // Empêche le bouton retour de quitter l'app en mode PWA
@@ -3169,6 +3174,7 @@ export default function App() {
                     { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'messaging', label: t.menuMessaging, icon: Mail },
                     { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'grounding', label: t.menuGrounding, icon: Anchor },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ];
                   const currentOpt = options.find(o => o.value === currentTab) || options[0];
@@ -3206,6 +3212,7 @@ export default function App() {
                     { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'messaging', label: t.menuMessaging, icon: Mail },
                     { value: 'journal', label: t.menuJournal, icon: Book },
+                    { value: 'grounding', label: t.menuGrounding, icon: Anchor },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ].map((opt) => {
                     const IconComponent = opt.icon;
@@ -5862,6 +5869,212 @@ export default function App() {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- GROUNDING VIEW --- */}
+        {currentTab === 'grounding' && (
+          <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
+            {/* Header */}
+            <div className="pb-4 border-b border-app-border/30 space-y-1">
+              <h2 className="text-2xl font-black uppercase tracking-wider flex items-center gap-3">
+                <Anchor className="w-6 h-6 text-app-accent" />
+                {lang === 'fr' ? 'Techniques d'Ancrage' : 'Grounding Techniques'}
+              </h2>
+              <p className="text-xs text-app-muted font-bold uppercase tracking-widest">
+                {lang === 'fr' ? 'En cas de dissociation ou détresse émotionnelle' : 'In case of dissociation or emotional distress'}
+              </p>
+            </div>
+
+            {/* Intro */}
+            <div className="p-5 bg-app-card/60 border border-app-border/30 rounded-2xl space-y-2 text-sm text-app-text/85 leading-relaxed">
+              <p>
+                {lang === 'fr'
+                  ? 'Ces techniques visent à soulager les états de détresse émotionnelle et à lutter contre la dissociation. Elles doivent être répétées très régulièrement, notamment en dehors des crises, pour être efficaces.'
+                  : 'These techniques aim to relieve emotional distress and combat dissociation. They should be practiced very regularly, including outside of crisis moments, to be effective.'}
+              </p>
+              <p className="text-[11px] text-app-muted italic">
+                {lang === 'fr' ? 'Source : Dr Igor Thiriez — Version 3.1 (21/11/2021)' : 'Source: Dr Igor Thiriez — Version 3.1 (21/11/2021)'}
+              </p>
+            </div>
+
+            {/* Sections accordéon */}
+            {[
+              {
+                id: 'move',
+                labelFr: '🚶 Si je peux me déplacer',
+                labelEn: '🚶 If I can move around',
+                colorClass: 'border-green-500/30 bg-green-500/5',
+                accentClass: 'text-green-600 dark:text-green-400',
+                items: lang === 'fr' ? [
+                  'Je m'étire très fort (doigts, bras, cou, muscles du visage, dos, jambes…)',
+                  'Je sautille sur place (je sens mon poids, les mouvements et les contacts avec le sol)',
+                  'Je marche lentement (je compte mes pas ou je pense droite/gauche)',
+                  'Je fais couler de l'eau sur mes mains / Je me projette de l'eau sur le visage',
+                  'Je prends une douche / Je prends un bain',
+                  'Je fais de l'exercice (ex. courir dehors ou aller nager à la piscine)',
+                ] : [
+                  'I stretch hard (fingers, arms, neck, facial muscles, back, legs…)',
+                  'I hop in place (feeling my weight, movements and contact with the ground)',
+                  'I walk slowly (counting steps or thinking left/right)',
+                  'I run water over my hands / I splash water on my face',
+                  'I take a shower / I take a bath',
+                  'I exercise (e.g. run outside or go swimming)',
+                ],
+              },
+              {
+                id: 'body',
+                labelFr: '🤜 Si je peux bouger',
+                labelEn: '🤜 If I can move my body',
+                colorClass: 'border-orange-500/30 bg-orange-500/5',
+                accentClass: 'text-orange-600 dark:text-orange-400',
+                items: lang === 'fr' ? [
+                  'Je serre les poings, je les desserre et ainsi de suite (je me concentre sur les muscles)',
+                  'Je me cramponne à ma chaise ou à quelque chose d'autre, aussi fort que possible',
+                  'Je me tiens sur mes talons (je sens le poids qui s'applique sur le sol)',
+                  'Je manipule un objet agréable au toucher (je me concentre sur les sensations)',
+                  'Je regarde un objet qui a du sens pour moi (ex. une photo, un cadeau)',
+                  'Je sens un objet qui dégage une odeur (ex. crème, parfum, sachet de thé)',
+                ] : [
+                  'I clench and unclench my fists repeatedly (focusing on the muscles)',
+                  'I grip my chair or something else as hard as possible',
+                  'I stand on my heels (feeling the weight pressing down)',
+                  'I hold a pleasant-to-touch object (focusing on the sensations)',
+                  'I look at an object that means something to me (e.g. a photo, a gift)',
+                  'I smell something (e.g. cream, perfume, tea bag)',
+                ],
+              },
+              {
+                id: 'speak',
+                labelFr: '🗣️ Si je peux parler (sinon intérieurement)',
+                labelEn: '🗣️ If I can speak (or internally)',
+                colorClass: 'border-blue-500/30 bg-blue-500/5',
+                accentClass: 'text-blue-600 dark:text-blue-400',
+                items: lang === 'fr' ? [
+                  'Je nomme 5 choses que je peux voir',
+                  'Je nomme 4 choses que je peux entendre',
+                  'Je nomme 3 choses que je peux toucher',
+                  'Je nomme 2 choses que je peux sentir',
+                  'Je nomme 1 chose que je peux goûter',
+                  'Je me dis des choses gentilles et encourageantes (ex. ça va passer)',
+                  'Je décris en détails 3 objets autour de moi',
+                  'Je décris de façon détaillée une de mes activités quotidiennes',
+                  'Je lis quelque chose que je trouve autour de moi (ex. livre, affiche, panneau)',
+                  'Je chante ou je récite quelque chose d'inspirant ou de réconfortant',
+                ] : [
+                  'I name 5 things I can see',
+                  'I name 4 things I can hear',
+                  'I name 3 things I can touch',
+                  'I name 2 things I can smell',
+                  'I name 1 thing I can taste',
+                  'I tell myself kind, encouraging things (e.g. this will pass)',
+                  'I describe in detail 3 objects around me',
+                  'I describe in detail one of my daily activities',
+                  'I read something nearby (e.g. a book, poster, sign)',
+                  'I sing or recite something inspiring or comforting',
+                ],
+              },
+              {
+                id: 'feel',
+                labelFr: '🌬️ Si je peux sentir / ressentir',
+                labelEn: '🌬️ If I can feel / sense',
+                colorClass: 'border-teal-500/30 bg-teal-500/5',
+                accentClass: 'text-teal-600 dark:text-teal-400',
+                items: lang === 'fr' ? [
+                  'Je sens les contacts du souffle de ma respiration (je respire lentement)',
+                  'Je sens les contacts de mon corps avec mes vêtements',
+                ] : [
+                  'I feel the touch of my breath (I breathe slowly)',
+                  'I feel my body in contact with my clothes',
+                ],
+              },
+              {
+                id: 'orient',
+                labelFr: '🧭 Si je peux m'orienter',
+                labelEn: '🧭 If I can orient myself',
+                colorClass: 'border-yellow-500/30 bg-yellow-500/5',
+                accentClass: 'text-yellow-600 dark:text-yellow-400',
+                items: lang === 'fr' ? [
+                  'Je nomme le lieu où je me trouve',
+                  'J'annonce mon identité',
+                  'J'annonce l'heure et la date',
+                  'Je nomme le président de la République',
+                ] : [
+                  'I name the place where I am',
+                  'I state my identity',
+                  'I state the time and date',
+                  'I name the head of state',
+                ],
+              },
+              {
+                id: 'think',
+                labelFr: '🧠 Si je peux penser',
+                labelEn: '🧠 If I can think',
+                colorClass: 'border-purple-500/30 bg-purple-500/5',
+                accentClass: 'text-purple-600 dark:text-purple-400',
+                items: lang === 'fr' ? [
+                  'Je m'imagine protégé·e du mal (par des murs, des gardes ou un pouvoir)',
+                  'Je joue au jeu des catégories (ex. je cite des noms de pays qui débutent par « A »)',
+                  'Je m'imagine dans un endroit sûr (réel ou imaginaire)',
+                  'Je prévois de m'accorder une récompense une fois que ce sera passé',
+                ] : [
+                  'I imagine myself protected from harm (by walls, guards or a power)',
+                  'I play a category game (e.g. I name countries starting with "A")',
+                  'I imagine myself in a safe place (real or imaginary)',
+                  'I plan a reward for myself once this passes',
+                ],
+              },
+              {
+                id: 'remember',
+                labelFr: '📖 Si je peux me souvenir',
+                labelEn: '📖 If I can remember',
+                colorClass: 'border-rose-500/30 bg-rose-500/5',
+                accentClass: 'text-rose-600 dark:text-rose-400',
+                items: lang === 'fr' ? [
+                  'Je décris de façon détaillée un souvenir neutre ou agréable',
+                  'Je progresse jusqu'au présent (ex. je décris mes anniversaires successifs)',
+                  'Je décris ce que je dois faire dans les heures/jours qui viennent',
+                  'Je pense aux favoris de ma vie (ex. choses, activités, gens, principes et valeurs)',
+                ] : [
+                  'I describe in detail a neutral or pleasant memory',
+                  'I progress up to the present (e.g. I describe successive birthdays)',
+                  'I describe what I need to do in the coming hours/days',
+                  'I think of my life favorites (e.g. things, activities, people, principles and values)',
+                ],
+              },
+            ].map(section => {
+              const isOpen = groundingOpenSections.includes(section.id);
+              return (
+                <div key={section.id} className={`border rounded-2xl overflow-hidden transition-all ${section.colorClass}`}>
+                  <button
+                    onClick={() => toggleGroundingSection(section.id)}
+                    className="w-full flex items-center justify-between px-5 py-4 text-left"
+                  >
+                    <span className={`text-sm font-black uppercase tracking-wide ${section.accentClass}`}>
+                      {lang === 'fr' ? section.labelFr : section.labelEn}
+                    </span>
+                    <ChevronRight className={`w-4 h-4 shrink-0 transition-transform text-app-muted ${isOpen ? 'rotate-90' : ''}`} />
+                  </button>
+                  {isOpen && (
+                    <ul className="px-5 pb-5 space-y-2">
+                      {section.items.map((item, i) => (
+                        <li key={i} className="flex items-start gap-3 text-sm text-app-text/85 leading-relaxed">
+                          <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${section.accentClass} bg-current`} />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Footer attribution */}
+            <p className="text-center text-[11px] text-app-muted italic pb-4">
+              {lang === 'fr'
+                ? 'Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical.'
+                : 'Content reproduced with respect for the work of Dr Igor Thiriez (v3.1, 2021). Haven Space is not a medical tool.'}
+            </p>
           </div>
         )}
 
