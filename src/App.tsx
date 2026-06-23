@@ -5879,7 +5879,7 @@ export default function App() {
             <div className="pb-4 border-b border-app-border/30 space-y-1">
               <h2 className="text-2xl font-black uppercase tracking-wider flex items-center gap-3">
                 <Anchor className="w-6 h-6 text-app-accent" />
-                {lang === 'fr' ? 'Techniques d'Ancrage' : 'Grounding Techniques'}
+                {lang === 'fr' ? "Techniques d'Ancrage" : 'Grounding Techniques'}
               </h2>
               <p className="text-xs text-app-muted font-bold uppercase tracking-widest">
                 {lang === 'fr' ? 'En cas de dissociation ou détresse émotionnelle' : 'In case of dissociation or emotional distress'}
