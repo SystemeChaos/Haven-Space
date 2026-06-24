@@ -1,0 +1,42 @@
+# Query: toPNG
+# ContextLines: 1
+
+3 résultats - 1 fichier
+
+src/App.tsx:
+    2  import { motion, AnimatePresence } from 'motion/react';
+    3: import { toPng } from 'html-to-image';
+    4  import { 
+
+  891      try {
+  892:       const node = flagRef.current;
+  const dataUrl = await toPng(node, {
+  cacheBust: true,
+  pixelRatio: 2,
+  backgroundColor: '#FFFFFF',
+  width: node.scrollWidth,
+  height: node.scrollHeight,
+  style: {
+    transform: 'scale(1)',
+    transformOrigin: 'top left',
+    width: node.scrollWidth + 'px',
+    height: node.scrollHeight + 'px',
+  },
+});
+
+  913      try {
+  914:       const node = flagRef.current;
+const dataUrl = await toPng(node, {
+  cacheBust: true,
+  pixelRatio: 2.5,
+  backgroundColor: '#FFFFFF',
+  width: node.scrollWidth,
+  height: node.scrollHeight,
+  style: {
+    transform: 'scale(1)',
+    transformOrigin: 'top left',
+    width: node.scrollWidth + 'px',
+    height: node.scrollHeight + 'px',
+  },
+});
+  915          cacheBust: true,
