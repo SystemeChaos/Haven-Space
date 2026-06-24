@@ -133,7 +133,6 @@ import {
   Pencil,
   Mail,
   Send,
-  Anchor,
   ChevronRight,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
@@ -5990,7 +5989,7 @@ export default function App() {
               },
               {
                 id: 'orient',
-                labelFr: '🧭 Si je peux m'orienter',
+                labelFr: "🧭 Si je peux m'orienter",
                 labelEn: '🧭 If I can orient myself',
                 colorClass: 'border-yellow-500/30 bg-yellow-500/5',
                 accentClass: 'text-yellow-600 dark:text-yellow-400',
