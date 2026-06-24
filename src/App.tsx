@@ -5907,12 +5907,12 @@ export default function App() {
                 colorClass: 'border-green-500/30 bg-green-500/5',
                 accentClass: 'text-green-600 dark:text-green-400',
                 items: lang === 'fr' ? [
-                  'Je m'étire très fort (doigts, bras, cou, muscles du visage, dos, jambes…)',
+                  "Je m'étire très fort (doigts, bras, cou, muscles du visage, dos, jambes…)",
                   'Je sautille sur place (je sens mon poids, les mouvements et les contacts avec le sol)',
                   'Je marche lentement (je compte mes pas ou je pense droite/gauche)',
-                  'Je fais couler de l'eau sur mes mains / Je me projette de l'eau sur le visage',
+                  "Je fais couler de l'eau sur mes mains / Je me projette de l'eau sur le visage",
                   'Je prends une douche / Je prends un bain',
-                  'Je fais de l'exercice (ex. courir dehors ou aller nager à la piscine)',
+                  "Je fais de l'exercice (ex. courir dehors ou aller nager à la piscine)",
                 ] : [
                   'I stretch hard (fingers, arms, neck, facial muscles, back, legs…)',
                   'I hop in place (feeling my weight, movements and contact with the ground)',
@@ -5930,8 +5930,8 @@ export default function App() {
                 accentClass: 'text-orange-600 dark:text-orange-400',
                 items: lang === 'fr' ? [
                   'Je serre les poings, je les desserre et ainsi de suite (je me concentre sur les muscles)',
-                  'Je me cramponne à ma chaise ou à quelque chose d'autre, aussi fort que possible',
-                  'Je me tiens sur mes talons (je sens le poids qui s'applique sur le sol)',
+                  "Je me cramponne à ma chaise ou à quelque chose d'autre, aussi fort que possible",
+                  "Je me tiens sur mes talons (je sens le poids qui s'applique sur le sol)",
                   'Je manipule un objet agréable au toucher (je me concentre sur les sensations)',
                   'Je regarde un objet qui a du sens pour moi (ex. une photo, un cadeau)',
                   'Je sens un objet qui dégage une odeur (ex. crème, parfum, sachet de thé)',
@@ -5960,7 +5960,7 @@ export default function App() {
                   'Je décris en détails 3 objets autour de moi',
                   'Je décris de façon détaillée une de mes activités quotidiennes',
                   'Je lis quelque chose que je trouve autour de moi (ex. livre, affiche, panneau)',
-                  'Je chante ou je récite quelque chose d'inspirant ou de réconfortant',
+                  "Je chante ou je récite quelque chose d'inspirant ou de réconfortant",
                 ] : [
                   'I name 5 things I can see',
                   'I name 4 things I can hear',
@@ -5996,8 +5996,8 @@ export default function App() {
                 accentClass: 'text-yellow-600 dark:text-yellow-400',
                 items: lang === 'fr' ? [
                   'Je nomme le lieu où je me trouve',
-                  'J'annonce mon identité',
-                  'J'annonce l'heure et la date',
+                  "J'annonce mon identité",
+                  "J'annonce l'heure et la date",
                   'Je nomme le président de la République',
                 ] : [
                   'I name the place where I am',
@@ -6013,10 +6013,10 @@ export default function App() {
                 colorClass: 'border-purple-500/30 bg-purple-500/5',
                 accentClass: 'text-purple-600 dark:text-purple-400',
                 items: lang === 'fr' ? [
-                  'Je m'imagine protégé·e du mal (par des murs, des gardes ou un pouvoir)',
+                  "Je m'imagine protégé·e du mal (par des murs, des gardes ou un pouvoir)",
                   'Je joue au jeu des catégories (ex. je cite des noms de pays qui débutent par « A »)',
-                  'Je m'imagine dans un endroit sûr (réel ou imaginaire)',
-                  'Je prévois de m'accorder une récompense une fois que ce sera passé',
+                  "Je m'imagine dans un endroit sûr (réel ou imaginaire)",
+                  "Je prévois de m'accorder une récompense une fois que ce sera passé",
                 ] : [
                   'I imagine myself protected from harm (by walls, guards or a power)',
                   'I play a category game (e.g. I name countries starting with "A")',
@@ -6032,7 +6032,7 @@ export default function App() {
                 accentClass: 'text-rose-600 dark:text-rose-400',
                 items: lang === 'fr' ? [
                   'Je décris de façon détaillée un souvenir neutre ou agréable',
-                  'Je progresse jusqu'au présent (ex. je décris mes anniversaires successifs)',
+                  "Je progresse jusqu'au présent (ex. je décris mes anniversaires successifs)",
                   'Je décris ce que je dois faire dans les heures/jours qui viennent',
                   'Je pense aux favoris de ma vie (ex. choses, activités, gens, principes et valeurs)',
                 ] : [
@@ -6072,7 +6072,7 @@ export default function App() {
             {/* Footer attribution */}
             <p className="text-center text-[11px] text-app-muted italic pb-4">
               {lang === 'fr'
-                ? 'Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical.'
+                  ? "Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical."
                 : 'Content reproduced with respect for the work of Dr Igor Thiriez (v3.1, 2021). Haven Space is not a medical tool.'}
             </p>
           </div>
