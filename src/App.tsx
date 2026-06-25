@@ -541,6 +541,7 @@ export default function App() {
   const [activeSubsystemView, setActiveSubsystemView] = useState<string | null>(null);
   const [editingSubsystemNameId, setEditingSubsystemNameId] = useState<string | null>(null);
   const [editingSubsystemNameValue, setEditingSubsystemNameValue] = useState('');
+  const [creatorSubsystemId, setCreatorSubsystemId] = useState<string>('');
   const [showParallelSystemForm, setShowParallelSystemForm] = useState(false);
   const [parallelSystemFormName, setParallelSystemFormName] = useState('');
   const [editingParallelSystemId, setEditingParallelSystemId] = useState<string | null>(null);
@@ -1621,7 +1622,7 @@ export default function App() {
       profileImage,
       description,
       internalNotes,
-      subsystemId: existingSubsystemId,
+      subsystemId: creatorSubsystemId || existingSubsystemId || undefined,
       frontStatus: frontStatus || 'none',
       pkId: existingPkId,
       alterAge: alterAge || undefined,
@@ -1661,6 +1662,7 @@ export default function App() {
     setProfileImage(alter.profileImage || '');
     setDescription(alter.description || '');
     setInternalNotes(alter.internalNotes || '');
+    setCreatorSubsystemId(alter.subsystemId || '');
     setAlterAge(alter.alterAge || '');
     setAlterColor(alter.alterColor || '');
     setTriggersPositive(alter.triggersPositive || '');
@@ -1697,6 +1699,7 @@ export default function App() {
     setProfileImage('');
     setDescription('');
     setInternalNotes('');
+    setCreatorSubsystemId('');
     setAlterAge('');
     setAlterColor('');
     setTriggersPositive('');
@@ -3301,7 +3304,24 @@ export default function App() {
             />
           </section>
 
-
+          {/* Subsystem Selector */}
+          {activeSystemSubsystems.length > 0 && (
+            <section className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
+                <Layers className="w-3 h-3" /> {lang === 'fr' ? "Sous-système" : "Subsystem"}
+              </label>
+              <select
+                value={creatorSubsystemId}
+                onChange={e => setCreatorSubsystemId(e.target.value)}
+                className="w-full bg-app-card border border-app-border rounded-2xl px-5 py-3.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all appearance-none cursor-pointer"
+              >
+                <option value="">{lang === 'fr' ? "Système principal" : "Main system"}</option>
+                {activeSystemSubsystems.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </section>
+          )}
 
           {/* Description Section */}
           <section className="space-y-4">
