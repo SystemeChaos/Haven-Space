@@ -538,6 +538,9 @@ export default function App() {
   const [activeSystemId, setActiveSystemId] = useState<string>(() =>
     localStorage.getItem('activeSystemId') || 'main'
   );
+  const [activeSubsystemView, setActiveSubsystemView] = useState<string | null>(null);
+  const [editingSubsystemNameId, setEditingSubsystemNameId] = useState<string | null>(null);
+  const [editingSubsystemNameValue, setEditingSubsystemNameValue] = useState('');
   const [showParallelSystemForm, setShowParallelSystemForm] = useState(false);
   const [parallelSystemFormName, setParallelSystemFormName] = useState('');
   const [editingParallelSystemId, setEditingParallelSystemId] = useState<string | null>(null);
@@ -1736,6 +1739,12 @@ export default function App() {
     setNewSubParentId('');
   };
 
+  const handleRenameSubsystem = (subId: string, newName: string) => {
+    if (!newName.trim()) return;
+    setSubsystems(prev => prev.map(s => s.id === subId ? { ...s, name: newName.trim() } : s));
+    setEditingSubsystemNameId(null);
+  };
+
   const handleDeleteSubsystem = (subId: string) => {
     setDeleteConfirmSubsystemId(subId);
   };
@@ -2200,37 +2209,58 @@ export default function App() {
   const renderSubsystemNode = (subId: string, depth = 0) => {
     const sub = subsystems.find(s => s.id === subId);
     if (!sub) return null;
-
     const childSubs = subsystems.filter(s => s.parentId === subId);
-    const subAlters = savedAlters
-      .filter(a => a.subsystemId === subId)
-      .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang));
+    const subAlters = savedAlters.filter(a => a.subsystemId === subId);
+    const totalAlters = subAlters.length + childSubs.reduce((acc, c) => acc + savedAlters.filter(a => a.subsystemId === c.id).length, 0);
 
     return (
-      <div key={subId} className="space-y-3" style={{ marginLeft: `${depth * 16}px` }}>
-        <div className="flex items-center justify-between p-3.5 bg-app-card border border-app-border/45 rounded-xl">
-          <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-app-text" />
-            <span className="font-bold text-sm text-app-text">{sub.name}</span>
-            <span className="text-[10px] bg-app-bg text-app-muted px-2 py-0.5 rounded-full font-bold">
-              {subAlters.length} alters
+      <div key={subId} className="space-y-2" style={{ marginLeft: `${depth * 8}px` }}>
+        <div
+          className="flex items-center gap-3 p-4 bg-app-card border border-app-border/40 rounded-2xl hover:border-app-accent/40 hover:bg-app-card/80 transition-all group cursor-pointer"
+          onClick={() => setActiveSubsystemView(subId)}
+        >
+          <div className="w-8 h-8 rounded-xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent flex-shrink-0">
+            <Layers className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            {editingSubsystemNameId === subId ? (
+              <input
+                autoFocus
+                className="text-sm font-black uppercase tracking-wider bg-transparent border-b border-app-accent outline-none w-full"
+                value={editingSubsystemNameValue}
+                onChange={e => setEditingSubsystemNameValue(e.target.value)}
+                onBlur={() => handleRenameSubsystem(subId, editingSubsystemNameValue)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') handleRenameSubsystem(subId, editingSubsystemNameValue);
+                  if (e.key === 'Escape') setEditingSubsystemNameId(null);
+                }}
+                onClick={e => e.stopPropagation()}
+              />
+            ) : (
+              <span className="text-sm font-black uppercase tracking-wider text-app-text">{sub.name}</span>
+            )}
+            <span className="text-[10px] text-app-muted font-bold block mt-0.5">
+              {totalAlters} alters{childSubs.length > 0 && ` · ${childSubs.length} ${lang === 'fr' ? 'sous-systèmes' : 'subsystems'}`}
             </span>
           </div>
-          <button
-            onClick={() => handleDeleteSubsystem(sub.id)}
-            className="p-1.5 hover:bg-app-bg text-app-muted hover:text-red-500 rounded-lg transition-colors"
-            title="Supprimer le sous-système"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={e => { e.stopPropagation(); setEditingSubsystemNameId(subId); setEditingSubsystemNameValue(sub.name); }}
+              className="p-1.5 hover:bg-app-bg text-app-muted hover:text-app-accent rounded-lg transition-colors"
+              title={lang === 'fr' ? 'Renommer' : 'Rename'}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={e => { e.stopPropagation(); handleDeleteSubsystem(sub.id); }}
+              className="p-1.5 hover:bg-app-bg text-app-muted hover:text-red-500 rounded-lg transition-colors"
+              title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+            <ChevronRight className="w-4 h-4 text-app-muted group-hover:text-app-accent transition-colors ml-1" />
+          </div>
         </div>
-
-        {/* Alters in this subsystem */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-4 border-l border-app-border/25">
-          {subAlters.map(a => renderAlterCard(a))}
-        </div>
-
-        {/* Recursive Children Subsystems */}
         {childSubs.map(child => renderSubsystemNode(child.id, depth + 1))}
       </div>
     );
@@ -4393,6 +4423,75 @@ export default function App() {
 
             {/* Tree grid & Subsystem Creation Panel */}
             <div className="space-y-10">
+              {activeSubsystemView ? (() => {
+                const sub = subsystems.find(s => s.id === activeSubsystemView);
+                if (!sub) return null;
+                const childSubs = subsystems.filter(s => s.parentId === activeSubsystemView);
+                const subAlters = savedAlters
+                  .filter(a => a.subsystemId === activeSubsystemView && !a.archived)
+                  .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
+                return (
+                  <div className="space-y-6 animate-fade-in duration-300">
+                    <button
+                      onClick={() => setActiveSubsystemView(null)}
+                      className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                      {lang === 'fr' ? 'Mon Système' : 'My System'}
+                    </button>
+                    <div className="flex items-center gap-3 pb-4 border-b border-app-border/30">
+                      <div className="w-10 h-10 rounded-xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent">
+                        <Layers className="w-5 h-5" />
+                      </div>
+                      <div>
+                        {editingSubsystemNameId === sub.id ? (
+                          <input
+                            autoFocus
+                            className="text-xl font-black uppercase tracking-wider bg-transparent border-b border-app-accent outline-none"
+                            value={editingSubsystemNameValue}
+                            onChange={e => setEditingSubsystemNameValue(e.target.value)}
+                            onBlur={() => handleRenameSubsystem(sub.id, editingSubsystemNameValue)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleRenameSubsystem(sub.id, editingSubsystemNameValue);
+                              if (e.key === 'Escape') setEditingSubsystemNameId(null);
+                            }}
+                          />
+                        ) : (
+                          <button onClick={() => { setEditingSubsystemNameId(sub.id); setEditingSubsystemNameValue(sub.name); }} className="flex items-center gap-2 group">
+                            <h3 className="text-xl font-black uppercase tracking-wider text-app-text">{sub.name}</h3>
+                            <Pencil className="w-3.5 h-3.5 text-app-muted opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </button>
+                        )}
+                        <p className="text-[10px] text-app-muted uppercase font-bold tracking-widest">
+                          {subAlters.length} alters{childSubs.length > 0 && ` · ${childSubs.length} ${lang === 'fr' ? 'sous-systèmes' : 'subsystems'}`}
+                        </p>
+                      </div>
+                    </div>
+                    {childSubs.length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-app-muted px-1">{lang === 'fr' ? 'Sous-systèmes' : 'Subsystems'}</p>
+                        {childSubs.map(c => renderSubsystemNode(c.id))}
+                      </div>
+                    )}
+                    {subAlters.length > 0 ? (
+                      <>
+                        <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65">
+                          {subAlters.map(a => renderAlterCard(a))}
+                        </div>
+                        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {subAlters.map(a => renderAlterCard(a))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="p-8 text-center bg-app-card/30 rounded-2xl border border-app-border/20">
+                        <p className="text-sm text-app-muted uppercase tracking-wider font-semibold">
+                          {lang === 'fr' ? 'Aucun alter dans ce sous-système' : 'No alters in this subsystem'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (<>
               
               {/* Top Section: Display hierarchy & files */}
               <div className="w-full space-y-8">
@@ -4696,6 +4795,7 @@ export default function App() {
                 </div>
               </div>
 
+            </>)}
             </div>
           </div>
         )}
