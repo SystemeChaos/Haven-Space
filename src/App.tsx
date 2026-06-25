@@ -328,7 +328,7 @@ export default function App() {
     { name: 'Arvo', value: 'font-arvo' },
   ];
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    roles: true,
+    roles: false,
     gender: false,
     sexuality: false,
     pattern: false,
@@ -2775,7 +2775,7 @@ export default function App() {
         } as React.CSSProperties;
       case Theme.SUMMER:
         return {
-          '--color-app-bg': '#FFF085',
+          '--color-app-bg': '#FFF2D0',
           '--color-app-card': '#fffbe0',
           '--color-app-text': '#CF4B00',
           '--color-app-muted': 'rgba(207, 75, 0, 0.6)',
@@ -3982,6 +3982,60 @@ export default function App() {
                       isDownloading ? 'max-h-none overflow-visible' : 'max-h-[380px] overflow-y-auto'
                     } space-y-4`}>
                       
+                      {/* Fallback Empty State / Placeholder */}
+                      {/* Champs predéfinis dans la preview */}
+                      {(alterAge || alterColor || triggersPositive || triggersNegative || alterLanguages || alterOriginWorld) && (
+                        <div className="space-y-1.5">
+                          <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
+                            {lang === 'fr' ? 'Informations' : 'Information'}
+                          </div>
+                          <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 space-y-1.5">
+                            {alterAge && (
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Age' : 'Age'}</span>
+                                <span className="text-app-text/85">{alterAge}</span>
+                              </div>
+                            )}
+                            {alterColor && (
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Couleur' : 'Color'}</span>
+                                <span className="w-4 h-4 rounded-md border border-app-border/20 inline-block shrink-0" style={{ backgroundColor: alterColor }} />
+                                <span className="font-mono text-app-text/85">{alterColor}</span>
+                              </div>
+                            )}
+                            {(triggersPositive || triggersNegative) && (
+                              <div className="space-y-1">
+                                <div className="font-black uppercase tracking-widest text-app-muted text-[10px]">Triggers</div>
+                                {triggersPositive && (
+                                  <div className="flex items-start gap-1.5 text-[10px]">
+                                    <span className="font-black text-emerald-500 shrink-0">+</span>
+                                    <span className="text-app-text/85">{triggersPositive}</span>
+                                  </div>
+                                )}
+                                {triggersNegative && (
+                                  <div className="flex items-start gap-1.5 text-[10px]">
+                                    <span className="font-black text-red-500 shrink-0">-</span>
+                                    <span className="text-app-text/85">{triggersNegative}</span>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                            {alterLanguages && (
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Langues' : 'Languages'}</span>
+                                <span className="text-app-text/85">{alterLanguages}</span>
+                              </div>
+                            )}
+                            {alterOriginWorld && (
+                              <div className="flex items-center gap-2 text-[10px]">
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Source' : 'Source'}</span>
+                                <span className="text-app-text/85">{alterOriginWorld}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
                       {/* Traits & Disorders Section */}
                       {traitDecorations.length > 0 && (
                         <div className="space-y-4">
@@ -4067,60 +4121,6 @@ export default function App() {
                           </div>
                           <div className="px-4 py-3 bg-app-card/30 backdrop-blur-sm rounded-2xl border border-dashed border-app-border/20 text-[10px] leading-relaxed text-app-text/85 break-words space-y-1">
                             {renderMarkdown(internalNotes)}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Fallback Empty State / Placeholder */}
-                      {/* Champs predéfinis dans la preview */}
-                      {(alterAge || alterColor || triggersPositive || triggersNegative || alterLanguages || alterOriginWorld) && (
-                        <div className="space-y-1.5">
-                          <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
-                            {lang === 'fr' ? 'Informations' : 'Information'}
-                          </div>
-                          <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 space-y-1.5">
-                            {alterAge && (
-                              <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Age' : 'Age'}</span>
-                                <span className="text-app-text/85">{alterAge}</span>
-                              </div>
-                            )}
-                            {alterColor && (
-                              <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Couleur' : 'Color'}</span>
-                                <span className="w-4 h-4 rounded-md border border-app-border/20 inline-block shrink-0" style={{ backgroundColor: alterColor }} />
-                                <span className="font-mono text-app-text/85">{alterColor}</span>
-                              </div>
-                            )}
-                            {(triggersPositive || triggersNegative) && (
-                              <div className="space-y-1">
-                                <div className="font-black uppercase tracking-widest text-app-muted text-[10px]">Triggers</div>
-                                {triggersPositive && (
-                                  <div className="flex items-start gap-1.5 text-[10px]">
-                                    <span className="font-black text-emerald-500 shrink-0">+</span>
-                                    <span className="text-app-text/85">{triggersPositive}</span>
-                                  </div>
-                                )}
-                                {triggersNegative && (
-                                  <div className="flex items-start gap-1.5 text-[10px]">
-                                    <span className="font-black text-red-500 shrink-0">-</span>
-                                    <span className="text-app-text/85">{triggersNegative}</span>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {alterLanguages && (
-                              <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Langues' : 'Languages'}</span>
-                                <span className="text-app-text/85">{alterLanguages}</span>
-                              </div>
-                            )}
-                            {alterOriginWorld && (
-                              <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Source' : 'Source'}</span>
-                                <span className="text-app-text/85">{alterOriginWorld}</span>
-                              </div>
-                            )}
                           </div>
                         </div>
                       )}
