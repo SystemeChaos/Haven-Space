@@ -5840,11 +5840,18 @@ export default function App() {
                               <div className="space-y-1.5">
                                 <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang==='fr'?'Historique':'History'}</p>
                                 {wheelHistory.slice(0,5).map((h: typeof wheelHistory[0], i: number) => (
-                                  <div key={i} className="flex items-center gap-2 text-[11px] py-1.5 border-b border-app-border/20">
+                                  <div key={i} className="flex items-center gap-2 text-[11px] py-1.5 border-b border-app-border/20 group">
                                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:h.color}} />
                                     <span className="font-bold text-app-text truncate">{h.alter}</span>
                                     <span className="text-app-muted truncate">{h.name}</span>
-                                    <span className="ml-auto text-app-muted tabular-nums flex-shrink-0">{h.time} · {h.intensity}/5</span>
+                                    <span className="text-app-muted tabular-nums flex-shrink-0">{h.time} · {h.intensity}/5</span>
+                                    <button
+                                      onClick={() => setWheelHistory((prev: typeof wheelHistory) => prev.filter((_: typeof wheelHistory[0], idx: number) => idx !== i))}
+                                      className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-red-500 text-app-muted flex-shrink-0"
+                                      title={lang==='fr'?'Supprimer':'Delete'}
+                                    >
+                                      <X className="w-3 h-3" />
+                                    </button>
                                   </div>
                                 ))}
                               </div>
@@ -5956,6 +5963,131 @@ export default function App() {
 
             {/* Diagramme continu quotidien/hebdomadaire des switchs */}
             <SwitchAnalytics switchLogs={switchLogs} savedAlters={savedAlters} lang={lang} t={t} />
+
+            {/* Analyse des émotions */}
+            {wheelHistory.length > 0 && (() => {
+              // Quadrant detection
+              const getQuadrant = (color: string) => {
+                const posColors = ['#ef9f27','#f4c430','#d4a800','#63991a','#1d9e75','#2db87a','#0f8060','#076e52','#1a7a4a','#5b8fa8','#0a5c40'];
+                const negHighColors = ['#d85a30','#b83000','#993c1d','#7f77dd','#534ab7','#d4537e','#c0184a','#9b59b6'];
+                const negLowColors = ['#888780','#185fa5','#0c447c','#6b3fa0','#2e4a7a'];
+                if (posColors.includes(color)) return 'pos';
+                if (negHighColors.includes(color)) return 'negHigh';
+                if (negLowColors.includes(color)) return 'negLow';
+                return 'neutral';
+              };
+
+              // Top émotions par alter
+              const byAlter: Record<string, {name: string; color: string; count: number; totalIntensity: number}[]> = {};
+              wheelHistory.forEach((h: typeof wheelHistory[0]) => {
+                if (!byAlter[h.alter]) byAlter[h.alter] = [];
+                const existing = byAlter[h.alter].find((e: {name:string;color:string;count:number;totalIntensity:number}) => e.name === h.name);
+                if (existing) { existing.count++; existing.totalIntensity += h.intensity; }
+                else byAlter[h.alter].push({name: h.name, color: h.color, count: 1, totalIntensity: h.intensity});
+              });
+
+              // Répartition par quadrant globale
+              const quadCounts = {pos: 0, negHigh: 0, negLow: 0, neutral: 0};
+              wheelHistory.forEach((h: typeof wheelHistory[0]) => { quadCounts[getQuadrant(h.color) as keyof typeof quadCounts]++; });
+              const total = wheelHistory.length;
+
+              // Timeline : grouper par heure
+              const timeline: Record<string, string[]> = {};
+              wheelHistory.forEach((h: typeof wheelHistory[0]) => {
+                if (!timeline[h.time]) timeline[h.time] = [];
+                timeline[h.time].push(h.name);
+              });
+
+              return (
+                <div className="p-5 bg-app-card border border-app-border/30 rounded-2xl space-y-6">
+                  <div className="flex items-center gap-2 pb-3 border-b border-app-border/20">
+                    <HeartPulse className="w-4 h-4 text-app-accent" />
+                    <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
+                      {lang === 'fr' ? 'Analyse des émotions' : 'Emotion Analysis'}
+                    </h3>
+                    <span className="text-[10px] text-app-muted font-bold ml-auto">{wheelHistory.length} {lang==='fr'?'entrées':'entries'}</span>
+                  </div>
+
+                  {/* Répartition par quadrant */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Répartition':'Distribution'}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        {key:'pos', label: lang==='fr'?'Positif / Énergie haute':'Positive / High energy', color:'#63991a', emoji:'🟢'},
+                        {key:'negHigh', label: lang==='fr'?'Difficile / Énergie haute':'Difficult / High energy', color:'#d85a30', emoji:'🔴'},
+                        {key:'negLow', label: lang==='fr'?'Difficile / Énergie basse':'Difficult / Low energy', color:'#185fa5', emoji:'🔵'},
+                        {key:'neutral', label: lang==='fr'?'Neutre / Dissociatif':'Neutral / Dissociative', color:'#888780', emoji:'⚪'},
+                      ].map(q => {
+                        const count = quadCounts[q.key as keyof typeof quadCounts];
+                        const pct = total > 0 ? Math.round(count/total*100) : 0;
+                        return (
+                          <div key={q.key} className="p-3 bg-app-bg rounded-xl border border-app-border/30 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold text-app-muted leading-tight">{q.label}</span>
+                              <span className="text-sm font-black" style={{color:q.color}}>{pct}%</span>
+                            </div>
+                            <div className="h-1.5 bg-app-border/20 rounded-full overflow-hidden">
+                              <div className="h-full rounded-full transition-all" style={{width:`${pct}%`, background:q.color}} />
+                            </div>
+                            <span className="text-[9px] text-app-muted">{count} {lang==='fr'?'fois':'times'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Top émotions par alter */}
+                  <div className="space-y-3">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Par alter':'By alter'}</p>
+                    {Object.entries(byAlter).map(([alterName, emotions]) => {
+                      const sorted = [...emotions].sort((a,b) => b.count - a.count).slice(0,3);
+                      return (
+                        <div key={alterName} className="space-y-2">
+                          <p className="text-xs font-black text-app-text">{alterName}</p>
+                          <div className="space-y-1.5">
+                            {sorted.map((em,i) => (
+                              <div key={i} className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:em.color}} />
+                                <span className="text-[11px] text-app-text flex-1">{em.name}</span>
+                                <span className="text-[10px] text-app-muted">{em.count}× · ⌀{Math.round(em.totalIntensity/em.count*10)/10}/5</span>
+                                <div className="w-16 h-1.5 bg-app-border/20 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full" style={{width:`${Math.round(em.totalIntensity/em.count/5*100)}%`, background:em.color}} />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Timeline */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Timeline':'Timeline'}</p>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {Object.entries(timeline).reverse().map(([time, names]) => (
+                        <div key={time} className="flex flex-col items-center gap-1">
+                          <div className="flex gap-0.5">
+                            {(names as string[]).map((n,i) => {
+                              const entry = wheelHistory.find((h: typeof wheelHistory[0]) => h.name === n && h.time === time);
+                              return <div key={i} className="w-3 h-3 rounded-full border border-white/20" style={{background: entry?.color || '#888'}} title={n} />;
+                            })}
+                          </div>
+                          <span className="text-[8px] text-app-muted tabular-nums">{time}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setWheelHistory([])}
+                    className="text-[10px] text-app-muted hover:text-red-500 font-bold uppercase tracking-wider transition-colors"
+                  >
+                    {lang==='fr'?"🗑 Effacer tout l'historique":'🗑 Clear all history'}
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         )}
 
