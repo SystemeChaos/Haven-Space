@@ -570,6 +570,7 @@ export default function App() {
   const [activeSubsystemView, setActiveSubsystemView] = useState<string | null>(null);
   const [editingSubsystemNameId, setEditingSubsystemNameId] = useState<string | null>(null);
   const [editingSubsystemNameValue, setEditingSubsystemNameValue] = useState('');
+  const [creatorSystemId, setCreatorSystemId] = useState<string>('');
   const [creatorSubsystemId, setCreatorSubsystemId] = useState<string>('');
   const [showParallelSystemForm, setShowParallelSystemForm] = useState(false);
   const [parallelSystemFormName, setParallelSystemFormName] = useState('');
@@ -1662,7 +1663,7 @@ export default function App() {
       alterOriginWorld: alterOriginWorld || undefined,
       customFields: customFields.length > 0 ? customFields : undefined,
       archived: existingAlter?.archived || false,
-      systemId: existingAlter?.systemId || activeSystemId,
+      systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
     };
 
     if (savedAlters.some(a => a.id === freshId)) {
@@ -1691,6 +1692,7 @@ export default function App() {
     setProfileImage(alter.profileImage || '');
     setDescription(alter.description || '');
     setInternalNotes(alter.internalNotes || '');
+    setCreatorSystemId(alter.systemId || 'main');
     setCreatorSubsystemId(alter.subsystemId || '');
     setAlterAge(alter.alterAge || '');
     setAlterColor(alter.alterColor || '');
@@ -1728,6 +1730,7 @@ export default function App() {
     setProfileImage('');
     setDescription('');
     setInternalNotes('');
+    setCreatorSystemId('');
     setCreatorSubsystemId('');
     setAlterAge('');
     setAlterColor('');
@@ -3352,6 +3355,25 @@ export default function App() {
               className="w-full bg-app-card border border-app-border rounded-2xl px-6 py-4 focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all text-lg"
             />
           </section>
+
+          {/* System Selector — visible si systèmes parallèles existent */}
+          {parallelSystems.length > 0 && (
+            <section className="space-y-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
+                <Shield className="w-3 h-3" /> {lang === 'fr' ? "Système" : "System"}
+              </label>
+              <select
+                value={creatorSystemId || activeSystemId}
+                onChange={e => { setCreatorSystemId(e.target.value); setCreatorSubsystemId(''); }}
+                className="w-full bg-app-card border border-app-border rounded-2xl px-5 py-3.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all appearance-none cursor-pointer"
+              >
+                <option value="main">{lang === 'fr' ? "Système principal" : "Main system"}</option>
+                {parallelSystems.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </section>
+          )}
 
           {/* Subsystem Selector */}
           {activeSystemSubsystems.length > 0 && (
