@@ -463,7 +463,9 @@ export default function App() {
   const [switchSpoons, setSwitchSpoons] = useState<number>(12);
   const [switchMoods, setSwitchMoods] = useState<string[]>([]);
   const [wheelEmotion, setWheelEmotion] = useState<{name: string; color: string; desc: string; intensity: number} | null>(null);
-  const [wheelHistory, setWheelHistory] = useState<{name: string; color: string; intensity: number; time: string; alter: string}[]>([]);
+  const [wheelHistory, setWheelHistory] = useState<{name: string; color: string; intensity: number; time: string; alter: string; date: string}[]>(() => {
+    try { return JSON.parse(localStorage.getItem('wheelHistory') || '[]'); } catch { return []; }
+  });
   const [wheelDotPos, setWheelDotPos] = useState<{x: number; y: number} | null>(null);
   const [wheelIntensity, setWheelIntensity] = useState<number>(3);
 
@@ -679,6 +681,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
   }, [switchLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('wheelHistory', JSON.stringify(wheelHistory));
+  }, [wheelHistory]);
 
   useEffect(() => {
     localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
@@ -5811,6 +5817,7 @@ export default function App() {
                                 </div>
                                 <button
                                   onClick={() => {
+                                    const now = new Date();
                                     const entry = {
                                       name: wheelEmotion.name,
                                       color: wheelEmotion.color,
@@ -5818,9 +5825,10 @@ export default function App() {
                                       alter: switchSelectedAlterIds.length > 0
                                         ? (savedAlters.find((a: SavedAlter) => a.id === switchSelectedAlterIds[0])?.alterName || '?')
                                         : (lang==='fr'?'Système':'System'),
-                                      time: new Date().toLocaleTimeString(lang==='fr'?'fr-FR':'en-GB',{hour:'2-digit',minute:'2-digit'}),
+                                      time: now.toLocaleTimeString(lang==='fr'?'fr-FR':'en-GB',{hour:'2-digit',minute:'2-digit'}),
+                                      date: now.toLocaleDateString(lang==='fr'?'fr-FR':'en-GB',{day:'numeric',month:'short'}),
                                     };
-                                    setWheelHistory((prev: typeof wheelHistory) => [entry,...prev].slice(0,8));
+                                    setWheelHistory((prev: typeof wheelHistory) => [entry,...prev]);
                                     setWheelEmotion(null);
                                     setWheelDotPos(null);
                                   }}
@@ -5844,7 +5852,7 @@ export default function App() {
                                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:h.color}} />
                                     <span className="font-bold text-app-text truncate">{h.alter}</span>
                                     <span className="text-app-muted truncate">{h.name}</span>
-                                    <span className="text-app-muted tabular-nums flex-shrink-0">{h.time} · {h.intensity}/5</span>
+                                    <span className="text-app-muted tabular-nums flex-shrink-0">{h.date ? `${h.date} · ` : ''}{h.time} · {h.intensity}/5</span>
                                     <button
                                       onClick={() => setWheelHistory((prev: typeof wheelHistory) => prev.filter((_: typeof wheelHistory[0], idx: number) => idx !== i))}
                                       className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-red-500 text-app-muted flex-shrink-0"
@@ -5999,13 +6007,19 @@ export default function App() {
               });
 
               return (
-                <div className="p-5 bg-app-card border border-app-border/30 rounded-2xl space-y-6">
-                  <div className="flex items-center gap-2 pb-3 border-b border-app-border/20">
-                    <HeartPulse className="w-4 h-4 text-app-accent" />
-                    <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
-                      {lang === 'fr' ? 'Analyse des émotions' : 'Emotion Analysis'}
-                    </h3>
-                    <span className="text-[10px] text-app-muted font-bold ml-auto">{wheelHistory.length} {lang==='fr'?'entrées':'entries'}</span>
+                <div className="p-5 bg-app-card border border-app-border/30 rounded-2xl space-y-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <HeartPulse className="w-4 h-4 text-app-accent" />
+                        <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
+                          {lang === 'fr' ? 'Analyse des émotions' : 'Emotion Analysis'}
+                        </h3>
+                      </div>
+                      <p className="text-[10px] text-app-muted uppercase tracking-wider mt-0.5">
+                        {lang==='fr'?'Par alter · Historique complet':'By alter · Full history'} · {wheelHistory.length} {lang==='fr'?'entrées':'entries'}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Répartition par quadrant */}
@@ -6065,17 +6079,21 @@ export default function App() {
                   <div className="space-y-2">
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Timeline':'Timeline'}</p>
                     <div className="flex gap-1.5 flex-wrap">
-                      {Object.entries(timeline).reverse().map(([time, names]) => (
-                        <div key={time} className="flex flex-col items-center gap-1">
-                          <div className="flex gap-0.5">
-                            {(names as string[]).map((n,i) => {
-                              const entry = wheelHistory.find((h: typeof wheelHistory[0]) => h.name === n && h.time === time);
-                              return <div key={i} className="w-3 h-3 rounded-full border border-white/20" style={{background: entry?.color || '#888'}} title={n} />;
-                            })}
+                      {Object.entries(timeline).reverse().map(([timeKey, names]) => {
+                        const firstEntry = wheelHistory.find((h: typeof wheelHistory[0]) => h.time === timeKey);
+                        return (
+                          <div key={timeKey} className="flex flex-col items-center gap-1">
+                            <div className="flex gap-0.5">
+                              {(names as string[]).map((n,i) => {
+                                const entry = wheelHistory.find((h: typeof wheelHistory[0]) => h.name === n && h.time === timeKey);
+                                return <div key={i} className="w-3 h-3 rounded-full border border-white/20" style={{background: entry?.color || '#888'}} title={n} />;
+                              })}
+                            </div>
+                            {firstEntry?.date && <span className="text-[7px] text-app-muted">{firstEntry.date}</span>}
+                            <span className="text-[8px] text-app-muted tabular-nums">{timeKey}</span>
                           </div>
-                          <span className="text-[8px] text-app-muted tabular-nums">{time}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
 
