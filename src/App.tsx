@@ -143,7 +143,7 @@ import MoodSpoonWidget, { SwitchLogMoodDisplay } from './components/MoodSpoonWid
 
 
 // ─── Markdown renderer + editor ────────────────────────────────────────────
-function renderMarkdown(text: string): React.ReactNode[] {
+function renderMarkdown(text: string, onImageClick?: (url: string) => void): React.ReactNode[] {
   const lines = text.split('\n');
   const nodes: React.ReactNode[] = [];
 
@@ -151,7 +151,22 @@ function renderMarkdown(text: string): React.ReactNode[] {
     const parts: React.ReactNode[] = [];
     let rest = line;
     let i = 0;
-    const patterns: [RegExp, (m: string, k: string) => React.ReactNode][] = [
+    const patterns: [RegExp, (m: string, k: string, full?: RegExpExecArray) => React.ReactNode][] = [
+      [/!\[([^\]]*)\]\(([^)]+)\)/, (m, k, full) => {
+        const alt = full ? full[1] : '';
+        const url = full ? full[2] : m;
+        return (
+          <span key={k} className="inline-block my-1">
+            <img
+              src={url} alt={alt}
+              className="max-w-full rounded-xl border border-app-border/30 cursor-pointer hover:opacity-90 transition-opacity"
+              style={{ maxHeight: '400px', objectFit: 'contain' }}
+              onClick={() => onImageClick && onImageClick(url)}
+              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+          </span>
+        );
+      }],
       [/\*\*(.+?)\*\*/,  (m, k) => <strong key={k}>{m}</strong>],
       [/_(.+?)_/,          (m, k) => <em key={k}>{m}</em>],
       [/`(.+?)`/,          (m, k) => <code key={k} className="bg-app-card px-1 py-0.5 rounded text-[11px] font-mono">{m}</code>],
@@ -160,15 +175,16 @@ function renderMarkdown(text: string): React.ReactNode[] {
       let earliest = rest.length;
       let matchedPat: null | typeof patterns[0] = null;
       let matchedIdx = -1;
+      let matchedFull: RegExpExecArray | null = null;
       for (const pat of patterns) {
         const m = pat[0].exec(rest);
-        if (m && m.index < earliest) { earliest = m.index; matchedPat = pat; matchedIdx = m.index; }
+        if (m && m.index < earliest) { earliest = m.index; matchedPat = pat; matchedIdx = m.index; matchedFull = m; }
       }
-      if (!matchedPat) { parts.push(rest); break; }
+      if (!matchedPat || !matchedFull) { parts.push(rest); break; }
       if (matchedIdx > 0) parts.push(rest.slice(0, matchedIdx));
-      const m2 = matchedPat[0].exec(rest)!;
-      parts.push(matchedPat[1](m2[1], `${key}-${i++}`));
-      rest = rest.slice(matchedIdx + m2[0].length);
+      const captureGroup = matchedFull[1] ?? matchedFull[0];
+      parts.push(matchedPat[1](captureGroup, `${key}-${i++}`, matchedFull));
+      rest = rest.slice(matchedIdx + matchedFull[0].length);
     }
     return <>{parts}</>;
   };
@@ -240,6 +256,18 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
     { label: 'H2', title: 'Titre 2',  action: () => insertLine('## ') },
     { label: 'H3', title: 'Titre 3',  action: () => insertLine('### ') },
     { label: '—',  title: 'Liste',    action: () => insertLine('- ') },
+    { label: '🖼️', title: 'Image', action: () => {
+      const url = prompt('URL de l\'image :');
+      if (url) {
+        const alt = prompt('Description (optionnel) :') || '';
+        const ta = textareaRef.current;
+        if (ta) {
+          const pos = ta.selectionStart;
+          const ins = `![${alt}](${url})`;
+          onChange(value.slice(0, pos) + ins + value.slice(pos));
+        }
+      }
+    }},
   ];
 
   return (
@@ -538,6 +566,7 @@ export default function App() {
   const [activeSystemId, setActiveSystemId] = useState<string>(() =>
     localStorage.getItem('activeSystemId') || 'main'
   );
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [activeSubsystemView, setActiveSubsystemView] = useState<string | null>(null);
   const [editingSubsystemNameId, setEditingSubsystemNameId] = useState<string | null>(null);
   const [editingSubsystemNameValue, setEditingSubsystemNameValue] = useState('');
@@ -2861,6 +2890,26 @@ export default function App() {
 
   return (
     <>
+      {/* Lightbox */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button
+            onClick={() => setLightboxImage(null)}
+            className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img
+            src={lightboxImage}
+            alt=""
+            className="max-w-full max-h-full rounded-2xl object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      )}
     <style>{`
       .alter-scroll-container {
         direction: rtl;
@@ -4157,7 +4206,7 @@ export default function App() {
                             {t.descriptionTitle}
                           </div>
                           <div className={`px-4 py-3 bg-app-card/45 backdrop-blur-sm rounded-2xl border border-app-border/10 text-[11px] leading-relaxed text-app-text/90 space-y-1 ${font}`}>
-                            {renderMarkdown(description)}
+                            {renderMarkdown(description, setLightboxImage)}
                           </div>
                         </div>
                       )}
@@ -4170,7 +4219,7 @@ export default function App() {
                             {t.internalNotesTitle}
                           </div>
                           <div className="px-4 py-3 bg-app-card/30 backdrop-blur-sm rounded-2xl border border-dashed border-app-border/20 text-[10px] leading-relaxed text-app-text/85 break-words space-y-1">
-                            {renderMarkdown(internalNotes)}
+                            {renderMarkdown(internalNotes, setLightboxImage)}
                           </div>
                         </div>
                       )}
@@ -5162,9 +5211,9 @@ export default function App() {
                           </div>
                           
                           {msg.poll ? renderPollWidget(msg) : (
-                            <p className="text-sm text-app-text/90 mt-1 bg-app-card/75 p-3 rounded-2xl rounded-tl-none border border-app-border/20 whitespace-pre-wrap leading-relaxed select-text">
-                              {msg.text}
-                            </p>
+                            <div className="text-sm text-app-text/90 mt-1 bg-app-card/75 p-3 rounded-2xl rounded-tl-none border border-app-border/20 leading-relaxed select-text space-y-1">
+                              {renderMarkdown(msg.text, setLightboxImage)}
+                            </div>
                           )}
                         </div>
 
@@ -5734,7 +5783,7 @@ export default function App() {
                           <div className="space-y-2">
                             <h4 className="font-extrabold text-sm text-app-text">{entry.title}</h4>
                             <div className="text-xs leading-relaxed select-text space-y-1">
-                              {renderMarkdown(entry.content)}
+                              {renderMarkdown(entry.content, setLightboxImage)}
                             </div>
                             
                             {/* Images slider gallery grid */}
@@ -5934,8 +5983,8 @@ export default function App() {
                             }
                             <div className={`max-w-[70%] space-y-0.5 ${isLeft ? 'items-start' : 'items-end'} flex flex-col`}>
                               <span className="text-[9px] font-black text-app-muted uppercase tracking-widest px-1">{sender?.alterName}</span>
-                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${isLeft ? 'bg-app-card border border-app-border/30 text-app-text rounded-tl-sm' : 'bg-app-accent text-white rounded-tr-sm'}`}>
-                                {msg.text}
+                              <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed space-y-1 ${isLeft ? 'bg-app-card border border-app-border/30 text-app-text rounded-tl-sm' : 'bg-app-accent text-white rounded-tr-sm'}`}>
+                                {renderMarkdown(msg.text, setLightboxImage)}
                               </div>
                               <span className="text-[9px] text-app-muted px-1">
                                 {new Date(msg.timestamp).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
