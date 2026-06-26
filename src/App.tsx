@@ -5653,160 +5653,207 @@ export default function App() {
                   />
 
                   {/* Roue des émotions */}
-                  <div className="mt-4 space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                      {lang === 'fr' ? 'Roue des émotions' : 'Emotion wheel'}
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-4 items-start">
-                      {/* Canvas */}
-                      <div className="relative flex-shrink-0 mx-auto sm:mx-0" style={{width: 200, height: 200}}>
-                        <canvas
-                          id="emotion-wheel-canvas"
-                          width={200}
-                          height={200}
-                          className="rounded-full cursor-crosshair block"
-                          style={{width: 200, height: 200}}
-                          ref={el => {
-                            if (!el) return;
-                            const ctx = el.getContext('2d');
-                            if (!ctx) return;
-                            const W = 200;
-                            const cx = W/2, cy = W/2, r = W/2 - 1;
-                            ctx.clearRect(0, 0, W, W);
-                            for (let px = 0; px < W; px++) {
-                              for (let py = 0; py < W; py++) {
-                                const dx = px - cx, dy = py - cy;
-                                if (dx*dx + dy*dy > r*r) continue;
-                                const angle = Math.atan2(dy, dx);
-                                const dist = Math.sqrt(dx*dx + dy*dy) / r;
-                                const hue = ((angle * 180/Math.PI) + 360 + 90) % 360;
-                                const sat = dist * 80;
-                                const lgt = 62 + (1 - dist) * 25;
-                                ctx.fillStyle = `hsl(${hue},${sat}%,${lgt}%)`;
-                                ctx.fillRect(px, py, 1, 1);
-                              }
-                            }
-                            ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
-                            ctx.strokeStyle = 'rgba(0,0,0,0.08)'; ctx.lineWidth = 1; ctx.stroke();
-                            ctx.beginPath();
-                            ctx.moveTo(cx, 12); ctx.lineTo(cx, W-12);
-                            ctx.moveTo(12, cy); ctx.lineTo(W-12, cy);
-                            ctx.strokeStyle = 'rgba(0,0,0,0.1)'; ctx.lineWidth = 0.5;
-                            ctx.setLineDash([2,3]); ctx.stroke(); ctx.setLineDash([]);
-                            if (wheelDotPos) {
-                              ctx.beginPath();
-                              ctx.arc(wheelDotPos.x, wheelDotPos.y, 6, 0, Math.PI*2);
-                              ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.fill();
-                              ctx.strokeStyle = wheelEmotion?.color || '#888'; ctx.lineWidth = 2; ctx.stroke();
-                            }
-                          }}
-                          onClick={e => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            const scaleX = 200 / rect.width;
-                            const scaleY = 200 / rect.height;
-                            const px = (e.clientX - rect.left) * scaleX;
-                            const py = (e.clientY - rect.top) * scaleY;
-                            const cx = 100, cy = 100, r = 99;
-                            const dx = px - cx, dy = py - cy;
-                            if (dx*dx + dy*dy > r*r) return;
-                            const nx = px/200, ny = py/200;
-                            const EMOTIONS = [
-                              {name: lang === 'fr' ? 'Excité·e' : 'Excited', x:.72, y:.18, color:'#ef9f27', desc: lang === 'fr' ? 'Énergie débordante, très positif' : 'High energy, very positive'},
-                              {name: lang === 'fr' ? 'Joyeux·se' : 'Joyful', x:.80, y:.38, color:'#63991a', desc: lang === 'fr' ? 'Humeur positive, légèreté' : 'Positive mood, lightness'},
-                              {name: lang === 'fr' ? 'Confiant·e' : 'Confident', x:.75, y:.55, color:'#1d9e75', desc: lang === 'fr' ? "Sûr·e de soi, stable" : 'Self-assured, stable'},
-                              {name: lang === 'fr' ? 'Serein·e' : 'Serene', x:.65, y:.72, color:'#0f6e56', desc: lang === 'fr' ? 'Calme profond, bien-être' : 'Deep calm, well-being'},
-                              {name: lang === 'fr' ? 'Détendu·e' : 'Relaxed', x:.52, y:.82, color:'#085041', desc: lang === 'fr' ? 'Relâché·e, sans tension' : 'Released, no tension'},
-                              {name: lang === 'fr' ? 'Fatigué·e' : 'Tired', x:.30, y:.80, color:'#888780', desc: lang === 'fr' ? "Manque d'énergie" : 'Low energy'},
-                              {name: lang === 'fr' ? 'Triste' : 'Sad', x:.22, y:.68, color:'#185fa5', desc: lang === 'fr' ? 'Mélancolie, abattement' : 'Melancholy, low mood'},
-                              {name: lang === 'fr' ? 'Déprimé·e' : 'Depressed', x:.20, y:.55, color:'#0c447c', desc: lang === 'fr' ? 'Humeur très basse' : 'Very low mood'},
-                              {name: lang === 'fr' ? 'Anxieux·se' : 'Anxious', x:.25, y:.35, color:'#534ab7', desc: lang === 'fr' ? 'Inquiétude, tension' : 'Worry, inner tension'},
-                              {name: lang === 'fr' ? 'Stressé·e' : 'Stressed', x:.30, y:.20, color:'#7f77dd', desc: lang === 'fr' ? 'Pression élevée' : 'High pressure'},
-                              {name: lang === 'fr' ? 'En colère' : 'Angry', x:.20, y:.22, color:'#d85a30', desc: lang === 'fr' ? 'Frustration intense' : 'Intense frustration'},
-                              {name: lang === 'fr' ? 'Irrité·e' : 'Irritated', x:.28, y:.40, color:'#993c1d', desc: lang === 'fr' ? 'Agacement, impatience' : 'Irritation, impatience'},
-                              {name: lang === 'fr' ? 'Effrayé·e' : 'Scared', x:.35, y:.28, color:'#d4537e', desc: lang === 'fr' ? 'Peur, sentiment de menace' : 'Fear, sense of threat'},
-                              {name: lang === 'fr' ? 'Surpris·e' : 'Surprised', x:.65, y:.22, color:'#eda100', desc: lang === 'fr' ? 'Inattendu, réaction vive' : 'Unexpected, quick reaction'},
-                              {name: lang === 'fr' ? 'Dissocié·e' : 'Dissociated', x:.40, y:.65, color:'#b4b2a9', desc: lang === 'fr' ? 'Hors du corps, engourdi·e' : 'Out of body, numb'},
-                              {name: lang === 'fr' ? 'Neutre' : 'Neutral', x:.50, y:.50, color:'#888780', desc: lang === 'fr' ? 'État stable' : 'Stable state'},
-                            ];
-                            let best = EMOTIONS[0], bestDist = Infinity;
-                            EMOTIONS.forEach(em => { const d = Math.hypot(em.x - nx, em.y - ny); if (d < bestDist) { bestDist = d; best = em; }});
-                            setWheelDotPos({x: px, y: py});
-                            setWheelEmotion({name: best.name, color: best.color, desc: best.desc, intensity: wheelIntensity});
-                          }}
-                        />
-                        {/* Axes labels */}
-                        <div className="absolute top-0 left-1/2 -translate-x-1/2 text-[8px] text-app-muted font-bold pointer-events-none">↑</div>
-                        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-[8px] text-app-muted font-bold pointer-events-none">↓</div>
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 text-[8px] text-app-muted font-bold pointer-events-none">😔</div>
-                        <div className="absolute right-0 top-1/2 -translate-y-1/2 text-[8px] text-app-muted font-bold pointer-events-none">😊</div>
-                      </div>
+                  {(() => {
+                    const EMOTIONS = [
+                      // Quadrant haut-droit : énergie haute + agréable
+                      {name: lang==='fr'?'Excité·e':'Excited',      x:.78,y:.15,color:'#ef9f27',desc:lang==='fr'?'Énergie débordante, très positif':'High energy, very positive'},
+                      {name: lang==='fr'?'Euphorique':'Euphoric',    x:.88,y:.25,color:'#f4c430',desc:lang==='fr'?'Exaltation intense':'Intense elation'},
+                      {name: lang==='fr'?'Enthousiaste':'Enthusiastic',x:.82,y:.32,color:'#d4a800',desc:lang==='fr'?'Élan, envie de faire':'Drive, eagerness'},
+                      {name: lang==='fr'?'Joyeux·se':'Joyful',      x:.85,y:.42,color:'#63991a',desc:lang==='fr'?'Humeur positive, légèreté':'Positive mood, lightness'},
+                      {name: lang==='fr'?'Confiant·e':'Confident',   x:.78,y:.52,color:'#1d9e75',desc:lang==='fr'?'Sûr·e de soi, stable':'Self-assured, stable'},
+                      {name: lang==='fr'?'Fier·e':'Proud',           x:.72,y:.38,color:'#2db87a',desc:lang==='fr'?'Satisfaction de soi':'Self-satisfaction'},
+                      // Quadrant bas-droit : énergie basse + agréable
+                      {name: lang==='fr'?'Serein·e':'Serene',        x:.68,y:.68,color:'#0f8060',desc:lang==='fr'?'Calme profond, bien-être':'Deep calm, well-being'},
+                      {name: lang==='fr'?'Détendu·e':'Relaxed',      x:.55,y:.82,color:'#076e52',desc:lang==='fr'?'Relâché·e, sans tension':'Released, no tension'},
+                      {name: lang==='fr'?'Reconnaissant·e':'Grateful',x:.72,y:.75,color:'#1a7a4a',desc:lang==='fr'?'Gratitude, chaleur intérieure':'Gratitude, inner warmth'},
+                      {name: lang==='fr'?'Nostalgique':'Nostalgic',   x:.60,y:.72,color:'#5b8fa8',desc:lang==='fr'?'Doux souvenir, mélancolie douce':'Sweet memory, gentle melancholy'},
+                      {name: lang==='fr'?'Apaisé·e':'Soothed',       x:.62,y:.88,color:'#0a5c40',desc:lang==='fr'?'Tension relâchée':'Tension released'},
+                      // Quadrant bas-gauche : énergie basse + désagréable
+                      {name: lang==='fr'?'Fatigué·e':'Tired',        x:.28,y:.82,color:'#888780',desc:lang==='fr'?"Manque d'énergie, épuisement":'Low energy, exhaustion'},
+                      {name: lang==='fr'?'Triste':'Sad',              x:.20,y:.72,color:'#185fa5',desc:lang==='fr'?'Mélancolie, abattement':'Melancholy, low mood'},
+                      {name: lang==='fr'?'Déprimé·e':'Depressed',    x:.15,y:.60,color:'#0c447c',desc:lang==='fr'?'Humeur très basse, vide':'Very low mood, emptiness'},
+                      {name: lang==='fr'?'Honteux·se':'Ashamed',     x:.25,y:.75,color:'#6b3fa0',desc:lang==='fr'?'Honte, culpabilité':'Shame, guilt'},
+                      {name: lang==='fr'?'Solitaire':'Lonely',        x:.18,y:.82,color:'#2e4a7a',desc:lang==='fr'?'Isolement, manque de lien':'Isolation, lack of connection'},
+                      // Quadrant haut-gauche : énergie haute + désagréable
+                      {name: lang==='fr'?'En colère':'Angry',         x:.15,y:.18,color:'#d85a30',desc:lang==='fr'?'Frustration intense, réactivité':'Intense frustration, reactivity'},
+                      {name: lang==='fr'?'Furieux·se':'Furious',      x:.10,y:.28,color:'#b83000',desc:lang==='fr'?'Colère explosive':'Explosive anger'},
+                      {name: lang==='fr'?'Irrité·e':'Irritated',      x:.22,y:.32,color:'#993c1d',desc:lang==='fr'?'Agacement, impatience':'Irritation, impatience'},
+                      {name: lang==='fr'?'Stressé·e':'Stressed',      x:.28,y:.18,color:'#7f77dd',desc:lang==='fr'?'Pression élevée, surcharge':'High pressure, overload'},
+                      {name: lang==='fr'?'Anxieux·se':'Anxious',      x:.22,y:.38,color:'#534ab7',desc:lang==='fr'?'Inquiétude, tension intérieure':'Worry, inner tension'},
+                      {name: lang==='fr'?'Effrayé·e':'Scared',        x:.32,y:.25,color:'#d4537e',desc:lang==='fr'?'Peur, sentiment de menace':'Fear, sense of threat'},
+                      {name: lang==='fr'?'Paniqué·e':'Panicked',      x:.18,y:.12,color:'#c0184a',desc:lang==='fr'?'Terreur, panique':'Terror, panic'},
+                      {name: lang==='fr'?'Dépassé·e':'Overwhelmed',   x:.35,y:.20,color:'#9b59b6',desc:lang==='fr'?'Trop à gérer à la fois':'Too much at once'},
+                      // Centre et états dissociatifs
+                      {name: lang==='fr'?'Dissocié·e':'Dissociated',  x:.38,y:.62,color:'#b4b2a9',desc:lang==='fr'?'Hors du corps, engourdi·e':'Out of body, numb'},
+                      {name: lang==='fr'?'Confus·e':'Confused',       x:.42,y:.38,color:'#8e9aaf',desc:lang==='fr'?'Incertitude, brouillard':'Uncertainty, fog'},
+                      {name: lang==='fr'?'Triggéré·e':'Triggered',    x:.30,y:.45,color:'#c0392b',desc:lang==='fr'?'Réaction traumatique activée':'Trauma response activated'},
+                      {name: lang==='fr'?'Neutre':'Neutral',           x:.50,y:.50,color:'#888780',desc:lang==='fr'?'État stable, sans teinte forte':'Stable state, no strong tone'},
+                    ];
 
-                      {/* Résultat + intensité */}
-                      <div className="flex-1 min-w-0 space-y-3 w-full">
-                        {wheelEmotion ? (
-                          <>
-                            <div className="p-3 bg-app-bg rounded-xl border border-app-border/40 space-y-1">
-                              <div className="h-1 rounded-full" style={{background: wheelEmotion.color}} />
-                              <p className="font-black text-sm text-app-text">{wheelEmotion.name}</p>
-                              <p className="text-[11px] text-app-muted">{wheelEmotion.desc}</p>
-                            </div>
-                            <div className="space-y-1">
-                              <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">
-                                {lang === 'fr' ? 'Intensité' : 'Intensity'} — {wheelIntensity}/5
-                              </p>
-                              <input
-                                type="range" min={1} max={5} value={wheelIntensity}
-                                onChange={e => setWheelIntensity(Number(e.target.value))}
-                                className="w-full"
-                              />
-                              <div className="flex justify-between text-[9px] text-app-muted">
-                                <span>{lang === 'fr' ? 'Légère' : 'Mild'}</span>
-                                <span>{lang === 'fr' ? 'Intense' : 'Intense'}</span>
-                              </div>
-                            </div>
-                            <button
-                              onClick={() => {
-                                const entry = {
-                                  name: wheelEmotion.name,
-                                  color: wheelEmotion.color,
-                                  intensity: wheelIntensity,
-                                  alter: switchSelectedAlterIds.length > 0 ? (savedAlters.find(a => a.id === switchSelectedAlterIds[0])?.alterName || '?') : (lang === 'fr' ? 'Système' : 'System'),
-                                  time: new Date().toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-GB', {hour:'2-digit', minute:'2-digit'}),
-                                };
-                                setWheelHistory(prev => [entry, ...prev].slice(0, 8));
-                                setWheelEmotion(null);
-                                setWheelDotPos(null);
+                    return (
+                      <div className="mt-4 space-y-3">
+                        <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                          {lang === 'fr' ? 'Roue des émotions' : 'Emotion wheel'}
+                        </p>
+                        <div className="flex flex-col sm:flex-row gap-4 items-start">
+                          {/* Canvas via useEffect workaround */}
+                          <div className="relative flex-shrink-0 mx-auto sm:mx-0" style={{width:220,height:220}}>
+                            <canvas
+                              id="emotion-wheel-canvas"
+                              width={220}
+                              height={220}
+                              className="rounded-full cursor-crosshair block"
+                              style={{width:220,height:220}}
+                              ref={el => {
+                                if (!el) return;
+                                const ctx = el.getContext('2d');
+                                if (!ctx) return;
+                                const W=220, cx=W/2, cy=W/2, r=W/2-1;
+                                ctx.clearRect(0,0,W,W);
+                                for (let px=0;px<W;px++) {
+                                  for (let py=0;py<W;py++) {
+                                    const dx=px-cx,dy=py-cy;
+                                    if (dx*dx+dy*dy>r*r) continue;
+                                    const angle=Math.atan2(dy,dx);
+                                    const dist=Math.sqrt(dx*dx+dy*dy)/r;
+                                    const hue=((angle*180/Math.PI)+360+90)%360;
+                                    const sat=dist*80;
+                                    const lgt=62+(1-dist)*25;
+                                    ctx.fillStyle=`hsl(${hue},${sat}%,${lgt}%)`;
+                                    ctx.fillRect(px,py,1,1);
+                                  }
+                                }
+                                ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);
+                                ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.lineWidth=1;ctx.stroke();
+                                ctx.beginPath();
+                                ctx.moveTo(cx,14);ctx.lineTo(cx,W-14);
+                                ctx.moveTo(14,cy);ctx.lineTo(W-14,cy);
+                                ctx.strokeStyle='rgba(0,0,0,0.12)';ctx.lineWidth=0.5;
+                                ctx.setLineDash([2,3]);ctx.stroke();ctx.setLineDash([]);
+                                if (wheelDotPos) {
+                                  ctx.beginPath();
+                                  ctx.arc(wheelDotPos.x,wheelDotPos.y,7,0,Math.PI*2);
+                                  ctx.fillStyle='rgba(255,255,255,0.92)';ctx.fill();
+                                  ctx.strokeStyle=wheelEmotion?.color||'#888';ctx.lineWidth=2.5;ctx.stroke();
+                                }
                               }}
-                              className="w-full py-2 text-xs font-black uppercase tracking-widest bg-app-card border border-app-border/40 hover:border-app-accent/40 rounded-xl transition-colors"
-                            >
-                              {lang === 'fr' ? '+ Enregistrer' : '+ Save'}
-                            </button>
-                          </>
-                        ) : (
-                          <div className="p-4 bg-app-bg rounded-xl border border-app-border/30 text-center">
-                            <p className="text-[11px] text-app-muted">
-                              {lang === 'fr' ? 'Cliquez sur la roue pour identifier une émotion' : 'Click the wheel to identify an emotion'}
-                            </p>
+                              onClick={e => {
+                                const rect=e.currentTarget.getBoundingClientRect();
+                                const scaleX=220/rect.width, scaleY=220/rect.height;
+                                const px=(e.clientX-rect.left)*scaleX;
+                                const py=(e.clientY-rect.top)*scaleY;
+                                const cx=110,cy=110,r=109;
+                                const dx=px-cx,dy=py-cy;
+                                if (dx*dx+dy*dy>r*r) return;
+                                const nx=px/220,ny=py/220;
+                                const emList=[
+                                  {name:lang==='fr'?'Excité·e':'Excited',      x:.78,y:.15,color:'#ef9f27',desc:lang==='fr'?'Énergie débordante, très positif':'High energy, very positive'},
+                                  {name:lang==='fr'?'Euphorique':'Euphoric',    x:.88,y:.25,color:'#f4c430',desc:lang==='fr'?'Exaltation intense':'Intense elation'},
+                                  {name:lang==='fr'?'Enthousiaste':'Enthusiastic',x:.82,y:.32,color:'#d4a800',desc:lang==='fr'?'Élan, envie de faire':'Drive, eagerness'},
+                                  {name:lang==='fr'?'Joyeux·se':'Joyful',      x:.85,y:.42,color:'#63991a',desc:lang==='fr'?'Humeur positive, légèreté':'Positive mood, lightness'},
+                                  {name:lang==='fr'?'Confiant·e':'Confident',   x:.78,y:.52,color:'#1d9e75',desc:lang==='fr'?'Sûr·e de soi, stable':'Self-assured, stable'},
+                                  {name:lang==='fr'?'Fier·e':'Proud',           x:.72,y:.38,color:'#2db87a',desc:lang==='fr'?'Satisfaction de soi':'Self-satisfaction'},
+                                  {name:lang==='fr'?'Serein·e':'Serene',        x:.68,y:.68,color:'#0f8060',desc:lang==='fr'?'Calme profond, bien-être':'Deep calm, well-being'},
+                                  {name:lang==='fr'?'Détendu·e':'Relaxed',      x:.55,y:.82,color:'#076e52',desc:lang==='fr'?'Relâché·e, sans tension':'Released, no tension'},
+                                  {name:lang==='fr'?'Reconnaissant·e':'Grateful',x:.72,y:.75,color:'#1a7a4a',desc:lang==='fr'?'Gratitude, chaleur intérieure':'Gratitude, inner warmth'},
+                                  {name:lang==='fr'?'Nostalgique':'Nostalgic',   x:.60,y:.72,color:'#5b8fa8',desc:lang==='fr'?'Doux souvenir, mélancolie douce':'Sweet memory, gentle melancholy'},
+                                  {name:lang==='fr'?'Apaisé·e':'Soothed',       x:.62,y:.88,color:'#0a5c40',desc:lang==='fr'?'Tension relâchée':'Tension released'},
+                                  {name:lang==='fr'?'Fatigué·e':'Tired',        x:.28,y:.82,color:'#888780',desc:lang==='fr'?"Manque d'énergie, épuisement":'Low energy, exhaustion'},
+                                  {name:lang==='fr'?'Triste':'Sad',              x:.20,y:.72,color:'#185fa5',desc:lang==='fr'?'Mélancolie, abattement':'Melancholy, low mood'},
+                                  {name:lang==='fr'?'Déprimé·e':'Depressed',    x:.15,y:.60,color:'#0c447c',desc:lang==='fr'?'Humeur très basse, vide':'Very low mood, emptiness'},
+                                  {name:lang==='fr'?'Honteux·se':'Ashamed',     x:.25,y:.75,color:'#6b3fa0',desc:lang==='fr'?'Honte, culpabilité':'Shame, guilt'},
+                                  {name:lang==='fr'?'Solitaire':'Lonely',        x:.18,y:.82,color:'#2e4a7a',desc:lang==='fr'?'Isolement, manque de lien':'Isolation, lack of connection'},
+                                  {name:lang==='fr'?'En colère':'Angry',         x:.15,y:.18,color:'#d85a30',desc:lang==='fr'?'Frustration intense, réactivité':'Intense frustration, reactivity'},
+                                  {name:lang==='fr'?'Furieux·se':'Furious',      x:.10,y:.28,color:'#b83000',desc:lang==='fr'?'Colère explosive':'Explosive anger'},
+                                  {name:lang==='fr'?'Irrité·e':'Irritated',      x:.22,y:.32,color:'#993c1d',desc:lang==='fr'?'Agacement, impatience':'Irritation, impatience'},
+                                  {name:lang==='fr'?'Stressé·e':'Stressed',      x:.28,y:.18,color:'#7f77dd',desc:lang==='fr'?'Pression élevée, surcharge':'High pressure, overload'},
+                                  {name:lang==='fr'?'Anxieux·se':'Anxious',      x:.22,y:.38,color:'#534ab7',desc:lang==='fr'?'Inquiétude, tension intérieure':'Worry, inner tension'},
+                                  {name:lang==='fr'?'Effrayé·e':'Scared',        x:.32,y:.25,color:'#d4537e',desc:lang==='fr'?'Peur, sentiment de menace':'Fear, sense of threat'},
+                                  {name:lang==='fr'?'Paniqué·e':'Panicked',      x:.18,y:.12,color:'#c0184a',desc:lang==='fr'?'Terreur, panique':'Terror, panic'},
+                                  {name:lang==='fr'?'Dépassé·e':'Overwhelmed',   x:.35,y:.20,color:'#9b59b6',desc:lang==='fr'?'Trop à gérer à la fois':'Too much at once'},
+                                  {name:lang==='fr'?'Dissocié·e':'Dissociated',  x:.38,y:.62,color:'#b4b2a9',desc:lang==='fr'?'Hors du corps, engourdi·e':'Out of body, numb'},
+                                  {name:lang==='fr'?'Confus·e':'Confused',       x:.42,y:.38,color:'#8e9aaf',desc:lang==='fr'?'Incertitude, brouillard':'Uncertainty, fog'},
+                                  {name:lang==='fr'?'Triggéré·e':'Triggered',    x:.30,y:.45,color:'#c0392b',desc:lang==='fr'?'Réaction traumatique activée':'Trauma response activated'},
+                                  {name:lang==='fr'?'Neutre':'Neutral',           x:.50,y:.50,color:'#888780',desc:lang==='fr'?'État stable, sans teinte forte':'Stable state, no strong tone'},
+                                ];
+                                 const best=emList.reduce((acc,em)=>Math.hypot(em.x-nx,em.y-ny)<Math.hypot(acc.x-nx,acc.y-ny)?em:acc,emList[0]);
+                                setWheelDotPos({x:px,y:py});
+                                setWheelEmotion({name:best.name,color:best.color,desc:best.desc,intensity:wheelIntensity});
+                              }}
+                            />
+                            <div className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">{lang==='fr'?'↑ haute':'↑ high'}</div>
+                            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">{lang==='fr'?'↓ basse':'↓ low'}</div>
+                            <div className="absolute left-0.5 top-1/2 -translate-y-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">😔</div>
+                            <div className="absolute right-0.5 top-1/2 -translate-y-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">😊</div>
                           </div>
-                        )}
 
-                        {/* Historique */}
-                        {wheelHistory.length > 0 && (
-                          <div className="space-y-1.5">
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Historique' : 'History'}</p>
-                            {wheelHistory.slice(0, 5).map((h, i) => (
-                              <div key={i} className="flex items-center gap-2 text-[11px] py-1.5 border-b border-app-border/20">
-                                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background: h.color}} />
-                                <span className="font-bold text-app-text">{h.alter}</span>
-                                <span className="text-app-muted">{h.name}</span>
-                                <span className="ml-auto text-app-muted tabular-nums">{h.time} · {h.intensity}/5</span>
+                          {/* Panneau résultat */}
+                          <div className="flex-1 min-w-0 space-y-3 w-full">
+                            {wheelEmotion ? (
+                              <>
+                                <div className="p-3 bg-app-bg rounded-xl border border-app-border/40 space-y-1">
+                                  <div className="h-1 rounded-full" style={{background:wheelEmotion.color}} />
+                                  <p className="font-black text-sm text-app-text">{wheelEmotion.name}</p>
+                                  <p className="text-[11px] text-app-muted">{wheelEmotion.desc}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">
+                                    {lang==='fr'?'Intensité':'Intensity'} — {wheelIntensity}/5
+                                  </p>
+                                  <input type="range" min={1} max={5} value={wheelIntensity}
+                                    onChange={e => setWheelIntensity(Number(e.target.value))}
+                                    className="w-full"
+                                  />
+                                  <div className="flex justify-between text-[9px] text-app-muted">
+                                    <span>{lang==='fr'?'Légère':'Mild'}</span>
+                                    <span>{lang==='fr'?'Intense':'Intense'}</span>
+                                  </div>
+                                </div>
+                                <button
+                                  onClick={() => {
+                                    const entry = {
+                                      name: wheelEmotion.name,
+                                      color: wheelEmotion.color,
+                                      intensity: wheelIntensity,
+                                      alter: switchSelectedAlterIds.length > 0
+                                        ? (savedAlters.find((a: SavedAlter) => a.id === switchSelectedAlterIds[0])?.alterName || '?')
+                                        : (lang==='fr'?'Système':'System'),
+                                      time: new Date().toLocaleTimeString(lang==='fr'?'fr-FR':'en-GB',{hour:'2-digit',minute:'2-digit'}),
+                                    };
+                                    setWheelHistory((prev: typeof wheelHistory) => [entry,...prev].slice(0,8));
+                                    setWheelEmotion(null);
+                                    setWheelDotPos(null);
+                                  }}
+                                  className="w-full py-2 text-xs font-black uppercase tracking-widest bg-app-card border border-app-border/40 hover:border-app-accent/40 rounded-xl transition-colors"
+                                >
+                                  {lang==='fr'?'+ Enregistrer':'+ Save'}
+                                </button>
+                              </>
+                            ) : (
+                              <div className="p-4 bg-app-bg rounded-xl border border-app-border/30 text-center">
+                                <p className="text-[11px] text-app-muted">
+                                  {lang==='fr'?'Cliquez sur la roue pour identifier une émotion':'Click the wheel to identify an emotion'}
+                                </p>
                               </div>
-                            ))}
+                            )}
+                            {wheelHistory.length > 0 && (
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang==='fr'?'Historique':'History'}</p>
+                                {wheelHistory.slice(0,5).map((h: typeof wheelHistory[0], i: number) => (
+                                  <div key={i} className="flex items-center gap-2 text-[11px] py-1.5 border-b border-app-border/20">
+                                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:h.color}} />
+                                    <span className="font-bold text-app-text truncate">{h.alter}</span>
+                                    <span className="text-app-muted truncate">{h.name}</span>
+                                    <span className="ml-auto text-app-muted tabular-nums flex-shrink-0">{h.time} · {h.intensity}/5</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                 </div>
 
