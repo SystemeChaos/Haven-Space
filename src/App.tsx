@@ -372,6 +372,9 @@ export default function App() {
   const [archivesModalOpen, setArchivesModalOpen] = useState(false);
   const [archivesSearch, setArchivesSearch] = useState('');
   const [systemSearch, setSystemSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string[]>([]);
+  const [roleFilterInput, setRoleFilterInput] = useState('');
+  const [roleFilterSuggestions, setRoleFilterSuggestions] = useState<string[]>([]);
   const t = translations[lang];
 
   const sortedFrontStatusKeys = Object.keys(t.frontStatuses).sort((a, b) => {
@@ -4499,6 +4502,76 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Filtre par rôles */}
+              <div className="space-y-2">
+                <div className="relative">
+                  <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
+                  <input
+                    type="text"
+                    value={roleFilterInput}
+                    onChange={e => {
+                      const val = e.target.value;
+                      setRoleFilterInput(val);
+                      if (val.trim().length > 0) {
+                        const query = val.toLowerCase();
+                        const suggestions = Object.values(AlterRole)
+                          .filter(r => !roleFilter.includes(r))
+                          .filter(r => (t.roleNames[r as keyof typeof t.roleNames] || r).toLowerCase().includes(query))
+                          .slice(0, 6);
+                        setRoleFilterSuggestions(suggestions);
+                      } else {
+                        setRoleFilterSuggestions([]);
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && roleFilterSuggestions.length > 0) {
+                        setRoleFilter(prev => [...prev, roleFilterSuggestions[0]]);
+                        setRoleFilterInput('');
+                        setRoleFilterSuggestions([]);
+                      }
+                      if (e.key === 'Escape') { setRoleFilterInput(''); setRoleFilterSuggestions([]); }
+                    }}
+                    placeholder={lang === 'fr' ? 'Filtrer par rôle...' : 'Filter by role...'}
+                    className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full"
+                  />
+                  {/* Suggestions */}
+                  {roleFilterSuggestions.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-app-card border border-app-border/40 rounded-xl shadow-lg z-20 overflow-hidden">
+                      {roleFilterSuggestions.map(r => (
+                        <button
+                          key={r}
+                          onClick={() => { setRoleFilter(prev => [...prev, r]); setRoleFilterInput(''); setRoleFilterSuggestions([]); }}
+                          className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-app-bg flex items-center gap-2 transition-colors"
+                        >
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF' }} />
+                          {t.roleNames[r as keyof typeof t.roleNames] || r}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Tags actifs */}
+                {roleFilter.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 items-center">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Rôles :' : 'Roles:'}</span>
+                    {roleFilter.map(r => (
+                      <button
+                        key={r}
+                        onClick={() => setRoleFilter(prev => prev.filter(x => x !== r))}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border transition-colors hover:opacity-70"
+                        style={{ backgroundColor: `${ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF'}15`, borderColor: `${ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF'}40`, color: ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF' }}
+                      >
+                        {t.roleNames[r as keyof typeof t.roleNames] || r}
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    ))}
+                    <button onClick={() => setRoleFilter([])} className="text-[10px] text-app-muted hover:text-app-text font-bold underline underline-offset-2 transition-colors">
+                      {lang === 'fr' ? 'Tout effacer' : 'Clear all'}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               {/* Reset or Save active alter triggers */}
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -4622,13 +4695,13 @@ export default function App() {
                             <div className="flex-1">
                               <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
                                 {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                                   .map(a => renderAlterCard(a))}
                               </div>
                               <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())))
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                                   .map(a => renderAlterCard(a))}
                               </div>
