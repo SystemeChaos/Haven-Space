@@ -66,6 +66,7 @@ import {
   Redo2,
   Type,
   Anchor,
+  Phone,
   Compass,
   Feather,
   Flame,
@@ -477,6 +478,12 @@ export default function App() {
   // --- PluralKit & Navigation Dropdown States ---
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [sosMode, setSosMode] = useState(false);
+  const [trustedContacts, setTrustedContacts] = useState<{id: string; name: string; phone: string}[]>(() => {
+    try { return JSON.parse(localStorage.getItem('trustedContacts') || '[]'); } catch { return []; }
+  });
+  const [newContactName, setNewContactName] = useState('');
+  const [newContactPhone, setNewContactPhone] = useState('');
   const [settingsFontOpen, setSettingsFontOpen] = useState(false);
   const [settingsThemeOpen, setSettingsThemeOpen] = useState(false);
 
@@ -685,6 +692,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('wheelHistory', JSON.stringify(wheelHistory));
   }, [wheelHistory]);
+
+  useEffect(() => {
+    localStorage.setItem('trustedContacts', JSON.stringify(trustedContacts));
+  }, [trustedContacts]);
 
   useEffect(() => {
     localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
@@ -3036,6 +3047,15 @@ export default function App() {
                 </div>
               </div>
             )}
+
+            {/* Bouton SOS */}
+            <button
+              onClick={() => { setSosMode(true); setCurrentTab('grounding'); }}
+              className="p-3 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 rounded-full transition-all flex items-center justify-center shadow-sm"
+              title={lang === 'fr' ? 'Mode crise — Accès rapide Ancrage' : 'Crisis mode — Quick access Grounding'}
+            >
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+            </button>
 
             {/* Unified Settings Dropdown */}
             <div className="relative">
@@ -6700,6 +6720,87 @@ export default function App() {
                   </div>
                 );
               })}
+
+              {/* Mini annuaire contacts de confiance */}
+              <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-app-accent" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
+                    {lang === 'fr' ? "Contacts de confiance" : "Trusted contacts"}
+                  </h3>
+                </div>
+
+                {/* Liste des contacts */}
+                {trustedContacts.length > 0 && (
+                  <div className="space-y-2">
+                    {trustedContacts.map(c => (
+                      <div key={c.id} className="flex items-center gap-3 p-3 bg-app-bg rounded-xl border border-app-border/30 group">
+                        <div className="w-8 h-8 rounded-full bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent font-black text-sm flex-shrink-0">
+                          {c.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-app-text truncate">{c.name}</p>
+                          <a
+                            href={"tel:" + c.phone}
+                            className="text-xs text-app-accent hover:underline font-mono"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            {c.phone}
+                          </a>
+                        </div>
+                        <button
+                          onClick={() => setTrustedContacts(prev => prev.filter(x => x.id !== c.id))}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:text-red-500 text-app-muted rounded-lg"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Formulaire ajout */}
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="text"
+                    value={newContactName}
+                    onChange={e => setNewContactName(e.target.value)}
+                    placeholder={lang === 'fr' ? "Nom" : "Name"}
+                    className="flex-1 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  <input
+                    type="tel"
+                    value={newContactPhone}
+                    onChange={e => setNewContactPhone(e.target.value)}
+                    placeholder={lang === 'fr' ? "Téléphone" : "Phone"}
+                    className="flex-1 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newContactName.trim() && newContactPhone.trim()) {
+                        setTrustedContacts(prev => [...prev, { id: Date.now().toString(), name: newContactName.trim(), phone: newContactPhone.trim() }]);
+                        setNewContactName('');
+                        setNewContactPhone('');
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={() => {
+                      if (!newContactName.trim() || !newContactPhone.trim()) return;
+                      setTrustedContacts(prev => [...prev, { id: Date.now().toString(), name: newContactName.trim(), phone: newContactPhone.trim() }]);
+                      setNewContactName('');
+                      setNewContactPhone('');
+                    }}
+                    className="p-2.5 bg-app-accent text-white rounded-xl hover:opacity-90 transition-opacity flex-shrink-0"
+                    title={lang === 'fr' ? "Ajouter" : "Add"}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                {trustedContacts.length === 0 && (
+                  <p className="text-[11px] text-app-muted text-center">
+                    {lang === 'fr' ? "Ajoutez vos contacts de confiance (thérapeute, proche…)" : "Add your trusted contacts (therapist, loved one…)"}
+                  </p>
+                )}
+              </div>
 
               {/* Footer */}
               <p className="text-center text-[11px] text-app-muted italic pb-4">
