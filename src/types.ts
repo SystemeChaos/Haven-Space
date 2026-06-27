@@ -166,6 +166,9 @@ export enum PersonalityTrait {
   INSENSITIVE = 'INSENSITIVE',
   INTUITIVE = 'INTUITIVE',
   RATIONAL = 'RATIONAL',
+  NARCISSISTIC = 'NARCISSISTIC',
+  MEGALOMANIAC = 'MEGALOMANIAC',
+  VIOLENT = 'VIOLENT',
 }
 
 export enum Disorder {

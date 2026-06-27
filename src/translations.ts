@@ -626,6 +626,9 @@ export const translations = {
       INSENSITIVE: "Insensible",
       INTUITIVE: "Intuitif",
       RATIONAL: "Rationnel",
+      NARCISSISTIC: "Narcissique",
+      MEGALOMANIAC: "Mégalomane",
+      VIOLENT: "Violent",
     },
     personalityTraitData: {
       CREATIVE: "Forte propension à l'imagination et à l'expression artistique.",
@@ -706,6 +709,9 @@ export const translations = {
       INSENSITIVE: "Difficulté à percevoir ou à prendre en compte les émotions et besoins des autres.",
       INTUITIVE: "Capacité à percevoir ou anticiper des situations sans passer par un raisonnement logique.",
       RATIONAL: "Approche basée sur la raison et la logique, peu influencée par les émotions.",
+      NARCISSISTIC: "Centré·e sur soi-même avec un besoin excessif d'admiration et peu d'empathie pour les autres.",
+      MEGALOMANIAC: "Sentiment démesuré de sa propre grandeur, puissance ou importance.",
+      VIOLENT: "Tendance à réagir de manière agressive ou physiquement brusque sous l'effet de la frustration ou de la colère.",
     },
     disorders: {
       ANXIETY: "Anxiété",
@@ -1457,6 +1463,9 @@ export const translations = {
       INSENSITIVE: "Insensitive",
       INTUITIVE: "Intuitive",
       RATIONAL: "Rational",
+      NARCISSISTIC: "Narcissistic",
+      MEGALOMANIAC: "Megalomaniac",
+      VIOLENT: "Violent",
     },
     personalityTraitData: {
       CREATIVE: "Strong propensity for imagination, innovation, and artistic expression.",
@@ -1537,6 +1546,9 @@ export const translations = {
       INSENSITIVE: "Difficulty perceiving or accounting for others' emotions and needs.",
       INTUITIVE: "Ability to perceive or anticipate situations without going through logical reasoning.",
       RATIONAL: "Approach based on reason and logic, little influenced by emotions.",
+      NARCISSISTIC: "Self-centered with an excessive need for admiration and little empathy toward others.",
+      MEGALOMANIAC: "Excessive sense of one's own greatness, power or importance.",
+      VIOLENT: "Tendency to react aggressively or physically under the effect of frustration or anger.",
     },
     disorders: {
       ANXIETY: "Anxiety",
