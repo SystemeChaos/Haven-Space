@@ -2528,7 +2528,14 @@ export default function App() {
         y: 45 + ((traitDecorations.length * 6) % 30) - 15,
         opacity: 0.8,
       };
-      setTraitDecorations([...traitDecorations, newTraitDec]);
+      const newTraitDecs = [...traitDecorations, newTraitDec].sort((a, b) => {
+        const isDisorderA = Object.values(Disorder).includes(a.trait as Disorder);
+        const isDisorderB = Object.values(Disorder).includes(b.trait as Disorder);
+        const nameA = (isDisorderA ? t.disorders[a.trait as keyof typeof t.disorders] : t.personalityTraits[a.trait as keyof typeof t.personalityTraits]) || a.trait;
+        const nameB = (isDisorderB ? t.disorders[b.trait as keyof typeof t.disorders] : t.personalityTraits[b.trait as keyof typeof t.personalityTraits]) || b.trait;
+        return nameA.localeCompare(nameB, lang);
+      });
+      setTraitDecorations(newTraitDecs);
       setActiveTraitId(trait);
       
       const isDisorder = Object.values(Disorder).includes(trait as Disorder);
