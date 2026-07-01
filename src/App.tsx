@@ -5622,38 +5622,66 @@ export default function App() {
                       <p className="text-xs text-app-muted">{lang === 'fr' ? "Aucun alter disponible. Créez des fiches d'abord !" : 'No alters available. Create cards first!'}</p>
                     ) : (
                       <div className="space-y-2">
-                        <input
-                          type="text"
-                          value={switchAlterSearch}
-                          onChange={e => setSwitchAlterSearch(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
-                          className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
-                        />
-                        <div className="max-h-40 overflow-y-auto border border-app-border py-1 px-2 rounded-xl bg-app-bg/50 space-y-2">
-                          {[...savedAlters]
-                            .filter(a => !switchAlterSearch || (a.alterName||'').toLowerCase().includes(switchAlterSearch.toLowerCase()))
-                            .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
-                            .map(a => (
-                              <label key={a.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-app-card/65 cursor-pointer leading-tight">
-                                <input
-                                  type="checkbox"
-                                  checked={switchSelectedAlterIds.includes(a.id)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSwitchSelectedAlterIds(prev => [...prev, a.id]);
-                                    } else {
-                                      setSwitchSelectedAlterIds(prev => prev.filter(did => did !== a.id));
+                        {/* Tags des alters sélectionnés */}
+                        {switchSelectedAlterIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {switchSelectedAlterIds.map(id => {
+                              const a = savedAlters.find(x => x.id === id);
+                              if (!a) return null;
+                              return (
+                                <span key={id} className="flex items-center gap-1.5 px-2.5 py-1 bg-app-accent/10 border border-app-accent/30 rounded-full text-[11px] font-bold text-app-accent">
+                                  {a.profileImage
+                                    ? <img src={a.profileImage} className="w-4 h-4 rounded-full object-cover" alt="" />
+                                    : <div className="w-4 h-4 rounded-full bg-app-accent/30 flex items-center justify-center text-[8px] font-black">{(a.alterName||'?').charAt(0)}</div>
+                                  }
+                                  {a.alterName}
+                                  <button onClick={() => setSwitchSelectedAlterIds(prev => prev.filter(x => x !== id))} className="hover:text-red-500 transition-colors leading-none">×</button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {/* Champ de recherche avec suggestions */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={switchAlterSearch}
+                            onChange={e => setSwitchAlterSearch(e.target.value)}
+                            placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                            className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                          />
+                          {switchAlterSearch.trim().length > 0 && (
+                            <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                              {[...savedAlters]
+                                .filter(a => (a.alterName||'').toLowerCase().includes(switchAlterSearch.toLowerCase()))
+                                .sort((a, b) => (a.alterName||'').localeCompare(b.alterName||'', lang))
+                                .slice(0, 8)
+                                .map(a => (
+                                  <button
+                                    key={a.id}
+                                    type="button"
+                                    onClick={() => {
+                                      if (!switchSelectedAlterIds.includes(a.id)) {
+                                        setSwitchSelectedAlterIds(prev => [...prev, a.id]);
+                                      }
+                                      setSwitchAlterSearch('');
+                                    }}
+                                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${switchSelectedAlterIds.includes(a.id) ? 'opacity-40' : ''}`}
+                                  >
+                                    {a.profileImage
+                                      ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
+                                      : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
                                     }
-                                  }}
-                                  className="w-4 h-4 rounded border-app-border text-app-accent focus:ring-0"
-                                />
-                                {a.profileImage
-                                  ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
-                                  : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
-                                }
-                                <span className="text-xs font-bold leading-none">{a.alterName}</span>
-                              </label>
-                            ))}
+                                    <span className="text-app-text">{a.alterName}</span>
+                                    {switchSelectedAlterIds.includes(a.id) && <span className="ml-auto text-[10px] text-app-muted">✓</span>}
+                                  </button>
+                                ))
+                              }
+                              {[...savedAlters].filter(a => (a.alterName||'').toLowerCase().includes(switchAlterSearch.toLowerCase())).length === 0 && (
+                                <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
