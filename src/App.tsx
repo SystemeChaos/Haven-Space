@@ -3282,89 +3282,20 @@ export default function App() {
           {/* Secondary Navigation Dropdown Menu & System Info */}
           <div className="border-b border-app-border/40 bg-app-card/35 backdrop-blur-md py-4 px-8 sticky top-[89px] z-40">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="relative w-full md:w-80 z-50">
-            {/* The Dropdown Trigger Button */}
-            <button
-              onClick={() => setNavMenuOpen(!navMenuOpen)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-[#273F4F] hover:border-app-accent/40 active:scale-98 transition-all shadow-md select-none"
-            >
-              <div className="flex items-center gap-3">
-                {(() => {
-                  const options = [
-                    { value: 'home', label: lang === 'fr' ? 'Tableau de bord' : 'Dashboard', icon: LayoutDashboard },
-                    { value: 'system', label: t.menuMySystem, icon: Users },
-                    { value: 'creator', label: t.menuCreator, icon: Hammer },
-                    { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
-                    { value: 'mapping', label: t.menuMapping, icon: GitBranch },
-                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
-                    { value: 'messaging', label: t.menuMessaging, icon: Mail },
-                    { value: 'journal', label: t.menuJournal, icon: Book },
-                    { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
-                  ];
-                  const currentOpt = options.find(o => o.value === currentTab) || options[0];
-                  const CurrentIcon = currentOpt.icon;
-                  return (
-                    <>
-                      <CurrentIcon className="w-4 h-4 text-[#273F4F] animate-pulse" />
-                      <span className="text-[#273F4F] font-black tracking-widest">{currentOpt.label}</span>
-                    </>
-                  );
-                })()}
+          <div className="z-50">
+            {currentTab !== 'home' ? (
+              <button
+                onClick={() => setCurrentTab('home')}
+                className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-[#273F4F] hover:border-app-accent/40 active:scale-95 transition-all shadow-md select-none"
+              >
+                <ChevronRight className="w-4 h-4 text-[#273F4F] rotate-180" />
+                <span>{lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-accent text-white text-xs font-black uppercase tracking-widest shadow-md select-none">
+                <LayoutDashboard className="w-4 h-4" />
+                <span>{lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}</span>
               </div>
-              <ChevronDown className={`w-4 h-4 text-[#273F4F] transition-transform duration-300 ${navMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {/* Dropdown Options Drawer Overlay */}
-            {navMenuOpen && (
-              <>
-                <div 
-                  className="fixed inset-0 z-40 bg-transparent" 
-                  onClick={() => setNavMenuOpen(false)} 
-                />
-                <motion.div
-                  initial={{ opacity: 0, y: -8, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                  transition={{ duration: 0.15 }}
-                  className="absolute left-0 right-0 mt-2 z-50 rounded-2xl border border-app-border bg-app-card/95 backdrop-blur-xl shadow-2xl p-1.5 space-y-1"
-                >
-                  {[
-                    { value: 'home', label: lang === 'fr' ? 'Tableau de bord' : 'Dashboard', icon: LayoutDashboard },
-                    { value: 'system', label: t.menuMySystem, icon: Users },
-                    { value: 'creator', label: t.menuCreator, icon: Hammer },
-                    { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
-                    { value: 'mapping', label: t.menuMapping, icon: GitBranch },
-                    { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
-                    { value: 'messaging', label: t.menuMessaging, icon: Mail },
-                    { value: 'journal', label: t.menuJournal, icon: Book },
-                    { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
-                  ].map((opt) => {
-                    const IconComponent = opt.icon;
-                    const isActive = currentTab === opt.value;
-                    return (
-                      <button
-                        key={opt.value}
-                        type="button"
-                        onClick={() => {
-                          setCurrentTab(opt.value as any);
-                          setNavMenuOpen(false);
-                        }}
-                        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-left text-xs font-black uppercase tracking-widest transition-all ${
-                          isActive
-                            ? 'bg-app-accent text-white shadow-md'
-                            : 'text-app-text/75 hover:bg-app-bg hover:text-app-text border border-transparent'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <IconComponent className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-app-muted'}`} />
-                          <span>{opt.label}</span>
-                        </div>
-                        {isActive && <div className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />}
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              </>
             )}
           </div>
 
@@ -5104,18 +5035,64 @@ export default function App() {
                 <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                   <UserCheck className="w-4.5 h-4.5 text-app-text" /> {t.selectSpeakingAlter}
                 </label>
-                <select
-                  value={chatSpeakerId}
-                  onChange={(e) => setChatSpeakerId(e.target.value)}
-                  className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-app-accent/20 outline-none"
-                >
-                  <option value="external">{lang === 'fr' ? 'Hôte / Système' : 'Host / System'}</option>
-                  {[...savedAlters]
-                    .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
-                    .map(a => (
-                      <option key={a.id} value={a.id}>{a.alterName}</option>
-                    ))}
-                </select>
+                {/* Recherche alter */}
+                {(() => {
+                  const filtered = [
+                    {id: 'external', alterName: lang === 'fr' ? 'Hôte / Système' : 'Host / System', profileImage: null as string|null|undefined},
+                    ...[...savedAlters].sort((a,b) => (a.alterName||'').localeCompare(b.alterName||'', lang))
+                  ].filter(a => !chatSpeakerSearch || (a.alterName||'').toLowerCase().includes(chatSpeakerSearch.toLowerCase()));
+                  const current = chatSpeakerId === 'external'
+                    ? {id:'external', alterName: lang==='fr' ? 'Hôte / Système' : 'Host / System', profileImage: null}
+                    : savedAlters.find(a => a.id === chatSpeakerId);
+                  return (
+                    <div className="relative">
+                      <div
+                        className="w-full flex items-center gap-2 bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm cursor-pointer hover:border-app-accent/40 transition-colors"
+                        onClick={() => setChatSpeakerOpen(o => !o)}
+                      >
+                        {current?.profileImage
+                          ? <img src={current.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                          : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(current?.alterName||'?').charAt(0)}</div>
+                        }
+                        <span className="flex-1 font-semibold text-app-text text-sm">{current?.alterName || '—'}</span>
+                        <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${chatSpeakerOpen ? 'rotate-180' : ''}`} />
+                      </div>
+                      {chatSpeakerOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => { setChatSpeakerOpen(false); setChatSpeakerSearch(''); }} />
+                          <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                            <div className="p-2 border-b border-app-border/30">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={chatSpeakerSearch}
+                                onChange={e => setChatSpeakerSearch(e.target.value)}
+                                placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </div>
+                            <div className="max-h-52 overflow-y-auto py-1">
+                              {filtered.map(a => (
+                                <button
+                                  key={a.id}
+                                  className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${chatSpeakerId === a.id ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                  onClick={() => { setChatSpeakerId(a.id); setChatSpeakerOpen(false); setChatSpeakerSearch(''); }}
+                                >
+                                  {a.profileImage
+                                    ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                    : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
+                                  }
+                                  {a.alterName}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Speaker preview identity card */}
                 {chatSpeakerId !== 'external' && (() => {
@@ -6538,7 +6515,9 @@ export default function App() {
                             <div className={`max-w-[70%] space-y-0.5 ${isLeft ? 'items-start' : 'items-end'} flex flex-col`}>
                               <span className="text-[9px] font-black text-app-muted uppercase tracking-widest px-1">{sender?.alterName}</span>
                               <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed space-y-1 ${isLeft ? 'bg-app-card border border-app-border/30 text-app-text rounded-tl-sm' : 'bg-app-accent text-white rounded-tr-sm'}`}>
-                                {renderMarkdown(msg.text, setLightboxImage)}
+                                <span className={isLeft ? '' : 'text-white [&_*]:text-white'}>
+                                  {renderMarkdown(msg.text, setLightboxImage)}
+                                </span>
                               </div>
                               <span className="text-[9px] text-app-muted px-1">
                                 {new Date(msg.timestamp).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
