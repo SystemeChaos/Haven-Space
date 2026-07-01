@@ -448,6 +448,8 @@ export default function App() {
   const [newSubParentId, setNewSubParentId] = useState('');
   
   const [chatSpeakerId, setChatSpeakerId] = useState<string>('external');
+  const [chatSpeakerSearch, setChatSpeakerSearch] = useState('');
+  const [chatSpeakerOpen, setChatSpeakerOpen] = useState(false);
   const [chatText, setChatText] = useState('');
   
   // --- Chat Poll Creator States ---
