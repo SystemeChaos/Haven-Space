@@ -38,6 +38,7 @@ import {
   FileText,
   HelpCircle,
   AlertTriangle,
+  LayoutDashboard,
   Hammer,
   Swords,
   Grid,
@@ -551,7 +552,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit'>('system');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit'>('home');
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
@@ -3290,6 +3291,7 @@ export default function App() {
               <div className="flex items-center gap-3">
                 {(() => {
                   const options = [
+                    { value: 'home', label: lang === 'fr' ? 'Tableau de bord' : 'Dashboard', icon: LayoutDashboard },
                     { value: 'system', label: t.menuMySystem, icon: Users },
                     { value: 'creator', label: t.menuCreator, icon: Hammer },
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
@@ -3297,7 +3299,6 @@ export default function App() {
                     { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'messaging', label: t.menuMessaging, icon: Mail },
                     { value: 'journal', label: t.menuJournal, icon: Book },
-                    { value: 'grounding', label: t.menuGrounding, icon: Anchor },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ];
                   const currentOpt = options.find(o => o.value === currentTab) || options[0];
@@ -3328,6 +3329,7 @@ export default function App() {
                   className="absolute left-0 right-0 mt-2 z-50 rounded-2xl border border-app-border bg-app-card/95 backdrop-blur-xl shadow-2xl p-1.5 space-y-1"
                 >
                   {[
+                    { value: 'home', label: lang === 'fr' ? 'Tableau de bord' : 'Dashboard', icon: LayoutDashboard },
                     { value: 'system', label: t.menuMySystem, icon: Users },
                     { value: 'creator', label: t.menuCreator, icon: Hammer },
                     { value: 'switch', label: t.menuSwitches, icon: ArrowLeftRight },
@@ -3335,7 +3337,6 @@ export default function App() {
                     { value: 'chat', label: t.menuChat, icon: MessageSquareQuote },
                     { value: 'messaging', label: t.menuMessaging, icon: Mail },
                     { value: 'journal', label: t.menuJournal, icon: Book },
-                    { value: 'grounding', label: t.menuGrounding, icon: Anchor },
                     { value: 'pluralkit', label: t.menuPluralKit, icon: Link2 },
                   ].map((opt) => {
                     const IconComponent = opt.icon;
@@ -4509,6 +4510,79 @@ export default function App() {
         )}
 
         {/* --- SYSTEM VIEW --- */}
+        {/* --- DASHBOARD (HOME) VIEW --- */}
+        {currentTab === 'home' && (() => {
+          const dashItems = [
+            { value: 'system',    label: t.menuMySystem,   icon: Users,              desc: lang === 'fr' ? 'Gérer vos alters et sous-systèmes' : 'Manage your alters and subsystems' },
+            { value: 'creator',   label: t.menuCreator,    icon: Hammer,             desc: lang === 'fr' ? 'Créer ou modifier une fiche' : 'Create or edit a profile' },
+            { value: 'switch',    label: t.menuSwitches,   icon: ArrowLeftRight,     desc: lang === 'fr' ? 'Registre des fronts et émotions' : 'Front log and emotions' },
+            { value: 'mapping',   label: t.menuMapping,    icon: GitBranch,          desc: lang === 'fr' ? 'Visualiser le système' : 'Visualise the system' },
+            { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: lang === 'fr' ? 'Discussion interne' : 'Internal discussion' },
+            { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
+            { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
+            { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
+          ];
+          return (
+            <div className="space-y-8 max-w-4xl mx-auto w-full animate-fade-in duration-300">
+              {/* Header */}
+              <div>
+                <h2 className="text-2xl font-black uppercase tracking-wider">
+                  {lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}
+                </h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
+                  {lang === 'fr' ? `${savedAlters.length} alters · ${parallelSystems.length > 0 ? parallelSystems.length + ' système(s) parallèle(s)' : 'système principal'}` : `${savedAlters.length} alters · ${parallelSystems.length > 0 ? parallelSystems.length + ' parallel system(s)' : 'main system'}`}
+                </p>
+              </div>
+
+              {/* Grille des pages */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {dashItems.map(item => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.value}
+                      onClick={() => setCurrentTab(item.value as any)}
+                      className="flex flex-col items-center gap-3 p-5 bg-app-card border border-app-border/40 rounded-2xl hover:border-app-accent/40 hover:bg-app-card/80 active:scale-95 transition-all text-left group"
+                    >
+                      <div className="w-12 h-12 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent group-hover:bg-app-accent/20 transition-colors">
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="w-full">
+                        <p className="text-xs font-black uppercase tracking-widest text-app-text text-center">{item.label}</p>
+                        <p className="text-[10px] text-app-muted mt-1 text-center leading-relaxed hidden sm:block">{item.desc}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Alters en front actuellement */}
+              {savedAlters.filter(a => a.frontStatus && a.frontStatus !== 'dormant' && !a.archived).length > 0 && (
+                <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                    {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {savedAlters.filter(a => a.frontStatus && a.frontStatus !== 'dormant' && !a.archived).map(a => (
+                      <button
+                        key={a.id}
+                        onClick={() => setCurrentTab('system')}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-app-bg border border-app-border/40 rounded-full text-xs font-bold hover:border-app-accent/40 transition-colors"
+                      >
+                        {a.profileImage
+                          ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover" alt="" />
+                          : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent">{(a.alterName||'?').charAt(0)}</div>
+                        }
+                        <span className="text-app-text">{a.alterName}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
         {currentTab === 'system' && (
           <div className="space-y-10 animate-fade-in duration-300">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -6760,7 +6834,7 @@ export default function App() {
                 )}
 
                 {/* Formulaire ajout */}
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <input
                     type="text"
                     value={newContactName}
