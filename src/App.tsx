@@ -460,6 +460,7 @@ export default function App() {
   const [pollDurationUnit, setPollDurationUnit] = useState<'minutes' | 'hours' | 'days'>('minutes');
 
   const [switchSelectedAlterIds, setSwitchSelectedAlterIds] = useState<string[]>([]);
+  const [switchAlterSearch, setSwitchAlterSearch] = useState('');
   const [switchSelectedStatus, setSwitchSelectedStatus] = useState<string>('co_front');
   const [switchRetroDate, setSwitchRetroDate] = useState<string>('');
   const [switchEndDate, setSwitchEndDate] = useState<string>('');
@@ -4490,13 +4491,13 @@ export default function App() {
               </div>
 
               {/* Alters en front actuellement */}
-              {savedAlters.filter(a => a.frontStatus && a.frontStatus !== 'dormant' && !a.archived).length > 0 && (
+              {savedAlters.filter(a => ['primary','co_front','co_conscious'].includes(a.frontStatus||'') && !a.archived).length > 0 && (
                 <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
                   <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
                     {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {savedAlters.filter(a => a.frontStatus && a.frontStatus !== 'dormant' && !a.archived).map(a => (
+                    {savedAlters.filter(a => ['primary','co_front','co_conscious'].includes(a.frontStatus||'') && !a.archived).map(a => (
                       <button
                         key={a.id}
                         onClick={() => setCurrentTab('system')}
@@ -5618,28 +5619,42 @@ export default function App() {
                     </label>
                     
                     {savedAlters.length === 0 ? (
-                      <p className="text-xs text-app-muted">{lang === 'fr' ? 'Aucun alter disponible. Créez des fiches d\'abord !' : 'No alters available. Create cards first!'}</p>
+                      <p className="text-xs text-app-muted">{lang === 'fr' ? "Aucun alter disponible. Créez des fiches d'abord !" : 'No alters available. Create cards first!'}</p>
                     ) : (
-                      <div className="max-h-40 overflow-y-auto border border-app-border py-1 px-2 rounded-xl bg-app-bg/50 space-y-2">
-                        {[...savedAlters]
-                          .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
-                          .map(a => (
-                            <label key={a.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-app-card/65 cursor-pointer leading-tight">
-                              <input
-                                type="checkbox"
-                                checked={switchSelectedAlterIds.includes(a.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSwitchSelectedAlterIds(prev => [...prev, a.id]);
-                                  } else {
-                                    setSwitchSelectedAlterIds(prev => prev.filter(did => did !== a.id));
-                                  }
-                                }}
-                                className="w-4 h-4 rounded border-app-border text-app-accent focus:ring-0"
-                              />
-                              <span className="text-xs font-bold leading-none">{a.alterName}</span>
-                            </label>
-                          ))}
+                      <div className="space-y-2">
+                        <input
+                          type="text"
+                          value={switchAlterSearch}
+                          onChange={e => setSwitchAlterSearch(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                          className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                        <div className="max-h-40 overflow-y-auto border border-app-border py-1 px-2 rounded-xl bg-app-bg/50 space-y-2">
+                          {[...savedAlters]
+                            .filter(a => !switchAlterSearch || (a.alterName||'').toLowerCase().includes(switchAlterSearch.toLowerCase()))
+                            .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
+                            .map(a => (
+                              <label key={a.id} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-app-card/65 cursor-pointer leading-tight">
+                                <input
+                                  type="checkbox"
+                                  checked={switchSelectedAlterIds.includes(a.id)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setSwitchSelectedAlterIds(prev => [...prev, a.id]);
+                                    } else {
+                                      setSwitchSelectedAlterIds(prev => prev.filter(did => did !== a.id));
+                                    }
+                                  }}
+                                  className="w-4 h-4 rounded border-app-border text-app-accent focus:ring-0"
+                                />
+                                {a.profileImage
+                                  ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                  : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
+                                }
+                                <span className="text-xs font-bold leading-none">{a.alterName}</span>
+                              </label>
+                            ))}
+                        </div>
                       </div>
                     )}
                   </div>
