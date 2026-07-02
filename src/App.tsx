@@ -614,6 +614,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('hs-direct-messages') || '[]'); } catch { return []; }
   });
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  const [convSearch, setConvSearch] = useState('');
   const [msgText, setMsgText] = useState('');
   const [msgSenderId, setMsgSenderId] = useState<string>('');
   const [showNewConvPanel, setShowNewConvPanel] = useState(false);
@@ -644,6 +645,7 @@ export default function App() {
     }
   });
 
+  const [editingJournalId, setEditingJournalId] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('journalEntries') || '[]');
@@ -2120,6 +2122,26 @@ export default function App() {
       images: journalImages,
     };
     setJournalEntries(prev => [newEntry, ...prev]);
+    setJournalTitleInput('');
+    setJournalContentInput('');
+    setJournalImages([]);
+  };
+
+  const handleEditJournalEntry = (entry: JournalEntry) => {
+    setEditingJournalId(entry.id);
+    setJournalTitleInput(entry.title);
+    setJournalContentInput(entry.content);
+    setJournalImages(entry.images || []);
+  };
+
+  const handleUpdateJournalEntry = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingJournalId) return;
+    setJournalEntries(prev => prev.map(j => j.id === editingJournalId
+      ? { ...j, title: journalTitleInput.trim() || (lang === 'fr' ? 'Note sans titre' : 'Untitled Note'), content: journalContentInput.trim(), images: journalImages }
+      : j
+    ));
+    setEditingJournalId(null);
     setJournalTitleInput('');
     setJournalContentInput('');
     setJournalImages([]);
@@ -6269,12 +6291,20 @@ export default function App() {
               
               {/* Note Editor Area */}
               <div className="lg:col-span-12 md:col-span-12 lg:col-span-4 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-5">
-                <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-1.5 border-b border-app-border/20 pb-2">
-                  <Feather className="w-4 h-4" />
-                  <span>{lang === 'fr' ? 'Rédiger une Note' : 'Compose Note'}</span>
-                </h3>
+                <div className="flex items-center justify-between border-b border-app-border/20 pb-2">
+                  <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-1.5">
+                    <Feather className="w-4 h-4" />
+                    <span>{editingJournalId ? (lang === 'fr' ? 'Modifier la Note' : 'Edit Note') : (lang === 'fr' ? 'Rédiger une Note' : 'Compose Note')}</span>
+                  </h3>
+                  {editingJournalId && (
+                    <button type="button" onClick={() => { setEditingJournalId(null); setJournalTitleInput(''); setJournalContentInput(''); setJournalImages([]); }}
+                      className="text-[10px] text-app-muted hover:text-app-text font-bold uppercase tracking-wider transition-colors">
+                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                  )}
+                </div>
 
-                <form onSubmit={handleSaveJournalEntry} className="space-y-4">
+                <form onSubmit={editingJournalId ? handleUpdateJournalEntry : handleSaveJournalEntry} className="space-y-4">
                   <div className="space-y-1">
                     <input
                       type="text"
@@ -6335,7 +6365,7 @@ export default function App() {
                     type="submit"
                     className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                   >
-                    {t.createJournalEntry}
+                    {editingJournalId ? (lang === 'fr' ? 'Enregistrer les modifications' : 'Save changes') : t.createJournalEntry}
                   </button>
                 </form>
               </div>
@@ -6382,12 +6412,21 @@ export default function App() {
                             <span className="text-[10px] font-mono text-app-muted">
                               {new Date(entry.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
                             </span>
-                            <button
-                              onClick={() => handleDeleteJournalEntry(entry.id)}
-                              className="p-1 px-2.5 bg-app-bg text-[10px] font-bold text-app-muted uppercase tracking-widest border border-app-border rounded-lg hover:text-red-500 hover:border-red-500/40 transition-colors"
-                            >
-                              {lang === 'fr' ? 'Supprimer' : 'Delete'}
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleEditJournalEntry(entry)}
+                                className="p-1.5 bg-app-bg text-app-muted hover:text-app-accent border border-app-border hover:border-app-accent/40 rounded-lg transition-colors"
+                                title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                              >
+                                <Pencil className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteJournalEntry(entry.id)}
+                                className="p-1 px-2.5 bg-app-bg text-[10px] font-bold text-app-muted uppercase tracking-widest border border-app-border rounded-lg hover:text-red-500 hover:border-red-500/40 transition-colors"
+                              >
+                                {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                              </button>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -6462,6 +6501,23 @@ export default function App() {
                   </div>
                 )}
 
+                {/* Recherche conversations */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
+                  <input
+                    type="text"
+                    value={convSearch}
+                    onChange={e => setConvSearch(e.target.value)}
+                    placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                    className="w-full bg-app-bg border border-app-border/40 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  {convSearch && (
+                    <button onClick={() => setConvSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted hover:text-app-text">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
                 {/* Liste conversations */}
                 <div className="space-y-1">
                   {conversations.length === 0 && (
@@ -6471,6 +6527,13 @@ export default function App() {
                     const lastA = directMessages.filter(m => m.conversationId === a.id).at(-1)?.timestamp || a.createdAt;
                     const lastB = directMessages.filter(m => m.conversationId === b.id).at(-1)?.timestamp || b.createdAt;
                     return lastB - lastA;
+                  }).filter(conv => {
+                    if (!convSearch.trim()) return true;
+                    const [id1, id2] = conv.participantIds;
+                    const a1 = allAlters.find(a => a.id === id1);
+                    const a2 = allAlters.find(a => a.id === id2);
+                    const q = convSearch.toLowerCase();
+                    return (a1?.alterName||'').toLowerCase().includes(q) || (a2?.alterName||'').toLowerCase().includes(q);
                   }).map(conv => {
                     const [id1, id2] = conv.participantIds;
                     const a1 = allAlters.find(a => a.id === id1);
