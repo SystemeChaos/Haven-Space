@@ -898,6 +898,7 @@ export default function App() {
           theme: existing?.theme || Theme.LIGHT,
           frontStatus: existing?.frontStatus || 'none',
           subsystemId: existing?.subsystemId || undefined,
+          systemId: existing?.systemId || activeSystemId,
         };
 
         if (existingIndex >= 0) {
@@ -4637,7 +4638,10 @@ export default function App() {
                 if (!sub) return null;
                 const childSubs = subsystems.filter(s => s.parentId === activeSubsystemView);
                 const subAlters = savedAlters
-                  .filter(a => a.subsystemId === activeSubsystemView && !a.archived)
+                  .filter(a => a.subsystemId === activeSubsystemView && !a.archived
+                    && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase()))
+                    && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole)))
+                  )
                   .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
                 return (
                   <div className="space-y-6 animate-fade-in duration-300">
