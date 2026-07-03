@@ -621,6 +621,10 @@ export default function App() {
   const [showNewConvPanel, setShowNewConvPanel] = useState(false);
   const [newConvAlter1, setNewConvAlter1] = useState<string>('');
   const [newConvAlter2, setNewConvAlter2] = useState<string>('');
+  const [newConvAlter1Open, setNewConvAlter1Open] = useState(false);
+  const [newConvAlter1Search, setNewConvAlter1Search] = useState('');
+  const [newConvAlter2Open, setNewConvAlter2Open] = useState(false);
+  const [newConvAlter2Search, setNewConvAlter2Search] = useState('');
 
   const [chatSalons, setChatSalons] = useState<{ id: string; name: string; emoji: string; createdAt: number; accessMode: 'blacklist' | 'whitelist'; blockedOrAllowedIds: string[] }[]>(() => {
     try {
@@ -6469,26 +6473,127 @@ export default function App() {
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
                       {lang === 'fr' ? 'Choisir les deux alters' : 'Choose two alters'}
                     </p>
-                    <select
-                      value={newConvAlter1}
-                      onChange={e => setNewConvAlter1(e.target.value)}
-                      className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
-                    >
-                      <option value="">{lang === 'fr' ? 'Alter 1...' : 'Alter 1...'}</option>
-                      {[...allAlters].sort((a,b) => a.alterName.localeCompare(b.alterName)).map(a => (
-                        <option key={a.id} value={a.id}>{a.alterName}{a.systemId && a.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===a.systemId)?.name || a.systemId})` : ''}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={newConvAlter2}
-                      onChange={e => setNewConvAlter2(e.target.value)}
-                      className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
-                    >
-                      <option value="">{lang === 'fr' ? 'Alter 2...' : 'Alter 2...'}</option>
-                      {[...allAlters].filter(a => a.id !== newConvAlter1).sort((a,b) => a.alterName.localeCompare(b.alterName)).map(a => (
-                        <option key={a.id} value={a.id}>{a.alterName}{a.systemId && a.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===a.systemId)?.name || a.systemId})` : ''}</option>
-                      ))}
-                    </select>
+                    {/* Recherche alter 1 — dropdown style chat interne */}
+                    {(() => {
+                      const current1 = allAlters.find(a => a.id === newConvAlter1);
+                      const filtered1 = [...allAlters]
+                        .filter(a => a.id !== newConvAlter2)
+                        .filter(a => !newConvAlter1Search || (a.alterName||'').toLowerCase().includes(newConvAlter1Search.toLowerCase()))
+                        .sort((a,b) => a.alterName.localeCompare(b.alterName, lang));
+                      return (
+                        <div className="relative">
+                          <div
+                            className="w-full flex items-center gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm cursor-pointer hover:border-app-accent/40 transition-colors"
+                            onClick={() => setNewConvAlter1Open(o => !o)}
+                          >
+                            {current1?.profileImage
+                              ? <img src={current1.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                              : current1 && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(current1.alterName||'?').charAt(0)}</div>
+                            }
+                            <span className={`flex-1 text-sm ${current1 ? 'font-semibold text-app-text' : 'text-app-muted'}`}>
+                              {current1 ? `${current1.alterName}${current1.systemId && current1.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===current1.systemId)?.name || current1.systemId})` : ''}` : (lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…')}
+                            </span>
+                            <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${newConvAlter1Open ? 'rotate-180' : ''}`} />
+                          </div>
+                          {newConvAlter1Open && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => { setNewConvAlter1Open(false); setNewConvAlter1Search(''); }} />
+                              <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                                <div className="p-2 border-b border-app-border/30">
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={newConvAlter1Search}
+                                    onChange={e => setNewConvAlter1Search(e.target.value)}
+                                    placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                    onClick={e => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div className="max-h-52 overflow-y-auto py-1">
+                                  {filtered1.length === 0 ? (
+                                    <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                  ) : filtered1.map(a => (
+                                    <button
+                                      key={a.id}
+                                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${newConvAlter1 === a.id ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                      onClick={() => { setNewConvAlter1(a.id); setNewConvAlter1Open(false); setNewConvAlter1Search(''); }}
+                                    >
+                                      {a.profileImage
+                                        ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                        : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
+                                      }
+                                      <span className="flex-1">{a.alterName}{a.systemId && a.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===a.systemId)?.name || a.systemId})` : ''}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Recherche alter 2 — dropdown style chat interne */}
+                    {(() => {
+                      const current2 = allAlters.find(a => a.id === newConvAlter2);
+                      const filtered2 = [...allAlters]
+                        .filter(a => a.id !== newConvAlter1)
+                        .filter(a => !newConvAlter2Search || (a.alterName||'').toLowerCase().includes(newConvAlter2Search.toLowerCase()))
+                        .sort((a,b) => a.alterName.localeCompare(b.alterName, lang));
+                      return (
+                        <div className="relative">
+                          <div
+                            className="w-full flex items-center gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm cursor-pointer hover:border-app-accent/40 transition-colors"
+                            onClick={() => setNewConvAlter2Open(o => !o)}
+                          >
+                            {current2?.profileImage
+                              ? <img src={current2.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                              : current2 && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(current2.alterName||'?').charAt(0)}</div>
+                            }
+                            <span className={`flex-1 text-sm ${current2 ? 'font-semibold text-app-text' : 'text-app-muted'}`}>
+                              {current2 ? `${current2.alterName}${current2.systemId && current2.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===current2.systemId)?.name || current2.systemId})` : ''}` : (lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…')}
+                            </span>
+                            <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${newConvAlter2Open ? 'rotate-180' : ''}`} />
+                          </div>
+                          {newConvAlter2Open && (
+                            <>
+                              <div className="fixed inset-0 z-40" onClick={() => { setNewConvAlter2Open(false); setNewConvAlter2Search(''); }} />
+                              <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                                <div className="p-2 border-b border-app-border/30">
+                                  <input
+                                    autoFocus
+                                    type="text"
+                                    value={newConvAlter2Search}
+                                    onChange={e => setNewConvAlter2Search(e.target.value)}
+                                    placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                    onClick={e => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div className="max-h-52 overflow-y-auto py-1">
+                                  {filtered2.length === 0 ? (
+                                    <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                  ) : filtered2.map(a => (
+                                    <button
+                                      key={a.id}
+                                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${newConvAlter2 === a.id ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                      onClick={() => { setNewConvAlter2(a.id); setNewConvAlter2Open(false); setNewConvAlter2Search(''); }}
+                                    >
+                                      {a.profileImage
+                                        ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                        : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
+                                      }
+                                      <span className="flex-1">{a.alterName}{a.systemId && a.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===a.systemId)?.name || a.systemId})` : ''}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                     <div className="flex gap-2">
                       <button
                         onClick={handleCreateConversation}
@@ -6504,9 +6609,20 @@ export default function App() {
 
                 {/* Recherche conversations — dropdown style chat interne */}
                 {(() => {
-                  const filteredAlters = [...allAlters]
-                    .filter(a => !convSearch || (a.alterName||'').toLowerCase().includes(convSearch.toLowerCase()))
-                    .sort((a,b) => (a.alterName||'').localeCompare(b.alterName||'', lang));
+                  const filteredConvs = [...conversations]
+                    .filter(c => {
+                      if (!convSearch) return true;
+                      const [id1, id2] = c.participantIds;
+                      const n1 = allAlters.find(a => a.id === id1)?.alterName || '';
+                      const n2 = allAlters.find(a => a.id === id2)?.alterName || '';
+                      const q = convSearch.toLowerCase();
+                      return n1.toLowerCase().includes(q) || n2.toLowerCase().includes(q);
+                    })
+                    .sort((a,b) => {
+                      const lastA = directMessages.filter(m => m.conversationId === a.id).at(-1)?.timestamp || a.createdAt;
+                      const lastB = directMessages.filter(m => m.conversationId === b.id).at(-1)?.timestamp || b.createdAt;
+                      return lastB - lastA;
+                    });
                   return (
                     <div className="relative">
                       <div
@@ -6515,13 +6631,13 @@ export default function App() {
                       >
                         <Search className="w-4 h-4 text-app-muted flex-shrink-0" />
                         <span className="flex-1 text-app-muted text-xs">
-                          {convSearch || (lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…')}
+                          {convSearch || (lang === 'fr' ? 'Rechercher conversation…' : 'Search conversation…')}
                         </span>
                         <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${convSearchOpen ? 'rotate-180' : ''}`} />
                       </div>
                       {convSearchOpen && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => { setConvSearchOpen(false); setConvSearch(''); }} />
+                          <div className="fixed inset-0 z-40" onClick={() => { setConvSearchOpen(false); }} />
                           <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
                             <div className="p-2 border-b border-app-border/30">
                               <input
@@ -6529,31 +6645,39 @@ export default function App() {
                                 type="text"
                                 value={convSearch}
                                 onChange={e => setConvSearch(e.target.value)}
-                                placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                placeholder={lang === 'fr' ? 'Rechercher conversation…' : 'Search conversation…'}
                                 className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                 onClick={e => e.stopPropagation()}
                               />
                             </div>
                             <div className="max-h-52 overflow-y-auto py-1">
-                              {filteredAlters.length === 0 ? (
+                              {filteredConvs.length === 0 ? (
                                 <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
-                              ) : filteredAlters.map(a => {
-                                const convExists = conversations.some(c => c.participantIds.includes(a.id));
+                              ) : filteredConvs.map(c => {
+                                const [id1, id2] = c.participantIds;
+                                const a1 = allAlters.find(a => a.id === id1);
+                                const a2 = allAlters.find(a => a.id === id2);
                                 return (
                                   <button
-                                    key={a.id}
-                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                                    key={c.id}
+                                    className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${activeConvId === c.id ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
                                     onClick={() => {
-                                      setConvSearch(a.alterName || '');
+                                      setActiveConvId(c.id);
+                                      setMsgSenderId(id1);
                                       setConvSearchOpen(false);
                                     }}
                                   >
-                                    {a.profileImage
-                                      ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
-                                      : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
-                                    }
-                                    <span className="flex-1">{a.alterName}</span>
-                                    {convExists && <span className="text-[10px] text-app-muted">{lang === 'fr' ? 'conv. existante' : 'existing conv.'}</span>}
+                                    <div className="relative w-7 h-6 shrink-0">
+                                      {a1?.profileImage
+                                        ? <img src={a1.profileImage} className="absolute top-0 left-0 w-5 h-5 rounded-md object-cover border border-app-bg" alt="" />
+                                        : <div className="absolute top-0 left-0 w-5 h-5 rounded-md bg-app-accent/20 border border-app-bg flex items-center justify-center text-[8px] font-black text-app-accent">{(a1?.alterName||'?').charAt(0)}</div>
+                                      }
+                                      {a2?.profileImage
+                                        ? <img src={a2.profileImage} className="absolute bottom-0 right-0 w-5 h-5 rounded-md object-cover border border-app-bg" alt="" />
+                                        : <div className="absolute bottom-0 right-0 w-5 h-5 rounded-md bg-app-accent/20 border border-app-bg flex items-center justify-center text-[8px] font-black text-app-accent">{(a2?.alterName||'?').charAt(0)}</div>
+                                      }
+                                    </div>
+                                    <span className="flex-1">{a1?.alterName || '?'} &amp; {a2?.alterName || '?'}</span>
                                   </button>
                                 );
                               })}
