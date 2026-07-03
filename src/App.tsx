@@ -615,6 +615,7 @@ export default function App() {
   });
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [convSearch, setConvSearch] = useState('');
+  const [convSearchOpen, setConvSearchOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
   const [msgSenderId, setMsgSenderId] = useState<string>('');
   const [showNewConvPanel, setShowNewConvPanel] = useState(false);
@@ -6501,22 +6502,68 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Recherche conversations */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
-                  <input
-                    type="text"
-                    value={convSearch}
-                    onChange={e => setConvSearch(e.target.value)}
-                    placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
-                    className="w-full bg-app-bg border border-app-border/40 rounded-xl pl-9 pr-4 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
-                  />
-                  {convSearch && (
-                    <button onClick={() => setConvSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted hover:text-app-text">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
+                {/* Recherche conversations — dropdown style chat interne */}
+                {(() => {
+                  const filteredAlters = [...allAlters]
+                    .filter(a => !convSearch || (a.alterName||'').toLowerCase().includes(convSearch.toLowerCase()))
+                    .sort((a,b) => (a.alterName||'').localeCompare(b.alterName||'', lang));
+                  return (
+                    <div className="relative">
+                      <div
+                        className="w-full flex items-center gap-2 bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm cursor-pointer hover:border-app-accent/40 transition-colors"
+                        onClick={() => setConvSearchOpen(o => !o)}
+                      >
+                        <Search className="w-4 h-4 text-app-muted flex-shrink-0" />
+                        <span className="flex-1 text-app-muted text-xs">
+                          {convSearch || (lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…')}
+                        </span>
+                        <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${convSearchOpen ? 'rotate-180' : ''}`} />
+                      </div>
+                      {convSearchOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => { setConvSearchOpen(false); setConvSearch(''); }} />
+                          <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                            <div className="p-2 border-b border-app-border/30">
+                              <input
+                                autoFocus
+                                type="text"
+                                value={convSearch}
+                                onChange={e => setConvSearch(e.target.value)}
+                                placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                onClick={e => e.stopPropagation()}
+                              />
+                            </div>
+                            <div className="max-h-52 overflow-y-auto py-1">
+                              {filteredAlters.length === 0 ? (
+                                <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                              ) : filteredAlters.map(a => {
+                                const convExists = conversations.some(c => c.participantIds.includes(a.id));
+                                return (
+                                  <button
+                                    key={a.id}
+                                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                                    onClick={() => {
+                                      setConvSearch(a.alterName || '');
+                                      setConvSearchOpen(false);
+                                    }}
+                                  >
+                                    {a.profileImage
+                                      ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                      : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName||'?').charAt(0)}</div>
+                                    }
+                                    <span className="flex-1">{a.alterName}</span>
+                                    {convExists && <span className="text-[10px] text-app-muted">{lang === 'fr' ? 'conv. existante' : 'existing conv.'}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Liste conversations */}
                 <div className="space-y-1">
