@@ -1,5 +1,5 @@
 
-import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode } from './MappingPage';
+import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -586,6 +586,8 @@ export default function App() {
   const [activeSystemId, setActiveSystemId] = useState<string>(() =>
     localStorage.getItem('activeSystemId') || 'main'
   );
+  // Relations du mapping — pour affichage en temps réel sur les fiches
+  const [mappingData, setMappingData] = useState<MappingData>(() => loadMapping(activeSystemId));
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [activeSubsystemView, setActiveSubsystemView] = useState<string | null>(null);
   const [editingSubsystemNameId, setEditingSubsystemNameId] = useState<string | null>(null);
@@ -678,6 +680,22 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('activeSystemId', activeSystemId);
+  }, [activeSystemId]);
+
+  // Recharge les relations du mapping : au changement de système, et à chaque retour
+  // sur un onglet affichant des fiches, pour refléter les modifs faites depuis l'onglet Mapping.
+  useEffect(() => {
+    setMappingData(loadMapping(activeSystemId));
+  }, [activeSystemId, currentTab]);
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key && e.key.startsWith('heaven_space_mapping')) {
+        setMappingData(loadMapping(activeSystemId));
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, [activeSystemId]);
 
   useEffect(() => {
@@ -2293,6 +2311,38 @@ export default function App() {
           </div>
         </div>
         </div> {/* fin version desktop */}
+
+        {/* Relations depuis le mapping — mise à jour en temps réel */}
+        {(() => {
+          const rels = mappingData.relations.filter(r => r.sourceId === alter.id || r.targetId === alter.id);
+          if (rels.length === 0) return null;
+          return (
+            <div className="px-3 md:px-4 pb-3 md:pb-4 pt-2 border-t border-app-border/15 flex flex-wrap gap-1.5">
+              {rels.map(r => {
+                const otherId = r.sourceId === alter.id ? r.targetId : r.sourceId;
+                const other = savedAlters.find(a => a.id === otherId);
+                if (!other) return null;
+                const cfg = RELATION_CONFIG[r.type];
+                return (
+                  <span
+                    key={r.id}
+                    style={{
+                      color: cfg.color,
+                      borderColor: `${cfg.color}40`,
+                      backgroundColor: `${cfg.color}15`,
+                    }}
+                    className="px-2 py-1 rounded-lg text-[9px] font-bold border inline-flex items-center gap-1.5 uppercase tracking-wide"
+                    title={r.label || ''}
+                  >
+                    <span className="normal-case tracking-normal font-black">{other.alterName}</span>
+                    <span className="opacity-70">·</span>
+                    {lang === 'fr' ? cfg.label : cfg.labelEn}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        })()}
       </div>
     );
   };

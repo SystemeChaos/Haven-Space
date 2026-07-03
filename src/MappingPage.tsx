@@ -17,6 +17,7 @@ export type RelationType =
   | 'parent'
   | 'friend'
   | 'caretaker'
+  | 'indifference'
   | 'tension'
   | 'conflict'
   | 'persecutor'
@@ -41,7 +42,7 @@ export interface MappingData {
   relations: MappingRelation[];
 }
 
-const RELATION_CONFIG: Record<RelationType, {
+export const RELATION_CONFIG: Record<RelationType, {
   label: string;
   labelEn: string;
   color: string;
@@ -49,16 +50,17 @@ const RELATION_CONFIG: Record<RelationType, {
   width: number;
   arrow: boolean;
 }> = {
-  partner:    { label: 'Partenaires / Mariés',  labelEn: 'Partners / Married',    color: '#F472B6', dash: 'none', width: 3,   arrow: false },
-  protector:  { label: 'Protecteur / Protégé',  labelEn: 'Protector / Protected', color: '#60A5FA', dash: 'none', width: 2,   arrow: true  },
-  sibling:    { label: 'Frère / Sœur',           labelEn: 'Siblings',              color: '#34D399', dash: 'none', width: 2,   arrow: false },
-  parent:     { label: 'Parent / Enfant',        labelEn: 'Parent / Child',        color: '#FB923C', dash: 'none', width: 2,   arrow: true  },
-  friend:     { label: 'Ami·e',                  labelEn: 'Friend',                color: '#A78BFA', dash: 'none', width: 1.5, arrow: false },
-  caretaker:  { label: 'Soignant',               labelEn: 'Caretaker',             color: '#22D3EE', dash: 'none', width: 2,   arrow: true  },
-  tension:    { label: 'Tension',                labelEn: 'Tension',               color: '#FCD34D', dash: '6 4', width: 1.5, arrow: false },
-  conflict:   { label: 'Conflit',                labelEn: 'Conflict',              color: '#F87171', dash: '4 2', width: 2.5, arrow: false },
-  persecutor: { label: 'Persécuteur',            labelEn: 'Persecutor',            color: '#DC2626', dash: '4 2', width: 3,   arrow: true  },
-  distance:   { label: 'Distance / Évitement',   labelEn: 'Distance / Avoidance',  color: '#9CA3AF', dash: '2 4', width: 1,   arrow: false },
+  partner:      { label: 'Partenaires / Mariés',  labelEn: 'Partners / Married',    color: '#F472B6', dash: 'none', width: 3,   arrow: false },
+  protector:    { label: 'Protecteur / Protégé',  labelEn: 'Protector / Protected', color: '#60A5FA', dash: 'none', width: 2,   arrow: true  },
+  sibling:      { label: 'Frère / Sœur',           labelEn: 'Siblings',              color: '#34D399', dash: 'none', width: 2,   arrow: false },
+  parent:       { label: 'Parent / Enfant',        labelEn: 'Parent / Child',        color: '#FB923C', dash: 'none', width: 2,   arrow: true  },
+  friend:       { label: 'Ami·e',                  labelEn: 'Friend',                color: '#A78BFA', dash: 'none', width: 1.5, arrow: false },
+  caretaker:    { label: 'Soignant',               labelEn: 'Caretaker',             color: '#22D3EE', dash: 'none', width: 2,   arrow: true  },
+  indifference: { label: 'Indifférence',           labelEn: 'Indifference',          color: '#9CA3AF', dash: '1 3', width: 1,   arrow: false },
+  tension:      { label: 'Tension',                labelEn: 'Tension',               color: '#FCD34D', dash: '6 4', width: 1.5, arrow: false },
+  conflict:     { label: 'Conflit',                labelEn: 'Conflict',              color: '#F87171', dash: '4 2', width: 2.5, arrow: false },
+  persecutor:   { label: 'Persécuteur',            labelEn: 'Persecutor',            color: '#DC2626', dash: '4 2', width: 3,   arrow: true  },
+  distance:     { label: 'Distance / Évitement',   labelEn: 'Distance / Avoidance',  color: '#9CA3AF', dash: '2 4', width: 1,   arrow: false },
 };
 
 const STORAGE_KEY = 'heaven_space_mapping';
@@ -114,6 +116,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [newRel, setNewRel] = useState<{ sourceId: string; targetId: string; type: RelationType; label: string }>({
     sourceId: '', targetId: '', type: 'friend', label: '',
   });
+  const [sourceSearch, setSourceSearch] = useState('');
+  const [targetSearch, setTargetSearch] = useState('');
   const [selectedRelId, setSelectedRelId] = useState<string | null>(null);
 
   const t = {
@@ -130,7 +134,10 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     noAlters: lang === 'fr' ? "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici." : 'No alters saved. Create alter cards to see them here.',
     dragHint: lang === 'fr' ? 'Glisse les nœuds pour les repositionner · Clique sur une ligne pour la supprimer' : 'Drag nodes to reposition · Click a line to delete it',
     positiveRels: lang === 'fr' ? 'Relations positives' : 'Positive relationships',
+    neutralRels: lang === 'fr' ? 'Relations neutres' : 'Neutral relationships',
     negativeRels: lang === 'fr' ? 'Relations difficiles' : 'Difficult relationships',
+    searchAlter: lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…',
+    noResults: lang === 'fr' ? 'Aucun résultat' : 'No results',
   };
 
   useEffect(() => {
@@ -315,6 +322,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     });
     setShowAddRelation(false);
     setNewRel({ sourceId: '', targetId: '', type: 'friend', label: '' });
+    setSourceSearch('');
+    setTargetSearch('');
   };
 
   const handleDeleteRelation = (id: string) => {
@@ -500,6 +509,21 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
               );
             })}
           </div>
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-app-muted/60 mt-1">{t.neutralRels}</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2">
+            {(['indifference'] as RelationType[]).map(type => {
+              const cfg = RELATION_CONFIG[type];
+              return (
+                <div key={type} className="flex items-center gap-2">
+                  <svg width="36" height="10">
+                    <line x1="0" y1="5" x2="36" y2="5" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
+                    {cfg.arrow && <polygon points="28,2 36,5 28,8" fill={cfg.color} />}
+                  </svg>
+                  <span className="text-xs text-app-muted">{lang === 'fr' ? cfg.label : cfg.labelEn}</span>
+                </div>
+              );
+            })}
+          </div>
           <p className="text-[10px] font-semibold uppercase tracking-widest text-app-muted/60 mt-1">{t.negativeRels}</p>
           <div className="flex flex-wrap gap-x-6 gap-y-2">
             {(['tension', 'conflict', 'persecutor', 'distance'] as RelationType[]).map(type => {
@@ -522,25 +546,108 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
       {showAddRelation && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-app-card border border-app-border rounded-2xl p-6 w-full max-w-md space-y-4 relative">
-            <button onClick={() => setShowAddRelation(false)} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
+            <button onClick={() => { setShowAddRelation(false); setSourceSearch(''); setTargetSearch(''); }} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
               <X className="w-4 h-4" />
             </button>
             <h3 className="text-sm font-bold uppercase tracking-widest text-app-text">{t.addRelation}</h3>
 
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-app-muted">{t.source}</label>
-              <select value={newRel.sourceId} onChange={e => setNewRel(p => ({ ...p, sourceId: e.target.value }))} className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none">
-                <option value="">—</option>
-                {savedAlters.map(a => <option key={a.id} value={a.id}>{a.alterName}</option>)}
-              </select>
+              {newRel.sourceId ? (
+                <div className="w-full flex items-center justify-between gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text">
+                  <span className="font-semibold">{savedAlters.find(a => a.id === newRel.sourceId)?.alterName}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setNewRel(p => ({ ...p, sourceId: '' })); setSourceSearch(''); }}
+                    className="text-app-muted hover:text-app-text transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={sourceSearch}
+                  onChange={e => setSourceSearch(e.target.value)}
+                  placeholder={t.searchAlter}
+                  className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none placeholder:text-app-muted/40"
+                />
+              )}
+              {!newRel.sourceId && sourceSearch.trim().length > 0 && (
+                <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                  {[...savedAlters]
+                    .filter(a => (a.alterName || '').toLowerCase().includes(sourceSearch.toLowerCase()))
+                    .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang))
+                    .slice(0, 8)
+                    .map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => { setNewRel(p => ({ ...p, sourceId: a.id })); setSourceSearch(''); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                      >
+                        {a.profileImage
+                          ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
+                          : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName || '?').charAt(0)}</div>
+                        }
+                        {a.alterName}
+                      </button>
+                    ))}
+                  {[...savedAlters].filter(a => (a.alterName || '').toLowerCase().includes(sourceSearch.toLowerCase())).length === 0 && (
+                    <p className="px-4 py-3 text-xs text-app-muted">{t.noResults}</p>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="space-y-1">
+            <div className="space-y-1 relative">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-app-muted">{t.target}</label>
-              <select value={newRel.targetId} onChange={e => setNewRel(p => ({ ...p, targetId: e.target.value }))} className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none">
-                <option value="">—</option>
-                {savedAlters.filter(a => a.id !== newRel.sourceId).map(a => <option key={a.id} value={a.id}>{a.alterName}</option>)}
-              </select>
+              {newRel.targetId ? (
+                <div className="w-full flex items-center justify-between gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text">
+                  <span className="font-semibold">{savedAlters.find(a => a.id === newRel.targetId)?.alterName}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setNewRel(p => ({ ...p, targetId: '' })); setTargetSearch(''); }}
+                    className="text-app-muted hover:text-app-text transition-colors"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={targetSearch}
+                  onChange={e => setTargetSearch(e.target.value)}
+                  placeholder={t.searchAlter}
+                  className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none placeholder:text-app-muted/40"
+                />
+              )}
+              {!newRel.targetId && targetSearch.trim().length > 0 && (
+                <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                  {[...savedAlters]
+                    .filter(a => a.id !== newRel.sourceId)
+                    .filter(a => (a.alterName || '').toLowerCase().includes(targetSearch.toLowerCase()))
+                    .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang))
+                    .slice(0, 8)
+                    .map(a => (
+                      <button
+                        key={a.id}
+                        type="button"
+                        onClick={() => { setNewRel(p => ({ ...p, targetId: a.id })); setTargetSearch(''); }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                      >
+                        {a.profileImage
+                          ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
+                          : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName || '?').charAt(0)}</div>
+                        }
+                        {a.alterName}
+                      </button>
+                    ))}
+                  {[...savedAlters].filter(a => a.id !== newRel.sourceId).filter(a => (a.alterName || '').toLowerCase().includes(targetSearch.toLowerCase())).length === 0 && (
+                    <p className="px-4 py-3 text-xs text-app-muted">{t.noResults}</p>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="space-y-1">
@@ -574,7 +681,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
             )}
 
             <div className="flex gap-3 pt-1">
-              <button onClick={() => setShowAddRelation(false)} className="flex-1 py-2.5 rounded-xl border border-app-border text-sm text-app-muted hover:text-app-text transition-all">
+              <button onClick={() => { setShowAddRelation(false); setSourceSearch(''); setTargetSearch(''); }} className="flex-1 py-2.5 rounded-xl border border-app-border text-sm text-app-muted hover:text-app-text transition-all">
                 {t.cancel}
               </button>
               <button
