@@ -2311,38 +2311,6 @@ export default function App() {
           </div>
         </div>
         </div> {/* fin version desktop */}
-
-        {/* Relations depuis le mapping — mise à jour en temps réel */}
-        {(() => {
-          const rels = mappingData.relations.filter(r => r.sourceId === alter.id || r.targetId === alter.id);
-          if (rels.length === 0) return null;
-          return (
-            <div className="px-3 md:px-4 pb-3 md:pb-4 pt-2 border-t border-app-border/15 flex flex-wrap gap-1.5">
-              {rels.map(r => {
-                const otherId = r.sourceId === alter.id ? r.targetId : r.sourceId;
-                const other = savedAlters.find(a => a.id === otherId);
-                if (!other) return null;
-                const cfg = RELATION_CONFIG[r.type];
-                return (
-                  <span
-                    key={r.id}
-                    style={{
-                      color: cfg.color,
-                      borderColor: `${cfg.color}40`,
-                      backgroundColor: `${cfg.color}15`,
-                    }}
-                    className="px-2 py-1 rounded-lg text-[9px] font-bold border inline-flex items-center gap-1.5 uppercase tracking-wide"
-                    title={r.label || ''}
-                  >
-                    <span className="normal-case tracking-normal font-black">{other.alterName}</span>
-                    <span className="opacity-70">·</span>
-                    {lang === 'fr' ? cfg.label : cfg.labelEn}
-                  </span>
-                );
-              })}
-            </div>
-          );
-        })()}
       </div>
     );
   };
@@ -4315,6 +4283,44 @@ export default function App() {
                           </div>
                         </div>
                       )}
+
+                      {/* Relations Section — issues du mapping */}
+                      {editingAlterId && (() => {
+                        const rels = mappingData.relations.filter(r => r.sourceId === editingAlterId || r.targetId === editingAlterId);
+                        if (rels.length === 0) return null;
+                        return (
+                          <div className="space-y-1.5 animate-fade-in">
+                            <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono flex items-center gap-1.5">
+                              <GitBranch className="w-2.5 h-2.5" />
+                              {lang === 'fr' ? 'Relations' : 'Relations'}
+                            </div>
+                            <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 flex flex-wrap gap-1.5">
+                              {rels.map(r => {
+                                const otherId = r.sourceId === editingAlterId ? r.targetId : r.sourceId;
+                                const other = savedAlters.find(a => a.id === otherId);
+                                if (!other) return null;
+                                const cfg = RELATION_CONFIG[r.type];
+                                return (
+                                  <span
+                                    key={r.id}
+                                    style={{
+                                      color: cfg.color,
+                                      borderColor: `${cfg.color}40`,
+                                      backgroundColor: `${cfg.color}15`,
+                                    }}
+                                    className="px-2 py-1 rounded-lg text-[9px] font-bold border inline-flex items-center gap-1.5 uppercase tracking-wide"
+                                    title={r.label || ''}
+                                  >
+                                    <span className="normal-case tracking-normal font-black">{other.alterName}</span>
+                                    <span className="opacity-70">·</span>
+                                    {lang === 'fr' ? cfg.label : cfg.labelEn}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {traitDecorations.length === 0 && !description && !internalNotes && (
                         <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-app-border/25 rounded-2xl bg-app-card/20 h-[270px]">
