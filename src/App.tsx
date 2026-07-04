@@ -3536,7 +3536,7 @@ export default function App() {
                                               border: prev?.border || cssColorToHex(preset['--color-app-border']),
                                               [f.key]: e.target.value,
                                             }))}
-                                            className="flex-1 bg-app-card border border-app-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text uppercase"
+                                            className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text uppercase"
                                           />
                                           <label
                                             style={{
