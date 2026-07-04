@@ -144,6 +144,171 @@ import SwitchAnalytics from './components/SwitchAnalytics';
 import MoodSpoonWidget, { SwitchLogMoodDisplay } from './components/MoodSpoonWidget';
 
 
+// ─── Nommage de couleur (hex → nom le plus proche, FR/EN) ─────────────────
+const NAMED_COLORS: { name: string; nameFr: string; hex: string }[] = [
+  { name: 'Alice Blue', nameFr: 'Bleu alice', hex: '#F0F8FF' },
+  { name: 'Antique White', nameFr: 'Blanc antique', hex: '#FAEBD7' },
+  { name: 'Aqua', nameFr: 'Cyan', hex: '#00FFFF' },
+  { name: 'Aquamarine', nameFr: 'Aigue-marine', hex: '#7FFFD4' },
+  { name: 'Azure', nameFr: 'Azur', hex: '#F0FFFF' },
+  { name: 'Beige', nameFr: 'Beige', hex: '#F5F5DC' },
+  { name: 'Bisque', nameFr: 'Bisque', hex: '#FFE4C4' },
+  { name: 'Black', nameFr: 'Noir', hex: '#000000' },
+  { name: 'Blanched Almond', nameFr: 'Amande blanchie', hex: '#FFEBCD' },
+  { name: 'Blue', nameFr: 'Bleu', hex: '#0000FF' },
+  { name: 'Blue Violet', nameFr: 'Bleu violet', hex: '#8A2BE2' },
+  { name: 'Brown', nameFr: 'Marron', hex: '#A52A2A' },
+  { name: 'Burlywood', nameFr: 'Bois brûlé', hex: '#DEB887' },
+  { name: 'Cadet Blue', nameFr: 'Bleu cadet', hex: '#5F9EA0' },
+  { name: 'Chartreuse', nameFr: 'Chartreuse', hex: '#7FFF00' },
+  { name: 'Chocolate', nameFr: 'Chocolat', hex: '#D2691E' },
+  { name: 'Coral', nameFr: 'Corail', hex: '#FF7F50' },
+  { name: 'Cornflower Blue', nameFr: 'Bleu bleuet', hex: '#6495ED' },
+  { name: 'Cornsilk', nameFr: 'Soie de maïs', hex: '#FFF8DC' },
+  { name: 'Crimson', nameFr: 'Cramoisi', hex: '#DC143C' },
+  { name: 'Dark Blue', nameFr: 'Bleu foncé', hex: '#00008B' },
+  { name: 'Dark Cyan', nameFr: 'Cyan foncé', hex: '#008B8B' },
+  { name: 'Dark Goldenrod', nameFr: 'Or foncé', hex: '#B8860B' },
+  { name: 'Dark Gray', nameFr: 'Gris foncé', hex: '#A9A9A9' },
+  { name: 'Dark Green', nameFr: 'Vert foncé', hex: '#006400' },
+  { name: 'Dark Khaki', nameFr: 'Kaki foncé', hex: '#BDB76B' },
+  { name: 'Dark Magenta', nameFr: 'Magenta foncé', hex: '#8B008B' },
+  { name: 'Dark Olive Green', nameFr: 'Vert olive foncé', hex: '#556B2F' },
+  { name: 'Dark Orange', nameFr: 'Orange foncé', hex: '#FF8C00' },
+  { name: 'Dark Orchid', nameFr: 'Orchidée foncée', hex: '#9932CC' },
+  { name: 'Dark Red', nameFr: 'Rouge foncé', hex: '#8B0000' },
+  { name: 'Dark Salmon', nameFr: 'Saumon foncé', hex: '#E9967A' },
+  { name: 'Dark Sea Green', nameFr: "Vert d'eau foncé", hex: '#8FBC8F' },
+  { name: 'Dark Slate Blue', nameFr: 'Bleu ardoise foncé', hex: '#483D8B' },
+  { name: 'Dark Slate Gray', nameFr: 'Gris ardoise foncé', hex: '#2F4F4F' },
+  { name: 'Dark Turquoise', nameFr: 'Turquoise foncé', hex: '#00CED1' },
+  { name: 'Dark Violet', nameFr: 'Violet foncé', hex: '#9400D3' },
+  { name: 'Deep Pink', nameFr: 'Rose profond', hex: '#FF1493' },
+  { name: 'Deep Sky Blue', nameFr: 'Bleu ciel profond', hex: '#00BFFF' },
+  { name: 'Dim Gray', nameFr: 'Gris terne', hex: '#696969' },
+  { name: 'Dodger Blue', nameFr: 'Bleu dodger', hex: '#1E90FF' },
+  { name: 'Firebrick', nameFr: 'Rouge brique', hex: '#B22222' },
+  { name: 'Floral White', nameFr: 'Blanc floral', hex: '#FFFAF0' },
+  { name: 'Forest Green', nameFr: 'Vert forêt', hex: '#228B22' },
+  { name: 'Fuchsia', nameFr: 'Fuchsia', hex: '#FF00FF' },
+  { name: 'Gainsboro', nameFr: 'Gris gainsboro', hex: '#DCDCDC' },
+  { name: 'Ghost White', nameFr: 'Blanc fantôme', hex: '#F8F8FF' },
+  { name: 'Gold', nameFr: 'Or', hex: '#FFD700' },
+  { name: 'Goldenrod', nameFr: "Verge d'or", hex: '#DAA520' },
+  { name: 'Gray', nameFr: 'Gris', hex: '#808080' },
+  { name: 'Green', nameFr: 'Vert', hex: '#008000' },
+  { name: 'Green Yellow', nameFr: 'Vert jaune', hex: '#ADFF2F' },
+  { name: 'Honeydew', nameFr: 'Blanc miel', hex: '#F0FFF0' },
+  { name: 'Hot Pink', nameFr: 'Rose vif', hex: '#FF69B4' },
+  { name: 'Indian Red', nameFr: 'Rouge indien', hex: '#CD5C5C' },
+  { name: 'Indigo', nameFr: 'Indigo', hex: '#4B0082' },
+  { name: 'Ivory', nameFr: 'Ivoire', hex: '#FFFFF0' },
+  { name: 'Khaki', nameFr: 'Kaki', hex: '#F0E68C' },
+  { name: 'Lavender', nameFr: 'Lavande', hex: '#E6E6FA' },
+  { name: 'Lavender Blush', nameFr: 'Blush lavande', hex: '#FFF0F5' },
+  { name: 'Lawn Green', nameFr: 'Vert gazon', hex: '#7CFC00' },
+  { name: 'Lemon Chiffon', nameFr: 'Chiffon citron', hex: '#FFFACD' },
+  { name: 'Light Blue', nameFr: 'Bleu clair', hex: '#ADD8E6' },
+  { name: 'Light Coral', nameFr: 'Corail clair', hex: '#F08080' },
+  { name: 'Light Cyan', nameFr: 'Cyan clair', hex: '#E0FFFF' },
+  { name: 'Light Goldenrod Yellow', nameFr: 'Jaune or clair', hex: '#FAFAD2' },
+  { name: 'Light Gray', nameFr: 'Gris clair', hex: '#D3D3D3' },
+  { name: 'Light Green', nameFr: 'Vert clair', hex: '#90EE90' },
+  { name: 'Light Pink', nameFr: 'Rose clair', hex: '#FFB6C1' },
+  { name: 'Light Salmon', nameFr: 'Saumon clair', hex: '#FFA07A' },
+  { name: 'Light Sea Green', nameFr: "Vert d'eau clair", hex: '#20B2AA' },
+  { name: 'Light Sky Blue', nameFr: 'Bleu ciel clair', hex: '#87CEFA' },
+  { name: 'Light Slate Gray', nameFr: 'Gris ardoise clair', hex: '#778899' },
+  { name: 'Light Steel Blue', nameFr: 'Bleu acier clair', hex: '#B0C4DE' },
+  { name: 'Light Yellow', nameFr: 'Jaune clair', hex: '#FFFFE0' },
+  { name: 'Lime', nameFr: 'Citron vert', hex: '#00FF00' },
+  { name: 'Lime Green', nameFr: 'Vert citron', hex: '#32CD32' },
+  { name: 'Linen', nameFr: 'Lin', hex: '#FAF0E6' },
+  { name: 'Magenta', nameFr: 'Magenta', hex: '#FF00FF' },
+  { name: 'Maroon', nameFr: 'Bordeaux', hex: '#800000' },
+  { name: 'Medium Aquamarine', nameFr: 'Aigue-marine moyen', hex: '#66CDAA' },
+  { name: 'Medium Blue', nameFr: 'Bleu moyen', hex: '#0000CD' },
+  { name: 'Medium Orchid', nameFr: 'Orchidée moyenne', hex: '#BA55D3' },
+  { name: 'Medium Purple', nameFr: 'Violet moyen', hex: '#9370DB' },
+  { name: 'Medium Sea Green', nameFr: "Vert d'eau moyen", hex: '#3CB371' },
+  { name: 'Medium Slate Blue', nameFr: 'Bleu ardoise moyen', hex: '#7B68EE' },
+  { name: 'Medium Spring Green', nameFr: 'Vert printemps moyen', hex: '#00FA9A' },
+  { name: 'Medium Turquoise', nameFr: 'Turquoise moyen', hex: '#48D1CC' },
+  { name: 'Medium Violet Red', nameFr: 'Rouge violet moyen', hex: '#C71585' },
+  { name: 'Midnight Blue', nameFr: 'Bleu nuit', hex: '#191970' },
+  { name: 'Mint Cream', nameFr: 'Crème de menthe', hex: '#F5FFFA' },
+  { name: 'Misty Rose', nameFr: 'Rose brumeux', hex: '#FFE4E1' },
+  { name: 'Moccasin', nameFr: 'Mocassin', hex: '#FFE4B5' },
+  { name: 'Navajo White', nameFr: 'Blanc navajo', hex: '#FFDEAD' },
+  { name: 'Navy', nameFr: 'Bleu marine', hex: '#000080' },
+  { name: 'Old Lace', nameFr: 'Dentelle ancienne', hex: '#FDF5E6' },
+  { name: 'Olive', nameFr: 'Olive', hex: '#808000' },
+  { name: 'Olive Drab', nameFr: 'Olive terne', hex: '#6B8E23' },
+  { name: 'Orange', nameFr: 'Orange', hex: '#FFA500' },
+  { name: 'Orange Red', nameFr: 'Rouge orangé', hex: '#FF4500' },
+  { name: 'Orchid', nameFr: 'Orchidée', hex: '#DA70D6' },
+  { name: 'Pale Goldenrod', nameFr: 'Or pâle', hex: '#EEE8AA' },
+  { name: 'Pale Green', nameFr: 'Vert pâle', hex: '#98FB98' },
+  { name: 'Pale Turquoise', nameFr: 'Turquoise pâle', hex: '#AFEEEE' },
+  { name: 'Pale Violet Red', nameFr: 'Rouge violet pâle', hex: '#DB7093' },
+  { name: 'Papaya Whip', nameFr: 'Papaye', hex: '#FFEFD5' },
+  { name: 'Peach Puff', nameFr: 'Pêche', hex: '#FFDAB9' },
+  { name: 'Peru', nameFr: 'Pérou', hex: '#CD853F' },
+  { name: 'Pink', nameFr: 'Rose', hex: '#FFC0CB' },
+  { name: 'Plum', nameFr: 'Prune', hex: '#DDA0DD' },
+  { name: 'Powder Blue', nameFr: 'Bleu poudre', hex: '#B0E0E6' },
+  { name: 'Purple', nameFr: 'Violet', hex: '#800080' },
+  { name: 'Rebecca Purple', nameFr: 'Violet rebecca', hex: '#663399' },
+  { name: 'Red', nameFr: 'Rouge', hex: '#FF0000' },
+  { name: 'Rosy Brown', nameFr: 'Marron rosé', hex: '#BC8F8F' },
+  { name: 'Royal Blue', nameFr: 'Bleu royal', hex: '#4169E1' },
+  { name: 'Saddle Brown', nameFr: 'Marron selle', hex: '#8B4513' },
+  { name: 'Salmon', nameFr: 'Saumon', hex: '#FA8072' },
+  { name: 'Sandy Brown', nameFr: 'Marron sable', hex: '#F4A460' },
+  { name: 'Sea Green', nameFr: "Vert d'eau", hex: '#2E8B57' },
+  { name: 'Seashell', nameFr: 'Coquillage', hex: '#FFF5EE' },
+  { name: 'Sienna', nameFr: 'Terre de Sienne', hex: '#A0522D' },
+  { name: 'Silver', nameFr: 'Argent', hex: '#C0C0C0' },
+  { name: 'Sky Blue', nameFr: 'Bleu ciel', hex: '#87CEEB' },
+  { name: 'Slate Blue', nameFr: 'Bleu ardoise', hex: '#6A5ACD' },
+  { name: 'Slate Gray', nameFr: 'Gris ardoise', hex: '#708090' },
+  { name: 'Snow', nameFr: 'Blanc neige', hex: '#FFFAFA' },
+  { name: 'Spring Green', nameFr: 'Vert printemps', hex: '#00FF7F' },
+  { name: 'Steel Blue', nameFr: 'Bleu acier', hex: '#4682B4' },
+  { name: 'Tan', nameFr: 'Beige tan', hex: '#D2B48C' },
+  { name: 'Teal', nameFr: 'Sarcelle', hex: '#008080' },
+  { name: 'Thistle', nameFr: 'Chardon', hex: '#D8BFD8' },
+  { name: 'Tomato', nameFr: 'Tomate', hex: '#FF6347' },
+  { name: 'Turquoise', nameFr: 'Turquoise', hex: '#40E0D0' },
+  { name: 'Violet', nameFr: 'Violet', hex: '#EE82EE' },
+  { name: 'Wheat', nameFr: 'Blé', hex: '#F5DEB3' },
+  { name: 'White', nameFr: 'Blanc', hex: '#FFFFFF' },
+  { name: 'White Smoke', nameFr: 'Blanc fumée', hex: '#F5F5F5' },
+  { name: 'Yellow', nameFr: 'Jaune', hex: '#FFFF00' },
+  { name: 'Yellow Green', nameFr: 'Vert jaune', hex: '#9ACD32' },
+];
+
+function hexToRgbTriplet(hex: string): [number, number, number] {
+  const clean = hex.trim().replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean.padEnd(6, '0').slice(0, 6);
+  const num = parseInt(full, 16);
+  return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function getClosestColorName(hex: string, bigList?: { name: string; hex: string }[] | null): string {
+  if (!hex || !/^#?[0-9a-fA-F]{3}$|^#?[0-9a-fA-F]{6}$/.test(hex.trim())) return '';
+  const [r, g, b] = hexToRgbTriplet(hex);
+  const list = (bigList && bigList.length > 0) ? bigList : NAMED_COLORS;
+  let best = list[0];
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const c of list) {
+    const [cr, cg, cb] = hexToRgbTriplet(c.hex);
+    const dist = (r - cr) ** 2 + (g - cg) ** 2 + (b - cb) ** 2;
+    if (dist < bestDist) { bestDist = dist; best = c; }
+  }
+  return best.name;
+}
+
 // ─── Markdown renderer + editor ────────────────────────────────────────────
 function renderMarkdown(text: string, onImageClick?: (url: string) => void): React.ReactNode[] {
   const lines = text.split('\n');
@@ -588,6 +753,17 @@ export default function App() {
   );
   // Relations du mapping — pour affichage en temps réel sur les fiches
   const [mappingData, setMappingData] = useState<MappingData>(() => loadMapping(activeSystemId));
+  // Grande liste de ~32 000 noms de couleurs (chargée à la demande, une seule fois)
+  const [bigColorNames, setBigColorNames] = useState<{ name: string; hex: string }[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    const basePath = ((import.meta as any).env?.BASE_URL as string) || '/';
+    fetch(`${basePath}colornames.json`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (!cancelled && Array.isArray(data)) setBigColorNames(data); })
+      .catch(() => { /* silencieux — on retombe sur la petite liste intégrée */ });
+    return () => { cancelled = true; };
+  }, []);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
   const [activeSubsystemView, setActiveSubsystemView] = useState<string | null>(null);
   const [editingSubsystemNameId, setEditingSubsystemNameId] = useState<string | null>(null);
@@ -4143,6 +4319,7 @@ export default function App() {
                                 <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Couleur' : 'Color'}</span>
                                 <span className="w-4 h-4 rounded-md border border-app-border/20 inline-block shrink-0" style={{ backgroundColor: alterColor }} />
                                 <span className="font-mono text-app-text/85">{alterColor}</span>
+                                <span className="text-app-text/60 normal-case font-sans">({getClosestColorName(alterColor, bigColorNames)})</span>
                               </div>
                             )}
                             {(triggersPositive || triggersNegative) && (
