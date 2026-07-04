@@ -3539,8 +3539,19 @@ export default function App() {
                                             className="flex-1 bg-app-card border border-app-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text uppercase"
                                           />
                                           <label
-                                            className="w-9 h-9 rounded-xl border border-app-border cursor-pointer flex-shrink-0 relative overflow-hidden block"
-                                            style={{ backgroundColor: current }}
+                                            style={{
+                                              width: '2.25rem',
+                                              height: '2.25rem',
+                                              minWidth: '2.25rem',
+                                              borderRadius: '0.75rem',
+                                              border: '1px solid rgba(128,128,128,0.4)',
+                                              backgroundColor: current,
+                                              cursor: 'pointer',
+                                              display: 'block',
+                                              position: 'relative',
+                                              overflow: 'hidden',
+                                              flexShrink: 0,
+                                            }}
                                             title={current}
                                           >
                                             <input
@@ -3554,7 +3565,17 @@ export default function App() {
                                                 border: prev?.border || cssColorToHex(preset['--color-app-border']),
                                                 [f.key]: e.target.value,
                                               }))}
-                                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer border-0"
+                                              style={{
+                                                position: 'absolute',
+                                                top: 0,
+                                                left: 0,
+                                                width: '100%',
+                                                height: '100%',
+                                                opacity: 0,
+                                                cursor: 'pointer',
+                                                border: 'none',
+                                                padding: 0,
+                                              }}
                                             />
                                           </label>
                                         </div>
