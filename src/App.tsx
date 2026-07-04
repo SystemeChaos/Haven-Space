@@ -2327,6 +2327,18 @@ export default function App() {
     setDeleteConfirmSwitchLogId(null);
   };
 
+  // Retire un alter du front en un clic depuis le dashboard : met à jour son statut
+  // ET journalise l'événement dans le registre des switch, pour garder un historique cohérent.
+  const handleRemoveFromFront = (alterId: string) => {
+    setSavedAlters(prev => prev.map(a => a.id === alterId ? { ...a, frontStatus: 'none' } : a));
+    setSwitchLogs(prev => [{
+      id: Math.random().toString(36).substring(2, 11),
+      alterIds: [alterId],
+      timestamp: Date.now(),
+      status: 'none',
+    }, ...prev].sort((a, b) => b.timestamp - a.timestamp));
+  };
+
   const handleCompressAndStoreFiles = (files: FileList | null, onComplete: (urls: string[]) => void) => {
     if (!files) return;
     const promises = Array.from(files).map(file => {
@@ -4952,17 +4964,28 @@ export default function App() {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {savedAlters.filter(a => ['primary','co_front','co_conscious','blend'].includes(a.frontStatus||'') && !a.archived).map(a => (
-                      <button
+                      <div
                         key={a.id}
-                        onClick={() => setCurrentTab('system')}
-                        className="flex items-center gap-2 px-3 py-1.5 bg-app-bg border border-app-border/40 rounded-full text-xs font-bold hover:border-app-accent/40 transition-colors"
+                        className="flex items-center gap-1 bg-app-bg border border-app-border/40 rounded-full pl-1 pr-1 py-1 text-xs font-bold"
                       >
-                        {a.profileImage
-                          ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover" alt="" />
-                          : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent">{(a.alterName||'?').charAt(0)}</div>
-                        }
-                        <span className="text-app-text">{a.alterName}</span>
-                      </button>
+                        <button
+                          onClick={() => setCurrentTab('system')}
+                          className="flex items-center gap-2 pl-1.5 pr-2 py-0.5 rounded-full hover:bg-app-accent/10 transition-colors"
+                        >
+                          {a.profileImage
+                            ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover" alt="" />
+                            : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent">{(a.alterName||'?').charAt(0)}</div>
+                          }
+                          <span className="text-app-text">{a.alterName}</span>
+                        </button>
+                        <button
+                          onClick={() => handleRemoveFromFront(a.id)}
+                          title={lang === 'fr' ? 'Retirer du front' : 'Remove from front'}
+                          className="w-5 h-5 rounded-full flex items-center justify-center text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 </div>
