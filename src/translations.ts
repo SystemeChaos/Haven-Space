@@ -84,7 +84,8 @@ export const translations = {
       co_front: "Co-Front (Actif au front)",
       co_conscious: "Co-Conscient (Observe le front)",
       passive: "Influence Passive",
-      dormant: "En sommeil (Dormant)"
+      dormant: "En sommeil (Dormant)",
+      blend: "Flou / Blend (Mélange, identité incertaine)"
     },
     selectAlterToLoad: "Charger/Éditer",
     loadAlterConfirm: "Voulez-vous charger cet alter dans le créateur ? Vos modifications actuelles non-enregistrées seront écrasées.",
@@ -921,7 +922,8 @@ export const translations = {
       co_front: "Co-Front (Active at front)",
       co_conscious: "Co-Conscious (Observing front)",
       passive: "Passive Influence",
-      dormant: "Dormant (In sleep)"
+      dormant: "Dormant (In sleep)",
+      blend: "Blur / Blend (Merged, unclear who's fronting)"
     },
     selectAlterToLoad: "Load/Edit",
     loadAlterConfirm: "Do you want to load this alter into the creator? Any current unsaved modifications will be overwritten.",

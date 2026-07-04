@@ -2434,12 +2434,16 @@ export default function App() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {alter.frontStatus && alter.frontStatus !== 'none' && (
-              <div className={`w-2 h-2 rounded-full shrink-0 ${
-                alter.frontStatus === 'primary' ? 'bg-emerald-500' :
-                alter.frontStatus === 'co_front' ? 'bg-sky-500' :
-                alter.frontStatus === 'co_conscious' ? 'bg-violet-500' :
-                alter.frontStatus === 'passive' ? 'bg-amber-500' : 'bg-zinc-500'
-              }`} />
+              <div
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  alter.frontStatus === 'primary' ? 'bg-emerald-500' :
+                  alter.frontStatus === 'co_front' ? 'bg-sky-500' :
+                  alter.frontStatus === 'co_conscious' ? 'bg-violet-500' :
+                  alter.frontStatus === 'passive' ? 'bg-amber-500' :
+                  alter.frontStatus === 'blend' ? '' : 'bg-zinc-500'
+                }`}
+                style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, #a855f7, #ec4899, #6366f1)' } : undefined}
+              />
             )}
             <button onClick={() => handleLoadAlter(alter)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
               {lang === 'fr' ? 'Charger' : 'Load'}
@@ -2475,13 +2479,17 @@ export default function App() {
             <h4 className="font-black text-sm text-app-text truncate text-left">{alter.alterName}</h4>
             <div className="flex flex-wrap gap-1 mt-1 justify-start">
               {alter.frontStatus && alter.frontStatus !== 'none' && (
-                <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block ${
-                  alter.frontStatus === 'primary' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
-                  alter.frontStatus === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
-                  alter.frontStatus === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
-                  alter.frontStatus === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
-                  'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
-                }`}>
+                <span
+                  className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block ${
+                    alter.frontStatus === 'primary' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
+                    alter.frontStatus === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
+                    alter.frontStatus === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
+                    alter.frontStatus === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                    alter.frontStatus === 'blend' ? 'border-fuchsia-500/30 text-fuchsia-500' :
+                    'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
+                  }`}
+                  style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' } : undefined}
+                >
                   {t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}
                 </span>
               )}
@@ -4937,13 +4945,13 @@ export default function App() {
               </div>
 
               {/* Alters en front actuellement */}
-              {savedAlters.filter(a => ['primary','co_front','co_conscious'].includes(a.frontStatus||'') && !a.archived).length > 0 && (
+              {savedAlters.filter(a => ['primary','co_front','co_conscious','blend'].includes(a.frontStatus||'') && !a.archived).length > 0 && (
                 <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
                   <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
                     {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {savedAlters.filter(a => ['primary','co_front','co_conscious'].includes(a.frontStatus||'') && !a.archived).map(a => (
+                    {savedAlters.filter(a => ['primary','co_front','co_conscious','blend'].includes(a.frontStatus||'') && !a.archived).map(a => (
                       <button
                         key={a.id}
                         onClick={() => setCurrentTab('system')}
