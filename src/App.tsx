@@ -16,6 +16,7 @@ import {
   X,
   Info,
   Palette,
+  RotateCcw,
   Flag,
   Star,
   ArrowRight,
@@ -293,6 +294,21 @@ function hexToRgbTriplet(hex: string): [number, number, number] {
   const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean.padEnd(6, '0').slice(0, 6);
   const num = parseInt(full, 16);
   return [(num >> 16) & 255, (num >> 8) & 255, num & 255];
+}
+
+function cssColorToHex(css: string): string {
+  const c = (css || '').trim();
+  if (c.startsWith('#')) {
+    return c.length === 4
+      ? '#' + c.slice(1).split('').map(ch => ch + ch).join('')
+      : c;
+  }
+  const match = c.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+  if (match) {
+    const [, r, g, b] = match;
+    return '#' + [r, g, b].map(v => parseInt(v, 10).toString(16).padStart(2, '0')).join('');
+  }
+  return '#000000';
 }
 
 function getClosestColorName(hex: string, bigList?: { name: string; hex: string }[] | null): string {
@@ -655,6 +671,15 @@ export default function App() {
   const [newContactPhone, setNewContactPhone] = useState('');
   const [settingsFontOpen, setSettingsFontOpen] = useState(false);
   const [settingsThemeOpen, setSettingsThemeOpen] = useState(false);
+  const [settingsCustomThemeOpen, setSettingsCustomThemeOpen] = useState(false);
+  const [customThemeColors, setCustomThemeColors] = useState<{
+    accent: string; bg: string; card: string; text: string; border: string;
+  } | null>(() => {
+    try {
+      const saved = localStorage.getItem('hs-custom-theme');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
 
   // --- Notifications ---
   const [notifBrowser, setNotifBrowser] = useState<boolean>(() => localStorage.getItem('hs-notif-browser') === 'true');
@@ -1442,9 +1467,35 @@ export default function App() {
   };
 
   useEffect(() => {
+    try {
+      if (customThemeColors) localStorage.setItem('hs-custom-theme', JSON.stringify(customThemeColors));
+      else localStorage.removeItem('hs-custom-theme');
+    } catch { /* stockage indisponible, on ignore */ }
+  }, [customThemeColors]);
+
+  useEffect(() => {
     const root = document.documentElement;
-    const styles = getThemeStyles();
-    
+    const styles: Record<string, string> = { ...(getThemeStyles() as any) };
+
+    // Surcharge avec les couleurs du thème personnalisé, si défini
+    if (customThemeColors) {
+      if (customThemeColors.bg) styles['--color-app-bg'] = customThemeColors.bg;
+      if (customThemeColors.card) styles['--color-app-card'] = customThemeColors.card;
+      if (customThemeColors.text) styles['--color-app-text'] = customThemeColors.text;
+      if (customThemeColors.border) styles['--color-app-border'] = customThemeColors.border;
+      if (customThemeColors.accent) styles['--color-app-accent'] = customThemeColors.accent;
+      // Dérive le "muted" à partir du texte, et le contraste du texte sur l'accent
+      if (customThemeColors.text) {
+        const [tr, tg, tb] = hexToRgbTriplet(customThemeColors.text);
+        styles['--color-app-muted'] = `rgba(${tr}, ${tg}, ${tb}, 0.6)`;
+      }
+      if (customThemeColors.accent) {
+        const [ar, ag, ab] = hexToRgbTriplet(customThemeColors.accent);
+        const luminance = (0.299 * ar + 0.587 * ag + 0.114 * ab) / 255;
+        styles['--color-app-accent-text'] = luminance > 0.6 ? '#1a1a1a' : '#ffffff';
+      }
+    }
+
     // Reset properties first to ensure clean state
     ['--color-app-bg', '--color-app-text', '--color-app-card', '--color-app-border', '--color-app-accent', '--color-app-muted', '--color-app-accent-text'].forEach(prop => {
       root.style.removeProperty(prop);
@@ -1453,7 +1504,7 @@ export default function App() {
     Object.entries(styles).forEach(([key, value]) => {
       root.style.setProperty(key, value as string);
     });
-  }, [theme]);
+  }, [theme, customThemeColors]);
 
   const saveToHistory = useCallback(() => {
     try {
@@ -3424,6 +3475,94 @@ export default function App() {
                             )}
                           </AnimatePresence>
                         </div>
+                      </div>
+
+                      {/* Custom Theme Section */}
+                      <div className="space-y-1.5">
+                        <button
+                          onClick={() => setSettingsCustomThemeOpen(o => !o)}
+                          className="w-full flex items-center justify-between px-3 py-2.5 bg-app-bg text-app-text border border-app-border/45 rounded-xl text-xs font-semibold focus:outline-none hover:border-app-accent/85 transition-colors cursor-pointer"
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <Palette className="w-3.5 h-3.5" />
+                            {lang === 'fr' ? 'Thème personnalisé' : 'Custom theme'}
+                            {customThemeColors && <span className="w-1.5 h-1.5 rounded-full bg-app-accent" />}
+                          </span>
+                          <ChevronDown className={`w-3.5 h-3.5 text-app-muted transition-transform duration-300 ${settingsCustomThemeOpen ? 'rotate-180' : ''}`} />
+                        </button>
+
+                        <AnimatePresence>
+                          {settingsCustomThemeOpen && (() => {
+                            const preset = getThemeStyles() as Record<string, string>;
+                            const fields: { key: 'accent' | 'bg' | 'card' | 'text' | 'border'; label: string; presetVar: string }[] = [
+                              { key: 'accent', label: lang === 'fr' ? "Couleur d'accent" : 'Accent color', presetVar: '--color-app-accent' },
+                              { key: 'bg', label: lang === 'fr' ? 'Couleur de fond principale' : 'Main background color', presetVar: '--color-app-bg' },
+                              { key: 'card', label: lang === 'fr' ? 'Couleur des cartes' : 'Card color', presetVar: '--color-app-card' },
+                              { key: 'text', label: lang === 'fr' ? 'Couleur du texte' : 'Text color', presetVar: '--color-app-text' },
+                              { key: 'border', label: lang === 'fr' ? 'Couleur des bordures' : 'Border color', presetVar: '--color-app-border' },
+                            ];
+                            return (
+                              <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                                className="overflow-hidden border border-app-border/20 rounded-xl bg-app-bg/50"
+                              >
+                                <div className="p-3 space-y-3">
+                                  <p className="text-[10px] text-app-muted leading-relaxed">
+                                    {lang === 'fr'
+                                      ? "Ajustez ces couleurs pour créer votre propre variante par-dessus le thème actif. Elles sont sauvegardées automatiquement."
+                                      : 'Adjust these colors to build your own variant on top of the active theme. They are saved automatically.'}
+                                  </p>
+                                  {fields.map(f => {
+                                    const current = customThemeColors?.[f.key] || cssColorToHex(preset[f.presetVar] || '#000000');
+                                    return (
+                                      <div key={f.key} className="space-y-1">
+                                        <label className="text-[9px] font-bold uppercase tracking-wider text-app-muted">{f.label}</label>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="text"
+                                            value={current}
+                                            onChange={e => setCustomThemeColors(prev => ({
+                                              accent: prev?.accent || cssColorToHex(preset['--color-app-accent']),
+                                              bg: prev?.bg || cssColorToHex(preset['--color-app-bg']),
+                                              card: prev?.card || cssColorToHex(preset['--color-app-card']),
+                                              text: prev?.text || cssColorToHex(preset['--color-app-text']),
+                                              border: prev?.border || cssColorToHex(preset['--color-app-border']),
+                                              [f.key]: e.target.value,
+                                            }))}
+                                            className="flex-1 bg-app-card border border-app-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text uppercase"
+                                          />
+                                          <input
+                                            type="color"
+                                            value={current}
+                                            onChange={e => setCustomThemeColors(prev => ({
+                                              accent: prev?.accent || cssColorToHex(preset['--color-app-accent']),
+                                              bg: prev?.bg || cssColorToHex(preset['--color-app-bg']),
+                                              card: prev?.card || cssColorToHex(preset['--color-app-card']),
+                                              text: prev?.text || cssColorToHex(preset['--color-app-text']),
+                                              border: prev?.border || cssColorToHex(preset['--color-app-border']),
+                                              [f.key]: e.target.value,
+                                            }))}
+                                            className="w-9 h-9 rounded-xl border border-app-border cursor-pointer flex-shrink-0"
+                                          />
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                  <button
+                                    onClick={() => setCustomThemeColors(null)}
+                                    disabled={!customThemeColors}
+                                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-app-border text-[11px] font-bold text-app-muted hover:text-app-text hover:border-app-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                    {lang === 'fr' ? 'Réinitialiser' : 'Reset'}
+                                  </button>
+                                </div>
+                              </motion.div>
+                            );
+                          })()}
+                        </AnimatePresence>
                       </div>
 
                       {/* Notifications section */}
