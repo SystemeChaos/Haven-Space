@@ -3538,19 +3538,25 @@ export default function App() {
                                             }))}
                                             className="flex-1 bg-app-card border border-app-border rounded-xl px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text uppercase"
                                           />
-                                          <input
-                                            type="color"
-                                            value={current}
-                                            onChange={e => setCustomThemeColors(prev => ({
-                                              accent: prev?.accent || cssColorToHex(preset['--color-app-accent']),
-                                              bg: prev?.bg || cssColorToHex(preset['--color-app-bg']),
-                                              card: prev?.card || cssColorToHex(preset['--color-app-card']),
-                                              text: prev?.text || cssColorToHex(preset['--color-app-text']),
-                                              border: prev?.border || cssColorToHex(preset['--color-app-border']),
-                                              [f.key]: e.target.value,
-                                            }))}
-                                            className="w-9 h-9 rounded-xl border border-app-border cursor-pointer flex-shrink-0"
-                                          />
+                                          <label
+                                            className="w-9 h-9 rounded-xl border border-app-border cursor-pointer flex-shrink-0 relative overflow-hidden block"
+                                            style={{ backgroundColor: current }}
+                                            title={current}
+                                          >
+                                            <input
+                                              type="color"
+                                              value={current}
+                                              onChange={e => setCustomThemeColors(prev => ({
+                                                accent: prev?.accent || cssColorToHex(preset['--color-app-accent']),
+                                                bg: prev?.bg || cssColorToHex(preset['--color-app-bg']),
+                                                card: prev?.card || cssColorToHex(preset['--color-app-card']),
+                                                text: prev?.text || cssColorToHex(preset['--color-app-text']),
+                                                border: prev?.border || cssColorToHex(preset['--color-app-border']),
+                                                [f.key]: e.target.value,
+                                              }))}
+                                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer border-0"
+                                            />
+                                          </label>
                                         </div>
                                       </div>
                                     );
