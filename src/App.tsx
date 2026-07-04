@@ -746,6 +746,9 @@ export default function App() {
 
   // --- DID LocalStorage Tabs & State ---
   const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit'>('home');
+  // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
+  // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
+  const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
@@ -1984,6 +1987,7 @@ export default function App() {
     setCustomFields(alter.customFields || []);
     setFrontStatus(alter.frontStatus || 'none');
     setEditingAlterId(alter.id);
+    setCreatorReturnTab(currentTab !== 'creator' ? currentTab : creatorReturnTab);
     setCurrentTab('creator');
     setLoadConfirmAlter(null);
   };
@@ -2022,6 +2026,7 @@ export default function App() {
     setCustomFields([]);
     setFrontStatus('none');
     setEditingAlterId(null);
+    setCreatorReturnTab(null);
     setCurrentTab('creator'); // Route user directly to creator
   };
 
@@ -3649,11 +3654,22 @@ export default function App() {
           <div className="z-50">
             {currentTab !== 'home' ? (
               <button
-                onClick={() => setCurrentTab('home')}
+                onClick={() => {
+                  if (currentTab === 'creator' && creatorReturnTab) {
+                    setCurrentTab(creatorReturnTab);
+                    setCreatorReturnTab(null);
+                  } else {
+                    setCurrentTab('home');
+                  }
+                }}
                 className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-[#273F4F] hover:border-app-accent/40 active:scale-95 transition-all shadow-md select-none"
               >
                 <ChevronRight className="w-4 h-4 text-[#273F4F] rotate-180" />
-                <span>{lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}</span>
+                <span>
+                  {currentTab === 'creator' && creatorReturnTab
+                    ? (lang === 'fr' ? 'Retour' : 'Back')
+                    : (lang === 'fr' ? 'Tableau de bord' : 'Dashboard')}
+                </span>
               </button>
             ) : (
               <div className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-accent text-white text-xs font-black uppercase tracking-widest shadow-md select-none">
@@ -4875,7 +4891,10 @@ export default function App() {
                   return (
                     <button
                       key={item.value}
-                      onClick={() => setCurrentTab(item.value as any)}
+                      onClick={() => {
+                        if (item.value === 'creator') setCreatorReturnTab(null);
+                        setCurrentTab(item.value as any);
+                      }}
                       className="flex flex-col items-center gap-3 p-5 bg-app-card border border-app-border/40 rounded-2xl hover:border-app-accent/40 hover:bg-app-card/80 active:scale-95 transition-all text-left group"
                     >
                       <div className="w-12 h-12 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent group-hover:bg-app-accent/20 transition-colors">
