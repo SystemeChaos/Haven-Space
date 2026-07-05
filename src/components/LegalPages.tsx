@@ -18,7 +18,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       about: 'À propos',
       contact: 'Contact',
       back: 'Retour',
-      lastUpdate: 'Dernière mise à jour : mai 2026',
+      lastUpdate: 'Dernière mise à jour : juillet 2026',
       ownData: "Tes données t'appartiennent.",
       breif: 'En bref :',
       breifText: 'Haven Space ne collecte, ne stocke et ne transmet aucune donnée personnelle. Tout reste sur ton appareil, dans ton navigateur. Ni serveur, ni base de données, ni compte utilisateur.',
@@ -39,30 +39,38 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       
       aboutTitle: 'Un espace pour chaque voix.',
       aboutSubtitle: 'Haven Space — Outil de gestion de système pluriel',
+      aboutLastUpdate: 'Dernière mise à jour : juillet 2026',
       missionTitle: 'Notre mission',
-      missionText1: 'Haven Space est un outil conçu pour et par la communauté plurielle (TDI/OSDD et systèmes pluriels). Il offre un espace safe et privé pour documenter, comprendre et célébrer chaque membre d\'un système.',
-      missionText2: 'L\'application permet de créer des fiches détaillées pour chaque alter, de tenir un journal, de suivre les switchs et de faciliter la communication interne — le tout sans jamais quitter ton appareil.',
+      missionText1: 'Haven Space est un outil conçu pour et par la communauté plurielle (TDI/OSDD et systèmes pluriels). Il offre un espace safe et privé pour documenter, comprendre et célébrer chaque membre d\'un système — sans jugement, à son propre rythme.',
+      missionText2: 'L\'application permet de créer des fiches détaillées pour chaque alter, de cartographier les relations entre eux, de tenir un journal, de suivre les switchs (avec humeurs et cuillères), de discuter en interne et de gérer les moments difficiles grâce à des outils d\'ancrage — le tout sans jamais quitter ton appareil.',
+      missionText3: 'Haven Space grandit avec les besoins réels de ses utilisateurices : chaque fonctionnalité est née d\'un vrai vécu, pas d\'une liste de cases à cocher.',
       valuesTitle: 'Nos valeurs',
       valPrivacy: 'Confidentialité totale',
       valPrivacyDesc: 'Tes données restent sur ton appareil. Point.',
       valBenevolence: 'Bienveillance',
       valBenevolenceDesc: 'Un espace safe, sans jugement, pour tous les systèmes.',
       valCommunity: 'Communauté',
-      valCommunityDesc: 'Créé avec et pour les personnes plurielles.',
+      valCommunityDesc: 'Créé avec et pour les personnes plurielles — chaque retour façonne l\'outil.',
       valAccessibility: 'Accessibilité',
-      valAccessibilityDesc: 'Gratuit, sans compte, installable partout. Synchronisation moderne sans compte par fichier JSON ou directement avec votre profil PluralKit.',
+      valAccessibilityDesc: 'Gratuit, sans compte, installable partout. Synchronisation moderne sans compte par fichier JSON ou directement avec ton profil PluralKit.',
       featuresTitle: 'Fonctionnalités',
-      fA: '✦ Fiches d\'alters',
+      fA: '✦ Fiches d\'alters détaillées',
       fB: '✦ Sous-systèmes',
-      fC: '✦ Journal interne',
-      fD: '✦ Registre des switchs',
-      fE: '✦ Chat interne',
-      fF: '✦ Export PNG',
-      fG: '✦ Mode sombre / Thèmes',
-      fH: '✦ Multilingue FR/EN',
-      fI: '✦ Installable PWA / Mobile',
+      fC: '✦ Cartographie des relations',
+      fD: '✦ Journal interne',
+      fE: '✦ Registre des switchs',
+      fF: '✦ Humeurs & cuillères',
+      fG: '✦ Chat interne',
+      fH: '✦ Messagerie privée',
+      fI: '✦ Ancrage / Mode SOS',
+      fJ: '✦ Contacts de confiance',
+      fK: '✦ Export PNG',
+      fL: '✦ Synchronisation PluralKit',
+      fM: '✦ Thèmes & personnalisation',
+      fN: '✦ Multilingue FR/EN',
+      fO: '✦ Installable PWA / Mobile',
       openSourceTitle: 'Transparence',
-      openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source et disponible librement pour la communauté.',
+      openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
 
       contactHeadline: 'On est là.',
       contactSubtitle: 'Une question, un bug, une suggestion ? Écris-nous.',
@@ -83,7 +91,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       about: 'About Us',
       contact: 'Contact',
       back: 'Back',
-      lastUpdate: 'Last updated: May 2026',
+      lastUpdate: 'Last updated: July 2026',
       ownData: 'Your data belongs to you.',
       breif: 'In short:',
       breifText: 'Haven Space does not collect, store, or transmit any of your personal data. Everything remains on your device, in your browser storage. No server, no database, no forced accounts.',
@@ -104,30 +112,38 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
 
       aboutTitle: 'A space for every voice.',
       aboutSubtitle: 'Haven Space — Plural System Management Tool',
+      aboutLastUpdate: 'Last updated: July 2026',
       missionTitle: 'Our Mission',
-      missionText1: 'Haven Space is designed specifically for and with the plural community (DID, OSDD, and other forms of multiplicity). It provides a quiet, offline-safe haven to map out, understand, and honor every member of your system.',
-      missionText2: 'Safely draft deep alter profiles, link subsystems, record daily internal journals, register switches, and use the inner chat workspace — privately on your device.',
+      missionText1: 'Haven Space is designed specifically for and with the plural community (DID, OSDD, and other forms of multiplicity). It provides a quiet, offline-safe haven to map out, understand, and honor every member of your system — without judgment, at your own pace.',
+      missionText2: 'Draft deep alter profiles, map the relationships between members, keep a daily internal journal, log switches (with mood and spoon tracking), chat internally, and reach for grounding tools during hard moments — all privately on your device.',
+      missionText3: 'Haven Space grows alongside the real needs of the people using it: every feature comes from lived experience, not a checklist.',
       valuesTitle: 'Our Beliefs',
       valPrivacy: 'Ultimate Privacy',
       valPrivacyDesc: 'Your personal records stay in your hands. Period.',
       valBenevolence: 'Warm Safehaven',
       valBenevolenceDesc: 'Unconditional kindness and design safety for all system configurations.',
       valCommunity: 'Community Native',
-      valCommunityDesc: 'Envisioned for and guided by plural voices.',
+      valCommunityDesc: 'Envisioned for and guided by plural voices — every bit of feedback shapes the tool.',
       valAccessibility: '100% Free',
       valAccessibilityDesc: 'Fully operational offline, no payments, no barrier entry. Seamless accountless synchronization via JSON files or direct PluralKit system integration.',
       featuresTitle: 'System Features',
-      fA: '✦ Alter Directories',
-      fB: '✦ Subsystem Visualizer',
-      fC: '✦ Dynamic Internal Logs',
-      fD: '✦ Beautiful Switch Records',
-      fE: '✦ Internal Team Chats',
-      fF: '✦ Vector Image Export',
-      fG: '✦ Dark Mode & Themes',
-      fH: '✦ Multilingual English/French',
-      fI: '✦ Desktop/Mobile PWA support',
+      fA: '✦ Detailed Alter Profiles',
+      fB: '✦ Subsystems',
+      fC: '✦ Relationship Mapping',
+      fD: '✦ Internal Journal',
+      fE: '✦ Switch Logging',
+      fF: '✦ Mood & Spoon Tracking',
+      fG: '✦ Internal Group Chat',
+      fH: '✦ Private Messaging',
+      fI: '✦ Grounding / SOS Mode',
+      fJ: '✦ Trusted Contacts',
+      fK: '✦ PNG Export',
+      fL: '✦ PluralKit Sync',
+      fM: '✦ Themes & Customization',
+      fN: '✦ Multilingual EN/FR',
+      fO: '✦ Installable PWA / Mobile',
       openSourceTitle: 'Transparency',
-      openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source and freely available to the community.',
+      openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
 
       contactHeadline: 'We are here.',
       contactSubtitle: 'Have a question, feedback, or a bug to report? Email us.',
@@ -289,6 +305,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
             </div>
             <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">{currentT.aboutTitle}</h1>
             <p className="text-xs text-app-muted font-bold uppercase tracking-widest">{currentT.aboutSubtitle}</p>
+            <p className="text-xs text-app-muted font-mono">{currentT.aboutLastUpdate}</p>
           </div>
 
           <div className="p-6 bg-app-card border border-app-border rounded-2xl space-y-3 shadow-sm">
@@ -301,6 +318,9 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
             </p>
             <p className="text-xs leading-relaxed text-app-muted font-medium">
               {currentT.missionText2}
+            </p>
+            <p className="text-xs leading-relaxed text-app-muted font-medium">
+              {currentT.missionText3}
             </p>
           </div>
 
@@ -345,6 +365,12 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 currentT.fG,
                 currentT.fH,
                 currentT.fI,
+                currentT.fJ,
+                currentT.fK,
+                currentT.fL,
+                currentT.fM,
+                currentT.fN,
+                currentT.fO,
               ].map(item => (
                 <div key={item} className="p-2.5 bg-app-bg/50 border border-app-border/40 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-text/90">
                   {item}
