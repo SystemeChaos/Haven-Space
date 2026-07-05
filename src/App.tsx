@@ -619,6 +619,11 @@ export default function App() {
   // Custom dialogue boxes to bypass sandboxed iframe restrictions
   const [deleteConfirmAlterId, setDeleteConfirmAlterId] = useState<string | null>(null);
   const [deleteConfirmSubsystemId, setDeleteConfirmSubsystemId] = useState<string | null>(null);
+  const [deleteSubsystemStep, setDeleteSubsystemStep] = useState<'choose' | 'move' | 'confirmDestroy'>('choose');
+  const [moveSubsystemAssignments, setMoveSubsystemAssignments] = useState<Record<string, string>>({});
+  const [moveSubsystemSelectedIds, setMoveSubsystemSelectedIds] = useState<string[]>([]);
+  const [moveSubsystemBulkDestination, setMoveSubsystemBulkDestination] = useState<string>('__main__');
+  const [destroySubsystemConfirmText, setDestroySubsystemConfirmText] = useState<string>('');
   const [deleteConfirmSwitchLogId, setDeleteConfirmSwitchLogId] = useState<string | null>(null);
   const [deleteConfirmJournalId, setDeleteConfirmJournalId] = useState<string | null>(null);
   const [deleteConfirmClearChat, setDeleteConfirmClearChat] = useState<boolean>(false);
@@ -2071,12 +2076,41 @@ export default function App() {
 
   const handleDeleteSubsystem = (subId: string) => {
     setDeleteConfirmSubsystemId(subId);
+    setDeleteSubsystemStep('choose');
+    // Par défaut, chaque fiche directement dans ce sous-système part vers le système principal
+    const directAlters = savedAlters.filter(a => a.subsystemId === subId);
+    const defaults: Record<string, string> = {};
+    directAlters.forEach(a => { defaults[a.id] = '__main__'; });
+    setMoveSubsystemAssignments(defaults);
+    setMoveSubsystemSelectedIds([]);
+    setMoveSubsystemBulkDestination('__main__');
+    setDestroySubsystemConfirmText('');
   };
 
-  const executeDeleteSubsystem = (subId: string) => {
-    setSubsystems(prev => prev.filter(s => s.id !== subId).map(s => s.parentId === subId ? { ...s, parentId: undefined } : s));
-    setSavedAlters(prev => prev.map(a => a.subsystemId === subId ? { ...a, subsystemId: undefined } : a));
+  // Récupère récursivement tous les sous-systèmes descendants (enfants, petits-enfants...)
+  const getDescendantSubsystemIds = (subId: string): string[] => {
+    const directChildren = subsystems.filter(s => s.parentId === subId).map(s => s.id);
+    return directChildren.reduce((acc: string[], childId) => [...acc, childId, ...getDescendantSubsystemIds(childId)], []);
+  };
+
+  // mode 'destroy' : supprime le dossier ET tout son contenu (sous-systèmes enfants + fiches) définitivement.
+  // mode 'move' : chaque fiche part vers la destination choisie individuellement (carte alterId → destination),
+  // les sous-systèmes enfants sont remontés au niveau supérieur, et seul le dossier vide est supprimé.
+  const executeDeleteSubsystem = (subId: string, mode: 'destroy' | 'move', assignments?: Record<string, string>) => {
+    if (mode === 'destroy') {
+      const allIds = [subId, ...getDescendantSubsystemIds(subId)];
+      setSubsystems(prev => prev.filter(s => !allIds.includes(s.id)));
+      setSavedAlters(prev => prev.filter(a => !allIds.includes(a.subsystemId || '')));
+    } else {
+      setSubsystems(prev => prev.filter(s => s.id !== subId).map(s => s.parentId === subId ? { ...s, parentId: undefined } : s));
+      setSavedAlters(prev => prev.map(a => {
+        if (a.subsystemId !== subId) return a;
+        const dest = assignments?.[a.id] ?? '__main__';
+        return { ...a, subsystemId: dest === '__main__' ? undefined : dest };
+      }));
+    }
     setDeleteConfirmSubsystemId(null);
+    setDeleteSubsystemStep('choose');
   };
 
   const handleSendChatMessage = (e: React.FormEvent) => {
@@ -2607,7 +2641,7 @@ export default function App() {
               {totalAlters} alters{childSubs.length > 0 && ` · ${childSubs.length} ${lang === 'fr' ? 'sous-systèmes' : 'subsystems'}`}
             </span>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1">
             <button
               onClick={e => { e.stopPropagation(); setEditingSubsystemNameId(subId); setEditingSubsystemNameValue(sub.name); }}
               className="p-1.5 hover:bg-app-bg text-app-muted hover:text-app-accent rounded-lg transition-colors"
@@ -8242,44 +8276,216 @@ export default function App() {
         )}
 
         {/* Delete Subsystem Custom Confirmation Modal */}
-        {deleteConfirmSubsystemId && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 15 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center"
-            >
-              <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
-                <Trash2 className="w-7 h-7" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Supprimer le sous-système ?' : 'Delete Subsystem?'}
-                </h3>
-                <p className="text-xs text-app-muted leading-relaxed">
-                  {lang === 'fr' 
-                    ? 'Voulez-vous supprimer ce sous-système ? Les sous-systèmes enfants et les alters associés seront rattachés au système parent supérieur.' 
-                    : 'Do you want to delete this subsystem? Child subsystems and associated alters will be attached to the parent system above.'}
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => executeDeleteSubsystem(deleteConfirmSubsystemId)}
-                  className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
-                >
-                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
-                </button>
-                <button
-                  onClick={() => setDeleteConfirmSubsystemId(null)}
-                  className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
-                >
-                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+        {deleteConfirmSubsystemId && (() => {
+          const subToDelete = subsystems.find(s => s.id === deleteConfirmSubsystemId);
+          const excludedIds = [deleteConfirmSubsystemId, ...getDescendantSubsystemIds(deleteConfirmSubsystemId)];
+          const availableDestinations = activeSystemSubsystems.filter(s => !excludedIds.includes(s.id));
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                className={`bg-app-card border border-app-border w-full rounded-3xl p-7 shadow-2xl space-y-6 text-center ${deleteSubsystemStep === 'move' ? 'max-w-md' : 'max-w-sm'}`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                  <Trash2 className="w-7 h-7" />
+                </div>
+
+                {deleteSubsystemStep === 'choose' ? (
+                  <>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Supprimer le sous-système ?' : 'Delete Subsystem?'}
+                      </h3>
+                      <p className="text-xs text-app-muted leading-relaxed">
+                        {lang === 'fr'
+                          ? `« ${subToDelete?.name} » — que veux-tu faire des fiches et sous-systèmes qu'il contient ?`
+                          : `"${subToDelete?.name}" — what do you want to do with the profiles and subsystems inside it?`}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => setDeleteSubsystemStep('move')}
+                        className="w-full py-3 bg-app-accent hover:opacity-90 text-app-accent-text font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                      >
+                        {lang === 'fr' ? 'Déplacer les fiches ailleurs' : 'Move profiles elsewhere'}
+                      </button>
+                      <button
+                        onClick={() => setDeleteSubsystemStep('confirmDestroy')}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                      >
+                        {lang === 'fr' ? 'Supprimer le dossier et son contenu' : 'Delete folder & its contents'}
+                      </button>
+                      <p className="text-[10px] text-red-500/80 leading-relaxed">
+                        {lang === 'fr'
+                          ? '⚠️ Cette option supprime définitivement les fiches à l\'intérieur.'
+                          : '⚠️ This permanently deletes the profiles inside.'}
+                      </p>
+                      <button
+                        onClick={() => { setDeleteConfirmSubsystemId(null); setDeleteSubsystemStep('choose'); }}
+                        className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      </button>
+                    </div>
+                  </>
+                ) : deleteSubsystemStep === 'confirmDestroy' ? (
+                  <>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-red-500">
+                        {lang === 'fr' ? 'Action irréversible' : 'Irreversible action'}
+                      </h3>
+                      <p className="text-xs text-app-muted leading-relaxed">
+                        {lang === 'fr' ? (
+                          <>Pour confirmer, tape le nom du sous-système <strong className="text-app-text">{subToDelete?.name}</strong> ci-dessous. Tout ce qu'il contient sera supprimé définitivement.</>
+                        ) : (
+                          <>To confirm, type the subsystem name <strong className="text-app-text">{subToDelete?.name}</strong> below. Everything inside will be permanently deleted.</>
+                        )}
+                      </p>
+                    </div>
+                    <input
+                      type="text"
+                      autoFocus
+                      value={destroySubsystemConfirmText}
+                      onChange={e => setDestroySubsystemConfirmText(e.target.value)}
+                      placeholder={subToDelete?.name || ''}
+                      className="w-full bg-app-bg border border-red-500/40 rounded-xl px-3 py-2.5 text-sm text-app-text text-center focus:outline-none focus:ring-2 focus:ring-red-500/20"
+                    />
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => executeDeleteSubsystem(deleteConfirmSubsystemId, 'destroy')}
+                        disabled={destroySubsystemConfirmText.trim().toLowerCase() !== (subToDelete?.name || '').trim().toLowerCase()}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                      >
+                        {lang === 'fr' ? 'Supprimer définitivement' : 'Permanently delete'}
+                      </button>
+                      <button
+                        onClick={() => { setDeleteSubsystemStep('choose'); setDestroySubsystemConfirmText(''); }}
+                        className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                      >
+                        {lang === 'fr' ? 'Retour' : 'Back'}
+                      </button>
+                    </div>
+                  </>
+                ) : (() => {
+                  const directAlters = savedAlters.filter(a => a.subsystemId === deleteConfirmSubsystemId);
+                  const allSelected = directAlters.length > 0 && directAlters.every(a => moveSubsystemSelectedIds.includes(a.id));
+
+                  const toggleSelected = (alterId: string) => {
+                    setMoveSubsystemSelectedIds(prev => prev.includes(alterId) ? prev.filter(id => id !== alterId) : [...prev, alterId]);
+                  };
+                  const toggleSelectAll = () => {
+                    setMoveSubsystemSelectedIds(allSelected ? [] : directAlters.map(a => a.id));
+                  };
+                  const applyBulkDestination = () => {
+                    if (moveSubsystemSelectedIds.length === 0) return;
+                    setMoveSubsystemAssignments(prev => {
+                      const next = { ...prev };
+                      moveSubsystemSelectedIds.forEach(id => { next[id] = moveSubsystemBulkDestination; });
+                      return next;
+                    });
+                    setMoveSubsystemSelectedIds([]);
+                  };
+
+                  return (
+                    <>
+                      <div className="space-y-2">
+                        <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                          {lang === 'fr' ? 'Déplacer les fiches vers…' : 'Move profiles to…'}
+                        </h3>
+                        <p className="text-xs text-app-muted leading-relaxed">
+                          {directAlters.length === 0
+                            ? (lang === 'fr'
+                              ? 'Aucune fiche directement dans ce sous-système. Les sous-systèmes enfants remonteront d\'un niveau.'
+                              : 'No profiles directly inside this subsystem. Child subsystems will move up one level.')
+                            : (lang === 'fr'
+                              ? 'Choisis une destination pour chaque fiche. Coche-en plusieurs pour leur assigner la même destination d\'un coup — pas obligatoire, tu peux aussi les régler une par une.'
+                              : 'Choose a destination for each profile. Check several to assign them the same destination at once — not required, you can also set them one by one.')}
+                        </p>
+                      </div>
+
+                      {directAlters.length > 0 && (
+                        <>
+                          {/* Assignation groupée facultative */}
+                          <div className="flex items-center gap-2 p-2.5 bg-app-bg border border-app-border/40 rounded-xl text-left">
+                            <input
+                              type="checkbox"
+                              checked={allSelected}
+                              onChange={toggleSelectAll}
+                              className="w-4 h-4 rounded accent-app-accent flex-shrink-0 cursor-pointer"
+                            />
+                            <select
+                              value={moveSubsystemBulkDestination}
+                              onChange={e => setMoveSubsystemBulkDestination(e.target.value)}
+                              className="flex-1 min-w-0 bg-app-card border border-app-border rounded-lg px-2 py-1.5 text-xs text-app-text focus:outline-none"
+                            >
+                              <option value="__main__">{lang === 'fr' ? '— Système principal —' : '— Main system —'}</option>
+                              {availableDestinations.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={applyBulkDestination}
+                              disabled={moveSubsystemSelectedIds.length === 0}
+                              className="px-2.5 py-1.5 bg-app-accent text-app-accent-text text-[9px] font-black uppercase tracking-wide rounded-lg disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
+                            >
+                              {lang === 'fr' ? 'Assigner' : 'Assign'}
+                            </button>
+                          </div>
+
+                          {/* Liste des fiches avec destination individuelle */}
+                          <div className="space-y-1.5 max-h-56 overflow-y-auto text-left pr-1">
+                            {directAlters.map(a => (
+                              <div key={a.id} className="flex items-center gap-2 p-2 bg-app-bg border border-app-border/30 rounded-xl">
+                                <input
+                                  type="checkbox"
+                                  checked={moveSubsystemSelectedIds.includes(a.id)}
+                                  onChange={() => toggleSelected(a.id)}
+                                  className="w-4 h-4 rounded accent-app-accent flex-shrink-0 cursor-pointer"
+                                />
+                                {a.profileImage
+                                  ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
+                                  : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName || '?').charAt(0)}</div>
+                                }
+                                <span className="text-xs font-bold text-app-text flex-shrink-0 max-w-[30%] truncate">{a.alterName}</span>
+                                <select
+                                  value={moveSubsystemAssignments[a.id] ?? '__main__'}
+                                  onChange={e => setMoveSubsystemAssignments(prev => ({ ...prev, [a.id]: e.target.value }))}
+                                  className="flex-1 min-w-0 bg-app-card border border-app-border rounded-lg px-2 py-1 text-[11px] text-app-text focus:outline-none"
+                                >
+                                  <option value="__main__">{lang === 'fr' ? '— Système principal —' : '— Main system —'}</option>
+                                  {availableDestinations.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )}
+
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => executeDeleteSubsystem(deleteConfirmSubsystemId, 'move', moveSubsystemAssignments)}
+                          className="w-full py-3 bg-app-accent hover:opacity-90 text-app-accent-text font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                        >
+                          {lang === 'fr' ? 'Confirmer et supprimer le sous-système' : 'Confirm & delete subsystem'}
+                        </button>
+                        <button
+                          onClick={() => setDeleteSubsystemStep('choose')}
+                          className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                        >
+                          {lang === 'fr' ? 'Retour' : 'Back'}
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </motion.div>
+            </div>
+          );
+        })()}
 
         {/* Load Alter Custom Confirmation Modal */}
         {loadConfirmAlter && (
