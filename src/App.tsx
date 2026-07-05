@@ -133,6 +133,7 @@ import {
   Tag,
   Hash,
   Pencil,
+  Check,
   Mail,
   Send,
   ChevronRight,
@@ -668,6 +669,9 @@ export default function App() {
   });
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
+  const [editingContactId, setEditingContactId] = useState<string | null>(null);
+  const [editContactName, setEditContactName] = useState('');
+  const [editContactPhone, setEditContactPhone] = useState('');
   const [settingsFontOpen, setSettingsFontOpen] = useState(false);
   const [settingsThemeOpen, setSettingsThemeOpen] = useState(false);
   const [settingsCustomThemeOpen, setSettingsCustomThemeOpen] = useState(false);
@@ -7518,26 +7522,82 @@ export default function App() {
                 {trustedContacts.length > 0 && (
                   <div className="space-y-2">
                     {trustedContacts.map(c => (
-                      <div key={c.id} className="flex items-center gap-3 p-3 bg-app-bg rounded-xl border border-app-border/30 group">
-                        <div className="w-8 h-8 rounded-full bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent font-black text-sm flex-shrink-0">
-                          {c.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-app-text truncate">{c.name}</p>
-                          <a
-                            href={"tel:" + c.phone}
-                            className="text-xs text-app-accent hover:underline font-mono"
-                            onClick={e => e.stopPropagation()}
-                          >
-                            {c.phone}
-                          </a>
-                        </div>
-                        <button
-                          onClick={() => setTrustedContacts(prev => prev.filter(x => x.id !== c.id))}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:text-red-500 text-app-muted rounded-lg"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                      <div key={c.id} className="flex items-center gap-3 p-3 bg-app-bg rounded-xl border border-app-border/30">
+                        {editingContactId === c.id ? (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent font-black text-sm flex-shrink-0">
+                              {(editContactName || c.name).charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0 flex flex-col sm:flex-row gap-2">
+                              <input
+                                type="text"
+                                value={editContactName}
+                                onChange={e => setEditContactName(e.target.value)}
+                                placeholder={lang === 'fr' ? "Nom" : "Name"}
+                                className="flex-1 min-w-0 bg-app-card border border-app-border/40 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                              />
+                              <input
+                                type="tel"
+                                value={editContactPhone}
+                                onChange={e => setEditContactPhone(e.target.value)}
+                                placeholder={lang === 'fr' ? "Téléphone" : "Phone"}
+                                className="flex-1 min-w-0 bg-app-card border border-app-border/40 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (!editContactName.trim() || !editContactPhone.trim()) return;
+                                setTrustedContacts(prev => prev.map(x => x.id === c.id ? { ...x, name: editContactName.trim(), phone: editContactPhone.trim() } : x));
+                                setEditingContactId(null);
+                              }}
+                              className="p-2 hover:text-emerald-500 text-app-muted rounded-lg flex-shrink-0"
+                              title={lang === 'fr' ? "Enregistrer" : "Save"}
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setEditingContactId(null)}
+                              className="p-2 hover:text-red-500 text-app-muted rounded-lg flex-shrink-0"
+                              title={lang === 'fr' ? "Annuler" : "Cancel"}
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <div className="w-8 h-8 rounded-full bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent font-black text-sm flex-shrink-0">
+                              {c.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-app-text truncate">{c.name}</p>
+                              <a
+                                href={"tel:" + c.phone}
+                                className="text-xs text-app-accent hover:underline font-mono"
+                                onClick={e => e.stopPropagation()}
+                              >
+                                {c.phone}
+                              </a>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setEditingContactId(c.id);
+                                setEditContactName(c.name);
+                                setEditContactPhone(c.phone);
+                              }}
+                              className="p-2 hover:text-app-accent text-app-muted rounded-lg flex-shrink-0"
+                              title={lang === 'fr' ? "Modifier" : "Edit"}
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setTrustedContacts(prev => prev.filter(x => x.id !== c.id))}
+                              className="p-2 hover:text-red-500 text-app-muted rounded-lg flex-shrink-0"
+                              title={lang === 'fr' ? "Supprimer" : "Delete"}
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>
