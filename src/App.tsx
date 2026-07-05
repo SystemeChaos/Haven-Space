@@ -1,4 +1,3 @@
-
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1778,7 +1777,7 @@ export default function App() {
   };
 
   // --- DID System Management Handlers ---
-  const [openGroundingSections, setOpenGroundingSections] = useState<string[]>(['move']);
+  const [openGroundingSections, setOpenGroundingSections] = useState<string[]>([]);
 
   // ─── Bouton retour mobile ────────────────────────────────────────────────────
   useEffect(() => {
