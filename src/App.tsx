@@ -4939,40 +4939,66 @@ export default function App() {
                 })}
               </div>
 
-              {/* Alters en front actuellement */}
-              {savedAlters.filter(a => ['primary','co_front','co_conscious','blend'].includes(a.frontStatus||'') && !a.archived).length > 0 && (
-                <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                    {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {savedAlters.filter(a => ['primary','co_front','co_conscious','blend'].includes(a.frontStatus||'') && !a.archived).map(a => (
-                      <div
-                        key={a.id}
-                        className="flex items-center gap-1 bg-app-bg border border-app-border/40 rounded-full pl-1 pr-1 py-1 text-xs font-bold"
-                      >
-                        <button
-                          onClick={() => setCurrentTab('system')}
-                          className="flex items-center gap-2 pl-1.5 pr-2 py-0.5 rounded-full hover:bg-app-accent/10 transition-colors"
-                        >
-                          {a.profileImage
-                            ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover" alt="" />
-                            : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent">{(a.alterName||'?').charAt(0)}</div>
-                          }
-                          <span className="text-app-text">{a.alterName}</span>
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFromFront(a.id)}
-                          title={lang === 'fr' ? 'Retirer du front' : 'Remove from front'}
-                          className="w-5 h-5 rounded-full flex items-center justify-center text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+              {/* Alters en front actuellement, groupés par statut */}
+              {(() => {
+                const frontGroups: { status: string; label: string; colorClass: string; gradient?: string }[] = [
+                  { status: 'primary', label: t.frontStatuses.primary, colorClass: 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' },
+                  { status: 'co_front', label: t.frontStatuses.co_front, colorClass: 'text-sky-500 border-sky-500/30 bg-sky-500/10' },
+                  { status: 'co_conscious', label: t.frontStatuses.co_conscious, colorClass: 'text-violet-500 border-violet-500/30 bg-violet-500/10' },
+                  { status: 'blend', label: t.frontStatuses.blend, colorClass: 'text-fuchsia-500 border-fuchsia-500/30', gradient: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' },
+                ];
+                const groupsWithMembers = frontGroups
+                  .map(g => ({ ...g, members: savedAlters.filter(a => a.frontStatus === g.status && !a.archived) }))
+                  .filter(g => g.members.length > 0);
+
+                if (groupsWithMembers.length === 0) return null;
+
+                return (
+                  <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                      {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
+                    </p>
+                    <div className="space-y-3">
+                      {groupsWithMembers.map(g => (
+                        <div key={g.status} className="space-y-1.5">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide border ${g.colorClass}`}
+                            style={g.gradient ? { background: g.gradient } : undefined}
+                          >
+                            {g.label}
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {g.members.map(a => (
+                              <div
+                                key={a.id}
+                                className="flex items-center gap-1 bg-app-bg border border-app-border/40 rounded-full pl-1 pr-1 py-1 text-xs font-bold"
+                              >
+                                <button
+                                  onClick={() => setCurrentTab('system')}
+                                  className="flex items-center gap-2 pl-1.5 pr-2 py-0.5 rounded-full hover:bg-app-accent/10 transition-colors"
+                                >
+                                  {a.profileImage
+                                    ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover" alt="" />
+                                    : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent">{(a.alterName||'?').charAt(0)}</div>
+                                  }
+                                  <span className="text-app-text">{a.alterName}</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRemoveFromFront(a.id)}
+                                  title={lang === 'fr' ? 'Retirer du front' : 'Remove from front'}
+                                  className="w-5 h-5 rounded-full flex items-center justify-center text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         })()}
