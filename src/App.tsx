@@ -3425,10 +3425,10 @@ export default function App() {
             <div className="relative">
               <button
                 onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-                className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-[#273F4F] rounded-full transition-all text-[#273F4F] shadow-sm flex items-center justify-center cursor-pointer"
+                className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-app-text rounded-full transition-all text-app-text shadow-sm flex items-center justify-center cursor-pointer"
                 title={lang === 'fr' ? 'Paramètres' : 'Settings'}
               >
-                <Settings2 className={`w-5 h-5 text-[#273F4F] transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
+                <Settings2 className={`w-5 h-5 text-app-text transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
               </button>
 
               <AnimatePresence>
@@ -3771,9 +3771,9 @@ export default function App() {
                     setCurrentTab('home');
                   }
                 }}
-                className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-[#273F4F] hover:border-app-accent/40 active:scale-95 transition-all shadow-md select-none"
+                className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-card border border-app-border text-xs font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 active:scale-95 transition-all shadow-md select-none"
               >
-                <ChevronRight className="w-4 h-4 text-[#273F4F] rotate-180" />
+                <ChevronRight className="w-4 h-4 text-app-text rotate-180" />
                 <span>
                   {currentTab === 'creator' && creatorReturnTab
                     ? (lang === 'fr' ? 'Retour' : 'Back')
@@ -3789,10 +3789,10 @@ export default function App() {
           </div>
 
           {/* Nombre d'Alter count element */}
-          <div className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-app-card/60 border border-app-border/30 text-xs font-semibold select-none text-[#273F4F]">
-            <Users className="w-3.5 h-3.5 text-[#273F4F]" />
-            <span className="text-[#273F4F]/75 uppercase tracking-widest text-[9px] font-black">{t.altersCount}</span>
-            <span className="font-black text-[#273F4F] text-sm leading-none">{savedAlters.length}</span>
+          <div className="flex items-center gap-2.5 px-4.5 py-2.5 rounded-xl bg-app-card/60 border border-app-border/30 text-xs font-semibold select-none text-app-text">
+            <Users className="w-3.5 h-3.5 text-app-text" />
+            <span className="text-app-text/75 uppercase tracking-widest text-[9px] font-black">{t.altersCount}</span>
+            <span className="font-black text-app-text text-sm leading-none">{savedAlters.length}</span>
           </div>
         </div>
       </div>
@@ -5260,7 +5260,6 @@ export default function App() {
               {/* Filtre par tags personnalisés */}
               {(() => {
                 const allTags = Array.from(new Set(savedAlters.flatMap(a => a.tags || []))).sort((a, b) => a.localeCompare(b, lang));
-                if (allTags.length === 0) return null;
                 return (
                   <div className="space-y-2">
                     <div className="relative">
@@ -6295,8 +6294,8 @@ export default function App() {
                     onClick={() => setShowPollCreator(!showPollCreator)}
                     className={`flex items-center gap-2 px-4.5 py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all cursor-pointer ${
                       showPollCreator 
-                        ? 'bg-[#273F4F] text-white border-transparent' 
-                        : 'bg-app-bg/50 border-app-border hover:bg-app-bg text-[#273F4F]'
+                        ? 'bg-app-accent text-white border-transparent' 
+                        : 'bg-app-bg/50 border-app-border hover:bg-app-bg text-app-text'
                     }`}
                     title={lang === 'fr' ? 'Créer un sondage' : 'Create a poll'}
                   >
