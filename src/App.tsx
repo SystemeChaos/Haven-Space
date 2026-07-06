@@ -653,6 +653,8 @@ export default function App() {
   const [switchSelectedAlterIds, setSwitchSelectedAlterIds] = useState<string[]>([]);
   const [switchAlterSearch, setSwitchAlterSearch] = useState('');
   const [switchSelectedStatus, setSwitchSelectedStatus] = useState<string>('co_front');
+  // État global "le système est en flou/blend" — pas lié à un alter précis, donc distinct du frontStatus par alter.
+  const [systemInBlend, setSystemInBlend] = useState<boolean>(() => localStorage.getItem('hs-system-blend') === 'true');
   const [switchRetroDate, setSwitchRetroDate] = useState<string>('');
   const [switchEndDate, setSwitchEndDate] = useState<string>('');
   const [switchNotes, setSwitchNotes] = useState('');
@@ -898,6 +900,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('activeSystemId', activeSystemId);
   }, [activeSystemId]);
+
+  useEffect(() => {
+    localStorage.setItem('hs-system-blend', String(systemInBlend));
+  }, [systemInBlend]);
 
   // Recharge les relations du mapping : au changement de système, et à chaque retour
   // sur un onglet affichant des fiches, pour refléter les modifs faites depuis l'onglet Mapping.
@@ -2354,6 +2360,7 @@ export default function App() {
     const alterNames = switchSelectedAlterIds.map(id => savedAlters.find(a => a.id === id)?.alterName || id);
     const firstAvatar = savedAlters.find(a => a.id === switchSelectedAlterIds[0])?.profileImage;
     fireSwitchNotifications(alterNames, switchSelectedStatus, firstAvatar);
+    setSystemInBlend(false); // des alters précis sont identifiés au front : le flou est levé
 
     // Clear form inputs
     setSwitchSelectedAlterIds([]);
@@ -2382,6 +2389,7 @@ export default function App() {
 
     setSwitchLogs(prev => [newLog, ...prev].sort((a, b) => b.timestamp - a.timestamp));
     fireSwitchNotifications([lang === 'fr' ? 'Flou / Blend' : 'Blur / Blend'], 'blend', undefined);
+    setSystemInBlend(true);
 
     // Clear form inputs
     setSwitchSelectedAlterIds([]);
@@ -5063,17 +5071,16 @@ export default function App() {
 
               {/* Alters en front actuellement, groupés par statut */}
               {(() => {
-                const frontGroups: { status: string; label: string; colorClass: string; gradient?: string }[] = [
+                const frontGroups: { status: string; label: string; colorClass: string }[] = [
                   { status: 'primary', label: t.frontStatuses.primary, colorClass: 'text-emerald-500 border-emerald-500/30 bg-emerald-500/10' },
                   { status: 'co_front', label: t.frontStatuses.co_front, colorClass: 'text-sky-500 border-sky-500/30 bg-sky-500/10' },
                   { status: 'co_conscious', label: t.frontStatuses.co_conscious, colorClass: 'text-violet-500 border-violet-500/30 bg-violet-500/10' },
-                  { status: 'blend', label: t.frontStatuses.blend, colorClass: 'text-fuchsia-500 border-fuchsia-500/30', gradient: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' },
                 ];
                 const groupsWithMembers = frontGroups
                   .map(g => ({ ...g, members: savedAlters.filter(a => a.frontStatus === g.status && !a.archived) }))
                   .filter(g => g.members.length > 0);
 
-                if (groupsWithMembers.length === 0) return null;
+                if (groupsWithMembers.length === 0 && !systemInBlend) return null;
 
                 return (
                   <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
@@ -5081,11 +5088,36 @@ export default function App() {
                       {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
                     </p>
                     <div className="space-y-3">
+                      {/* Indicateur système "Flou / Blend" — état global, pas lié à un alter précis */}
+                      {systemInBlend && (
+                        <div className="space-y-1.5">
+                          <span
+                            className="inline-block px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide border text-fuchsia-500 border-fuchsia-500/30"
+                            style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' }}
+                          >
+                            {t.frontStatuses.blend}
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            <div
+                              className="flex items-center gap-2 border rounded-full pl-3 pr-1 py-1 text-xs font-bold text-fuchsia-500 border-fuchsia-500/30"
+                              style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(236,72,153,0.08), rgba(99,102,241,0.08))' }}
+                            >
+                              <span>✦ {lang === 'fr' ? 'Système en flou' : 'System in blend'}</span>
+                              <button
+                                onClick={() => setSystemInBlend(false)}
+                                title={lang === 'fr' ? 'Sortir du flou' : 'Exit blend'}
+                                className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-fuchsia-500/10 transition-colors flex-shrink-0"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {groupsWithMembers.map(g => (
                         <div key={g.status} className="space-y-1.5">
                           <span
                             className={`inline-block px-2 py-0.5 rounded text-[9px] font-extrabold uppercase tracking-wide border ${g.colorClass}`}
-                            style={g.gradient ? { background: g.gradient } : undefined}
                           >
                             {g.label}
                           </span>
@@ -6378,7 +6410,7 @@ export default function App() {
                       <span>{t.frontStatusLabel}</span>
                     </label>
                     <div className="grid grid-cols-2 gap-2.5">
-                      {sortedFrontStatusKeys.map((statusKey) => (
+                      {sortedFrontStatusKeys.filter(k => k !== 'blend').map((statusKey) => (
                         <button
                           key={statusKey}
                           type="button"
