@@ -2364,6 +2364,34 @@ export default function App() {
     setSwitchMoods([]);
   };
 
+  // Log direct d'un switch "Flou / Blend" sans nécessiter de sélectionner d'alter précis —
+  // le flou représente justement l'absence d'identité claire au front à ce moment-là.
+  const handleLogBlendSwitch = () => {
+    const finalTimestamp = switchRetroDate ? new Date(switchRetroDate).getTime() : Date.now();
+    const finalEndTimestamp = switchEndDate ? new Date(switchEndDate).getTime() : undefined;
+    const newLog: SwitchLog = {
+      id: Math.random().toString(36).substring(2, 11),
+      alterIds: [],
+      timestamp: finalTimestamp,
+      endTimestamp: finalEndTimestamp,
+      notes: switchNotes.trim() || undefined,
+      status: 'blend',
+      spoons: switchSpoons,
+      moods: switchMoods.length > 0 ? switchMoods : undefined,
+    };
+
+    setSwitchLogs(prev => [newLog, ...prev].sort((a, b) => b.timestamp - a.timestamp));
+    fireSwitchNotifications([lang === 'fr' ? 'Flou / Blend' : 'Blur / Blend'], 'blend', undefined);
+
+    // Clear form inputs
+    setSwitchSelectedAlterIds([]);
+    setSwitchRetroDate('');
+    setSwitchEndDate('');
+    setSwitchNotes('');
+    setSwitchSpoons(12);
+    setSwitchMoods([]);
+  };
+
   const handleDeleteSwitchLog = (logId: string) => {
     setDeleteConfirmSwitchLogId(logId);
   };
@@ -4726,9 +4754,14 @@ export default function App() {
                           </div>
                           <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 space-y-1.5">
                             {customFields.filter(f => f.label || f.value).map(f => (
-                              <div key={f.id} className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted shrink-0 max-w-[5rem] truncate">{f.label || '-'}</span>
-                                <span className="text-app-text/85">{f.value}</span>
+                              <div key={f.id} className="flex items-start gap-2 text-[10px]">
+                                <span
+                                  className="font-black uppercase tracking-widest text-app-muted shrink-0"
+                                  style={{ maxWidth: '5rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                                >
+                                  {f.label || '-'}
+                                </span>
+                                <span className="text-app-text/85 flex-1 min-w-0 break-words">{f.value}</span>
                               </div>
                             ))}
                           </div>
@@ -6362,6 +6395,14 @@ export default function App() {
                         </button>
                       ))}
                     </div>
+                    <button
+                      type="button"
+                      onClick={handleLogBlendSwitch}
+                      className="w-full py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-fuchsia-500/30 text-fuchsia-500 hover:opacity-80 active:scale-95 text-center select-none"
+                      style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' }}
+                    >
+                      {lang === 'fr' ? '✦ Flou / Blend — sans sélectionner personne' : '✦ Blur / Blend — without selecting anyone'}
+                    </button>
                   </div>
 
                   {/* Retro-dating input field */}
