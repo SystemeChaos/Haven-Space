@@ -2509,24 +2509,24 @@ export default function App() {
     return (
       <div key={alter.id} className="w-full bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
         {/* Version mobile — liste compacte style Simply Plural */}
-        <div className="flex md:hidden items-center gap-3 w-full px-3 py-3">
+        <div className="flex md:hidden items-center gap-2.5 w-full px-3 py-2">
           {alter.profileImage ? (
-            <img src={alter.profileImage} alt={alter.alterName} className="w-12 h-12 rounded-full object-cover shrink-0 border-2 border-app-border/30" referrerPolicy="no-referrer" />
+            <img src={alter.profileImage} alt={alter.alterName} className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-app-border/30" referrerPolicy="no-referrer" />
           ) : (
-            <div className="w-12 h-12 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-sm">
+            <div className="w-10 h-10 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-xs">
               {alter.alterName.slice(0, 2).toUpperCase()}
             </div>
           )}
           <div className="flex-1 overflow-hidden">
-            <span className="font-bold text-base text-app-text block overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
+            <span className="font-bold text-sm text-app-text block overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
             {alter.selectedRoles?.length > 0 && (
-              <span className="text-xs text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
+              <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
                 {t.roleNames[alter.selectedRoles[0] as keyof typeof t.roleNames] || alter.selectedRoles[0]}
                 {alter.selectedRoles.length > 1 && ` +${alter.selectedRoles.length - 1}`}
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {alter.frontStatus && alter.frontStatus !== 'none' && (
               <div
                 className={`w-2 h-2 rounded-full shrink-0 ${
@@ -2539,16 +2539,16 @@ export default function App() {
                 style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, #a855f7, #ec4899, #6366f1)' } : undefined}
               />
             )}
-            <button onClick={() => handleLoadAlter(alter)} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
+            <button onClick={() => handleLoadAlter(alter)} className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
               {lang === 'fr' ? 'Charger' : 'Load'}
             </button>
             <button onClick={() => setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a))}
-              className="p-1.5 text-app-muted hover:text-amber-500 transition-colors shrink-0"
+              className="p-1 text-app-muted hover:text-amber-500 transition-colors shrink-0"
               title={alter.archived ? (lang === 'fr' ? 'Desarchiver' : 'Unarchive') : (lang === 'fr' ? 'Archiver' : 'Archive')}>
-              <Archive className="w-4 h-4" />
+              <Archive className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => handleDeleteAlter(alter.id)} className="p-1.5 text-app-muted hover:text-red-400 transition-colors shrink-0">
-              <Trash2 className="w-4 h-4" />
+            <button onClick={() => handleDeleteAlter(alter.id)} className="p-1 text-app-muted hover:text-red-400 transition-colors shrink-0">
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -5177,7 +5177,7 @@ export default function App() {
                     value={systemSearch}
                     onChange={e => setSystemSearch(e.target.value)}
                     placeholder={lang === 'fr' ? 'Rechercher...' : 'Search...'}
-                    className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-48"
+                    className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-48 text-app-text placeholder:text-app-muted"
                   />
                   {systemSearch && (
                     <button onClick={() => setSystemSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-app-muted hover:text-app-text">
@@ -5217,7 +5217,7 @@ export default function App() {
                       if (e.key === 'Escape') { setRoleFilterInput(''); setRoleFilterSuggestions([]); }
                     }}
                     placeholder={lang === 'fr' ? 'Filtrer par rôle...' : 'Filter by role...'}
-                    className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full"
+                    className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full text-app-text placeholder:text-app-muted"
                   />
                   {/* Suggestions */}
                   {roleFilterSuggestions.length > 0 && (
@@ -5290,7 +5290,7 @@ export default function App() {
                           if (e.key === 'Escape') { setTagFilterInput(''); setTagFilterSuggestions([]); }
                         }}
                         placeholder={lang === 'fr' ? 'Filtrer par tags...' : 'Filter by tags...'}
-                        className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full"
+                        className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full text-app-text placeholder:text-app-muted"
                       />
                       {/* Suggestions */}
                       {tagFilterSuggestions.length > 0 && (
