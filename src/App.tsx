@@ -558,6 +558,9 @@ export default function App() {
   const [roleFilter, setRoleFilter] = useState<string[]>([]);
   const [roleFilterInput, setRoleFilterInput] = useState('');
   const [roleFilterSuggestions, setRoleFilterSuggestions] = useState<string[]>([]);
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [tagFilterInput, setTagFilterInput] = useState('');
+  const [tagFilterSuggestions, setTagFilterSuggestions] = useState<string[]>([]);
   const t = translations[lang];
 
   const sortedFrontStatusKeys = Object.keys(t.frontStatuses).sort((a, b) => {
@@ -610,6 +613,8 @@ export default function App() {
   const [triggersNegative, setTriggersNegative] = useState('');
   const [alterLanguages, setAlterLanguages] = useState('');
   const [alterOriginWorld, setAlterOriginWorld] = useState('');
+  const [alterTags, setAlterTags] = useState<string[]>([]);
+  const [alterTagInput, setAlterTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [frontStatus, setFrontStatus] = useState<string>('none');
   const [mainSystemName, setMainSystemName] = useState<string>(() => {
@@ -1953,6 +1958,7 @@ export default function App() {
       triggersNegative: triggersNegative || undefined,
       alterLanguages: alterLanguages || undefined,
       alterOriginWorld: alterOriginWorld || undefined,
+      tags: alterTags.length > 0 ? alterTags : undefined,
       customFields: customFields.length > 0 ? customFields : undefined,
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
@@ -1992,6 +1998,7 @@ export default function App() {
     setTriggersNegative(alter.triggersNegative || '');
     setAlterLanguages(alter.alterLanguages || '');
     setAlterOriginWorld(alter.alterOriginWorld || '');
+    setAlterTags(alter.tags || []);
     setCustomFields(alter.customFields || []);
     setFrontStatus(alter.frontStatus || 'none');
     setEditingAlterId(alter.id);
@@ -2031,6 +2038,8 @@ export default function App() {
     setTriggersNegative('');
     setAlterLanguages('');
     setAlterOriginWorld('');
+    setAlterTags([]);
+    setAlterTagInput('');
     setCustomFields([]);
     setFrontStatus('none');
     setEditingAlterId(null);
@@ -3914,6 +3923,40 @@ export default function App() {
                     placeholder={lang === 'fr' ? 'Fictif ou factif' : 'Fictitious or factual'}
                     className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                 </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Tags personnalisés' : 'Custom tags'}</label>
+                  <input
+                    type="text"
+                    value={alterTagInput}
+                    onChange={e => setAlterTagInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = alterTagInput.trim();
+                        if (val && !alterTags.some(t2 => t2.toLowerCase() === val.toLowerCase())) {
+                          setAlterTags(prev => [...prev, val]);
+                        }
+                        setAlterTagInput('');
+                      }
+                    }}
+                    placeholder={lang === 'fr' ? 'Tape un tag et appuie sur Entrée...' : 'Type a tag and press Enter...'}
+                    className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted"
+                  />
+                  {alterTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {alterTags.map(t2 => (
+                        <button
+                          key={t2}
+                          onClick={() => setAlterTags(prev => prev.filter(x => x !== t2))}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border border-app-accent/30 bg-app-accent/10 text-app-accent hover:opacity-70 transition-opacity"
+                        >
+                          {t2}
+                          <X className="w-2.5 h-2.5" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </section>
@@ -4521,7 +4564,7 @@ export default function App() {
                       
                       {/* Fallback Empty State / Placeholder */}
                       {/* Champs predéfinis dans la preview */}
-                      {(alterAge || alterColor || triggersPositive || triggersNegative || alterLanguages || alterOriginWorld) && (
+                      {(alterAge || alterColor || triggersPositive || triggersNegative || alterLanguages || alterOriginWorld || alterTags.length > 0) && (
                         <div className="space-y-1.5">
                           <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
                             {lang === 'fr' ? 'Informations' : 'Information'}
@@ -4568,6 +4611,18 @@ export default function App() {
                               <div className="flex items-center gap-2 text-[10px]">
                                 <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Source' : 'Source'}</span>
                                 <span className="text-app-text/85">{alterOriginWorld}</span>
+                              </div>
+                            )}
+                            {alterTags.length > 0 && (
+                              <div className="flex items-start gap-2 text-[10px]">
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0 pt-0.5">{lang === 'fr' ? 'Tags' : 'Tags'}</span>
+                                <div className="flex flex-wrap gap-1">
+                                  {alterTags.map(t2 => (
+                                    <span key={t2} className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide border border-app-accent/30 bg-app-accent/10 text-app-accent">
+                                      {t2}
+                                    </span>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -5137,7 +5192,80 @@ export default function App() {
                 )}
               </div>
 
-              {/* Reset or Save active alter triggers */}
+              {/* Filtre par tags personnalisés */}
+              {(() => {
+                const allTags = Array.from(new Set(savedAlters.flatMap(a => a.tags || []))).sort((a, b) => a.localeCompare(b, lang));
+                if (allTags.length === 0) return null;
+                return (
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
+                      <input
+                        type="text"
+                        value={tagFilterInput}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setTagFilterInput(val);
+                          if (val.trim().length > 0) {
+                            const query = val.toLowerCase();
+                            const suggestions = allTags
+                              .filter(tg => !tagFilter.includes(tg))
+                              .filter(tg => tg.toLowerCase().includes(query))
+                              .slice(0, 6);
+                            setTagFilterSuggestions(suggestions);
+                          } else {
+                            setTagFilterSuggestions([]);
+                          }
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' && tagFilterSuggestions.length > 0) {
+                            setTagFilter(prev => [...prev, tagFilterSuggestions[0]]);
+                            setTagFilterInput('');
+                            setTagFilterSuggestions([]);
+                          }
+                          if (e.key === 'Escape') { setTagFilterInput(''); setTagFilterSuggestions([]); }
+                        }}
+                        placeholder={lang === 'fr' ? 'Filtrer par tags...' : 'Filter by tags...'}
+                        className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full"
+                      />
+                      {/* Suggestions */}
+                      {tagFilterSuggestions.length > 0 && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-app-card border border-app-border/40 rounded-xl shadow-lg z-20 overflow-hidden">
+                          {tagFilterSuggestions.map(tg => (
+                            <button
+                              key={tg}
+                              onClick={() => { setTagFilter(prev => [...prev, tg]); setTagFilterInput(''); setTagFilterSuggestions([]); }}
+                              className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-app-bg flex items-center gap-2 transition-colors"
+                            >
+                              <Tag className="w-3 h-3 text-app-accent flex-shrink-0" />
+                              {tg}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {/* Tags actifs */}
+                    {tagFilter.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Tags :' : 'Tags:'}</span>
+                        {tagFilter.map(tg => (
+                          <button
+                            key={tg}
+                            onClick={() => setTagFilter(prev => prev.filter(x => x !== tg))}
+                            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border border-app-accent/30 bg-app-accent/10 text-app-accent transition-colors hover:opacity-70"
+                          >
+                            {tg}
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        ))}
+                        <button onClick={() => setTagFilter([])} className="text-[10px] text-app-muted hover:text-app-text font-bold underline underline-offset-2 transition-colors">
+                          {lang === 'fr' ? 'Tout effacer' : 'Clear all'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   onClick={handleResetCreator}
@@ -5159,7 +5287,7 @@ export default function App() {
                 const subAlters = savedAlters
                   .filter(a => a.subsystemId === activeSubsystemView && !a.archived
                     && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase()))
-                    && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole)))
+                    && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg)))
                   )
                   .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
                 return (
@@ -5263,13 +5391,13 @@ export default function App() {
                             <div className="flex-1">
                               <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
                                 {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))))
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                                   .map(a => renderAlterCard(a))}
                               </div>
                               <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))))
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                                   .map(a => renderAlterCard(a))}
                               </div>

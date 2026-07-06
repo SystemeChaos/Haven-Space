@@ -610,6 +610,7 @@ export interface SavedAlter {
   birthday?: string;
   pkColor?: string;
   systemId?: string; // 'main' ou id d'un système parallèle
+  tags?: string[]; // tags personnalisés libres, en plus des rôles fixes
 }
 
 export interface PollOption {
