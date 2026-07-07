@@ -839,6 +839,11 @@ export default function App() {
   const [convSearchOpen, setConvSearchOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
   const [msgSenderId, setMsgSenderId] = useState<string>('');
+  // Suivi des messages "lus" par conversation (dernier message vu depuis le point de vue du destinataire)
+  const [lastSeenMsgIdByConv, setLastSeenMsgIdByConv] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-dm-last-seen') || '{}'); } catch { return {}; }
+  });
+  const [dmToast, setDmToast] = useState<{ id: string; convId: string; recipientId: string; recipientName: string; recipientAvatar?: string; senderName: string } | null>(null);
   const [showNewConvPanel, setShowNewConvPanel] = useState(false);
   const [newConvAlter1, setNewConvAlter1] = useState<string>('');
   const [newConvAlter2, setNewConvAlter2] = useState<string>('');
@@ -936,6 +941,54 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('hs-direct-messages', JSON.stringify(directMessages));
   }, [directMessages]);
+
+  useEffect(() => {
+    localStorage.setItem('hs-dm-last-seen', JSON.stringify(lastSeenMsgIdByConv));
+  }, [lastSeenMsgIdByConv]);
+
+  // Marque le dernier message d'une conversation comme "lu" uniquement quand l'alter sélectionné
+  // comme "Qui écrit" est le destinataire de ce message (donc pas l'expéditeur) — comme si on
+  // "devenait" cet alter et qu'on prenait connaissance du message qui lui est adressé.
+  useEffect(() => {
+    if (currentTab === 'messaging' && activeConvId && msgSenderId) {
+      const lastMsg = directMessages.filter(m => m.conversationId === activeConvId).at(-1);
+      if (lastMsg && lastMsg.senderAlterId !== msgSenderId) {
+        setLastSeenMsgIdByConv(prev => prev[activeConvId] === lastMsg.id ? prev : { ...prev, [activeConvId]: lastMsg.id });
+      }
+    }
+  }, [currentTab, activeConvId, msgSenderId, directMessages]);
+
+  // Détecte un message pas encore "lu" sur une conversation qu'on ne regarde pas actuellement,
+  // et déclenche un toast de notification.
+  useEffect(() => {
+    if (directMessages.length === 0) return;
+    const latest = [...directMessages].sort((a, b) => b.timestamp - a.timestamp)[0];
+    const isCurrentlyViewing = currentTab === 'messaging' && activeConvId === latest.conversationId;
+    const alreadySeen = lastSeenMsgIdByConv[latest.conversationId] === latest.id;
+    if (isCurrentlyViewing || alreadySeen) return;
+    if (dmToast?.id === latest.id) return;
+    const conv = conversations.find(c => c.id === latest.conversationId);
+    if (!conv) return;
+    const recipientId = conv.participantIds.find(id => id !== latest.senderAlterId);
+    const sender = savedAlters.find(a => a.id === latest.senderAlterId);
+    const recipient = savedAlters.find(a => a.id === recipientId);
+    if (!sender || !recipient) return;
+    setDmToast({
+      id: latest.id,
+      convId: conv.id,
+      recipientId: recipient.id,
+      recipientName: recipient.alterName,
+      recipientAvatar: recipient.profileImage,
+      senderName: sender.alterName,
+    });
+  }, [directMessages, currentTab, activeConvId, lastSeenMsgIdByConv]);
+
+  // Fait disparaître le toast automatiquement après quelques secondes
+  useEffect(() => {
+    if (!dmToast) return;
+    const timer = setTimeout(() => setDmToast(null), 7000);
+    return () => clearTimeout(timer);
+  }, [dmToast]);
 
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
@@ -8371,6 +8424,45 @@ export default function App() {
           </div>
         </div>
       </footer>
+      {/* DM Toast Notification — message reçu sur une conversation qu'on ne regarde pas */}
+      <AnimatePresence>
+        {dmToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-4 right-4 z-[100] max-w-xs"
+          >
+            <button
+              onClick={() => {
+                setCurrentTab('messaging');
+                setActiveConvId(dmToast.convId);
+                setMsgSenderId(dmToast.recipientId);
+                setDmToast(null);
+              }}
+              className="w-full flex items-center gap-3 p-3.5 bg-app-card border border-app-accent/30 rounded-2xl shadow-xl hover:border-app-accent/60 transition-colors text-left"
+            >
+              {dmToast.recipientAvatar
+                ? <img src={dmToast.recipientAvatar} className="w-10 h-10 rounded-full object-cover flex-shrink-0" alt="" />
+                : <div className="w-10 h-10 rounded-full bg-app-accent/20 flex items-center justify-center text-sm font-black text-app-accent flex-shrink-0">{(dmToast.recipientName || '?').charAt(0)}</div>
+              }
+              <span className="flex-1 text-xs font-semibold text-app-text leading-snug">
+                <strong className="font-black">{dmToast.recipientName}</strong>
+                {lang === 'fr' ? ', ' : ', '}
+                <strong className="font-black">{dmToast.senderName}</strong>
+                {lang === 'fr' ? ' t\'a envoyé un message !' : ' sent you a message!'}
+              </span>
+              <span
+                onClick={e => { e.stopPropagation(); setDmToast(null); }}
+                className="text-app-muted hover:text-app-text transition-colors flex-shrink-0 p-1"
+              >
+                <X className="w-3.5 h-3.5" />
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Save Conflict Resolution Modal */}
       <AnimatePresence>
         {saveConflictAlter && (
