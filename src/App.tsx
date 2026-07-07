@@ -8325,13 +8325,13 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-app-border py-12 px-8 mt-20">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+      <footer className="border-t border-app-border py-12 px-4 sm:px-8 mt-20">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6 md:gap-8">
           <div className="flex items-center gap-2 text-app-muted">
             <User className="w-4 h-4" />
             <span className="text-xs font-bold uppercase tracking-widest">{t.copyright}</span>
           </div>
-          <div className="flex gap-8 text-xs font-bold uppercase tracking-widest text-app-muted">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 sm:gap-x-8 text-xs font-bold uppercase tracking-widest text-app-muted">
             <button
               onClick={() => {
                 setActiveLegalPage('guide');
