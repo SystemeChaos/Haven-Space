@@ -1677,20 +1677,29 @@ export default function App() {
       node.style.overflow = 'visible';
       node.style.height = 'auto';
 
-      // Sauvegarder/libérer overflow des descendants
+      // Sauvegarder/libérer overflow des descendants — sauf ceux qui tronquent intentionnellement
+      // du texte avec des "..." (ellipsis), pour ne pas les laisser s'étaler hors de leur largeur prévue.
       const savedOverflow: string[] = [];
       const savedMaxHeight: string[] = [];
       const allEls = Array.from(node.querySelectorAll<HTMLElement>('*'));
       allEls.forEach(el => {
         savedOverflow.push(el.style.overflow);
         savedMaxHeight.push(el.style.maxHeight);
-        el.style.overflow = 'visible';
+        const computed = window.getComputedStyle(el);
+        const hasEllipsisTruncation = computed.textOverflow === 'ellipsis' || computed.whiteSpace === 'nowrap';
+        if (!hasEllipsisTruncation) {
+          el.style.overflow = 'visible';
+        }
         el.style.maxHeight = 'none';
       });
 
       // crossOrigin sur les images
       node.querySelectorAll('img').forEach((img: HTMLImageElement) => { img.crossOrigin = 'anonymous'; });
 
+      // Double requestAnimationFrame : garantit que le navigateur a bien fini de recalculer
+      // la mise en page (reflow) avant qu'on mesure scrollHeight — un simple délai fixe peut
+      // parfois être trop court quand il y a beaucoup de texte à re-disposer.
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
       await new Promise(r => setTimeout(r, 200));
 
       // Lire la couleur de fond réelle depuis les CSS vars du document
