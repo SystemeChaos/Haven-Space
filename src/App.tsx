@@ -1709,8 +1709,6 @@ export default function App() {
       const dataUrl = await toPng(node, {
         pixelRatio: 3,
         backgroundColor: themeBg || '#ffffff',
-        width: exportWidth,
-        height: node.scrollHeight,
         skipAutoScale: true,
       });
 
