@@ -1,4 +1,5 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
+import PlanningPage from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -134,6 +135,7 @@ import {
   Hash,
   Pencil,
   Check,
+  CalendarDays,
   Mail,
   Send,
   ChevronRight,
@@ -760,7 +762,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit' | 'planning'>('home');
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
@@ -5093,6 +5095,7 @@ export default function App() {
             { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: lang === 'fr' ? 'Discussion interne' : 'Internal discussion' },
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
+            { value: 'planning',  label: lang === 'fr' ? 'Planning' : 'Planning', icon: CalendarDays, desc: lang === 'fr' ? 'Planning façon Bullet Journal' : 'Bullet Journal style planning' },
             { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
           ];
           return (
@@ -7022,6 +7025,12 @@ export default function App() {
         {currentTab === 'mapping' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
             <MappingPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} />
+          </div>
+        )}
+
+        {currentTab === 'planning' && (
+          <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <PlanningPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} />
           </div>
         )}
 
