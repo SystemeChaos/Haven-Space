@@ -983,12 +983,15 @@ export default function App() {
     });
   }, [directMessages, currentTab, activeConvId, lastSeenMsgIdByConv]);
 
-  // Fait disparaître le toast automatiquement après quelques secondes
+  // Le toast reste affiché tant qu'il n'a pas été lu (via le clic dessus) ou fermé manuellement —
+  // sauf si le message a été marqué comme lu par un autre chemin (ex: on est allé lire la conversation
+  // directement depuis l'onglet messagerie sans passer par le toast).
   useEffect(() => {
     if (!dmToast) return;
-    const timer = setTimeout(() => setDmToast(null), 7000);
-    return () => clearTimeout(timer);
-  }, [dmToast]);
+    if (lastSeenMsgIdByConv[dmToast.convId] === dmToast.id) {
+      setDmToast(null);
+    }
+  }, [dmToast, lastSeenMsgIdByConv]);
 
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
