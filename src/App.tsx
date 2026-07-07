@@ -8334,6 +8334,15 @@ export default function App() {
           <div className="flex gap-8 text-xs font-bold uppercase tracking-widest text-app-muted">
             <button
               onClick={() => {
+                setActiveLegalPage('guide');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
+            >
+              {lang === 'fr' ? 'Guide' : 'Guide'}
+            </button>
+            <button
+              onClick={() => {
                 setActiveLegalPage('privacy');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}

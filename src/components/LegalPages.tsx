@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { Shield, Info, Mail, ChevronLeft, Heart, Lock, Database, Eye, Users } from 'lucide-react';
+import {
+  Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
+  BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
+  MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
+  LayoutDashboard, Globe, Smartphone,
+} from 'lucide-react';
 
-export type LegalPage = 'privacy' | 'about' | 'contact';
+export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
 
 interface LegalPagesProps {
   initialPage?: LegalPage;
@@ -17,6 +22,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       privacy: 'Confidentialité',
       about: 'À propos',
       contact: 'Contact',
+      guide: 'Guide',
       back: 'Retour',
       lastUpdate: 'Dernière mise à jour : juillet 2026',
       ownData: "Tes données t'appartiennent.",
@@ -85,11 +91,51 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       contactNote: 'Note : Haven Space ne stocke aucune donnée personnelle. Si tu rencontres un problème, n\'inclus jamais d\'informations sensibles sur ton système dans tes messages.',
       clickToCopy: 'Cliquer pour copier',
       copied: '✓ Copié !',
+
+      guideHeadline: 'Comment ça marche.',
+      guideSubtitle: 'Le guide complet de Haven Space, fonctionnalité par fonctionnalité',
+      guideSearchPlaceholder: 'Rechercher une fonctionnalité...',
+      guideNoResults: 'Aucun résultat pour cette recherche.',
+      g1Title: 'Fiches d\'alters',
+      g1Text: 'Le cœur de l\'application. Chaque alter a sa propre fiche : rôles, genres, orientations, âge, couleur associée (avec son nom automatiquement deviné), triggers positifs et négatifs, langues, source, traits de personnalité, troubles/neurodivergences, description libre, notes internes privées, et champs personnalisés pour ajouter tout ce qui ne rentre nulle part ailleurs. Une fois enregistrée, la fiche apparaît dans « Mon système », où tu peux la charger pour l\'éditer, l\'archiver ou la supprimer.',
+      g2Title: 'Sous-systèmes',
+      g2Text: 'Regroupe tes alters en dossiers (par exemple par âge, par fonction, ou par petit groupe interne). Les sous-systèmes peuvent être imbriqués les uns dans les autres. En cas de suppression, tu choisis fiche par fiche où chacune doit aller (système principal ou un autre sous-système), avec possibilité de tout sélectionner d\'un coup — ou de tout supprimer d\'un bloc si tu préfères repartir de zéro.',
+      g3Title: 'Cartographie des relations',
+      g3Text: 'Visualise les liens entre tes alters sous forme de carte : partenaires, protecteur/protégé, fratrie, parent/enfant, ami·e, soignant, indifférence, tension, conflit, persécuteur, ou distance. Chaque relation ajoutée apparaît aussi automatiquement en bas de la fiche complète des deux alters concernés, mise à jour en temps réel.',
+      g4Title: 'Tags personnalisés',
+      g4Text: 'En plus des rôles fixes, ajoute tes propres mots-clés libres à une fiche (dans « Informations de l\'alter »). Un filtre dédié apparaît alors dans « Mon système », à côté du filtre par rôle, pour retrouver rapidement tous les alters partageant un même tag.',
+      g5Title: 'Statut de front / présence',
+      g5Text: 'Indique qui est actuellement au front : fronteur principal, co-front, co-conscient, influence passive, en sommeil, ou interne. Il existe aussi un statut « Flou / Blend » à part, accessible via un bouton dédié dans le registre des switchs, pour les moments où l\'identité n\'est pas claire — il n\'est pas rattaché à un alter précis et s\'affiche comme un indicateur global sur le tableau de bord.',
+      g6Title: 'Registre des switchs',
+      g6Text: 'Enregistre chaque switch avec la date (y compris rétroactive), les alters concernés, leur statut, des notes, ton niveau d\'énergie (cuillères) et ton humeur. L\'historique complet est consultable et chaque entrée peut être supprimée si besoin.',
+      g7Title: 'Journal interne',
+      g7Text: 'Un espace d\'écriture libre pour consigner ce que traverse le système au fil du temps — pensées, ressentis, événements marquants — consultable à tout moment.',
+      g8Title: 'Chat interne',
+      g8Text: 'Un espace de discussion de groupe entre tous les membres du système, pratique pour les échanges collectifs, les votes internes ou simplement garder une trace de « qui a dit quoi ».',
+      g9Title: 'Messagerie privée',
+      g9Text: 'Des conversations en tête-à-tête entre deux alters précis, séparées du chat de groupe. Une recherche dédiée permet de retrouver rapidement une conversation existante ou d\'en démarrer une nouvelle en choisissant les deux alters concernés.',
+      g10Title: 'Ancrage / Mode SOS',
+      g10Text: 'Des techniques d\'ancrage classées par catégorie (se déplacer, bouger, parler, ressentir...) pour les moments de dissociation ou de détresse émotionnelle. Une section « Contacts de confiance » permet aussi d\'enregistrer les numéros de personnes ou professionnels à contacter en cas de besoin, directement modifiables et supprimables.',
+      g11Title: 'Export des fiches en image',
+      g11Text: 'Télécharge la fiche d\'un alter sous forme d\'image PNG prête à partager, avec toutes ses informations mises en forme proprement.',
+      g12Title: 'Synchronisation PluralKit',
+      g12Text: 'Relie Haven Space à ton système PluralKit pour importer automatiquement tes alters existants, ou exporte/importe tes données via un simple fichier JSON — aucun compte n\'est nécessaire pour cette synchronisation.',
+      g13Title: 'Thèmes et personnalisation',
+      g13Text: 'Choisis parmi plusieurs thèmes prédéfinis (clair, sombre, pastel, saisons, arcane...), ou crée ton propre thème personnalisé dans les paramètres en choisissant toi-même la couleur d\'accent, de fond, des cartes, du texte et des bordures. Un bouton « Réinitialiser » permet de revenir au thème actif à tout moment.',
+      g14Title: 'Tableau de bord',
+      g14Text: 'La page d\'accueil résume l\'essentiel : nombre d\'alters, accès rapide à chaque section, et un aperçu de qui est actuellement au front, groupé par statut. Un simple clic permet de retirer quelqu\'un du front directement depuis cette vue.',
+      g15Title: 'Langue',
+      g15Text: 'Haven Space est disponible en français et en anglais, avec un changement de langue instantané depuis les paramètres.',
+      g16Title: 'Installation mobile et hors-ligne',
+      g16Text: 'Haven Space est une application web installable (PWA) : ajoute-la à ton écran d\'accueil comme une vraie application, et utilise-la même sans connexion internet.',
+      g17Title: 'Confidentialité de tes données',
+      g17Text: 'Tout ce que tu crées reste exclusivement sur ton appareil, dans ton navigateur. Rien n\'est envoyé à un serveur externe. Voir la page Confidentialité pour tous les détails.',
     },
     en: {
       privacy: 'Privacy Policy',
       about: 'About Us',
       contact: 'Contact',
+      guide: 'Guide',
       back: 'Back',
       lastUpdate: 'Last updated: July 2026',
       ownData: 'Your data belongs to you.',
@@ -158,12 +204,57 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       contactNote: 'Note: Since Haven Space runs offline, do not submit sensitive system journals or private clinical profiles in emails.',
       clickToCopy: 'Click to copy',
       copied: '✓ Copied!',
+
+      guideHeadline: 'How it works.',
+      guideSubtitle: 'The complete Haven Space guide, feature by feature',
+      guideSearchPlaceholder: 'Search a feature...',
+      guideNoResults: 'No results for this search.',
+      g1Title: 'Alter Profiles',
+      g1Text: 'The heart of the app. Every alter has their own profile: roles, genders, orientations, age, an associated color (with its name automatically guessed), positive and negative triggers, languages, source, personality traits, disorders/neurodivergences, a free-form description, private internal notes, and custom fields for anything that doesn\'t fit elsewhere. Once saved, the profile appears in "My System," where you can load it to edit, archive, or delete it.',
+      g2Title: 'Subsystems',
+      g2Text: 'Group your alters into folders (by age, function, or small internal group, for example). Subsystems can be nested inside one another. When deleting one, you choose per profile where each one should go (main system or another subsystem), with an option to select them all at once — or delete everything in one go if you\'d rather start fresh.',
+      g3Title: 'Relationship Mapping',
+      g3Text: 'Visualize the links between your alters as a map: partners, protector/protected, siblings, parent/child, friend, caretaker, indifference, tension, conflict, persecutor, or distance. Every relationship you add also automatically appears at the bottom of both alters\' full profiles, updated in real time.',
+      g4Title: 'Custom Tags',
+      g4Text: 'Beyond the fixed roles, add your own free-form keywords to a profile (in "Alter Information"). A dedicated filter then appears in "My System," next to the role filter, to quickly find every alter sharing a given tag.',
+      g5Title: 'Fronting Status',
+      g5Text: 'Indicate who is currently fronting: primary fronter, co-front, co-conscious, passive influence, dormant, or internal. There\'s also a separate "Blur / Blend" status, accessible via a dedicated button in the switch log, for moments when identity isn\'t clear — it isn\'t tied to a specific alter and shows up as a global indicator on the dashboard.',
+      g6Title: 'Switch Log',
+      g6Text: 'Record every switch with the date (retroactive dates supported), the alters involved, their status, notes, your energy level (spoons), and your mood. The full history is browsable and any entry can be deleted if needed.',
+      g7Title: 'Internal Journal',
+      g7Text: 'A free-writing space to record what the system is going through over time — thoughts, feelings, notable events — readable anytime.',
+      g8Title: 'Internal Chat',
+      g8Text: 'A group chat space between all system members, handy for collective discussions, internal votes, or simply keeping track of "who said what."',
+      g9Title: 'Private Messaging',
+      g9Text: 'One-on-one conversations between two specific alters, separate from the group chat. A dedicated search lets you quickly find an existing conversation or start a new one by picking the two alters involved.',
+      g10Title: 'Grounding / SOS Mode',
+      g10Text: 'Grounding techniques sorted by category (moving, being active, talking, feeling...) for moments of dissociation or emotional distress. A "Trusted Contacts" section also lets you save numbers for people or professionals to reach out to when needed, directly editable and deletable.',
+      g11Title: 'Export Profiles as Images',
+      g11Text: 'Download an alter\'s profile as a ready-to-share PNG image, with all its information neatly formatted.',
+      g12Title: 'PluralKit Sync',
+      g12Text: 'Connect Haven Space to your PluralKit system to automatically import your existing alters, or export/import your data via a simple JSON file — no account is required for this sync.',
+      g13Title: 'Themes & Customization',
+      g13Text: 'Pick from several built-in themes (light, dark, pastel, seasons, arcane...), or build your own custom theme in settings by choosing your own accent, background, card, text, and border colors. A "Reset" button lets you go back to the active theme at any time.',
+      g14Title: 'Dashboard',
+      g14Text: 'The home page summarizes the essentials: alter count, quick access to every section, and an overview of who\'s currently fronting, grouped by status. A single click lets you remove someone from front directly from this view.',
+      g15Title: 'Language',
+      g15Text: 'Haven Space is available in French and English, with instant switching from settings.',
+      g16Title: 'Mobile Install & Offline Use',
+      g16Text: 'Haven Space is an installable web app (PWA): add it to your home screen like a real app, and use it even without an internet connection.',
+      g17Title: 'Data Privacy',
+      g17Text: 'Everything you create stays exclusively on your device, in your browser. Nothing is ever sent to an external server. See the Privacy page for full details.',
     }
   };
 
   const currentT = t[lang];
 
   const [copied, setCopied] = useState(false);
+  const [guideSearch, setGuideSearch] = useState('');
+  const [openGuideIds, setOpenGuideIds] = useState<string[]>([]);
+
+  const toggleGuideItem = (id: string) => {
+    setOpenGuideIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText('systeme.chaos@outlook.fr');
@@ -187,7 +278,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           </button>
         )}
         <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          {(['privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
+          {(['guide', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -205,6 +296,87 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       </div>
 
       {/* Pages Content router */}
+      {currentPage === 'guide' && (() => {
+        const guideItems = [
+          { id: 'g1', icon: UserCircle2, title: currentT.g1Title, text: currentT.g1Text },
+          { id: 'g2', icon: Layers, title: currentT.g2Title, text: currentT.g2Text },
+          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
+          { id: 'g4', icon: Tag, title: currentT.g4Title, text: currentT.g4Text },
+          { id: 'g5', icon: Radio, title: currentT.g5Title, text: currentT.g5Text },
+          { id: 'g6', icon: History, title: currentT.g6Title, text: currentT.g6Text },
+          { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
+          { id: 'g8', icon: MessageCircle, title: currentT.g8Title, text: currentT.g8Text },
+          { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
+          { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
+          { id: 'g11', icon: Download, title: currentT.g11Title, text: currentT.g11Text },
+          { id: 'g12', icon: Link2, title: currentT.g12Title, text: currentT.g12Text },
+          { id: 'g13', icon: Palette, title: currentT.g13Title, text: currentT.g13Text },
+          { id: 'g14', icon: LayoutDashboard, title: currentT.g14Title, text: currentT.g14Text },
+          { id: 'g15', icon: Globe, title: currentT.g15Title, text: currentT.g15Text },
+          { id: 'g16', icon: Smartphone, title: currentT.g16Title, text: currentT.g16Text },
+          { id: 'g17', icon: Lock, title: currentT.g17Title, text: currentT.g17Text },
+        ];
+        const query = guideSearch.trim().toLowerCase();
+        const filteredItems = query
+          ? guideItems.filter(it => it.title.toLowerCase().includes(query) || it.text.toLowerCase().includes(query))
+          : guideItems;
+
+        return (
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <div className="text-[10px] uppercase font-black tracking-widest text-app-muted flex items-center gap-2">
+                <BookOpen size={14} className="text-app-accent" />
+                {currentT.guide}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">{currentT.guideHeadline}</h1>
+              <p className="text-xs text-app-muted font-bold uppercase tracking-widest">{currentT.guideSubtitle}</p>
+            </div>
+
+            <div className="relative">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted" />
+              <input
+                type="text"
+                value={guideSearch}
+                onChange={e => setGuideSearch(e.target.value)}
+                placeholder={currentT.guideSearchPlaceholder}
+                className="w-full bg-app-card border border-app-border rounded-2xl pl-11 pr-4 py-3 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-accent/20 shadow-sm"
+              />
+            </div>
+
+            {filteredItems.length === 0 ? (
+              <p className="text-xs text-app-muted text-center py-8">{currentT.guideNoResults}</p>
+            ) : (
+              <div className="space-y-2.5">
+                {filteredItems.map(item => {
+                  const isOpen = openGuideIds.includes(item.id);
+                  const Icon = item.icon;
+                  return (
+                    <div key={item.id} className="bg-app-card border border-app-border rounded-2xl overflow-hidden shadow-sm">
+                      <button
+                        type="button"
+                        onClick={() => toggleGuideItem(item.id)}
+                        className="w-full flex items-center gap-3.5 p-4 text-left hover:bg-app-accent/5 transition-colors"
+                      >
+                        <div className="w-9 h-9 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-accent shrink-0">
+                          <Icon size={16} />
+                        </div>
+                        <span className="flex-1 text-xs font-black uppercase tracking-wider text-app-text">{item.title}</span>
+                        <ChevronDown size={16} className={`text-app-muted shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+                      </button>
+                      {isOpen && (
+                        <div className="px-4 pb-4 pl-[4.25rem]">
+                          <p className="text-xs leading-relaxed text-app-muted font-medium">{item.text}</p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
       {currentPage === 'privacy' && (
         <div className="space-y-8">
           <div className="space-y-2">
