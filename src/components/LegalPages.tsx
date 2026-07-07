@@ -3,7 +3,7 @@ import {
   Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
-  LayoutDashboard, Globe, Smartphone,
+  LayoutDashboard, Globe, Smartphone, Boxes,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
@@ -130,6 +130,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g16Text: 'Haven Space est une application web installable (PWA) : ajoute-la à ton écran d\'accueil comme une vraie application, et utilise-la même sans connexion internet.',
       g17Title: 'Confidentialité de tes données',
       g17Text: 'Tout ce que tu crées reste exclusivement sur ton appareil, dans ton navigateur. Rien n\'est envoyé à un serveur externe. Voir la page Confidentialité pour tous les détails.',
+      g18Title: 'Systèmes parallèles',
+      g18Text: 'Gère plusieurs systèmes complètement séparés dans la même application — chacun avec ses propres alters, ses propres sous-systèmes et sa propre cartographie des relations, indépendants du système principal. Pratique si tu accompagnes un autre système, ou si tu veux garder des espaces totalement distincts sans que les données se mélangent. Un sélecteur permet de basculer d\'un système à l\'autre à tout moment, depuis « Mon système ».',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -243,6 +245,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g16Text: 'Haven Space is an installable web app (PWA): add it to your home screen like a real app, and use it even without an internet connection.',
       g17Title: 'Data Privacy',
       g17Text: 'Everything you create stays exclusively on your device, in your browser. Nothing is ever sent to an external server. See the Privacy page for full details.',
+      g18Title: 'Parallel Systems',
+      g18Text: 'Manage several completely separate systems within the same app — each with its own alters, subsystems, and relationship map, independent from the main system. Handy if you\'re supporting another system, or if you want fully distinct spaces without the data mixing together. A selector lets you switch between systems at any time, from "My System."',
     }
   };
 
@@ -298,20 +302,26 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       {/* Pages Content router */}
       {currentPage === 'guide' && (() => {
         const guideItems = [
+          // Le cœur : gérer son système
           { id: 'g1', icon: UserCircle2, title: currentT.g1Title, text: currentT.g1Text },
           { id: 'g2', icon: Layers, title: currentT.g2Title, text: currentT.g2Text },
-          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
+          { id: 'g18', icon: Boxes, title: currentT.g18Title, text: currentT.g18Text },
           { id: 'g4', icon: Tag, title: currentT.g4Title, text: currentT.g4Text },
+          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
+          // Le quotidien : suivre la présence
           { id: 'g5', icon: Radio, title: currentT.g5Title, text: currentT.g5Text },
           { id: 'g6', icon: History, title: currentT.g6Title, text: currentT.g6Text },
+          { id: 'g14', icon: LayoutDashboard, title: currentT.g14Title, text: currentT.g14Text },
+          // S'exprimer et échanger
           { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
           { id: 'g8', icon: MessageCircle, title: currentT.g8Title, text: currentT.g8Text },
           { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
+          // Prendre soin de soi
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
+          // Autour de l'app
           { id: 'g11', icon: Download, title: currentT.g11Title, text: currentT.g11Text },
           { id: 'g12', icon: Link2, title: currentT.g12Title, text: currentT.g12Text },
           { id: 'g13', icon: Palette, title: currentT.g13Title, text: currentT.g13Text },
-          { id: 'g14', icon: LayoutDashboard, title: currentT.g14Title, text: currentT.g14Text },
           { id: 'g15', icon: Globe, title: currentT.g15Title, text: currentT.g15Text },
           { id: 'g16', icon: Smartphone, title: currentT.g16Title, text: currentT.g16Text },
           { id: 'g17', icon: Lock, title: currentT.g17Title, text: currentT.g17Text },
