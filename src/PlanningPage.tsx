@@ -151,6 +151,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   const [formType, setFormType] = useState<BuJoType>('task');
   const [formText, setFormText] = useState('');
   const [formAlterIds, setFormAlterIds] = useState<string[]>([]);
+  const [alterSearchInput, setAlterSearchInput] = useState('');
   const [formProjectLabel, setFormProjectLabel] = useState('');
   const [formProjectColor, setFormProjectColor] = useState('#A78BFA');
   const [formTopicLabel, setFormTopicLabel] = useState('');
@@ -183,6 +184,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     setFormType('task');
     setFormText('');
     setFormAlterIds([]);
+    setAlterSearchInput('');
     setFormProjectLabel('');
     setFormProjectColor('#A78BFA');
     setFormTopicLabel('');
@@ -197,6 +199,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     setFormType(entry.type);
     setFormText(entry.text);
     setFormAlterIds(entry.alterIds || []);
+    setAlterSearchInput('');
     setFormProjectLabel(entry.projectLabel || '');
     setFormProjectColor(entry.projectColor || '#A78BFA');
     setFormTopicLabel(entry.topicLabel || '');
@@ -254,7 +257,8 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     return (
       <div
         key={entry.id}
-        className={`group flex items-start gap-2 rounded-xl hover:bg-app-accent/5 transition-colors ${compact ? 'px-1.5 py-1' : 'px-2.5 py-2'}`}
+        onClick={compact ? () => openEditEntry(entry) : undefined}
+        className={`group flex items-start gap-2 rounded-xl hover:bg-app-accent/5 transition-colors ${compact ? 'px-1.5 py-1 cursor-pointer' : 'px-2.5 py-2'}`}
       >
         <span className="mt-1 flex-shrink-0 flex items-center justify-center" style={{ width: compact ? 12 : 16, height: compact ? 12 : 16 }}>
           <BuJoBullet type={entry.type} size={compact ? 12 : 16} />
@@ -289,7 +293,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
           )}
         </div>
         {!compact && (
-          <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 flex-shrink-0 transition-opacity">
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button onClick={() => openEditEntry(entry)} className="p-1 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3 h-3" /></button>
             <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
           </div>
@@ -530,11 +534,10 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                     key={type}
                     type="button"
                     onClick={() => setFormType(type)}
-                    title={lang === 'fr' ? BUJO_CONFIG[type].label : BUJO_CONFIG[type].labelEn}
-                    className={`flex flex-col items-center gap-1 py-2 rounded-xl border transition-colors ${formType === type ? 'border-app-accent bg-app-accent/10' : 'border-app-border/40 hover:border-app-accent/30'}`}
+                    className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-1 min-h-[4.5rem] rounded-xl border transition-colors ${formType === type ? 'border-app-accent bg-app-accent/10' : 'border-app-border/40 hover:border-app-accent/30'}`}
                   >
                     <BuJoBullet type={type} size={16} />
-                    <span className="text-[8px] font-bold text-app-muted leading-none text-center px-0.5">{(lang === 'fr' ? BUJO_CONFIG[type].label : BUJO_CONFIG[type].labelEn).slice(0, 8)}</span>
+                    <span className="text-[8.5px] font-bold text-app-muted leading-tight text-center break-words">{lang === 'fr' ? BUJO_CONFIG[type].label : BUJO_CONFIG[type].labelEn}</span>
                   </button>
                 ))}
               </div>
@@ -573,19 +576,62 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
               <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted flex items-center gap-1.5">
                 <Users className="w-3 h-3" /> {t('Alters concernés (optionnel)', 'Alters involved (optional)')}
               </label>
-              <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                {savedAlters.map(a => (
-                  <button
-                    key={a.id} type="button" onClick={() => toggleFormAlter(a.id)}
-                    className={`flex items-center gap-1.5 px-2 py-1 rounded-full border text-[10px] font-bold transition-colors ${formAlterIds.includes(a.id) ? 'border-app-accent bg-app-accent/10 text-app-accent' : 'border-app-border/40 text-app-muted hover:border-app-accent/30'}`}
-                  >
-                    {a.profileImage
-                      ? <img src={a.profileImage} className="w-4 h-4 rounded-full object-cover" alt="" />
-                      : <span className="w-4 h-4 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] text-app-accent font-black">{a.alterName.charAt(0)}</span>
-                    }
-                    {a.alterName}
-                  </button>
-                ))}
+
+              {formAlterIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {formAlterIds.map(id => {
+                    const a = savedAlters.find(al => al.id === id);
+                    if (!a) return null;
+                    return (
+                      <button
+                        key={id} type="button" onClick={() => toggleFormAlter(id)}
+                        className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-app-accent bg-app-accent/10 text-app-accent text-[10px] font-bold transition-colors"
+                      >
+                        {a.profileImage
+                          ? <img src={a.profileImage} className="w-4 h-4 rounded-full object-cover" alt="" />
+                          : <span className="w-4 h-4 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] text-app-accent font-black">{a.alterName.charAt(0)}</span>
+                        }
+                        {a.alterName}
+                        <X className="w-2.5 h-2.5" />
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="relative">
+                <input
+                  type="text"
+                  value={alterSearchInput}
+                  onChange={e => setAlterSearchInput(e.target.value)}
+                  placeholder={t('Rechercher un alter...', 'Search an alter...')}
+                  className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                />
+                {alterSearchInput.trim().length > 0 && (
+                  <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                    {savedAlters
+                      .filter(a => !formAlterIds.includes(a.id))
+                      .filter(a => a.alterName.toLowerCase().includes(alterSearchInput.toLowerCase()))
+                      .slice(0, 6)
+                      .map(a => (
+                        <button
+                          key={a.id}
+                          type="button"
+                          onClick={() => { toggleFormAlter(a.id); setAlterSearchInput(''); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                        >
+                          {a.profileImage
+                            ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
+                            : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{a.alterName.charAt(0)}</div>
+                          }
+                          {a.alterName}
+                        </button>
+                      ))}
+                    {savedAlters.filter(a => !formAlterIds.includes(a.id)).filter(a => a.alterName.toLowerCase().includes(alterSearchInput.toLowerCase())).length === 0 && (
+                      <p className="px-3 py-2 text-xs text-app-muted">{t('Aucun résultat', 'No results')}</p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
