@@ -3,7 +3,7 @@ import {
   Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
-  LayoutDashboard, Globe, Smartphone, Boxes,
+  LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
@@ -132,6 +132,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g17Text: 'Tout ce que tu crées reste exclusivement sur ton appareil, dans ton navigateur. Rien n\'est envoyé à un serveur externe. Voir la page Confidentialité pour tous les détails.',
       g18Title: 'Systèmes parallèles',
       g18Text: 'Gère plusieurs systèmes complètement séparés dans la même application — chacun avec ses propres alters, ses propres sous-systèmes et sa propre cartographie des relations, indépendants du système principal. Pratique si tu accompagnes un autre système, ou si tu veux garder des espaces totalement distincts sans que les données se mélangent. Un sélecteur permet de basculer d\'un système à l\'autre à tout moment, depuis « Mon système ».',
+      g19Title: 'Planning',
+      g19Text: 'Un planning façon Bullet Journal, avec trois vues — quotidienne (heure par heure), hebdomadaire et mensuelle — pour savoir qui fait quoi et éviter d\'être pris·e au dépourvu. Chaque entrée a un type (à faire, événement, rendez-vous, note, important, urgent, idée, anniversaire, effectué, reporté, en cours), peut être liée à un ou plusieurs alters, et classée par projet ou par sujet grâce à des étiquettes de couleur libres.',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -247,6 +249,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g17Text: 'Everything you create stays exclusively on your device, in your browser. Nothing is ever sent to an external server. See the Privacy page for full details.',
       g18Title: 'Parallel Systems',
       g18Text: 'Manage several completely separate systems within the same app — each with its own alters, subsystems, and relationship map, independent from the main system. Handy if you\'re supporting another system, or if you want fully distinct spaces without the data mixing together. A selector lets you switch between systems at any time, from "My System."',
+      g19Title: 'Planning',
+      g19Text: 'A Bullet Journal style planner, with three views — daily (hour by hour), weekly, and monthly — to know who\'s doing what and avoid being caught off guard. Each entry has a type (task, event, appointment, note, important, urgent, idea, birthday, done, postponed, in progress), can be linked to one or more alters, and sorted by project or topic using free-color labels.',
     }
   };
 
@@ -314,6 +318,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g14', icon: LayoutDashboard, title: currentT.g14Title, text: currentT.g14Text },
           // S'exprimer et échanger
           { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
+          { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
           { id: 'g8', icon: MessageCircle, title: currentT.g8Title, text: currentT.g8Text },
           { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
           // Prendre soin de soi

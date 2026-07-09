@@ -767,6 +767,7 @@ export default function App() {
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
+  const [showMeaningToast, setShowMeaningToast] = useState(false);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
   const [savedAlters, setSavedAlters] = useState<SavedAlter[]>(() => {
@@ -3079,8 +3080,6 @@ export default function App() {
       case AlterRole.AVENGER:
       case AlterRole.PROSECUTOR:
         return <Swords className="w-4 h-4" />;
-      case AlterRole.SUBSYSTEM:
-        return <Layers className="w-4 h-4" />;
       case AlterRole.SHELL:
         return <Circle className="w-4 h-4" />;
       case AlterRole.FRAGMENT:
@@ -3097,8 +3096,34 @@ export default function App() {
         return <History className="w-4 h-4" />;
       case AlterRole.SOCIAL:
         return <Users className="w-4 h-4" />;
-      case AlterRole.OPPOSITE_GENDER:
-        return <VenetianMask className="w-4 h-4" />;
+      case AlterRole.PAIN_HOLDER:
+        return <HeartPulse className="w-4 h-4" />;
+      case AlterRole.ANESTHETIC:
+        return <HeartOff className="w-4 h-4" />;
+      case AlterRole.PROFESSIONAL:
+        return <Briefcase className="w-4 h-4" />;
+      case AlterRole.FRONT_RUNNER:
+        return <Flag className="w-4 h-4" />;
+      case AlterRole.INFANT:
+        return <Baby className="w-4 h-4" />;
+      case AlterRole.ELDER:
+        return <Mountain className="w-4 h-4" />;
+      case AlterRole.MESSENGER:
+        return <Send className="w-4 h-4" />;
+      case AlterRole.TRANSLATOR:
+        return <Languages className="w-4 h-4" />;
+      case AlterRole.SECRET_KEEPER:
+        return <Lock className="w-4 h-4" />;
+      case AlterRole.ARCHITECT:
+        return <Hammer className="w-4 h-4" />;
+      case AlterRole.RELAY_ALTER:
+        return <Compass className="w-4 h-4" />;
+      case AlterRole.ERASER:
+        return <Scissors className="w-4 h-4" />;
+      case AlterRole.ANCHOR:
+        return <Anchor className="w-4 h-4" />;
+      case AlterRole.FUNCTIONAL_FRAGMENT:
+        return <Puzzle className="w-4 h-4" />;
       default:
         return <User className="w-4 h-4" />;
     }
@@ -4985,95 +5010,107 @@ export default function App() {
                   </button>
                 )}
               </div>
-
-              {/* Download Buttons */}
-              <div className="flex justify-center">
-                <button
-                  onClick={handleDownload}
-                  disabled={isDownloading}
-                  className="flex items-center justify-center gap-2.5 py-4 px-8 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
-                >
-                  <Download className="w-3.5 h-3.5 text-app-accent" />
-                  <span>{lang === 'fr' ? 'Télécharger PNG' : 'Download PNG'}</span>
-                </button>
-              </div>
             </div>
 
-            {/* Meaning Card */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-app-card rounded-3xl p-8 shadow-sm border border-app-border space-y-6 relative group/card"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-app-muted">
-                  <Info className="w-4 h-4" /> {t.meaning}
-                </div>
-                <button 
-                  onClick={handleDownloadDefinition}
-                  className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-accent"
-                  title={t.downloadDefinition}
+            {/* Bouton déclencheur de la Définition (toast) */}
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowMeaningToast(true)}
+                className="flex items-center gap-2 px-5 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 transition-all shadow-sm"
+              >
+                <Info className="w-3.5 h-3.5 text-app-accent" />
+                {t.meaning}
+              </button>
+            </div>
+
+            {/* Toast Définition */}
+            <AnimatePresence>
+              {showMeaningToast && (
+                <motion.div
+                  initial={{ opacity: 0, y: -16, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -16, scale: 0.97 }}
+                  className="fixed top-4 right-4 z-[100] w-[calc(100vw-2rem)] max-w-sm max-h-[75vh] overflow-y-auto bg-app-card rounded-3xl p-6 shadow-2xl border border-app-border space-y-5"
                 >
-                  <FileText className="w-4 h-4" />
-                </button>
-              </div>
-              
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-4">
-                  {selectedRoles.map(role => (
-                    <div key={role} className="flex items-center gap-2">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ROLE_CONFIGS[role].color }} />
-                      <span className="text-sm font-medium">{t.roleNames[role as keyof typeof t.roleNames]}: {t.rolesData[role as keyof typeof t.rolesData]}</span>
+                  <div className="flex items-center justify-between sticky top-0 bg-app-card pb-1">
+                    <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-app-muted">
+                      <Info className="w-4 h-4" /> {t.meaning}
                     </div>
-                  ))}
-                  {selectedGenders.map(g => (
-                    <div key={g} className="flex items-center gap-2 animate-fade-in">
-                      <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
-                      <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}</span>
-                    </div>
-                  ))}
-                  {selectedSexualities.map(s => (
-                    <div key={s} className="flex items-center gap-2 animate-fade-in">
-                      <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
-                      <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}</span>
-                    </div>
-                  ))}
-                </div>
-                
-                {traitDecorations.length > 0 && (
-                  <div className="pt-4 border-t border-app-border">
-                    <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.traitsIncluded}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {traitDecorations.map(td => {
-                        const isDisorder = Object.values(Disorder).includes(td.trait as Disorder);
-                        const name = isDisorder 
-                          ? t.disorders[td.trait as keyof typeof t.disorders] 
-                          : t.personalityTraits[td.trait as keyof typeof t.personalityTraits];
-                        return (
-                          <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
-                            {getTraitIcon(td.trait)}
-                            {name}
-                          </span>
-                        );
-                      })}
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={handleDownloadDefinition}
+                        className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-accent"
+                        title={t.downloadDefinition}
+                      >
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setShowMeaningToast(false)}
+                        className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-text"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
-                )}
 
-                {decorations.length > 0 && (
-                  <div className="pt-4 border-t border-app-border">
-                    <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.customSymbols}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {decorations.map(d => (
-                        <span key={d.id} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
-                          {getShapeIcon(d.type)} {t.shapes[d.type as keyof typeof t.shapes]}
-                        </span>
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-4">
+                      {selectedRoles.map(role => (
+                        <div key={role} className="flex items-center gap-2">
+                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_CONFIGS[role].color }} />
+                          <span className="text-sm font-medium">{t.roleNames[role as keyof typeof t.roleNames]}: {t.rolesData[role as keyof typeof t.rolesData]}</span>
+                        </div>
+                      ))}
+                      {selectedGenders.map(g => (
+                        <div key={g} className="flex items-center gap-2 animate-fade-in">
+                          <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
+                          <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}</span>
+                        </div>
+                      ))}
+                      {selectedSexualities.map(s => (
+                        <div key={s} className="flex items-center gap-2 animate-fade-in">
+                          <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
+                          <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}</span>
+                        </div>
                       ))}
                     </div>
+
+                    {traitDecorations.length > 0 && (
+                      <div className="pt-4 border-t border-app-border">
+                        <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.traitsIncluded}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {traitDecorations.map(td => {
+                            const isDisorder = Object.values(Disorder).includes(td.trait as Disorder);
+                            const name = isDisorder
+                              ? t.disorders[td.trait as keyof typeof t.disorders]
+                              : t.personalityTraits[td.trait as keyof typeof t.personalityTraits];
+                            return (
+                              <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
+                                {getTraitIcon(td.trait)}
+                                {name}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {decorations.length > 0 && (
+                      <div className="pt-4 border-t border-app-border">
+                        <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.customSymbols}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {decorations.map(d => (
+                            <span key={d.id} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
+                              {getShapeIcon(d.type)} {t.shapes[d.type as keyof typeof t.shapes]}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Disclaimer */}
             <p className="text-[10px] text-center text-app-muted uppercase tracking-widest leading-relaxed">
