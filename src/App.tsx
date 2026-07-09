@@ -94,7 +94,6 @@ import {
   Bomb,
   Scale,
   Archive,
-  VenetianMask,
   Hand,
   ShoppingBag,
   HeartPulse,
@@ -510,6 +509,12 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
 }
 // ────────────────────────────────────────────────────────────────────────────
 
+const ACTIVE_ALTER_ROLES = new Set<string>(Object.values(AlterRole));
+const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
+  const clean = (roles || []).filter((role): role is AlterRole => ACTIVE_ALTER_ROLES.has(role));
+  return clean.length > 0 ? clean : [AlterRole.HOST];
+};
+
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
   const [font, setFont] = useState<string>(() => localStorage.getItem('hs-font') || 'font-sans');
@@ -767,7 +772,6 @@ export default function App() {
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
-  const [showMeaningToast, setShowMeaningToast] = useState(false);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
   const [savedAlters, setSavedAlters] = useState<SavedAlter[]>(() => {
@@ -1187,7 +1191,7 @@ export default function App() {
           id: existing ? existing.id : Date.now().toString() + Math.random().toString(36).substring(2, 9),
           pkId: member.id,
           alterName: member.name,
-          selectedRoles: parsed.roles.length > 0 ? parsed.roles as AlterRole[] : (existing?.selectedRoles || []),
+          selectedRoles: cleanAlterRoles(parsed.roles.length > 0 ? parsed.roles : existing?.selectedRoles),
           selectedGenders: parsed.genders.length > 0 ? parsed.genders as Gender[] : (existing?.selectedGenders || []),
           selectedSexualities: parsed.sexualities.length > 0 ? parsed.sexualities as Sexuality[] : (existing?.selectedSexualities || []),
           traitDecorations: parsed.traits.length > 0 ? parsed.traits as TraitDecoration[] : (existing?.traitDecorations || []),
@@ -1643,7 +1647,7 @@ export default function App() {
   };
 
   const applyState = (state: any) => {
-    setSelectedRoles(state.selectedRoles || [AlterRole.HOST]);
+    setSelectedRoles(cleanAlterRoles(state.selectedRoles));
     
     // Support migrating old history states gracefully
     if (state.selectedGenders) {
@@ -1686,6 +1690,7 @@ export default function App() {
   // For simplicity, we'll call saveToHistory in the toggle/update functions
   const [isDownloading, setIsDownloading] = useState(false);
   const [infoNote, setInfoNote] = useState<{ title: string; text: string } | null>(null);
+  const [showMeaningCard, setShowMeaningCard] = useState(false);
   const flagRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -2008,7 +2013,7 @@ export default function App() {
     const freshAlter: SavedAlter = {
       id: freshId,
       alterName: trimmedName,
-      selectedRoles,
+      selectedRoles: cleanAlterRoles(selectedRoles),
       selectedGenders,
       selectedSexualities,
       traitDecorations,
@@ -2048,7 +2053,7 @@ export default function App() {
   };
 
   const executeLoadAlter = (alter: SavedAlter) => {
-    setSelectedRoles(alter.selectedRoles || [AlterRole.HOST]);
+    setSelectedRoles(cleanAlterRoles(alter.selectedRoles));
     setSelectedGenders(alter.selectedGenders || [Gender.NEUTRAL]);
     setSelectedSexualities(alter.selectedSexualities || [Sexuality.OTHER]);
     setTraitDecorations(alter.traitDecorations || []);
@@ -2572,6 +2577,7 @@ export default function App() {
   };
 
   const renderAlterCard = (alter: SavedAlter) => {
+    const alterRoles = cleanAlterRoles(alter.selectedRoles);
     return (
       <div key={alter.id} className="w-full bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
         {/* Version mobile — liste compacte style Simply Plural */}
@@ -2585,10 +2591,10 @@ export default function App() {
           )}
           <div className="flex-1 overflow-hidden">
             <span className="font-bold text-sm text-app-text block overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
-            {alter.selectedRoles?.length > 0 && (
+            {alterRoles.length > 0 && (
               <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
-                {t.roleNames[alter.selectedRoles[0] as keyof typeof t.roleNames] || alter.selectedRoles[0]}
-                {alter.selectedRoles.length > 1 && ` +${alter.selectedRoles.length - 1}`}
+                {t.roleNames[alterRoles[0] as keyof typeof t.roleNames] || alterRoles[0]}
+                {alterRoles.length > 1 && ` +${alterRoles.length - 1}`}
               </span>
             )}
           </div>
@@ -2653,7 +2659,7 @@ export default function App() {
                   {t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}
                 </span>
               )}
-              {alter.selectedRoles.slice(0, 2).map(r => (
+              {alterRoles.slice(0, 2).map(r => (
                 <span 
                   key={r} 
                   style={{ 
@@ -2666,28 +2672,17 @@ export default function App() {
                   {t.roleNames[r as keyof typeof t.roleNames]}
                 </span>
               ))}
-              {alter.selectedRoles.length > 2 && (
+              {alterRoles.length > 2 && (
                 <span className="px-1.5 py-0.5 rounded bg-app-bg text-app-muted text-[8px] font-extrabold">
-                  +{alter.selectedRoles.length - 2}
+                  +{alterRoles.length - 2}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Subsystem & Load trigger */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-app-border/15">
-          <select
-            value={alter.subsystemId || ''}
-            onChange={(e) => handleAssignSubsystem(alter.id, e.target.value)}
-            className="text-[9px] bg-app-bg border border-app-border/40 rounded-lg px-2 py-1 max-w-[130px] font-bold uppercase tracking-wider text-app-muted cursor-pointer focus:outline-none"
-          >
-            <option value="">{lang === 'fr' ? 'Aucun ss-système' : 'No ss-system'}</option>
-            {activeSystemSubsystems.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-
+        {/* Load trigger */}
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-app-border/15">
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => handleLoadAlter(alter)}
@@ -3070,9 +3065,35 @@ export default function App() {
         return <Briefcase className="w-4 h-4" />;
       case AlterRole.MEMORY_HOLDER:
       case AlterRole.TRAUMA_HOLDER:
+      case AlterRole.SECRET_KEEPER:
         return <Lock className="w-4 h-4" />;
       case AlterRole.SYMPTOM_HOLDER:
+      case AlterRole.PAIN_HOLDER:
         return <Activity className="w-4 h-4" />;
+      case AlterRole.ANESTHETIC:
+        return <VolumeX className="w-4 h-4" />;
+      case AlterRole.PROFESSIONAL:
+        return <Briefcase className="w-4 h-4" />;
+      case AlterRole.FRONT_RUNNER:
+        return <Flag className="w-4 h-4" />;
+      case AlterRole.INFANT:
+        return <Baby className="w-4 h-4" />;
+      case AlterRole.ELDER:
+        return <Crown className="w-4 h-4" />;
+      case AlterRole.MESSENGER:
+        return <Send className="w-4 h-4" />;
+      case AlterRole.TRANSLATOR:
+        return <Languages className="w-4 h-4" />;
+      case AlterRole.ARCHITECT:
+        return <Hammer className="w-4 h-4" />;
+      case AlterRole.RELAY_ALTER:
+        return <ArrowLeftRight className="w-4 h-4" />;
+      case AlterRole.ERASER:
+        return <Scissors className="w-4 h-4" />;
+      case AlterRole.ANCHOR:
+        return <Anchor className="w-4 h-4" />;
+      case AlterRole.FUNCTIONAL_FRAGMENT:
+        return <Target className="w-4 h-4" />;
       case AlterRole.INTROJECT:
       case AlterRole.FICTIVE:
       case AlterRole.FACTIVE:
@@ -3096,34 +3117,6 @@ export default function App() {
         return <History className="w-4 h-4" />;
       case AlterRole.SOCIAL:
         return <Users className="w-4 h-4" />;
-      case AlterRole.PAIN_HOLDER:
-        return <HeartPulse className="w-4 h-4" />;
-      case AlterRole.ANESTHETIC:
-        return <HeartOff className="w-4 h-4" />;
-      case AlterRole.PROFESSIONAL:
-        return <Briefcase className="w-4 h-4" />;
-      case AlterRole.FRONT_RUNNER:
-        return <Flag className="w-4 h-4" />;
-      case AlterRole.INFANT:
-        return <Baby className="w-4 h-4" />;
-      case AlterRole.ELDER:
-        return <Mountain className="w-4 h-4" />;
-      case AlterRole.MESSENGER:
-        return <Send className="w-4 h-4" />;
-      case AlterRole.TRANSLATOR:
-        return <Languages className="w-4 h-4" />;
-      case AlterRole.SECRET_KEEPER:
-        return <Lock className="w-4 h-4" />;
-      case AlterRole.ARCHITECT:
-        return <Hammer className="w-4 h-4" />;
-      case AlterRole.RELAY_ALTER:
-        return <Compass className="w-4 h-4" />;
-      case AlterRole.ERASER:
-        return <Scissors className="w-4 h-4" />;
-      case AlterRole.ANCHOR:
-        return <Anchor className="w-4 h-4" />;
-      case AlterRole.FUNCTIONAL_FRAGMENT:
-        return <Puzzle className="w-4 h-4" />;
       default:
         return <User className="w-4 h-4" />;
     }
@@ -4487,25 +4480,30 @@ export default function App() {
             <AnimatePresence>
               {infoNote && (
                 <motion.div
-                  initial={{ opacity: 0, y: -20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="bg-app-accent text-white p-4 rounded-2xl shadow-xl border border-white/10 relative overflow-hidden"
+                  initial={{ opacity: 0, y: 18, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 12, scale: 0.98 }}
+                  className="fixed left-4 right-4 bottom-5 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-[90] bg-app-card text-app-text p-4 rounded-2xl shadow-2xl border border-app-border relative overflow-hidden"
                 >
-                  <div className="absolute top-0 right-0 p-2">
-                    <button onClick={() => setInfoNote(null)} className="opacity-50 hover:opacity-100">
+                  <div className="absolute top-2 right-2">
+                    <button
+                      type="button"
+                      onClick={() => setInfoNote(null)}
+                      className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg transition-colors"
+                      aria-label={lang === 'fr' ? 'Fermer' : 'Close'}
+                    >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="bg-app-card/20 p-2 rounded-lg">
+                    <div className="bg-app-accent/15 text-app-accent border border-app-accent/20 p-2 rounded-xl shrink-0">
                       <Info className="w-4 h-4" />
                     </div>
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-widest opacity-60 mb-1">
+                    <div className="pr-8">
+                      <h4 className="text-[10px] font-black uppercase tracking-widest text-app-muted mb-1">
                         {infoNote.title}
                       </h4>
-                      <p className="text-sm font-medium leading-relaxed">
+                      <p className="text-sm font-bold leading-relaxed text-app-text">
                         {infoNote.text}
                       </p>
                     </div>
@@ -5010,79 +5008,97 @@ export default function App() {
                   </button>
                 )}
               </div>
+
+              {/* Download Buttons */}
+              <div className="flex justify-center">
+                <button
+                  onClick={handleDownload}
+                  disabled={isDownloading}
+                  aria-label={lang === 'fr' ? 'Télécharger PNG' : 'Download PNG'}
+                  title={lang === 'fr' ? 'Télécharger PNG' : 'Download PNG'}
+                  className="w-12 h-12 flex items-center justify-center bg-app-card border border-app-border/45 rounded-2xl hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
+                >
+                  <Download className="w-4 h-4 text-app-accent" />
+                </button>
+              </div>
             </div>
 
-            {/* Bouton déclencheur de la Définition (toast) */}
             <div className="flex justify-center">
               <button
-                onClick={() => setShowMeaningToast(true)}
-                className="flex items-center gap-2 px-5 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-app-bg hover:border-app-accent/40 transition-all shadow-sm"
+                type="button"
+                onClick={() => setShowMeaningCard(prev => !prev)}
+                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
+                aria-expanded={showMeaningCard}
               >
-                <Info className="w-3.5 h-3.5 text-app-accent" />
-                {t.meaning}
+                <Info className="w-4 h-4 text-app-accent" />
+                {lang === 'fr' ? 'Résumé de la fiche' : 'Card summary'}
               </button>
             </div>
 
-            {/* Toast Définition */}
+            {/* Meaning Card */}
             <AnimatePresence>
-              {showMeaningToast && (
-                <motion.div
-                  initial={{ opacity: 0, y: -16, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -16, scale: 0.97 }}
-                  className="fixed top-4 right-4 z-[100] w-[calc(100vw-2rem)] max-w-sm max-h-[75vh] overflow-y-auto bg-app-card rounded-3xl p-6 shadow-2xl border border-app-border space-y-5"
+              {showMeaningCard && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="w-full bg-app-card rounded-3xl p-8 shadow-sm border border-app-border space-y-6 relative group/card"
                 >
-                  <div className="flex items-center justify-between sticky top-0 bg-app-card pb-1">
+                  <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-app-muted">
                       <Info className="w-4 h-4" /> {t.meaning}
                     </div>
                     <div className="flex items-center gap-1">
-                      <button
+                      <button 
+                        type="button"
                         onClick={handleDownloadDefinition}
                         className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-accent"
                         title={t.downloadDefinition}
+                        aria-label={t.downloadDefinition}
                       >
                         <FileText className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => setShowMeaningToast(false)}
+                        type="button"
+                        onClick={() => setShowMeaningCard(false)}
                         className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-text"
+                        aria-label={lang === 'fr' ? 'Fermer le résumé' : 'Close summary'}
                       >
                         <X className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
-
+                  
                   <div className="space-y-4">
                     <div className="flex flex-wrap gap-4">
                       {selectedRoles.map(role => (
                         <div key={role} className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_CONFIGS[role].color }} />
+                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: ROLE_CONFIGS[role].color }} />
                           <span className="text-sm font-medium">{t.roleNames[role as keyof typeof t.roleNames]}: {t.rolesData[role as keyof typeof t.rolesData]}</span>
                         </div>
                       ))}
                       {selectedGenders.map(g => (
                         <div key={g} className="flex items-center gap-2 animate-fade-in">
-                          <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
+                          <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
                           <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}</span>
                         </div>
                       ))}
                       {selectedSexualities.map(s => (
                         <div key={s} className="flex items-center gap-2 animate-fade-in">
-                          <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
+                          <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
                           <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}</span>
                         </div>
                       ))}
                     </div>
-
+                    
                     {traitDecorations.length > 0 && (
                       <div className="pt-4 border-t border-app-border">
                         <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.traitsIncluded}</p>
                         <div className="flex flex-wrap gap-2">
                           {traitDecorations.map(td => {
                             const isDisorder = Object.values(Disorder).includes(td.trait as Disorder);
-                            const name = isDisorder
-                              ? t.disorders[td.trait as keyof typeof t.disorders]
+                            const name = isDisorder 
+                              ? t.disorders[td.trait as keyof typeof t.disorders] 
                               : t.personalityTraits[td.trait as keyof typeof t.personalityTraits];
                             return (
                               <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
