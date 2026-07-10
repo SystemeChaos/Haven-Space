@@ -9,7 +9,7 @@
 import React, { useState, useMemo } from 'react';
 import {
   Plus, X, ChevronLeft, ChevronRight, Trash2, Pencil, Check, Users,
-  Lightbulb, Cake, ArrowDown, ArrowLeftRight, Info, Calendar as CalendarIcon,
+  Lightbulb, Cake, ArrowDown, ArrowLeftRight, Info, Calendar as CalendarIcon, Bell,
 } from 'lucide-react';
 import { SavedAlter } from './types';
 
@@ -21,7 +21,8 @@ export type BuJoType =
 
 export interface PlanningEntry {
   id: string;
-  date: string;           // 'YYYY-MM-DD'
+  date: string;           // 'YYYY-MM-DD' — date de début
+  endDate?: string;       // 'YYYY-MM-DD' — date de fin optionnelle, pour une période sur plusieurs jours
   time?: string;           // 'HH:MM', optionnel
   type: BuJoType;
   text: string;
@@ -30,6 +31,7 @@ export interface PlanningEntry {
   projectColor?: string;
   topicLabel?: string;
   topicColor?: string;
+  reminderMinutes?: number; // délai de rappel avant l'entrée, en minutes (nécessite une heure définie)
   createdAt: number;
 }
 
@@ -68,6 +70,17 @@ const BUJO_CONFIG: Record<BuJoType, { label: string; labelEn: string; color: str
 };
 
 const BUJO_ORDER: BuJoType[] = ['task', 'event', 'appointment', 'note', 'important', 'urgent', 'idea', 'birthday', 'done', 'postponed', 'inProgress'];
+
+const REMINDER_OPTIONS: { value: number; label: string; labelEn: string }[] = [
+  { value: 5, label: '5 minutes avant', labelEn: '5 minutes before' },
+  { value: 15, label: '15 minutes avant', labelEn: '15 minutes before' },
+  { value: 30, label: '30 minutes avant', labelEn: '30 minutes before' },
+  { value: 60, label: '1 heure avant', labelEn: '1 hour before' },
+  { value: 180, label: '3 heures avant', labelEn: '3 hours before' },
+  { value: 1440, label: '1 jour avant', labelEn: '1 day before' },
+];
+
+const REMINDED_STORAGE_KEY = 'heaven_space_planning_reminded';
 
 // Petite puce visuelle par type — mélange de formes CSS simples (fidèles au BuJo papier)
 // et d'icônes lucide pour les symboles plus figuratifs.
@@ -147,6 +160,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   const [showEntryForm, setShowEntryForm] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [formDate, setFormDate] = useState('');
+  const [formEndDate, setFormEndDate] = useState('');
   const [formTime, setFormTime] = useState('');
   const [formType, setFormType] = useState<BuJoType>('task');
   const [formText, setFormText] = useState('');
@@ -156,12 +170,43 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   const [formProjectColor, setFormProjectColor] = useState('#A78BFA');
   const [formTopicLabel, setFormTopicLabel] = useState('');
   const [formTopicColor, setFormTopicColor] = useState('#60A5FA');
+  const [formReminderMinutes, setFormReminderMinutes] = useState<number | ''>('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [remindedIds, setRemindedIds] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem(REMINDED_STORAGE_KEY) || '[]'); } catch { return []; }
+  });
 
   const persist = (next: PlanningEntry[]) => {
     setEntries(next);
     savePlanning(next, activeSystemId);
   };
+
+  React.useEffect(() => {
+    localStorage.setItem(REMINDED_STORAGE_KEY, JSON.stringify(remindedIds));
+  }, [remindedIds]);
+
+  // Vérifie toutes les 30s si un rappel doit se déclencher (notification navigateur)
+  React.useEffect(() => {
+    const check = () => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const now = Date.now();
+      entries.forEach(en => {
+        if (!en.time || !en.reminderMinutes || remindedIds.includes(en.id)) return;
+        const target = new Date(`${en.date}T${en.time}:00`).getTime();
+        const triggerAt = target - en.reminderMinutes * 60000;
+        if (now >= triggerAt && now < target) {
+          new Notification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', {
+            body: `${en.time} — ${en.text}`,
+            icon: '/icon-192.png',
+          });
+          setRemindedIds(prev => [...prev, en.id]);
+        }
+      });
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, [entries, remindedIds, lang]);
 
   const t = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const weekdayNames = lang === 'fr' ? WEEKDAYS_FR : WEEKDAYS_EN;
@@ -180,6 +225,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   const openNewEntry = (presetDate?: string, presetTime?: string) => {
     setEditingEntryId(null);
     setFormDate(presetDate || toISODate(refDate));
+    setFormEndDate('');
     setFormTime(presetTime || '');
     setFormType('task');
     setFormText('');
@@ -189,12 +235,14 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     setFormProjectColor('#A78BFA');
     setFormTopicLabel('');
     setFormTopicColor('#60A5FA');
+    setFormReminderMinutes('');
     setShowEntryForm(true);
   };
 
   const openEditEntry = (entry: PlanningEntry) => {
     setEditingEntryId(entry.id);
     setFormDate(entry.date);
+    setFormEndDate(entry.endDate || '');
     setFormTime(entry.time || '');
     setFormType(entry.type);
     setFormText(entry.text);
@@ -204,16 +252,22 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     setFormProjectColor(entry.projectColor || '#A78BFA');
     setFormTopicLabel(entry.topicLabel || '');
     setFormTopicColor(entry.topicColor || '#60A5FA');
+    setFormReminderMinutes(entry.reminderMinutes ?? '');
     setShowEntryForm(true);
   };
 
   const handleSubmitEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formText.trim() || !formDate) return;
+    // Demande la permission de notification dès qu'un rappel est réellement choisi
+    if (formReminderMinutes !== '' && formTime && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
     if (editingEntryId) {
       persist(entries.map(en => en.id === editingEntryId ? {
         ...en,
         date: formDate,
+        endDate: (formEndDate && formEndDate > formDate) ? formEndDate : undefined,
         time: formTime || undefined,
         type: formType,
         text: formText.trim(),
@@ -222,11 +276,14 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
         projectColor: formProjectLabel.trim() ? formProjectColor : undefined,
         topicLabel: formTopicLabel.trim() || undefined,
         topicColor: formTopicLabel.trim() ? formTopicColor : undefined,
+        reminderMinutes: (formReminderMinutes !== '' && formTime) ? Number(formReminderMinutes) : undefined,
       } : en));
+      setRemindedIds(prev => prev.filter(id => id !== editingEntryId));
     } else {
       const newEntry: PlanningEntry = {
         id: 'pl-' + Math.random().toString(36).slice(2, 10),
         date: formDate,
+        endDate: (formEndDate && formEndDate > formDate) ? formEndDate : undefined,
         time: formTime || undefined,
         type: formType,
         text: formText.trim(),
@@ -235,6 +292,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
         projectColor: formProjectLabel.trim() ? formProjectColor : undefined,
         topicLabel: formTopicLabel.trim() || undefined,
         topicColor: formTopicLabel.trim() ? formTopicColor : undefined,
+        reminderMinutes: (formReminderMinutes !== '' && formTime) ? Number(formReminderMinutes) : undefined,
         createdAt: Date.now(),
       };
       persist([...entries, newEntry]);
@@ -305,7 +363,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   // ─── Vue quotidienne ──────────────────────────────────────────────────────
   const renderDaily = () => {
     const dateStr = toISODate(refDate);
-    const dayEntries = entries.filter(en => en.date === dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+    const dayEntries = entries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
     const untimed = dayEntries.filter(en => !en.time);
     const timed = dayEntries.filter(en => en.time);
 
@@ -357,7 +415,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {days.map((d, i) => {
           const dateStr = toISODate(d);
-          const dayEntries = entries.filter(en => en.date === dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+          const dayEntries = entries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
           const isToday = toISODate(new Date()) === dateStr;
           return (
             <div key={dateStr} className={`bg-app-card border rounded-2xl p-3.5 space-y-1.5 min-h-[9rem] ${isToday ? 'border-app-accent/50 ring-1 ring-app-accent/20' : 'border-app-border'}`}>
@@ -403,7 +461,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;
             const dateStr = toISODate(d);
-            const dayEntries = entries.filter(en => en.date === dateStr);
+            const dayEntries = entries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr);
             const isToday = toISODate(new Date()) === dateStr;
             return (
               <button
@@ -563,6 +621,15 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                 />
               </div>
               <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{t('Jusqu\'au (optionnel)', 'Until (optional)')}</label>
+                <input
+                  type="date" value={formEndDate} min={formDate} onChange={e => setFormEndDate(e.target.value)}
+                  className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{t('Heure (optionnel)', 'Time (optional)')}</label>
                 <input
                   type="time" value={formTime} onChange={e => setFormTime(e.target.value)}
@@ -570,6 +637,27 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                 />
               </div>
             </div>
+
+            {formTime && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted flex items-center gap-1.5">
+                  <Bell className="w-3 h-3" /> {t('Rappel (optionnel)', 'Reminder (optional)')}
+                </label>
+                <select
+                  value={formReminderMinutes}
+                  onChange={e => setFormReminderMinutes(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                >
+                  <option value="">{t('Aucun rappel', 'No reminder')}</option>
+                  {REMINDER_OPTIONS.map(opt => (
+                    <option key={opt.value} value={opt.value}>{lang === 'fr' ? opt.label : opt.labelEn}</option>
+                  ))}
+                </select>
+                <p className="text-[9px] text-app-muted">
+                  {t('Une notification s\'affiche si l\'app est ouverte au moment du rappel.', 'A notification appears if the app is open at reminder time.')}
+                </p>
+              </div>
+            )}
 
             {/* Alters assignés */}
             <div className="space-y-1.5">
