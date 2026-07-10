@@ -119,7 +119,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g11Title: 'Export des fiches en image',
       g11Text: 'Télécharge la fiche d\'un alter sous forme d\'image PNG prête à partager, avec toutes ses informations mises en forme proprement.',
       g12Title: 'Synchronisation PluralKit',
-      g12Text: 'Relie Haven Space à ton système PluralKit pour importer automatiquement tes alters existants, ou exporte/importe tes données via un simple fichier JSON — aucun compte n\'est nécessaire pour cette synchronisation.',
+      g12Text: 'Relie Haven Space à ton système PluralKit pour importer automatiquement tes alters existants, ou synchroniser tes fiches directement avec ton profil — aucun compte n\'est nécessaire pour cette synchronisation.',
       g13Title: 'Thèmes et personnalisation',
       g13Text: 'Choisis parmi plusieurs thèmes prédéfinis (clair, sombre, pastel, saisons, arcane...), ou crée ton propre thème personnalisé dans les paramètres en choisissant toi-même la couleur d\'accent, de fond, des cartes, du texte et des bordures. Un bouton « Réinitialiser » permet de revenir au thème actif à tout moment.',
       g14Title: 'Tableau de bord',
@@ -134,6 +134,10 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g18Text: 'Gère plusieurs systèmes complètement séparés dans la même application — chacun avec ses propres alters, ses propres sous-systèmes et sa propre cartographie des relations, indépendants du système principal. Pratique si tu accompagnes un autre système, ou si tu veux garder des espaces totalement distincts sans que les données se mélangent. Un sélecteur permet de basculer d\'un système à l\'autre à tout moment, depuis « Mon système ».',
       g19Title: 'Planning',
       g19Text: 'Un planning façon Bullet Journal, avec trois vues — quotidienne (heure par heure), hebdomadaire et mensuelle — pour savoir qui fait quoi et éviter d\'être pris·e au dépourvu. Chaque entrée a un type (à faire, événement, rendez-vous, note, important, urgent, idée, anniversaire, effectué, reporté, en cours), peut être liée à un ou plusieurs alters, et classée par projet ou par sujet grâce à des étiquettes de couleur libres.',
+      g20Title: 'Mon système',
+      g20Text: 'La page centrale où retrouver tous tes alters d\'un coup d\'œil : recherche par nom, filtres par rôle et par tag, création d\'un nouvel alter, et accès rapide pour charger, archiver ou supprimer une fiche. C\'est aussi depuis cette page que se gèrent les sous-systèmes et les systèmes parallèles.',
+      g21Title: 'Export / import JSON',
+      g21Text: 'Sauvegarde l\'intégralité de ton système (fiches, sous-systèmes, journal, relations, planning...) dans un fichier JSON téléchargeable, à conserver comme copie de secours ou à transférer sur un autre appareil. L\'import restaure tout à l\'identique, sans compte ni serveur externe.',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -236,7 +240,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g11Title: 'Export Profiles as Images',
       g11Text: 'Download an alter\'s profile as a ready-to-share PNG image, with all its information neatly formatted.',
       g12Title: 'PluralKit Sync',
-      g12Text: 'Connect Haven Space to your PluralKit system to automatically import your existing alters, or export/import your data via a simple JSON file — no account is required for this sync.',
+      g12Text: 'Connect Haven Space to your PluralKit system to automatically import your existing alters, or sync your profiles directly with your account — no account is required for this sync.',
       g13Title: 'Themes & Customization',
       g13Text: 'Pick from several built-in themes (light, dark, pastel, seasons, arcane...), or build your own custom theme in settings by choosing your own accent, background, card, text, and border colors. A "Reset" button lets you go back to the active theme at any time.',
       g14Title: 'Dashboard',
@@ -251,6 +255,10 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g18Text: 'Manage several completely separate systems within the same app — each with its own alters, subsystems, and relationship map, independent from the main system. Handy if you\'re supporting another system, or if you want fully distinct spaces without the data mixing together. A selector lets you switch between systems at any time, from "My System."',
       g19Title: 'Planning',
       g19Text: 'A Bullet Journal style planner, with three views — daily (hour by hour), weekly, and monthly — to know who\'s doing what and avoid being caught off guard. Each entry has a type (task, event, appointment, note, important, urgent, idea, birthday, done, postponed, in progress), can be linked to one or more alters, and sorted by project or topic using free-color labels.',
+      g20Title: 'My System',
+      g20Text: 'The central page where you find all your alters at a glance: search by name, filter by role and tag, create a new alter, and quickly load, archive, or delete a profile. Subsystems and parallel systems are also managed from this page.',
+      g21Title: 'JSON Export / Import',
+      g21Text: 'Save your entire system (profiles, subsystems, journal, relationships, planning...) as a downloadable JSON file, to keep as a backup or move to another device. Importing restores everything exactly as it was, with no account or external server involved.',
     }
   };
 
@@ -306,30 +314,28 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       {/* Pages Content router */}
       {currentPage === 'guide' && (() => {
         const guideItems = [
-          // Le cœur : gérer son système
+          { id: 'g14', icon: LayoutDashboard, title: currentT.g14Title, text: currentT.g14Text },
+          { id: 'g20', icon: Users, title: currentT.g20Title, text: currentT.g20Text },
           { id: 'g1', icon: UserCircle2, title: currentT.g1Title, text: currentT.g1Text },
           { id: 'g2', icon: Layers, title: currentT.g2Title, text: currentT.g2Text },
           { id: 'g18', icon: Boxes, title: currentT.g18Title, text: currentT.g18Text },
           { id: 'g4', icon: Tag, title: currentT.g4Title, text: currentT.g4Text },
-          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
-          // Le quotidien : suivre la présence
-          { id: 'g5', icon: Radio, title: currentT.g5Title, text: currentT.g5Text },
           { id: 'g6', icon: History, title: currentT.g6Title, text: currentT.g6Text },
-          { id: 'g14', icon: LayoutDashboard, title: currentT.g14Title, text: currentT.g14Text },
-          // S'exprimer et échanger
-          { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
-          { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
+          { id: 'g5', icon: Radio, title: currentT.g5Title, text: currentT.g5Text },
           { id: 'g8', icon: MessageCircle, title: currentT.g8Title, text: currentT.g8Text },
           { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
-          // Prendre soin de soi
+          { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
+          { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
-          // Autour de l'app
-          { id: 'g11', icon: Download, title: currentT.g11Title, text: currentT.g11Text },
           { id: 'g12', icon: Link2, title: currentT.g12Title, text: currentT.g12Text },
+          { id: 'g21', icon: Database, title: currentT.g21Title, text: currentT.g21Text },
+          { id: 'g11', icon: Download, title: currentT.g11Title, text: currentT.g11Text },
           { id: 'g13', icon: Palette, title: currentT.g13Title, text: currentT.g13Text },
-          { id: 'g15', icon: Globe, title: currentT.g15Title, text: currentT.g15Text },
           { id: 'g16', icon: Smartphone, title: currentT.g16Title, text: currentT.g16Text },
           { id: 'g17', icon: Lock, title: currentT.g17Title, text: currentT.g17Text },
+          // Non listées explicitement par l'utilisateur, conservées en fin de guide
+          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
+          { id: 'g15', icon: Globe, title: currentT.g15Title, text: currentT.g15Text },
         ];
         const query = guideSearch.trim().toLowerCase();
         const filteredItems = query
