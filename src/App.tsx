@@ -1,5 +1,5 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
-import PlanningPage from './PlanningPage';
+import PlanningPage, { loadPlanning, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -999,6 +999,36 @@ export default function App() {
       setDmToast(null);
     }
   }, [dmToast, lastSeenMsgIdByConv]);
+
+  // Vérifie toutes les 30s si un rappel de planning doit se déclencher — au niveau racine de l'app,
+  // pour continuer à fonctionner même quand on n'est pas sur l'onglet Planning.
+  useEffect(() => {
+    const check = () => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const now = Date.now();
+      const planningEntries = loadPlanning(activeSystemId);
+      let remindedIds: string[] = [];
+      try { remindedIds = JSON.parse(localStorage.getItem(REMINDED_STORAGE_KEY) || '[]'); } catch { /* ignore */ }
+      let changed = false;
+      planningEntries.forEach(en => {
+        if (!en.time || !en.reminderMinutes || remindedIds.includes(en.id)) return;
+        const target = new Date(`${en.date}T${en.time}:00`).getTime();
+        const triggerAt = target - en.reminderMinutes * 60000;
+        if (now >= triggerAt && now < target) {
+          new Notification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', {
+            body: `${en.time} — ${en.text}`,
+            icon: '/icon-192.png',
+          });
+          remindedIds.push(en.id);
+          changed = true;
+        }
+      });
+      if (changed) localStorage.setItem(REMINDED_STORAGE_KEY, JSON.stringify(remindedIds));
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, [activeSystemId, lang]);
 
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));

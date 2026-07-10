@@ -80,7 +80,7 @@ const REMINDER_OPTIONS: { value: number; label: string; labelEn: string }[] = [
   { value: 1440, label: '1 jour avant', labelEn: '1 day before' },
 ];
 
-const REMINDED_STORAGE_KEY = 'heaven_space_planning_reminded';
+export const REMINDED_STORAGE_KEY = 'heaven_space_planning_reminded';
 
 // Petite puce visuelle par type — mélange de formes CSS simples (fidèles au BuJo papier)
 // et d'icônes lucide pour les symboles plus figuratifs.
@@ -184,29 +184,6 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   React.useEffect(() => {
     localStorage.setItem(REMINDED_STORAGE_KEY, JSON.stringify(remindedIds));
   }, [remindedIds]);
-
-  // Vérifie toutes les 30s si un rappel doit se déclencher (notification navigateur)
-  React.useEffect(() => {
-    const check = () => {
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      const now = Date.now();
-      entries.forEach(en => {
-        if (!en.time || !en.reminderMinutes || remindedIds.includes(en.id)) return;
-        const target = new Date(`${en.date}T${en.time}:00`).getTime();
-        const triggerAt = target - en.reminderMinutes * 60000;
-        if (now >= triggerAt && now < target) {
-          new Notification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', {
-            body: `${en.time} — ${en.text}`,
-            icon: '/icon-192.png',
-          });
-          setRemindedIds(prev => [...prev, en.id]);
-        }
-      });
-    };
-    check();
-    const interval = setInterval(check, 30000);
-    return () => clearInterval(interval);
-  }, [entries, remindedIds, lang]);
 
   const t = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const weekdayNames = lang === 'fr' ? WEEKDAYS_FR : WEEKDAYS_EN;
