@@ -7921,6 +7921,46 @@ export default function App() {
                 )}
               </div>
 
+              {/* Ressources de crise / numéros d'urgence */}
+              <div className="p-5 bg-red-500/5 border border-red-500/20 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-red-500">
+                  <AlertTriangle className="w-4 h-4" />
+                  {lang === 'fr' ? "En cas d'urgence" : "In case of emergency"}
+                </div>
+                <p className="text-[11px] text-app-muted leading-relaxed">
+                  {lang === 'fr'
+                    ? "Si tu es en détresse ou en danger immédiat, ces numéros sont gratuits, confidentiels et disponibles même si tu n'as pas encore de contact de confiance enregistré."
+                    : "If you're in distress or immediate danger, these numbers are free, confidential, and available even if you haven't saved a trusted contact yet."}
+                </p>
+                <div className="space-y-2">
+                  {[
+                    { name: lang === 'fr' ? "3114 — Prévention du suicide" : "3114 — Suicide prevention", desc: lang === 'fr' ? "Gratuit, 24h/24 7j/7, France entière" : "Free, 24/7, all of France", num: "3114" },
+                    { name: lang === 'fr' ? "SOS Amitié — Écoute" : "SOS Amitié — Listening line", desc: lang === 'fr' ? "Anonyme et confidentiel, bénévoles formés" : "Anonymous and confidential, trained volunteers", num: "0972394050" },
+                    { name: lang === 'fr' ? "15 — SAMU (urgence médicale)" : "15 — Emergency medical services", desc: lang === 'fr' ? "Danger immédiat pour la santé" : "Immediate health danger", num: "15" },
+                    { name: lang === 'fr' ? "112 — Numéro d'urgence européen" : "112 — European emergency number", desc: lang === 'fr' ? "Depuis n'importe quel téléphone, en Europe" : "From any phone, within Europe", num: "112" },
+                  ].map(r => (
+                    <a
+                      key={r.num}
+                      href={`tel:${r.num}`}
+                      className="flex items-center justify-between gap-3 p-3 bg-app-card border border-app-border/40 rounded-xl hover:border-red-500/40 transition-colors group"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-app-text">{r.name}</p>
+                        <p className="text-[10px] text-app-muted">{r.desc}</p>
+                      </div>
+                      <div className="p-2 bg-red-500/10 text-red-500 rounded-lg flex-shrink-0 group-hover:bg-red-500 group-hover:text-white transition-colors">
+                        <Phone className="w-3.5 h-3.5" />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+                <p className="text-[9px] text-app-muted italic">
+                  {lang === 'fr'
+                    ? "Numéros valables en France. Si tu es dans un autre pays, cherche l'équivalent local — findahelpline.com recense des lignes d'écoute dans le monde entier."
+                    : "Numbers valid in France. If you're in another country, look up your local equivalent — findahelpline.com lists helplines worldwide."}
+                </p>
+              </div>
+
               {/* Footer */}
               <p className="text-center text-[11px] text-app-muted italic pb-4">
                 {lang === 'fr'
