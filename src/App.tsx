@@ -5026,7 +5026,7 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex justify-center">
+            <div className="flex justify-center gap-3">
               <button
                 type="button"
                 onClick={() => setShowMeaningCard(prev => !prev)}
@@ -5035,6 +5035,21 @@ export default function App() {
               >
                 <Info className="w-4 h-4 text-app-accent" />
                 {lang === 'fr' ? 'Résumé de la fiche' : 'Card summary'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none disabled:opacity-50"
+                title={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
+                aria-label={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
+              >
+                {isDownloading ? (
+                  <div className="w-4 h-4 border-2 border-app-accent/30 border-t-app-accent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-app-accent" />
+                )}
+                {lang === 'fr' ? 'Télécharger' : 'Download'}
               </button>
             </div>
 
