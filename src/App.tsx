@@ -7949,10 +7949,13 @@ export default function App() {
                 </p>
                 <div className="space-y-2">
                   {[
-                    { name: lang === 'fr' ? "3114 — Prévention du suicide" : "3114 — Suicide prevention", desc: lang === 'fr' ? "Gratuit, 24h/24 7j/7, France entière" : "Free, 24/7, all of France", num: "3114" },
-                    { name: lang === 'fr' ? "SOS Amitié — Écoute" : "SOS Amitié — Listening line", desc: lang === 'fr' ? "Anonyme et confidentiel, bénévoles formés" : "Anonymous and confidential, trained volunteers", num: "0972394050" },
                     { name: lang === 'fr' ? "15 — SAMU (urgence médicale)" : "15 — Emergency medical services", desc: lang === 'fr' ? "Danger immédiat pour la santé" : "Immediate health danger", num: "15" },
                     { name: lang === 'fr' ? "112 — Numéro d'urgence européen" : "112 — European emergency number", desc: lang === 'fr' ? "Depuis n'importe quel téléphone, en Europe" : "From any phone, within Europe", num: "112" },
+                    { name: lang === 'fr' ? "115 — Urgences sociales" : "115 — Social emergency line", desc: lang === 'fr' ? "Aussi appelé « SAMU social »" : "Also known as the \"SAMU social\"", num: "115" },
+                    { name: lang === 'fr' ? "119 — Enfance maltraitée" : "119 — Child abuse hotline", desc: lang === 'fr' ? "Allô Enfance en Danger, 24h/24 7j/7" : "Allô Enfance en Danger, 24/7", num: "119" },
+                    { name: lang === 'fr' ? "3114 — Prévention du suicide" : "3114 — Suicide prevention", desc: lang === 'fr' ? "Gratuit, 24h/24 7j/7, France entière" : "Free, 24/7, all of France", num: "3114" },
+                    { name: lang === 'fr' ? "3919 — Violences Femmes Infos" : "3919 — Violence against women hotline", desc: lang === 'fr' ? "Anonyme et gratuit, 24h/24 7j/7" : "Anonymous and free, 24/7", num: "3919" },
+                    { name: lang === 'fr' ? "SOS Amitié — Écoute" : "SOS Amitié — Listening line", desc: lang === 'fr' ? "Anonyme et confidentiel, bénévoles formés" : "Anonymous and confidential, trained volunteers", num: "0972394050" },
                   ].map(r => (
                     <a
                       key={r.num}
