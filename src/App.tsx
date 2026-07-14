@@ -1719,7 +1719,6 @@ export default function App() {
   // Auto-save to history on changes (debounced or simple)
   // For simplicity, we'll call saveToHistory in the toggle/update functions
   const [isDownloading, setIsDownloading] = useState(false);
-  const [infoNote, setInfoNote] = useState<{ title: string; text: string } | null>(null);
   const [showMeaningCard, setShowMeaningCard] = useState(false);
   const flagRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -2992,10 +2991,6 @@ export default function App() {
       }
     } else {
       setSelectedRoles([...selectedRoles, role]);
-      setInfoNote({ 
-        title: t.roleNames[role as keyof typeof t.roleNames], 
-        text: t.rolesData[role as keyof typeof t.rolesData] 
-      });
     }
     setTimeout(saveToHistory, 0);
   };
@@ -3028,10 +3023,6 @@ export default function App() {
       const nameMap = isDisorder ? t.disorders : t.personalityTraits;
       const dataMap = isDisorder ? t.disorderData : t.personalityTraitData;
       
-      setInfoNote({ 
-        title: nameMap[trait as keyof typeof nameMap], 
-        text: dataMap[trait as keyof typeof dataMap] 
-      });
     }
     setTimeout(saveToHistory, 0);
   };
@@ -3054,10 +3045,6 @@ export default function App() {
     };
     setDecorations([...decorations, newDec]);
     setActiveDecorationId(newDec.id);
-    setInfoNote({ 
-      title: t.shapes[type as keyof typeof t.shapes], 
-      text: t.shapeData[type as keyof typeof t.shapeData] 
-    });
     setTimeout(saveToHistory, 0);
   };
 
@@ -4260,10 +4247,6 @@ export default function App() {
                               key={g}
                               onClick={() => {
                                 toggleGender(g);
-                                setInfoNote({ 
-                                  title: t.genders[g as keyof typeof t.genders], 
-                                  text: t.genderData[g as keyof typeof t.genderData] 
-                                });
                               }}
                               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                                 selectedGenders.includes(g)
@@ -4350,10 +4333,6 @@ export default function App() {
                               key={s}
                               onClick={() => {
                                 toggleSexuality(s);
-                                setInfoNote({ 
-                                  title: t.sexualityNames[s as keyof typeof t.sexualityNames], 
-                                  text: t.sexualityData[s as keyof typeof t.sexualityData] 
-                                });
                               }}
                               className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
                                 selectedSexualities.includes(s)
@@ -4506,164 +4485,6 @@ export default function App() {
         <div className="lg:col-span-7 flex flex-col items-center">
           <div className="sticky top-32 w-full space-y-8">
             
-            {/* Info Note */}
-            <AnimatePresence>
-              {infoNote && (
-                <motion.div
-                  initial={{ opacity: 0, y: 18, scale: 0.98 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 12, scale: 0.98 }}
-                  className="fixed left-4 right-4 bottom-5 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-md z-[90] bg-app-card text-app-text p-4 rounded-2xl shadow-2xl border border-app-border relative overflow-hidden"
-                >
-                  <div className="absolute top-2 right-2">
-                    <button
-                      type="button"
-                      onClick={() => setInfoNote(null)}
-                      className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg transition-colors"
-                      aria-label={lang === 'fr' ? 'Fermer' : 'Close'}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="bg-app-accent/15 text-app-accent border border-app-accent/20 p-2 rounded-xl shrink-0">
-                      <Info className="w-4 h-4" />
-                    </div>
-                    <div className="pr-8">
-                      <h4 className="text-[10px] font-black uppercase tracking-widest text-app-muted mb-1">
-                        {infoNote.title}
-                      </h4>
-                      <p className="text-sm font-bold leading-relaxed text-app-text">
-                        {infoNote.text}
-                      </p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            <div className="flex justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => setShowMeaningCard(prev => !prev)}
-                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
-                aria-expanded={showMeaningCard}
-              >
-                <Info className="w-4 h-4 text-app-accent" />
-                {lang === 'fr' ? 'Résumé de la fiche' : 'Card summary'}
-              </button>
-              <button
-                type="button"
-                onClick={handleDownload}
-                disabled={isDownloading}
-                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none disabled:opacity-50"
-                title={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
-                aria-label={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
-              >
-                {isDownloading ? (
-                  <div className="w-4 h-4 border-2 border-app-accent/30 border-t-app-accent rounded-full animate-spin" />
-                ) : (
-                  <Download className="w-4 h-4 text-app-accent" />
-                )}
-                {lang === 'fr' ? 'Télécharger' : 'Download'}
-              </button>
-            </div>
-
-            {/* Meaning Card — bannière repliable au-dessus de la fiche */}
-            <AnimatePresence>
-              {showMeaningCard && (
-                <motion.div
-                  initial={{ opacity: 0, y: 14, height: 0 }}
-                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                  exit={{ opacity: 0, y: 10, height: 0 }}
-                  className="w-full bg-app-card rounded-3xl shadow-sm border border-app-border overflow-hidden"
-                >
-                  <div className="p-8 space-y-6">
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-app-muted">
-                        <Info className="w-4 h-4" /> {t.meaning}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={handleDownloadDefinition}
-                          className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-accent"
-                          title={t.downloadDefinition}
-                          aria-label={t.downloadDefinition}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowMeaningCard(false)}
-                          className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-text"
-                          aria-label={lang === 'fr' ? 'Fermer le résumé' : 'Close summary'}
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-4">
-                        {selectedRoles.map(role => (
-                          <div key={role} className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_CONFIGS[role].color }} />
-                            <span className="text-sm font-medium">{t.roleNames[role as keyof typeof t.roleNames]}: {t.rolesData[role as keyof typeof t.rolesData]}</span>
-                          </div>
-                        ))}
-                        {selectedGenders.map(g => (
-                          <div key={g} className="flex items-center gap-2 animate-fade-in">
-                            <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
-                            <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}</span>
-                          </div>
-                        ))}
-                        {selectedSexualities.map(s => (
-                          <div key={s} className="flex items-center gap-2 animate-fade-in">
-                            <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
-                            <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      {traitDecorations.length > 0 && (
-                        <div className="pt-4 border-t border-app-border">
-                          <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.traitsIncluded}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {traitDecorations.map(td => {
-                              const isDisorder = Object.values(Disorder).includes(td.trait as Disorder);
-                              const name = isDisorder
-                                ? t.disorders[td.trait as keyof typeof t.disorders]
-                                : t.personalityTraits[td.trait as keyof typeof t.personalityTraits];
-                              return (
-                                <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
-                                  {getTraitIcon(td.trait)}
-                                  {name}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {decorations.length > 0 && (
-                        <div className="pt-4 border-t border-app-border">
-                          <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.customSymbols}</p>
-                          <div className="flex flex-wrap gap-2">
-                            {decorations.map(d => (
-                              <span key={d.id} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
-                                {getShapeIcon(d.type)} {t.shapes[d.type as keyof typeof t.shapes]}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
 
             {/* Profile Card Preview Container */}
             <div className="relative group w-full flex justify-center">
@@ -5148,6 +4969,129 @@ export default function App() {
                 )}
               </div>
             </div>
+
+            <div className="flex flex-wrap justify-center gap-3 w-full max-w-[600px] mx-auto">
+              <button
+                type="button"
+                onClick={() => setShowMeaningCard(prev => !prev)}
+                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none"
+                aria-expanded={showMeaningCard}
+              >
+                <Info className="w-4 h-4 text-app-accent" />
+                {lang === 'fr' ? 'Résumé de la fiche' : 'Card summary'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                disabled={isDownloading}
+                className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none disabled:opacity-50"
+                title={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
+                aria-label={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
+              >
+                {isDownloading ? (
+                  <div className="w-4 h-4 border-2 border-app-accent/30 border-t-app-accent rounded-full animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 text-app-accent" />
+                )}
+                {lang === 'fr' ? 'Télécharger' : 'Download'}
+              </button>
+            </div>
+
+            {/* Meaning Card — bannière repliable au-dessus de la fiche */}
+            <AnimatePresence>
+              {showMeaningCard && (
+                <motion.div
+                  initial={{ opacity: 0, y: 14, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: 10, height: 0 }}
+                  className="w-full max-w-[600px] mx-auto bg-app-card rounded-3xl shadow-sm border border-app-border overflow-hidden"
+                >
+                  <div className="p-8 space-y-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-app-muted">
+                        <Info className="w-4 h-4" /> {t.meaning}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={handleDownloadDefinition}
+                          className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-accent"
+                          title={t.downloadDefinition}
+                          aria-label={t.downloadDefinition}
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowMeaningCard(false)}
+                          className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-text"
+                          aria-label={lang === 'fr' ? 'Fermer le résumé' : 'Close summary'}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-4">
+                        {selectedRoles.map(role => (
+                          <div key={role} className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_CONFIGS[role].color }} />
+                            <span className="text-sm font-medium">{t.roleNames[role as keyof typeof t.roleNames]}: {t.rolesData[role as keyof typeof t.rolesData]}</span>
+                          </div>
+                        ))}
+                        {selectedGenders.map(g => (
+                          <div key={g} className="flex items-center gap-2 animate-fade-in">
+                            <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
+                            <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}</span>
+                          </div>
+                        ))}
+                        {selectedSexualities.map(s => (
+                          <div key={s} className="flex items-center gap-2 animate-fade-in">
+                            <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
+                            <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {traitDecorations.length > 0 && (
+                        <div className="pt-4 border-t border-app-border">
+                          <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.traitsIncluded}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {traitDecorations.map(td => {
+                              const isDisorder = Object.values(Disorder).includes(td.trait as Disorder);
+                              const name = isDisorder
+                                ? t.disorders[td.trait as keyof typeof t.disorders]
+                                : t.personalityTraits[td.trait as keyof typeof t.personalityTraits];
+                              return (
+                                <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
+                                  {getTraitIcon(td.trait)}
+                                  {name}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {decorations.length > 0 && (
+                        <div className="pt-4 border-t border-app-border">
+                          <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.customSymbols}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {decorations.map(d => (
+                              <span key={d.id} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
+                                {getShapeIcon(d.type)} {t.shapes[d.type as keyof typeof t.shapes]}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
 
             {/* Disclaimer */}
             <p className="text-[10px] text-center text-app-muted uppercase tracking-widest leading-relaxed">
