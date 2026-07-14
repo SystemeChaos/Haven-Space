@@ -5043,13 +5043,13 @@ export default function App() {
                         {selectedGenders.map(g => (
                           <div key={g} className="flex items-center gap-2 animate-fade-in">
                             <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
-                            <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}</span>
+                            <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}{t.genderData[g as keyof typeof t.genderData] ? ` — ${t.genderData[g as keyof typeof t.genderData]}` : ''}</span>
                           </div>
                         ))}
                         {selectedSexualities.map(s => (
                           <div key={s} className="flex items-center gap-2 animate-fade-in">
                             <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
-                            <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}</span>
+                            <span className="text-sm font-medium">{t.sexuality}: {t.sexualityNames[s as keyof typeof t.sexualityNames]}{t.sexualityData[s as keyof typeof t.sexualityData] ? ` — ${t.sexualityData[s as keyof typeof t.sexualityData]}` : ''}</span>
                           </div>
                         ))}
                       </div>
