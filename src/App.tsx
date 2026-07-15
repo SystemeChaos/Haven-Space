@@ -407,6 +407,48 @@ interface MarkdownEditorProps {
 function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, className = '' }: MarkdownEditorProps) {
   const [preview, setPreview] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [uploadingImage, setUploadingImage] = React.useState(false);
+
+  const insertImageMarkdown = (url: string, alt: string = '') => {
+    const ta = textareaRef.current;
+    const pos = ta ? ta.selectionStart : value.length;
+    const ins = `![${alt}](${url})`;
+    onChange(value.slice(0, pos) + ins + value.slice(pos));
+  };
+
+  const handleImageFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const max_size = 800;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > max_size) { height *= max_size / width; width = max_size; }
+        } else {
+          if (height > max_size) { width *= max_size / height; height = max_size; }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx?.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        insertImageMarkdown(dataUrl);
+        setUploadingImage(false);
+      };
+      img.onerror = () => setUploadingImage(false);
+      img.src = ev.target?.result as string;
+    };
+    reader.onerror = () => setUploadingImage(false);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   const wrap = (before: string, after: string) => {
     const ta = textareaRef.current;
@@ -440,22 +482,25 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
     { label: 'H2', title: 'Titre 2',  action: () => insertLine('## ') },
     { label: 'H3', title: 'Titre 3',  action: () => insertLine('### ') },
     { label: '—',  title: 'Liste',    action: () => insertLine('- ') },
-    { label: '🖼️', title: 'Image', action: () => {
+    { label: '🖼️', title: 'Image (URL)', action: () => {
       const url = prompt('URL de l\'image :');
       if (url) {
         const alt = prompt('Description (optionnel) :') || '';
-        const ta = textareaRef.current;
-        if (ta) {
-          const pos = ta.selectionStart;
-          const ins = `![${alt}](${url})`;
-          onChange(value.slice(0, pos) + ins + value.slice(pos));
-        }
+        insertImageMarkdown(url, alt);
       }
     }},
+    { label: '📁', title: 'Importer une image depuis l\'appareil', action: () => fileInputRef.current?.click() },
   ];
 
   return (
     <div className={`space-y-1 ${className}`}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleImageFileSelected}
+        className="hidden"
+      />
       {/* Toolbar */}
       <div className="flex items-center gap-1 flex-wrap">
         {toolbarBtns.map(btn => (
@@ -464,12 +509,13 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
             type="button"
             title={btn.title}
             onClick={btn.action}
-            disabled={preview}
+            disabled={preview || uploadingImage}
             className="px-2 py-1 rounded-lg bg-app-card border border-app-border text-[11px] font-black hover:bg-app-accent/10 hover:text-app-accent hover:border-app-accent/30 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {btn.label}
           </button>
         ))}
+        {uploadingImage && <span className="text-[10px] text-app-muted italic">Import en cours…</span>}
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
@@ -3425,6 +3471,17 @@ export default function App() {
             alt=""
             className="max-w-full max-h-full rounded-2xl object-contain"
             onClick={e => e.stopPropagation()}
+            onError={e => {
+              const target = e.currentTarget;
+              target.style.display = 'none';
+              const parent = target.parentElement;
+              if (parent && !parent.querySelector('.lightbox-error-msg')) {
+                const msg = document.createElement('p');
+                msg.className = 'lightbox-error-msg text-white/70 text-sm text-center px-6';
+                msg.textContent = lang === 'fr' ? "Impossible de charger cette image (lien cassé ou indisponible)." : "Couldn't load this image (broken or unavailable link).";
+                parent.appendChild(msg);
+              }
+            }}
           />
         </div>
       )}
