@@ -35,7 +35,42 @@ export interface PlanningEntry {
   createdAt: number;
 }
 
-type ViewMode = 'daily' | 'weekly' | 'monthly';
+type ViewMode = 'daily' | 'weekly' | 'monthly' | 'eisenhower';
+
+export type EisenhowerQuadrant = 'do' | 'plan' | 'delegate' | 'eliminate';
+
+export interface EisenhowerTask {
+  id: string;
+  text: string;
+  quadrant: EisenhowerQuadrant;
+  alterId?: string;
+  createdAt: number;
+}
+
+const EISENHOWER_STORAGE_KEY = 'heaven_space_eisenhower';
+
+export function loadEisenhower(systemId: string = 'main'): EisenhowerTask[] {
+  try {
+    const key = systemId === 'main' ? EISENHOWER_STORAGE_KEY : `${EISENHOWER_STORAGE_KEY}_${systemId}`;
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+  } catch { /* ignore */ }
+  return [];
+}
+
+export function saveEisenhower(data: EisenhowerTask[], systemId: string = 'main') {
+  const key = systemId === 'main' ? EISENHOWER_STORAGE_KEY : `${EISENHOWER_STORAGE_KEY}_${systemId}`;
+  localStorage.setItem(key, JSON.stringify(data));
+}
+
+const EISENHOWER_CONFIG: Record<EisenhowerQuadrant, { label: string; labelEn: string; subLabel: string; subLabelEn: string; color: string }> = {
+  do:        { label: '1. Faire maintenant', labelEn: '1. Do now',      subLabel: 'Urgent / Important',       subLabelEn: 'Urgent / Important',       color: '#EF4444' },
+  plan:      { label: '2. Planifier',        labelEn: '2. Schedule',    subLabel: 'Pas urgent / Important',   subLabelEn: 'Not urgent / Important',   color: '#3B82F6' },
+  delegate:  { label: '3. Déléguer',         labelEn: '3. Delegate',    subLabel: 'Urgent / Pas important',   subLabelEn: 'Urgent / Not important',   color: '#F59E0B' },
+  eliminate: { label: '4. Éliminer',         labelEn: '4. Eliminate',   subLabel: 'Pas urgent / Pas important', subLabelEn: 'Not urgent / Not important', color: '#6B7280' },
+};
+
+const EISENHOWER_ORDER: EisenhowerQuadrant[] = ['do', 'plan', 'delegate', 'eliminate'];
 
 const STORAGE_KEY = 'heaven_space_planning';
 
@@ -153,6 +188,14 @@ interface PlanningPageProps {
 
 export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main' }: PlanningPageProps) {
   const [entries, setEntries] = useState<PlanningEntry[]>(() => loadPlanning(activeSystemId));
+  const [eisenhowerTasks, setEisenhowerTasks] = useState<EisenhowerTask[]>(() => loadEisenhower(activeSystemId));
+  const [showEisenhowerForm, setShowEisenhowerForm] = useState(false);
+  const [editingEisenhowerId, setEditingEisenhowerId] = useState<string | null>(null);
+  const [eisenhowerText, setEisenhowerText] = useState('');
+  const [eisenhowerQuadrant, setEisenhowerQuadrant] = useState<EisenhowerQuadrant>('do');
+  const [eisenhowerAlterId, setEisenhowerAlterId] = useState<string>('');
+  const [eisenhowerAlterSearch, setEisenhowerAlterSearch] = useState('');
+  const [deleteEisenhowerConfirmId, setDeleteEisenhowerConfirmId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('daily');
   const [refDate, setRefDate] = useState<Date>(() => new Date());
   const [showLegend, setShowLegend] = useState(false);
@@ -179,6 +222,57 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   const persist = (next: PlanningEntry[]) => {
     setEntries(next);
     savePlanning(next, activeSystemId);
+  };
+
+  const persistEisenhower = (next: EisenhowerTask[]) => {
+    setEisenhowerTasks(next);
+    saveEisenhower(next, activeSystemId);
+  };
+
+  const openNewEisenhowerTask = (presetQuadrant?: EisenhowerQuadrant) => {
+    setEditingEisenhowerId(null);
+    setEisenhowerText('');
+    setEisenhowerQuadrant(presetQuadrant || 'do');
+    setEisenhowerAlterId('');
+    setEisenhowerAlterSearch('');
+    setShowEisenhowerForm(true);
+  };
+
+  const openEditEisenhowerTask = (task: EisenhowerTask) => {
+    setEditingEisenhowerId(task.id);
+    setEisenhowerText(task.text);
+    setEisenhowerQuadrant(task.quadrant);
+    setEisenhowerAlterId(task.alterId || '');
+    setEisenhowerAlterSearch('');
+    setShowEisenhowerForm(true);
+  };
+
+  const handleSubmitEisenhowerTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!eisenhowerText.trim()) return;
+    if (editingEisenhowerId) {
+      persistEisenhower(eisenhowerTasks.map(t2 => t2.id === editingEisenhowerId ? {
+        ...t2,
+        text: eisenhowerText.trim(),
+        quadrant: eisenhowerQuadrant,
+        alterId: eisenhowerAlterId || undefined,
+      } : t2));
+    } else {
+      const newTask: EisenhowerTask = {
+        id: 'eh-' + Math.random().toString(36).slice(2, 10),
+        text: eisenhowerText.trim(),
+        quadrant: eisenhowerQuadrant,
+        alterId: eisenhowerAlterId || undefined,
+        createdAt: Date.now(),
+      };
+      persistEisenhower([...eisenhowerTasks, newTask]);
+    }
+    setShowEisenhowerForm(false);
+  };
+
+  const executeDeleteEisenhowerTask = (id: string) => {
+    persistEisenhower(eisenhowerTasks.filter(t2 => t2.id !== id));
+    setDeleteEisenhowerConfirmId(null);
   };
 
   React.useEffect(() => {
@@ -463,6 +557,87 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     );
   };
 
+  // ─── Vue Priorités (Matrice d'Eisenhower) ──────────────────────────────────
+  const renderEisenhower = () => (
+    <div className="space-y-5">
+      <div className="bg-app-card border border-app-border rounded-2xl p-4 space-y-1.5">
+        <p className="text-xs font-black uppercase tracking-wider text-app-text">
+          {t('Matrice d\'Eisenhower', 'Eisenhower Matrix')}
+        </p>
+        <p className="text-[11px] text-app-muted leading-relaxed">
+          {t(
+            'Un outil pour trier tes tâches selon leur urgence et leur importance, plutôt que par date. Chaque tâche va dans l\'un des 4 blocs ci-dessous : à faire maintenant, à planifier, à déléguer, ou à éliminer.',
+            'A tool to sort your tasks by urgency and importance, rather than by date. Each task goes into one of the 4 boxes below: do now, schedule, delegate, or eliminate.'
+          )}
+        </p>
+      </div>
+
+      <div className="flex justify-end">
+        <button
+          onClick={() => openNewEisenhowerTask()}
+          className="flex items-center gap-2 px-4 py-2.5 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+        >
+          <Plus className="w-4 h-4" />
+          {t('Ajouter une tâche', 'Add a task')}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {EISENHOWER_ORDER.map(q => {
+          const cfg = EISENHOWER_CONFIG[q];
+          const tasks = eisenhowerTasks.filter(tk => tk.quadrant === q);
+          return (
+            <div key={q} className="bg-app-card border-2 rounded-2xl p-4 space-y-3" style={{ borderColor: `${cfg.color}40` }}>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-sm font-black" style={{ color: cfg.color }}>{lang === 'fr' ? cfg.label : cfg.labelEn}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-app-muted">{lang === 'fr' ? cfg.subLabel : cfg.subLabelEn}</p>
+                </div>
+                <button
+                  onClick={() => openNewEisenhowerTask(q)}
+                  className="p-1.5 rounded-lg text-app-muted hover:text-app-accent hover:bg-app-accent/10 transition-colors flex-shrink-0"
+                  title={t('Ajouter ici', 'Add here')}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              {tasks.length === 0 ? (
+                <p className="text-[10px] text-app-muted/50 italic">—</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {tasks.map(tk => {
+                    const alter = tk.alterId ? savedAlters.find(a => a.id === tk.alterId) : null;
+                    return (
+                      <div key={tk.id} className="group flex items-start gap-2 px-2.5 py-2 rounded-xl hover:bg-app-accent/5 transition-colors">
+                        <span className="flex-1 min-w-0 text-xs font-semibold text-app-text leading-snug">
+                          {tk.text}
+                          {alter && (
+                            <span className="ml-1.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-app-bg border border-app-border/40 text-[9px] font-bold text-app-muted align-middle">
+                              {alter.profileImage
+                                ? <img src={alter.profileImage} className="w-3 h-3 rounded-full object-cover" alt="" />
+                                : <span className="w-3 h-3 rounded-full bg-app-accent/20 flex items-center justify-center text-[7px] text-app-accent font-black">{alter.alterName.charAt(0)}</span>
+                              }
+                              {alter.alterName}
+                            </span>
+                          )}
+                        </span>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <button onClick={() => openEditEisenhowerTask(tk)} className="p-1 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3 h-3" /></button>
+                          <button onClick={() => setDeleteEisenhowerConfirmId(tk.id)} className="p-1 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   const dateLabel = useMemo(() => {
     if (viewMode === 'daily') {
       return `${weekdayNames[(refDate.getDay() + 6) % 7]} ${refDate.getDate()} ${monthNames[refDate.getMonth()]} ${refDate.getFullYear()}`;
@@ -517,33 +692,38 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
 
       {/* Sélecteur de vue + navigation de date */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-1 bg-app-card border border-app-border rounded-xl p-1">
-          {(['daily', 'weekly', 'monthly'] as ViewMode[]).map(mode => (
+        <div className="flex items-center gap-1 bg-app-card border border-app-border rounded-xl p-1 flex-wrap">
+          {(['daily', 'weekly', 'monthly', 'eisenhower'] as ViewMode[]).map(mode => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${viewMode === mode ? 'bg-app-accent text-app-accent-text' : 'text-app-muted hover:text-app-text'}`}
             >
-              {mode === 'daily' ? t('Quotidien', 'Daily') : mode === 'weekly' ? t('Hebdomadaire', 'Weekly') : t('Mensuel', 'Monthly')}
+              {mode === 'daily' ? t('Quotidien', 'Daily') : mode === 'weekly' ? t('Hebdomadaire', 'Weekly') : mode === 'monthly' ? t('Mensuel', 'Monthly') : t('Priorités', 'Priorities')}
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => shiftDate(-1)} className="p-2 rounded-lg border border-app-border text-app-muted hover:text-app-text transition-colors"><ChevronLeft className="w-4 h-4" /></button>
-          <button onClick={() => setRefDate(new Date())} className="px-3 py-2 rounded-lg border border-app-border text-[10px] font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 transition-colors flex items-center gap-1.5">
-            <CalendarIcon className="w-3.5 h-3.5" />
-            {t('Aujourd\'hui', 'Today')}
-          </button>
-          <button onClick={() => shiftDate(1)} className="p-2 rounded-lg border border-app-border text-app-muted hover:text-app-text transition-colors"><ChevronRight className="w-4 h-4" /></button>
-        </div>
+        {viewMode !== 'eisenhower' && (
+          <div className="flex items-center gap-2">
+            <button onClick={() => shiftDate(-1)} className="p-2 rounded-lg border border-app-border text-app-muted hover:text-app-text transition-colors"><ChevronLeft className="w-4 h-4" /></button>
+            <button onClick={() => setRefDate(new Date())} className="px-3 py-2 rounded-lg border border-app-border text-[10px] font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 transition-colors flex items-center gap-1.5">
+              <CalendarIcon className="w-3.5 h-3.5" />
+              {t('Aujourd\'hui', 'Today')}
+            </button>
+            <button onClick={() => shiftDate(1)} className="p-2 rounded-lg border border-app-border text-app-muted hover:text-app-text transition-colors"><ChevronRight className="w-4 h-4" /></button>
+          </div>
+        )}
       </div>
 
-      <p className="text-sm font-black uppercase tracking-wider text-app-text">{dateLabel}</p>
+      {viewMode !== 'eisenhower' && (
+        <p className="text-sm font-black uppercase tracking-wider text-app-text">{dateLabel}</p>
+      )}
 
       {/* Contenu */}
       {viewMode === 'daily' && renderDaily()}
       {viewMode === 'weekly' && renderWeekly()}
       {viewMode === 'monthly' && renderMonthly()}
+      {viewMode === 'eisenhower' && renderEisenhower()}
 
       {/* Formulaire d'ajout / édition */}
       {showEntryForm && (
@@ -752,6 +932,143 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                 {t('Supprimer', 'Delete')}
               </button>
               <button onClick={() => setDeleteConfirmId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                {t('Annuler', 'Cancel')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Formulaire Eisenhower (ajout / édition) */}
+      {showEisenhowerForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setShowEisenhowerForm(false)}>
+          <form
+            onSubmit={handleSubmitEisenhowerTask}
+            onClick={e => e.stopPropagation()}
+            className="bg-app-card border border-app-border w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-black uppercase tracking-wider text-app-text">
+                {editingEisenhowerId ? t('Modifier la tâche', 'Edit task') : t('Nouvelle tâche', 'New task')}
+              </h3>
+              <button type="button" onClick={() => setShowEisenhowerForm(false)} className="text-app-muted hover:text-app-text transition-colors"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{t('Description', 'Description')}</label>
+              <input
+                type="text" autoFocus value={eisenhowerText} onChange={e => setEisenhowerText(e.target.value)}
+                placeholder={t('Quelle est la tâche ?', 'What\'s the task?')}
+                className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{t('Bloc', 'Quadrant')}</label>
+              <div className="grid grid-cols-2 gap-2">
+                {EISENHOWER_ORDER.map(q => {
+                  const cfg = EISENHOWER_CONFIG[q];
+                  return (
+                    <button
+                      key={q}
+                      type="button"
+                      onClick={() => setEisenhowerQuadrant(q)}
+                      className={`p-2.5 rounded-xl border-2 text-left transition-colors ${eisenhowerQuadrant === q ? 'bg-app-accent/10' : 'hover:bg-app-bg'}`}
+                      style={{ borderColor: eisenhowerQuadrant === q ? cfg.color : 'var(--color-app-border)' }}
+                    >
+                      <p className="text-[11px] font-black" style={{ color: cfg.color }}>{lang === 'fr' ? cfg.label : cfg.labelEn}</p>
+                      <p className="text-[9px] text-app-muted">{lang === 'fr' ? cfg.subLabel : cfg.subLabelEn}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted flex items-center gap-1.5">
+                <Users className="w-3 h-3" /> {t('Alter concerné (optionnel)', 'Related alter (optional)')}
+              </label>
+              {eisenhowerAlterId ? (
+                (() => {
+                  const a = savedAlters.find(al => al.id === eisenhowerAlterId);
+                  if (!a) return null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setEisenhowerAlterId('')}
+                      className="flex items-center gap-1.5 px-2 py-1 rounded-full border border-app-accent bg-app-accent/10 text-app-accent text-[10px] font-bold"
+                    >
+                      {a.profileImage
+                        ? <img src={a.profileImage} className="w-4 h-4 rounded-full object-cover" alt="" />
+                        : <span className="w-4 h-4 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] text-app-accent font-black">{a.alterName.charAt(0)}</span>
+                      }
+                      {a.alterName}
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  );
+                })()
+              ) : (
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={eisenhowerAlterSearch}
+                    onChange={e => setEisenhowerAlterSearch(e.target.value)}
+                    placeholder={t('Rechercher un alter...', 'Search an alter...')}
+                    className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs text-app-text placeholder:text-app-muted focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  {eisenhowerAlterSearch.trim().length > 0 && (
+                    <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-40 overflow-y-auto">
+                      {savedAlters
+                        .filter(a => a.alterName.toLowerCase().includes(eisenhowerAlterSearch.toLowerCase()))
+                        .slice(0, 6)
+                        .map(a => (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => { setEisenhowerAlterId(a.id); setEisenhowerAlterSearch(''); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                          >
+                            {a.profileImage
+                              ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" />
+                              : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{a.alterName.charAt(0)}</div>
+                            }
+                            {a.alterName}
+                          </button>
+                        ))}
+                      {savedAlters.filter(a => a.alterName.toLowerCase().includes(eisenhowerAlterSearch.toLowerCase())).length === 0 && (
+                        <p className="px-3 py-2 text-xs text-app-muted">{t('Aucun résultat', 'No results')}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button type="submit" className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 transition-opacity">
+                <Check className="w-4 h-4" />
+                {editingEisenhowerId ? t('Enregistrer', 'Save') : t('Ajouter', 'Add')}
+              </button>
+              <button type="button" onClick={() => setShowEisenhowerForm(false)} className="px-4 py-2.5 border border-app-border rounded-xl text-xs font-bold uppercase tracking-widest text-app-muted hover:text-app-text transition-colors">
+                {t('Annuler', 'Cancel')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Confirmation de suppression — tâche Eisenhower */}
+      {deleteEisenhowerConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-5 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+              <Trash2 className="w-7 h-7" />
+            </div>
+            <h3 className="text-base font-black uppercase tracking-wider text-app-text">{t('Supprimer cette tâche ?', 'Delete this task?')}</h3>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => executeDeleteEisenhowerTask(deleteEisenhowerConfirmId)} className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                {t('Supprimer', 'Delete')}
+              </button>
+              <button onClick={() => setDeleteEisenhowerConfirmId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
                 {t('Annuler', 'Cancel')}
               </button>
             </div>
