@@ -499,7 +499,7 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
         type="file"
         accept="image/*"
         onChange={handleImageFileSelected}
-        className="hidden"
+        style={{ position: 'absolute', width: 1, height: 1, padding: 0, margin: -1, overflow: 'hidden', clip: 'rect(0,0,0,0)', border: 0 }}
       />
       {/* Toolbar */}
       <div className="flex items-center gap-1 flex-wrap">
@@ -4019,7 +4019,7 @@ export default function App() {
                 <FileText className="w-3 h-3" /> {t.descriptionTitle}
               </label>
               <span className="text-[10px] font-mono opacity-50">
-                {description.length}/5000
+                {description.length}/300000
               </span>
             </div>
             <MarkdownEditor
@@ -4027,7 +4027,7 @@ export default function App() {
               onChange={updateDescription}
               placeholder={t.descriptionPlaceholder}
               rows={4}
-              maxLength={5000}
+              maxLength={300000}
             />
           </section>
 
@@ -4038,7 +4038,7 @@ export default function App() {
                 <Lock className="w-3 h-3" /> {t.internalNotesTitle}
               </label>
               <span className="text-[10px] font-mono opacity-50">
-                {internalNotes.length}/5000
+                {internalNotes.length}/300000
               </span>
             </div>
             <MarkdownEditor
@@ -4046,7 +4046,7 @@ export default function App() {
               onChange={updateInternalNotes}
               placeholder={t.internalNotesPlaceholder}
               rows={4}
-              maxLength={5000}
+              maxLength={300000}
             />
           </section>
 
@@ -4547,9 +4547,7 @@ export default function App() {
             <div className="relative group w-full flex justify-center">
               <div 
                 ref={flagRef}
-                className={`w-full max-w-[600px] rounded-[2rem] shadow-2xl border-8 border-app-card relative bg-app-bg text-app-text select-none flex flex-col justify-between ${
-                  isDownloading ? 'h-auto overflow-visible' : 'aspect-[2/3] overflow-hidden'
-                }`}
+                className="w-full max-w-[600px] rounded-[2rem] shadow-2xl border-8 border-app-card relative bg-app-bg text-app-text select-none flex flex-col justify-between h-auto overflow-visible"
                 style={{ backgroundColor: 'var(--color-app-bg)' }}
               >
                 {/* Upper Section: Identity & Roles (Frosted Glass Header) */}
