@@ -1929,14 +1929,14 @@ export default function App() {
   };
 
   const updateDescription = (desc: string) => {
-    if (desc.length <= 5000) {
+    if (desc.length <= 300000) {
       setDescription(desc);
       setTimeout(saveToHistory, 0);
     }
   };
 
   const updateInternalNotes = (notes: string) => {
-    if (notes.length <= 5000) {
+    if (notes.length <= 300000) {
       setInternalNotes(notes);
       setTimeout(saveToHistory, 0);
     }
