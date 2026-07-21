@@ -2678,6 +2678,7 @@ export default function App() {
 
   const renderAlterCard = (alter: SavedAlter) => {
     const alterRoles = cleanAlterRoles(alter.selectedRoles);
+    const allRoleIds: string[] = [...alterRoles, ...(alter.customRoleIds || [])];
     return (
       <div key={alter.id} className="w-full bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
         {/* Version mobile — liste compacte style Simply Plural */}
@@ -2691,10 +2692,10 @@ export default function App() {
           )}
           <div className="flex-1 overflow-hidden">
             <span className="font-bold text-sm text-app-text block overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
-            {alterRoles.length > 0 && (
+            {allRoleIds.length > 0 && (
               <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
-                {t.roleNames[alterRoles[0] as keyof typeof t.roleNames] || alterRoles[0]}
-                {alterRoles.length > 1 && ` +${alterRoles.length - 1}`}
+                {getRoleDisplayName(allRoleIds[0])}
+                {allRoleIds.length > 1 && ` +${allRoleIds.length - 1}`}
               </span>
             )}
           </div>
@@ -2759,22 +2760,22 @@ export default function App() {
                   {t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}
                 </span>
               )}
-              {alterRoles.slice(0, 2).map(r => (
+              {allRoleIds.slice(0, 2).map(r => (
                 <span 
                   key={r} 
                   style={{ 
-                    backgroundColor: `${alter.customRoleColors?.[r] || ROLE_CONFIGS[r]?.color || '#9CA3AF'}15`, 
-                    color: alter.customRoleColors?.[r] || ROLE_CONFIGS[r]?.color || '#9CA3AF',
-                    borderColor: `${alter.customRoleColors?.[r] || ROLE_CONFIGS[r]?.color || '#9CA3AF'}40`
+                    backgroundColor: `${alter.customRoleColors?.[r] || getRoleDisplayColor(r)}15`, 
+                    color: alter.customRoleColors?.[r] || getRoleDisplayColor(r),
+                    borderColor: `${alter.customRoleColors?.[r] || getRoleDisplayColor(r)}40`
                   }}
                   className="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block"
                 >
-                  {t.roleNames[r as keyof typeof t.roleNames]}
+                  {getRoleDisplayName(r)}
                 </span>
               ))}
-              {alterRoles.length > 2 && (
+              {allRoleIds.length > 2 && (
                 <span className="px-1.5 py-0.5 rounded bg-app-bg text-app-muted text-[8px] font-extrabold">
-                  +{alterRoles.length - 2}
+                  +{allRoleIds.length - 2}
                 </span>
               )}
             </div>
@@ -3053,6 +3054,20 @@ export default function App() {
       backgroundPosition,
       opacity
     };
+  };
+
+  // Rôle fixe ou personnalisé : nom et couleur à afficher, quel que soit le type
+  const getRoleDisplayName = (roleId: string): string => {
+    if ((Object.values(AlterRole) as string[]).includes(roleId)) {
+      return t.roleNames[roleId as keyof typeof t.roleNames] || roleId;
+    }
+    return customRoles.find(r => r.id === roleId)?.name || roleId;
+  };
+  const getRoleDisplayColor = (roleId: string): string => {
+    if ((Object.values(AlterRole) as string[]).includes(roleId)) {
+      return ROLE_CONFIGS[roleId as AlterRole]?.color || '#9CA3AF';
+    }
+    return customRoles.find(r => r.id === roleId)?.color || '#9CA3AF';
   };
 
   const toggleRole = (role: AlterRole) => {
@@ -4770,7 +4785,7 @@ export default function App() {
                       </div>
 
                       {/* System Roles - Placed close to the name */}
-                      {selectedRoles.length > 0 && (
+                      {(selectedRoles.length > 0 || selectedCustomRoleIds.length > 0) && (
                         <div className="space-y-1">
                           <div className="text-[8px] font-bold uppercase tracking-widest opacity-50 px-0.5">
                             {lang === 'fr' ? 'Rôles' : 'Roles'}
@@ -4795,6 +4810,29 @@ export default function App() {
                                 {t.roleNames[role as keyof typeof t.roleNames]}
                               </span>
                             ))}
+                            {selectedCustomRoleIds.map(roleId => {
+                              const role = customRoles.find(r => r.id === roleId);
+                              if (!role) return null;
+                              const roleColor = customRoleColors[roleId] || role.color || '#8B5CF6';
+                              return (
+                                <span
+                                  key={roleId}
+                                  title={role.definition || undefined}
+                                  style={{
+                                    backgroundColor: `${roleColor}20`,
+                                    borderColor: `${roleColor}60`,
+                                    color: roleColor
+                                  }}
+                                  className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 shrink-0 animate-fade-in"
+                                >
+                                  <span
+                                    className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
+                                    style={{ backgroundColor: roleColor }}
+                                  />
+                                  {role.name}
+                                </span>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
@@ -5297,6 +5335,16 @@ export default function App() {
                             <span className="text-sm font-medium">{t.roleNames[role as keyof typeof t.roleNames]}: {t.rolesData[role as keyof typeof t.rolesData]}</span>
                           </div>
                         ))}
+                        {selectedCustomRoleIds.map(roleId => {
+                          const role = customRoles.find(r => r.id === roleId);
+                          if (!role) return null;
+                          return (
+                            <div key={roleId} className="flex items-center gap-2 animate-fade-in">
+                              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: role.color || '#8B5CF6' }} />
+                              <span className="text-sm font-medium">{role.name}{role.definition ? `: ${role.definition}` : ''}</span>
+                            </div>
+                          );
+                        })}
                         {selectedGenders.map(g => (
                           <div key={g} className="flex items-center gap-2 animate-fade-in">
                             <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
@@ -5540,9 +5588,10 @@ export default function App() {
                       setRoleFilterInput(val);
                       if (val.trim().length > 0) {
                         const query = val.toLowerCase();
-                        const suggestions = Object.values(AlterRole)
+                        const allSearchableRoles: string[] = [...Object.values(AlterRole), ...customRoles.map(r => r.id)];
+                        const suggestions = allSearchableRoles
                           .filter(r => !roleFilter.includes(r))
-                          .filter(r => (t.roleNames[r as keyof typeof t.roleNames] || r).toLowerCase().includes(query))
+                          .filter(r => getRoleDisplayName(r).toLowerCase().includes(query))
                           .slice(0, 6);
                         setRoleFilterSuggestions(suggestions);
                       } else {
@@ -5569,8 +5618,8 @@ export default function App() {
                           onClick={() => { setRoleFilter(prev => [...prev, r]); setRoleFilterInput(''); setRoleFilterSuggestions([]); }}
                           className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-app-bg flex items-center gap-2 transition-colors"
                         >
-                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF' }} />
-                          {t.roleNames[r as keyof typeof t.roleNames] || r}
+                          <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: getRoleDisplayColor(r) }} />
+                          {getRoleDisplayName(r)}
                         </button>
                       ))}
                     </div>
@@ -5585,9 +5634,9 @@ export default function App() {
                         key={r}
                         onClick={() => setRoleFilter(prev => prev.filter(x => x !== r))}
                         className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border transition-colors hover:opacity-70"
-                        style={{ backgroundColor: `${ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF'}15`, borderColor: `${ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF'}40`, color: ROLE_CONFIGS[r as AlterRole]?.color || '#9CA3AF' }}
+                        style={{ backgroundColor: `${getRoleDisplayColor(r)}15`, borderColor: `${getRoleDisplayColor(r)}40`, color: getRoleDisplayColor(r) }}
                       >
-                        {t.roleNames[r as keyof typeof t.roleNames] || r}
+                        {getRoleDisplayName(r)}
                         <X className="w-2.5 h-2.5" />
                       </button>
                     ))}
@@ -5692,7 +5741,7 @@ export default function App() {
                 const subAlters = savedAlters
                   .filter(a => a.subsystemId === activeSubsystemView && !a.archived
                     && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase()))
-                    && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg)))
+                    && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole) || (a.customRoleIds || []).includes(r))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg)))
                   )
                   .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
                 return (
@@ -5796,13 +5845,13 @@ export default function App() {
                             <div className="flex-1">
                               <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
                                 {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole) || (a.customRoleIds || []).includes(r))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                                   .map(a => renderAlterCard(a))}
                               </div>
                               <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
+                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole) || (a.customRoleIds || []).includes(r))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
                                   .map(a => renderAlterCard(a))}
                               </div>
