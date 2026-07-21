@@ -1,4 +1,3 @@
-
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import PlanningPage, { loadPlanning, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -1883,18 +1882,17 @@ export default function App() {
         el.style.maxHeight = savedMaxHeight[i] || '';
       });
 
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = blobUrl;
+      link.href = dataUrl;
       link.download = `alter-card-${alterName || 'creator'}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
     } catch (err) {
       console.error('oops, something went wrong!', err);
+      alert(lang === 'fr'
+        ? "Le téléchargement a échoué. Réessaie, et si ça persiste, vérifie qu'aucune extension du navigateur (bloqueur de pubs, etc.) ne bloque le téléchargement."
+        : "The download failed. Try again, and if it keeps happening, check that no browser extension (ad blocker, etc.) is blocking the download.");
     } finally {
       setIsDownloading(false);
     }
