@@ -1,3 +1,4 @@
+
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import PlanningPage, { loadPlanning, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -3068,6 +3069,25 @@ export default function App() {
       return ROLE_CONFIGS[roleId as AlterRole]?.color || '#9CA3AF';
     }
     return customRoles.find(r => r.id === roleId)?.color || '#9CA3AF';
+  };
+
+  // Formate un timestamp de message avec la date (sauf si c'est aujourd'hui) + l'heure
+  const formatMessageTimestamp = (timestamp: number): string => {
+    const d = new Date(timestamp);
+    const now = new Date();
+    const isToday = d.toDateString() === now.toDateString();
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    const isYesterday = d.toDateString() === yesterday.toDateString();
+    const timeStr = d.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+    if (isToday) return timeStr;
+    if (isYesterday) return `${lang === 'fr' ? 'Hier' : 'Yesterday'} ${timeStr}`;
+    const dateStr = d.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+    });
+    return `${dateStr} · ${timeStr}`;
   };
 
   const toggleRole = (role: AlterRole) => {
@@ -6497,7 +6517,7 @@ export default function App() {
                               {isSystem ? (lang === 'fr' ? 'Hôte / Système' : 'Host / System') : matchedAlter?.alterName}
                             </span>
                             <span className="text-[9px] text-app-muted font-bold font-mono">
-                              {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              {formatMessageTimestamp(msg.timestamp)}
                             </span>
                           </div>
                           
@@ -7891,7 +7911,7 @@ export default function App() {
                                 </span>
                               </div>
                               <span className="text-[9px] text-app-muted px-1">
-                                {new Date(msg.timestamp).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
+                                {formatMessageTimestamp(msg.timestamp)}
                               </span>
                             </div>
                             {/* Supprimer */}
