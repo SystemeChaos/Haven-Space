@@ -603,6 +603,13 @@ export interface CustomField {
   value: string;
 }
 
+export interface CustomRole {
+  id: string;
+  name: string;
+  definition: string;
+  color: string;
+}
+
 export interface SavedAlter {
   id: string;
   alterName: string;
@@ -635,6 +642,7 @@ export interface SavedAlter {
   pkColor?: string;
   systemId?: string; // 'main' ou id d'un système parallèle
   tags?: string[]; // tags personnalisés libres, en plus des rôles fixes
+  customRoleIds?: string[]; // ids des rôles personnalisés (CustomRole) attribués à cet alter
 }
 
 export interface PollOption {

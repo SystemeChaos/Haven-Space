@@ -139,7 +139,7 @@ import {
   Send,
   ChevronRight,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
+import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
@@ -670,6 +670,14 @@ export default function App() {
   const [alterTagInput, setAlterTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [frontStatus, setFrontStatus] = useState<string>('none');
+  // Rôles personnalisés attribués à l'alter en cours d'édition
+  const [selectedCustomRoleIds, setSelectedCustomRoleIds] = useState<string[]>([]);
+  // Brouillon du formulaire de création/édition d'un rôle personnalisé (liste globale)
+  const [customRoleDraftName, setCustomRoleDraftName] = useState('');
+  const [customRoleDraftDefinition, setCustomRoleDraftDefinition] = useState('');
+  const [customRoleDraftColor, setCustomRoleDraftColor] = useState('#8B5CF6');
+  const [editingCustomRoleId, setEditingCustomRoleId] = useState<string | null>(null);
+  const [customRoleDeleteConfirmId, setCustomRoleDeleteConfirmId] = useState<string | null>(null);
   const [mainSystemName, setMainSystemName] = useState<string>(() => {
     return localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System');
   });
@@ -836,6 +844,15 @@ export default function App() {
     }
   });
 
+  // --- Rôles personnalisés (définis par l'utilisateur, en plus des rôles fixes) ---
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('customRoles') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
   // --- Systèmes parallèles ---
   const [parallelSystems, setParallelSystems] = useState<ParallelSystem[]>(() => {
     try {
@@ -950,6 +967,10 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('subsystems', JSON.stringify(subsystems));
   }, [subsystems]);
+
+  useEffect(() => {
+    localStorage.setItem('customRoles', JSON.stringify(customRoles));
+  }, [customRoles]);
 
   useEffect(() => {
     localStorage.setItem('parallelSystems', JSON.stringify(parallelSystems));
@@ -2112,6 +2133,7 @@ export default function App() {
       alterOriginWorld: alterOriginWorld || undefined,
       tags: alterTags.length > 0 ? alterTags : undefined,
       customFields: customFields.length > 0 ? customFields : undefined,
+      customRoleIds: selectedCustomRoleIds.length > 0 ? selectedCustomRoleIds : undefined,
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
     };
@@ -2152,6 +2174,7 @@ export default function App() {
     setAlterOriginWorld(alter.alterOriginWorld || '');
     setAlterTags(alter.tags || []);
     setCustomFields(alter.customFields || []);
+    setSelectedCustomRoleIds(alter.customRoleIds || []);
     setFrontStatus(alter.frontStatus || 'none');
     setEditingAlterId(alter.id);
     setCreatorReturnTab(currentTab !== 'creator' ? currentTab : creatorReturnTab);
@@ -2193,6 +2216,8 @@ export default function App() {
     setAlterTags([]);
     setAlterTagInput('');
     setCustomFields([]);
+    setSelectedCustomRoleIds([]);
+    resetCustomRoleDraft();
     setFrontStatus('none');
     setEditingAlterId(null);
     setCreatorReturnTab(null);
@@ -3039,6 +3064,60 @@ export default function App() {
       setSelectedRoles([...selectedRoles, role]);
     }
     setTimeout(saveToHistory, 0);
+  };
+
+  // Attribue / retire un rôle personnalisé sur l'alter en cours d'édition
+  const toggleCustomRoleSelection = (roleId: string) => {
+    setSelectedCustomRoleIds(prev =>
+      prev.includes(roleId) ? prev.filter(id => id !== roleId) : [...prev, roleId]
+    );
+    setTimeout(saveToHistory, 0);
+  };
+
+  const resetCustomRoleDraft = () => {
+    setEditingCustomRoleId(null);
+    setCustomRoleDraftName('');
+    setCustomRoleDraftDefinition('');
+    setCustomRoleDraftColor('#8B5CF6');
+  };
+
+  // Crée un nouveau rôle personnalisé, ou enregistre les modifications si on est en mode édition
+  const saveCustomRoleDraft = () => {
+    const name = customRoleDraftName.trim();
+    if (!name) return;
+    if (editingCustomRoleId) {
+      setCustomRoles(prev => prev.map(r => r.id === editingCustomRoleId
+        ? { ...r, name, definition: customRoleDraftDefinition.trim(), color: customRoleDraftColor }
+        : r));
+    } else {
+      const newRole: CustomRole = {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        definition: customRoleDraftDefinition.trim(),
+        color: customRoleDraftColor,
+      };
+      setCustomRoles(prev => [...prev, newRole]);
+      setSelectedCustomRoleIds(prev => [...prev, newRole.id]);
+    }
+    resetCustomRoleDraft();
+  };
+
+  const startEditCustomRole = (role: CustomRole) => {
+    setEditingCustomRoleId(role.id);
+    setCustomRoleDraftName(role.name);
+    setCustomRoleDraftDefinition(role.definition);
+    setCustomRoleDraftColor(role.color || '#8B5CF6');
+  };
+
+  // Supprime un rôle personnalisé de la liste globale et le détache de tous les alters qui l'utilisaient
+  const deleteCustomRoleDefinition = (roleId: string) => {
+    setCustomRoles(prev => prev.filter(r => r.id !== roleId));
+    setSelectedCustomRoleIds(prev => prev.filter(id => id !== roleId));
+    setSavedAlters(prev => prev.map(a => a.customRoleIds?.includes(roleId)
+      ? { ...a, customRoleIds: a.customRoleIds.filter(id => id !== roleId) }
+      : a));
+    if (editingCustomRoleId === roleId) resetCustomRoleDraft();
+    setCustomRoleDeleteConfirmId(null);
   };
 
   const toggleTrait = (trait: Trait) => {
@@ -4230,6 +4309,129 @@ export default function App() {
                         <span className="font-medium">{t.roleNames[role as keyof typeof t.roleNames]}</span>
                       </button>
                     ))}
+                  </div>
+
+                  {/* Rôles personnalisés */}
+                  <div className="pt-4 border-t border-app-border/25 space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                      {lang === 'fr' ? 'Rôles personnalisés' : 'Custom roles'}
+                    </div>
+
+                    {customRoles.length > 0 && (
+                      <div className="grid grid-cols-2 gap-2">
+                        {[...customRoles].sort((a, b) => a.name.localeCompare(b.name, lang)).map((role) => {
+                          const isSelected = selectedCustomRoleIds.includes(role.id);
+                          return (
+                            <div
+                              key={role.id}
+                              className={`relative group flex items-center gap-2 pl-4 pr-2 py-3 rounded-xl border text-sm transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                              onClick={() => toggleCustomRoleSelection(role.id)}
+                              title={role.definition || undefined}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: role.color || '#8B5CF6' }}
+                              />
+                              <span className="font-medium truncate flex-1 min-w-0">{role.name}</span>
+                              <span className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); startEditCustomRole(role); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-app-accent/10 text-app-muted hover:text-app-text'}`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCustomRoleDeleteConfirmId(role.id); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-red-500/10 text-app-muted hover:text-red-500'}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Confirmation de suppression d'un rôle personnalisé */}
+                    {customRoleDeleteConfirmId && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                        <span className="text-xs text-app-text">
+                          {lang === 'fr'
+                            ? `Supprimer « ${customRoles.find(r => r.id === customRoleDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
+                            : `Delete "${customRoles.find(r => r.id === customRoleDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomRoleDefinition(customRoleDeleteConfirmId)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomRoleDeleteConfirmId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Formulaire de création / édition */}
+                    <div className="space-y-2 p-3 rounded-xl border border-dashed border-app-border">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={customRoleDraftColor}
+                          onChange={(e) => setCustomRoleDraftColor(e.target.value)}
+                          className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={customRoleDraftName}
+                          onChange={(e) => setCustomRoleDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom du rôle...' : 'Role name...'}
+                          className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
+                        />
+                      </div>
+                      <textarea
+                        value={customRoleDraftDefinition}
+                        onChange={(e) => setCustomRoleDraftDefinition(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Définition de ce rôle...' : 'Definition of this role...'}
+                        rows={2}
+                        className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={saveCustomRoleDraft}
+                          disabled={!customRoleDraftName.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                        >
+                          {editingCustomRoleId
+                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
+                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un rôle' : 'Add a role'}</>}
+                        </button>
+                        {editingCustomRoleId && (
+                          <button
+                            type="button"
+                            onClick={resetCustomRoleDraft}
+                            className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {selectedRoles.length > 0 && (
