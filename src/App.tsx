@@ -4823,7 +4823,7 @@ export default function App() {
                                   borderColor: `${customRoleColors[role] || ROLE_CONFIGS[role].color}60`,
                                   color: customRoleColors[role] || ROLE_CONFIGS[role].color
                                 }}
-                                className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 shrink-0 animate-fade-in"
+                                className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
                               >
                                 <span 
                                   className="w-1.5 h-1.5 rounded-full inline-block shrink-0" 
@@ -4845,7 +4845,7 @@ export default function App() {
                                     borderColor: `${roleColor}60`,
                                     color: roleColor
                                   }}
-                                  className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 shrink-0 animate-fade-in"
+                                  className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
                                 >
                                   <span
                                     className="w-1.5 h-1.5 rounded-full inline-block shrink-0"
@@ -4877,7 +4877,7 @@ export default function App() {
                                       borderColor: `${customGenderColors[g] || GENDER_COLORS[g]}40`,
                                       color: customGenderColors[g] || GENDER_COLORS[g]
                                     }}
-                                    className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 animate-fade-in"
+                                    className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
                                     {t.genders[g as keyof typeof t.genders]}
@@ -4902,7 +4902,7 @@ export default function App() {
                                       borderColor: `${customSexualityColors[s] || SEXUALITY_COLORS[s]}40`,
                                       color: customSexualityColors[s] || SEXUALITY_COLORS[s]
                                     }}
-                                    className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 animate-fade-in"
+                                    className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
                                   >
                                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: customSexualityColors[s] || SEXUALITY_COLORS[s] }} />
                                     {t.sexualityNames[s as keyof typeof t.sexualityNames]}
