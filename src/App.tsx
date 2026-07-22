@@ -402,9 +402,13 @@ interface MarkdownEditorProps {
   rows?: number;
   maxLength?: number;
   className?: string;
+  // Certains contextes (ex: Journal) ont déjà un mécanisme dédié et propre pour attacher des
+  // photos (stockées à part, pas de base64 dans le texte). Dans ce cas on masque le bouton
+  // d'import d'image inline pour éviter le doublon qui alourdit inutilement le texte brut.
+  allowInlineImages?: boolean;
 }
 
-function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, className = '' }: MarkdownEditorProps) {
+function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, className = '', allowInlineImages = true }: MarkdownEditorProps) {
   const [preview, setPreview] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -503,14 +507,16 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
     { label: 'H2', title: 'Titre 2',  action: () => insertLine('## ') },
     { label: 'H3', title: 'Titre 3',  action: () => insertLine('### ') },
     { label: '—',  title: 'Liste',    action: () => insertLine('- ') },
-    { label: '🖼️', title: 'Image (URL)', action: () => {
-      const url = prompt('URL de l\'image :');
-      if (url) {
-        const alt = prompt('Description (optionnel) :') || '';
-        insertImageMarkdown(url, alt);
-      }
-    }},
-    { label: '📁', title: 'Importer une image depuis l\'appareil', action: () => fileInputRef.current?.click() },
+    ...(allowInlineImages ? [
+      { label: '🖼️', title: 'Image (URL)', action: () => {
+        const url = prompt('URL de l\'image :');
+        if (url) {
+          const alt = prompt('Description (optionnel) :') || '';
+          insertImageMarkdown(url, alt);
+        }
+      }},
+      { label: '📁', title: 'Importer une image depuis l\'appareil', action: () => fileInputRef.current?.click() },
+    ] : []),
   ];
 
   return (
@@ -7479,6 +7485,7 @@ export default function App() {
                       onChange={setJournalContentInput}
                       placeholder={t.journalContentPlaceholder}
                       rows={6}
+                      allowInlineImages={false}
                     />
                   </div>
 
