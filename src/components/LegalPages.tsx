@@ -3,7 +3,7 @@ import {
   Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
-  LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays,
+  LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
@@ -75,6 +75,11 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fM: '✦ Thèmes & personnalisation',
       fN: '✦ Multilingue FR/EN',
       fO: '✦ Installable PWA / Mobile',
+      fP: '✦ Planning Bullet Journal',
+      fQ: '✦ Matrice d\'Eisenhower',
+      fR: '✦ Systèmes parallèles',
+      fS: '✦ Rôles personnalisés',
+      fT: '✦ Export / import JSON',
       openSourceTitle: 'Transparence',
       openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
 
@@ -138,6 +143,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g20Text: 'La page centrale où retrouver tous tes alters d\'un coup d\'œil : recherche par nom, filtres par rôle et par tag, création d\'un nouvel alter, et accès rapide pour charger, archiver ou supprimer une fiche. C\'est aussi depuis cette page que se gèrent les sous-systèmes et les systèmes parallèles.',
       g21Title: 'Export / import JSON',
       g21Text: 'Sauvegarde l\'intégralité de ton système (fiches, sous-systèmes, journal, relations, planning...) dans un fichier JSON téléchargeable, à conserver comme copie de secours ou à transférer sur un autre appareil. L\'import restaure tout à l\'identique, sans compte ni serveur externe.',
+      g22Title: 'Matrice d\'Eisenhower',
+      g22Text: 'Une vue dédiée dans le Planning pour prioriser tes tâches selon leur urgence et leur importance, classées en quatre cases : à faire en premier, à planifier, à déléguer, et à laisser de côté. Idéal pour clarifier les priorités du système quand tout semble urgent en même temps.',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -196,6 +203,11 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fM: '✦ Themes & Customization',
       fN: '✦ Multilingual EN/FR',
       fO: '✦ Installable PWA / Mobile',
+      fP: '✦ Bullet Journal Planning',
+      fQ: '✦ Eisenhower Matrix',
+      fR: '✦ Parallel Systems',
+      fS: '✦ Custom Roles',
+      fT: '✦ JSON Export / Import',
       openSourceTitle: 'Transparency',
       openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
 
@@ -259,6 +271,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g20Text: 'The central page where you find all your alters at a glance: search by name, filter by role and tag, create a new alter, and quickly load, archive, or delete a profile. Subsystems and parallel systems are also managed from this page.',
       g21Title: 'JSON Export / Import',
       g21Text: 'Save your entire system (profiles, subsystems, journal, relationships, planning...) as a downloadable JSON file, to keep as a backup or move to another device. Importing restores everything exactly as it was, with no account or external server involved.',
+      g22Title: 'Eisenhower Matrix',
+      g22Text: 'A dedicated view inside Planning to prioritize your tasks by urgency and importance, sorted into four boxes: do first, schedule, delegate, and drop. Great for clarifying what actually matters when everything feels urgent at once.',
     }
   };
 
@@ -326,6 +340,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
           { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
           { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
+          { id: 'g22', icon: LayoutGrid, title: currentT.g22Title, text: currentT.g22Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
           { id: 'g12', icon: Link2, title: currentT.g12Title, text: currentT.g12Text },
           { id: 'g21', icon: Database, title: currentT.g21Title, text: currentT.g21Text },
@@ -564,6 +579,11 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 currentT.fM,
                 currentT.fN,
                 currentT.fO,
+                currentT.fP,
+                currentT.fQ,
+                currentT.fR,
+                currentT.fS,
+                currentT.fT,
               ].map(item => (
                 <div key={item} className="p-2.5 bg-app-bg/50 border border-app-border/40 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-text/90">
                   {item}
