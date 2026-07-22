@@ -1870,6 +1870,10 @@ export default function App() {
         pixelRatio: 3,
         backgroundColor: themeBg || '#ffffff',
         skipAutoScale: true,
+        // Une image cassée (lien mort, hébergeur qui bloque le CORS...) dans la description
+        // ou les notes ne doit pas faire planter tout l'export : on la remplace par un pixel
+        // transparent au lieu de laisser toPng lever une erreur globale.
+        imagePlaceholder: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       });
 
       // Restaurer les styles
