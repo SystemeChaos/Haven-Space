@@ -1,4 +1,6 @@
-import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
+git add src/App.tsx
+git commit -m "amélioration: galerie de vignettes + aperçu auto pour gérer les images intégrées sans voir le base64"
+git pushimport MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import PlanningPage, { loadPlanning, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -410,6 +412,24 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [uploadingImage, setUploadingImage] = React.useState(false);
 
+  // Images intégrées (data:image/...) détectées dans le texte — affichées en vignettes
+  // plutôt que de laisser l'utilisateur se coltiner un pavé de base64 illisible dans le champ.
+  const embeddedImages = React.useMemo(() => {
+    const regex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
+    const matches: { full: string; alt: string; url: string }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(value)) !== null) {
+      matches.push({ full: m[0], alt: m[1], url: m[2] });
+    }
+    return matches;
+  }, [value]);
+
+  const removeEmbeddedImage = (full: string) => {
+    const idx = value.indexOf(full);
+    if (idx === -1) return;
+    onChange(value.slice(0, idx) + value.slice(idx + full.length));
+  };
+
   const insertImageMarkdown = (url: string, alt: string = '') => {
     const ta = textareaRef.current;
     const pos = ta ? ta.selectionStart : value.length;
@@ -426,7 +446,9 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
       const img = new window.Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const max_size = 800;
+        // Taille et qualité réduites par rapport à avant : le texte base64 résultant est
+        // nettement plus court, donc moins encombrant dans le champ d'édition brut.
+        const max_size = 640;
         let width = img.width;
         let height = img.height;
         if (width > height) {
@@ -438,9 +460,10 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         ctx?.drawImage(img, 0, 0, width, height);
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.55);
         insertImageMarkdown(dataUrl);
         setUploadingImage(false);
+        setPreview(true);
       };
       img.onerror = () => setUploadingImage(false);
       img.src = ev.target?.result as string;
@@ -533,6 +556,28 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
           </button>
         </div>
       </div>
+
+      {/* Galerie des images intégrées — évite d'avoir à lire/gérer le pavé de base64 dans le texte */}
+      {embeddedImages.length > 0 && (
+        <div className="flex flex-wrap gap-2 p-2 bg-app-bg/60 border border-app-border/30 rounded-xl">
+          {embeddedImages.map((img, i) => (
+            <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-app-border/40 shrink-0 group">
+              <img src={img.url} className="w-full h-full object-cover" alt={img.alt} />
+              <button
+                type="button"
+                onClick={() => removeEmbeddedImage(img.full)}
+                title="Retirer cette image"
+                className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+          <span className="self-center text-[10px] text-app-muted italic px-1">
+            {embeddedImages.length} image{embeddedImages.length > 1 ? 's' : ''} intégrée{embeddedImages.length > 1 ? 's' : ''}. Clique sur une vignette pour la retirer sans avoir à toucher au texte.
+          </span>
+        </div>
+      )}
 
       {/* Zone édition ou prévisualisation */}
       {preview ? (
