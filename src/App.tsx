@@ -406,9 +406,11 @@ interface MarkdownEditorProps {
   // photos (stockées à part, pas de base64 dans le texte). Dans ce cas on masque le bouton
   // d'import d'image inline pour éviter le doublon qui alourdit inutilement le texte brut.
   allowInlineImages?: boolean;
+  // Ouvre l'image en grand (lightbox) quand on clique dessus dans l'aperçu de l'éditeur.
+  onImageClick?: (url: string) => void;
 }
 
-function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, className = '', allowInlineImages = true }: MarkdownEditorProps) {
+function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, className = '', allowInlineImages = true, onImageClick }: MarkdownEditorProps) {
   const [preview, setPreview] = React.useState(false);
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -586,7 +588,7 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
       {/* Zone édition ou prévisualisation */}
       {preview ? (
         <div className="w-full min-h-[7rem] bg-app-card border border-app-border rounded-2xl px-6 py-4 text-sm leading-relaxed space-y-1">
-          {value.trim() ? renderMarkdown(value) : <span className="text-app-muted italic">{placeholder || 'Rien à afficher.'}</span>}
+          {value.trim() ? renderMarkdown(value, onImageClick) : <span className="text-app-muted italic">{placeholder || 'Rien à afficher.'}</span>}
         </div>
       ) : (
         <textarea
@@ -4193,6 +4195,7 @@ export default function App() {
               placeholder={t.descriptionPlaceholder}
               rows={4}
               maxLength={300000}
+              onImageClick={setLightboxImage}
             />
           </section>
 
@@ -4212,6 +4215,7 @@ export default function App() {
               placeholder={t.internalNotesPlaceholder}
               rows={4}
               maxLength={300000}
+              onImageClick={setLightboxImage}
             />
           </section>
 
@@ -7486,6 +7490,7 @@ export default function App() {
                       placeholder={t.journalContentPlaceholder}
                       rows={6}
                       allowInlineImages={false}
+                      onImageClick={setLightboxImage}
                     />
                   </div>
 
