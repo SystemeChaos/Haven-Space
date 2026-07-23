@@ -568,19 +568,25 @@ function MarkdownEditor({ value, onChange, placeholder, rows = 6, maxLength, cla
         <div className="flex flex-wrap gap-2 p-2 bg-app-bg/60 border border-app-border/30 rounded-xl">
           {embeddedImages.map((img, i) => (
             <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-app-border/40 shrink-0 group">
-              <img src={img.url} className="w-full h-full object-cover" alt={img.alt} />
+              <img
+                src={img.url}
+                className="w-full h-full object-cover cursor-pointer"
+                alt={img.alt}
+                onClick={() => onImageClick && onImageClick(img.url)}
+                title="Voir en grand"
+              />
               <button
                 type="button"
-                onClick={() => removeEmbeddedImage(img.full)}
+                onClick={(e) => { e.stopPropagation(); removeEmbeddedImage(img.full); }}
                 title="Retirer cette image"
-                className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                className="absolute top-0.5 right-0.5 p-0.5 rounded-md bg-black/60 hover:bg-red-500/90 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3 h-3" />
               </button>
             </div>
           ))}
           <span className="self-center text-[10px] text-app-muted italic px-1">
-            {embeddedImages.length} image{embeddedImages.length > 1 ? 's' : ''} intégrée{embeddedImages.length > 1 ? 's' : ''}. Clique sur une vignette pour la retirer sans avoir à toucher au texte.
+            {embeddedImages.length} image{embeddedImages.length > 1 ? 's' : ''} intégrée{embeddedImages.length > 1 ? 's' : ''}. Clique sur une vignette pour l'agrandir, sur la croix pour la retirer.
           </span>
         </div>
       )}
