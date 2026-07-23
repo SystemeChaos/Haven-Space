@@ -7576,9 +7576,14 @@ export default function App() {
                             {entry.images && entry.images.length > 0 && (
                               <div className="grid grid-cols-3 gap-2 pt-2">
                                 {entry.images.map((img, i) => (
-                                  <a key={i} href={img} target="_blank" rel="noopener noreferrer" className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block">
+                                  <button
+                                    key={i}
+                                    type="button"
+                                    onClick={() => setLightboxImage(img)}
+                                    className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block cursor-pointer"
+                                  >
                                     <img src={img} className="w-full h-full object-cover" />
-                                  </a>
+                                  </button>
                                 ))}
                               </div>
                             )}
