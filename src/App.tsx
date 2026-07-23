@@ -5273,9 +5273,9 @@ export default function App() {
                                   key={i}
                                   type="button"
                                   onClick={() => setLightboxImage(img)}
-                                  className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block cursor-pointer"
+                                  className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 bg-app-bg/60 block cursor-pointer"
                                 >
-                                  <img src={img} className="w-full h-full object-cover" />
+                                  <img src={img} className="w-full h-full object-contain" />
                                 </button>
                               ))}
                             </div>
@@ -5302,9 +5302,9 @@ export default function App() {
                                   key={i}
                                   type="button"
                                   onClick={() => setLightboxImage(img)}
-                                  className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block cursor-pointer"
+                                  className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 bg-app-bg/60 block cursor-pointer"
                                 >
-                                  <img src={img} className="w-full h-full object-cover" />
+                                  <img src={img} className="w-full h-full object-contain" />
                                 </button>
                               ))}
                             </div>
@@ -7700,9 +7700,9 @@ export default function App() {
                                     key={i}
                                     type="button"
                                     onClick={() => setLightboxImage(img)}
-                                    className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block cursor-pointer"
+                                    className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 bg-app-bg/60 block cursor-pointer"
                                   >
-                                    <img src={img} className="w-full h-full object-cover" />
+                                    <img src={img} className="w-full h-full object-contain" />
                                   </button>
                                 ))}
                               </div>
