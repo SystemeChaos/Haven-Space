@@ -726,6 +726,8 @@ export default function App() {
   const [alterTags, setAlterTags] = useState<string[]>([]);
   const [alterTagInput, setAlterTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [descriptionImages, setDescriptionImages] = useState<string[]>([]);
+  const [internalNotesImages, setInternalNotesImages] = useState<string[]>([]);
   const [frontStatus, setFrontStatus] = useState<string>('none');
   // Rôles personnalisés attribués à l'alter en cours d'édition
   const [selectedCustomRoleIds, setSelectedCustomRoleIds] = useState<string[]>([]);
@@ -2193,6 +2195,8 @@ export default function App() {
       alterOriginWorld: alterOriginWorld || undefined,
       tags: alterTags.length > 0 ? alterTags : undefined,
       customFields: customFields.length > 0 ? customFields : undefined,
+      descriptionImages: descriptionImages.length > 0 ? descriptionImages : undefined,
+      internalNotesImages: internalNotesImages.length > 0 ? internalNotesImages : undefined,
       customRoleIds: selectedCustomRoleIds.length > 0 ? selectedCustomRoleIds : undefined,
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
@@ -2234,6 +2238,8 @@ export default function App() {
     setAlterOriginWorld(alter.alterOriginWorld || '');
     setAlterTags(alter.tags || []);
     setCustomFields(alter.customFields || []);
+    setDescriptionImages(alter.descriptionImages || []);
+    setInternalNotesImages(alter.internalNotesImages || []);
     setSelectedCustomRoleIds(alter.customRoleIds || []);
     setFrontStatus(alter.frontStatus || 'none');
     setEditingAlterId(alter.id);
@@ -2276,6 +2282,8 @@ export default function App() {
     setAlterTags([]);
     setAlterTagInput('');
     setCustomFields([]);
+    setDescriptionImages([]);
+    setInternalNotesImages([]);
     setSelectedCustomRoleIds([]);
     resetCustomRoleDraft();
     setFrontStatus('none');
@@ -4201,8 +4209,48 @@ export default function App() {
               placeholder={t.descriptionPlaceholder}
               rows={4}
               maxLength={300000}
+              allowInlineImages={false}
               onImageClick={setLightboxImage}
             />
+
+            {/* Add Images/Photos */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-muted flex items-center gap-1.5 cursor-pointer hover:text-app-text">
+                <Upload className="w-3.5 h-3.5" />
+                <span>{t.addPhotos}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    handleCompressAndStoreFiles(e.target.files, (urls) => {
+                      setDescriptionImages(prev => [...prev, ...urls]);
+                    });
+                  }}
+                />
+              </label>
+              {descriptionImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-2 bg-app-card border border-app-border/30 rounded-xl">
+                  {descriptionImages.map((img, i) => (
+                    <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-app-border/40 shrink-0 group">
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setLightboxImage(img)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setDescriptionImages(prev => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-0.5 right-0.5 p-0.5 rounded-md bg-black/60 hover:bg-red-500/90 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Internal Notes Section */}
@@ -4221,8 +4269,48 @@ export default function App() {
               placeholder={t.internalNotesPlaceholder}
               rows={4}
               maxLength={300000}
+              allowInlineImages={false}
               onImageClick={setLightboxImage}
             />
+
+            {/* Add Images/Photos */}
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-app-muted flex items-center gap-1.5 cursor-pointer hover:text-app-text">
+                <Upload className="w-3.5 h-3.5" />
+                <span>{t.addPhotos}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    handleCompressAndStoreFiles(e.target.files, (urls) => {
+                      setInternalNotesImages(prev => [...prev, ...urls]);
+                    });
+                  }}
+                />
+              </label>
+              {internalNotesImages.length > 0 && (
+                <div className="flex flex-wrap gap-2 p-2 bg-app-card border border-app-border/30 rounded-xl">
+                  {internalNotesImages.map((img, i) => (
+                    <div key={i} className="relative w-14 h-14 rounded-lg overflow-hidden border border-app-border/40 shrink-0 group">
+                      <img
+                        src={img}
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={() => setLightboxImage(img)}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setInternalNotesImages(prev => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-0.5 right-0.5 p-0.5 rounded-md bg-black/60 hover:bg-red-500/90 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </section>
 
           {/* Bloc 1 : Informations de l'alter */}
@@ -5167,28 +5255,60 @@ export default function App() {
                       )}
 
                       {/* Description Section */}
-                      {description && (
+                      {(description || descriptionImages.length > 0) && (
                         <div className="space-y-1.5 animate-fade-in">
                           <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono flex items-center gap-1.5">
                             <FileText className="w-2.5 h-2.5" />
                             {t.descriptionTitle}
                           </div>
-                          <div className={`px-4 py-3 bg-app-card/45 backdrop-blur-sm rounded-2xl border border-app-border/10 text-[11px] leading-relaxed text-app-text/90 space-y-1 ${font}`}>
-                            {renderMarkdown(description, setLightboxImage)}
-                          </div>
+                          {description && (
+                            <div className={`px-4 py-3 bg-app-card/45 backdrop-blur-sm rounded-2xl border border-app-border/10 text-[11px] leading-relaxed text-app-text/90 space-y-1 ${font}`}>
+                              {renderMarkdown(description, setLightboxImage)}
+                            </div>
+                          )}
+                          {descriptionImages.length > 0 && (
+                            <div className="grid grid-cols-3 gap-2">
+                              {descriptionImages.map((img, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => setLightboxImage(img)}
+                                  className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block cursor-pointer"
+                                >
+                                  <img src={img} className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Internal Notes Section */}
-                      {internalNotes && (
+                      {(internalNotes || internalNotesImages.length > 0) && (
                         <div className="space-y-1.5 animate-fade-in">
                           <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono flex items-center gap-1.5">
                             <Lock className="w-2.5 h-2.5" />
                             {t.internalNotesTitle}
                           </div>
-                          <div className="px-4 py-3 bg-app-card/30 backdrop-blur-sm rounded-2xl border border-dashed border-app-border/20 text-[10px] leading-relaxed text-app-text/85 break-words space-y-1">
-                            {renderMarkdown(internalNotes, setLightboxImage)}
-                          </div>
+                          {internalNotes && (
+                            <div className="px-4 py-3 bg-app-card/30 backdrop-blur-sm rounded-2xl border border-dashed border-app-border/20 text-[10px] leading-relaxed text-app-text/85 break-words space-y-1">
+                              {renderMarkdown(internalNotes, setLightboxImage)}
+                            </div>
+                          )}
+                          {internalNotesImages.length > 0 && (
+                            <div className="grid grid-cols-3 gap-2">
+                              {internalNotesImages.map((img, i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => setLightboxImage(img)}
+                                  className="relative h-16 rounded-xl overflow-hidden border border-app-border/25 block cursor-pointer"
+                                >
+                                  <img src={img} className="w-full h-full object-cover" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -5252,7 +5372,7 @@ export default function App() {
                         );
                       })()}
 
-                      {traitDecorations.length === 0 && !description && !internalNotes && (
+                      {traitDecorations.length === 0 && !description && !internalNotes && descriptionImages.length === 0 && internalNotesImages.length === 0 && (
                         <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-app-border/25 rounded-2xl bg-app-card/20 h-[270px]">
                           <Sparkles className="w-5 h-5 opacity-30 text-app-accent mb-1.5" />
                           <p className="text-[9px] font-bold uppercase tracking-widest opacity-45">

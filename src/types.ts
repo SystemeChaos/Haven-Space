@@ -643,6 +643,8 @@ export interface SavedAlter {
   systemId?: string; // 'main' ou id d'un système parallèle
   tags?: string[]; // tags personnalisés libres, en plus des rôles fixes
   customRoleIds?: string[]; // ids des rôles personnalisés (CustomRole) attribués à cet alter
+  descriptionImages?: string[]; // photos jointes à la description (stockées à part, pas de base64 dans le texte)
+  internalNotesImages?: string[]; // photos jointes aux notes internes
 }
 
 export interface PollOption {
