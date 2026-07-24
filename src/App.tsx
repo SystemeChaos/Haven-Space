@@ -880,7 +880,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'pluralkit' | 'planning'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'pluralkit' | 'planning'>('home');
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
@@ -2027,6 +2027,36 @@ export default function App() {
 
   // --- DID System Management Handlers ---
   const [openGroundingSections, setOpenGroundingSections] = useState<string[]>([]);
+  // --- Détente (section anti-dissociation) ---
+  const [activeRelaxTool, setActiveRelaxTool] = useState<string | null>(null);
+  const [breathingRhythm, setBreathingRhythm] = useState<'box' | '478'>('box');
+  const [breathingSpeed, setBreathingSpeed] = useState<number>(4); // secondes par phase (mode box)
+  const [breathingRunning, setBreathingRunning] = useState<boolean>(false);
+  const [breathingPhaseIdx, setBreathingPhaseIdx] = useState<number>(0);
+
+  const BOX_BREATHING_LABELS_FR = ['Inspire', 'Retiens', 'Expire', 'Retiens'];
+  const BOX_BREATHING_LABELS_EN = ['Inhale', 'Hold', 'Exhale', 'Hold'];
+  const getBreathingPhases = () => breathingRhythm === 'box'
+    ? [
+        { duration: breathingSpeed, scale: 1.3 },
+        { duration: breathingSpeed, scale: 1.3 },
+        { duration: breathingSpeed, scale: 0.72 },
+        { duration: breathingSpeed, scale: 0.72 },
+      ]
+    : [
+        { duration: 4, scale: 1.3 },
+        { duration: 7, scale: 1.3 },
+        { duration: 8, scale: 0.72 },
+      ];
+
+  useEffect(() => {
+    if (!breathingRunning) return;
+    const phases = getBreathingPhases();
+    const timer = setTimeout(() => {
+      setBreathingPhaseIdx(i => (i + 1) % phases.length);
+    }, phases[breathingPhaseIdx % phases.length].duration * 1000);
+    return () => clearTimeout(timer);
+  }, [breathingRunning, breathingPhaseIdx, breathingRhythm, breathingSpeed]);
 
   // ─── Bouton retour mobile ────────────────────────────────────────────────────
   useEffect(() => {
@@ -5620,6 +5650,7 @@ export default function App() {
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
             { value: 'planning',  label: t.menuPlanning,  icon: CalendarDays, desc: lang === 'fr' ? 'Planning façon Bullet Journal' : 'Bullet Journal style planning' },
+            { value: 'relax',     label: lang === 'fr' ? 'Détente' : 'Relax', icon: Wind, desc: lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools' },
             { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
           ];
           return (
@@ -8539,6 +8570,141 @@ export default function App() {
                   ? "Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical."
                   : "Content reproduced with respect for the work of Dr Igor Thiriez (v3.1, 2021). Haven Space is not a medical tool."}
               </p>
+            </div>
+          );
+        })()}
+
+        {currentTab === 'relax' && (() => {
+          const relaxTools = [
+            { id: 'box-breathing', label: 'Box Breathing', icon: Wind },
+            { id: 'fidgets', label: 'Fidgets', icon: Hand },
+            { id: 'kalimba', label: 'Kalimba', icon: Music },
+            { id: 'affirmations', label: lang === 'fr' ? 'Affirmations' : 'Affirmations', icon: Sparkles },
+            { id: 'memory-box', label: lang === 'fr' ? 'Boîte à Souvenirs' : 'Memory Box', icon: Heart },
+            { id: 'choice-box', label: lang === 'fr' ? 'Boîte à Choix' : 'Choice Box', icon: Repeat },
+            { id: 'ephemeral', label: lang === 'fr' ? 'Éphémère' : 'Ephemeral', icon: Feather },
+            { id: 'eco-system', label: lang === 'fr' ? 'Éco-Système' : 'Eco-System', icon: TreePine },
+          ];
+          const activeToolMeta = relaxTools.find(t2 => t2.id === activeRelaxTool);
+          const phases = getBreathingPhases();
+          const currentPhase = phases[breathingPhaseIdx % phases.length];
+          const phaseLabel = breathingRhythm === 'box'
+            ? (lang === 'fr' ? BOX_BREATHING_LABELS_FR[breathingPhaseIdx % 4] : BOX_BREATHING_LABELS_EN[breathingPhaseIdx % 4])
+            : (lang === 'fr' ? ['Inspire', 'Retiens', 'Expire'][breathingPhaseIdx % 3] : ['Inhale', 'Hold', 'Exhale'][breathingPhaseIdx % 3]);
+
+          return (
+            <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
+              {!activeRelaxTool ? (
+                <>
+                  <div className="pb-4 border-b border-app-border/30 space-y-1">
+                    <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Détente' : 'Relax'}</h2>
+                    <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
+                      {lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools'}
+                    </p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    {relaxTools.map(tool => {
+                      const Icon = tool.icon;
+                      return (
+                        <button
+                          key={tool.id}
+                          onClick={() => { setActiveRelaxTool(tool.id); setBreathingRunning(false); setBreathingPhaseIdx(0); }}
+                          className="flex flex-col items-center gap-3 p-5 bg-app-card border border-app-border/40 rounded-2xl hover:border-app-accent/40 hover:bg-app-card/80 active:scale-95 transition-all"
+                        >
+                          <div className="w-12 h-12 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent">
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <p className="text-xs font-black uppercase tracking-widest text-app-text text-center">{tool.label}</p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => { setActiveRelaxTool(null); setBreathingRunning(false); }}
+                    className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 rotate-180" />
+                    {lang === 'fr' ? 'Détente' : 'Relax'}
+                  </button>
+
+                  {activeRelaxTool === 'box-breathing' ? (
+                    <div className="flex flex-col items-center gap-8 py-8">
+                      <h3 className="text-xl font-black uppercase tracking-wider text-app-text">Box Breathing</h3>
+
+                      {/* Forme animée */}
+                      <div className="w-56 h-56 flex items-center justify-center">
+                        <div
+                          className="rounded-[2rem] bg-app-accent/15 border-2 border-app-accent/40 flex items-center justify-center"
+                          style={{
+                            width: '9rem',
+                            height: '9rem',
+                            transform: `scale(${breathingRunning ? currentPhase.scale : 1})`,
+                            transition: breathingRunning ? `transform ${currentPhase.duration}s ease-in-out` : 'transform 0.3s ease',
+                          }}
+                        >
+                          <span className="text-sm font-black uppercase tracking-widest text-app-accent select-none">
+                            {breathingRunning ? phaseLabel : (lang === 'fr' ? 'Prêt·e ?' : 'Ready?')}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Contrôles */}
+                      <div className="w-full max-w-xs space-y-4">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setBreathingRhythm('box')}
+                            className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${breathingRhythm === 'box' ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                          >
+                            {lang === 'fr' ? 'Carré' : 'Box'}
+                          </button>
+                          <button
+                            onClick={() => setBreathingRhythm('478')}
+                            className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${breathingRhythm === '478' ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                          >
+                            4-7-8
+                          </button>
+                        </div>
+
+                        {breathingRhythm === 'box' && (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-app-muted">
+                              <span>{lang === 'fr' ? 'Tempo' : 'Tempo'}</span>
+                              <span>{breathingSpeed}s</span>
+                            </div>
+                            <input
+                              type="range"
+                              min={3}
+                              max={6}
+                              step={1}
+                              value={breathingSpeed}
+                              onChange={e => setBreathingSpeed(Number(e.target.value))}
+                              className="w-full"
+                            />
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => { setBreathingPhaseIdx(0); setBreathingRunning(r => !r); }}
+                          className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                        >
+                          {breathingRunning ? (lang === 'fr' ? 'Arrêter' : 'Stop') : (lang === 'fr' ? 'Commencer' : 'Start')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-4 py-16 text-center">
+                      {activeToolMeta && <activeToolMeta.icon className="w-10 h-10 text-app-muted opacity-30" />}
+                      <h3 className="text-lg font-black uppercase tracking-wider text-app-text">{activeToolMeta?.label}</h3>
+                      <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
+                        {lang === 'fr' ? 'Bientôt disponible' : 'Coming soon'}
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           );
         })()}
