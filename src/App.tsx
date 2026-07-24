@@ -1,3 +1,4 @@
+
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import PlanningPage, { loadPlanning, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
@@ -2057,6 +2058,72 @@ export default function App() {
     }, phases[breathingPhaseIdx % phases.length].duration * 1000);
     return () => clearTimeout(timer);
   }, [breathingRunning, breathingPhaseIdx, breathingRhythm, breathingSpeed]);
+
+  // --- Fidgets ---
+  const [fidgetSubTool, setFidgetSubTool] = useState<'sand' | 'bubbles' | 'coloring'>('sand');
+  const [sandColorMode, setSandColorMode] = useState<'sand' | 'snow' | 'waves'>('sand');
+  const [poppedBubbles, setPoppedBubbles] = useState<Set<number>>(new Set());
+  const [mandalaColors, setMandalaColors] = useState<Record<number, string>>({});
+  const fidgetCanvasRef = useRef<HTMLCanvasElement>(null);
+  const fidgetDrawingRef = useRef<boolean>(false);
+  const MANDALA_PALETTE = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE'];
+  const SAND_COLORS: Record<string, string> = { sand: '#C9A26D', snow: '#BFE3FF', waves: '#3B82F6' };
+  const BUBBLE_COUNT = 30;
+
+  // Effet de fondu progressif du bac à sable — repeint une fine couche translucide par-dessus
+  // les traits existants pour qu'ils s'estompent doucement, comme du sable qu'on lisse.
+  useEffect(() => {
+    if (currentTab !== 'relax' || activeRelaxTool !== 'fidgets' || fidgetSubTool !== 'sand') return;
+    const canvas = fidgetCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const cardColor = getComputedStyle(document.documentElement).getPropertyValue('--color-app-card').trim() || '#ffffff';
+    const [fr, fg, fb] = hexToRgbTriplet(cssColorToHex(cardColor));
+    const interval = setInterval(() => {
+      ctx.fillStyle = `rgba(${fr}, ${fg}, ${fb}, 0.035)`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }, 120);
+    return () => clearInterval(interval);
+  }, [currentTab, activeRelaxTool, fidgetSubTool]);
+
+  const getFidgetCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = fidgetCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) * (canvas.width / rect.width),
+      y: (e.clientY - rect.top) * (canvas.height / rect.height),
+    };
+  };
+
+  const drawFidgetDot = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = fidgetCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const { x, y } = getFidgetCanvasPoint(e);
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, 22);
+    grad.addColorStop(0, SAND_COLORS[sandColorMode]);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, 22, 0, Math.PI * 2);
+    ctx.fill();
+  };
+
+  const toggleBubble = (i: number) => {
+    if (poppedBubbles.has(i)) return;
+    setPoppedBubbles(prev => new Set(prev).add(i));
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
+  };
+
+  const cycleMandalaColor = (id: number) => {
+    setMandalaColors(prev => {
+      const current = prev[id];
+      const idx = current ? (MANDALA_PALETTE.indexOf(current) + 1) % MANDALA_PALETTE.length : 0;
+      return { ...prev, [id]: MANDALA_PALETTE[idx] };
+    });
+  };
 
   // ─── Bouton retour mobile ────────────────────────────────────────────────────
   useEffect(() => {
@@ -8693,6 +8760,125 @@ export default function App() {
                           {breathingRunning ? (lang === 'fr' ? 'Arrêter' : 'Stop') : (lang === 'fr' ? 'Commencer' : 'Start')}
                         </button>
                       </div>
+                    </div>
+                  ) : activeRelaxTool === 'fidgets' ? (
+                    <div className="flex flex-col items-center gap-6 py-6">
+                      <h3 className="text-xl font-black uppercase tracking-wider text-app-text">Fidgets</h3>
+
+                      {/* Sous-navigation */}
+                      <div className="flex gap-2 w-full max-w-sm">
+                        {[
+                          { id: 'sand', label: lang === 'fr' ? 'Bac à Sable' : 'Sand Box' },
+                          { id: 'bubbles', label: lang === 'fr' ? 'Bulles' : 'Bubbles' },
+                          { id: 'coloring', label: lang === 'fr' ? 'Coloriage' : 'Coloring' },
+                        ].map(sub => (
+                          <button
+                            key={sub.id}
+                            onClick={() => setFidgetSubTool(sub.id as any)}
+                            className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${fidgetSubTool === sub.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                          >
+                            {sub.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Bac à sable / neige / vagues */}
+                      {fidgetSubTool === 'sand' && (
+                        <div className="w-full max-w-sm space-y-3">
+                          <div className="flex gap-2">
+                            {[
+                              { id: 'sand', label: lang === 'fr' ? 'Sable' : 'Sand' },
+                              { id: 'snow', label: lang === 'fr' ? 'Neige' : 'Snow' },
+                              { id: 'waves', label: lang === 'fr' ? 'Vagues' : 'Waves' },
+                            ].map(m => (
+                              <button
+                                key={m.id}
+                                onClick={() => setSandColorMode(m.id as any)}
+                                className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${sandColorMode === m.id ? 'border-app-accent text-app-accent' : 'border-app-border text-app-muted'}`}
+                              >
+                                {m.label}
+                              </button>
+                            ))}
+                          </div>
+                          <canvas
+                            ref={fidgetCanvasRef}
+                            width={320}
+                            height={320}
+                            className="w-full aspect-square rounded-2xl border border-app-border/40 bg-app-bg touch-none cursor-crosshair"
+                            onPointerDown={e => { fidgetDrawingRef.current = true; drawFidgetDot(e); }}
+                            onPointerMove={e => { if (fidgetDrawingRef.current) drawFidgetDot(e); }}
+                            onPointerUp={() => { fidgetDrawingRef.current = false; }}
+                            onPointerLeave={() => { fidgetDrawingRef.current = false; }}
+                          />
+                          <p className="text-[10px] text-app-muted text-center italic">
+                            {lang === 'fr' ? 'Fais glisser ton doigt — les traits s\'effacent tout seuls.' : 'Drag your finger — the marks fade on their own.'}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Bulles à faire éclater */}
+                      {fidgetSubTool === 'bubbles' && (
+                        <div className="w-full max-w-sm space-y-3">
+                          <div className="grid grid-cols-6 gap-2 p-4 bg-app-bg rounded-2xl border border-app-border/40">
+                            {Array.from({ length: BUBBLE_COUNT }).map((_, i) => {
+                              const popped = poppedBubbles.has(i);
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => toggleBubble(i)}
+                                  className={`aspect-square rounded-full border transition-all ${
+                                    popped
+                                      ? 'bg-app-bg border-app-border/30 scale-75 opacity-40'
+                                      : 'bg-app-accent/20 border-app-accent/40 hover:bg-app-accent/30 active:scale-90'
+                                  }`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <button
+                            onClick={() => setPoppedBubbles(new Set())}
+                            className="w-full py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Regonfler toutes les bulles' : 'Reset all bubbles'}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Coloriage / mandala */}
+                      {fidgetSubTool === 'coloring' && (
+                        <div className="w-full max-w-sm space-y-3 flex flex-col items-center">
+                          <div className="relative w-64 h-64">
+                            <button
+                              onClick={() => cycleMandalaColor(-1)}
+                              style={{ backgroundColor: mandalaColors[-1] || 'transparent', left: 128 - 24, top: 128 - 24 }}
+                              className="absolute w-12 h-12 rounded-full border-2 border-app-border/50 hover:border-app-accent transition-colors"
+                            />
+                            {Array.from({ length: 12 }).map((_, i) => {
+                              const angle = (i * 30 - 90) * (Math.PI / 180);
+                              const radius = 90;
+                              const x = 128 + radius * Math.cos(angle);
+                              const y = 128 + radius * Math.sin(angle);
+                              return (
+                                <button
+                                  key={i}
+                                  onClick={() => cycleMandalaColor(i)}
+                                  style={{ backgroundColor: mandalaColors[i] || 'transparent', left: x - 18, top: y - 18 }}
+                                  className="absolute w-9 h-9 rounded-full border-2 border-app-border/50 hover:border-app-accent transition-colors"
+                                />
+                              );
+                            })}
+                          </div>
+                          <button
+                            onClick={() => setMandalaColors({})}
+                            className="w-full py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Effacer le mandala' : 'Clear mandala'}
+                          </button>
+                          <p className="text-[10px] text-app-muted text-center italic">
+                            {lang === 'fr' ? 'Clique sur une zone pour la colorer, reclique pour changer de couleur.' : 'Click a zone to color it, click again to cycle colors.'}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4 py-16 text-center">
