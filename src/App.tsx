@@ -2401,6 +2401,57 @@ export default function App() {
     if (revealedMemoryId === id) setRevealedMemoryId(null);
   };
 
+  // --- Boîte à Choix ---
+  const WHEEL_COLORS = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE', '#D9F3EF', '#F3E0D9'];
+  const [wheelOptions, setWheelOptions] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('hs-choice-wheel');
+      return saved ? JSON.parse(saved) : ['Faire une pause', 'Boire de l\'eau', 'Respirer profondément', 'Écrire un mot', 'Étirer le corps'];
+    } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-choice-wheel', JSON.stringify(wheelOptions)); }, [wheelOptions]);
+  const [wheelEditMode, setWheelEditMode] = useState(false);
+  const [wheelNewOption, setWheelNewOption] = useState('');
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [wheelSpinning, setWheelSpinning] = useState(false);
+  const [wheelResultIdx, setWheelResultIdx] = useState<number | null>(null);
+
+  const getWheelGradient = () => {
+    if (wheelOptions.length === 0) return 'transparent';
+    const seg = 100 / wheelOptions.length;
+    return `conic-gradient(${wheelOptions.map((_, i) => `${WHEEL_COLORS[i % WHEEL_COLORS.length]} ${i * seg}% ${(i + 1) * seg}%`).join(', ')})`;
+  };
+  const spinWheel = () => {
+    if (wheelOptions.length < 2 || wheelSpinning) return;
+    const idx = Math.floor(Math.random() * wheelOptions.length);
+    const segAngle = 360 / wheelOptions.length;
+    const targetAngle = 360 - (idx * segAngle + segAngle / 2);
+    setWheelSpinning(true);
+    setWheelResultIdx(null);
+    setWheelRotation(prev => prev + 5 * 360 + targetAngle - (prev % 360));
+    setTimeout(() => {
+      setWheelSpinning(false);
+      setWheelResultIdx(idx);
+    }, 4000);
+  };
+
+  interface MicroOption { id: string; emoji: string; label: string; }
+  const [microOptions, setMicroOptions] = useState<MicroOption[]>(() => {
+    try {
+      const saved = localStorage.getItem('hs-choice-micro');
+      return saved ? JSON.parse(saved) : [
+        { id: 'm1', emoji: '🥤', label: 'Boire un verre d\'eau' },
+        { id: 'm2', emoji: '🧸', label: 'Serrer un doudou / un plaid' },
+        { id: 'm3', emoji: '🎵', label: 'Écouter 1 musique douce' },
+      ];
+    } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-choice-micro', JSON.stringify(microOptions)); }, [microOptions]);
+  const [microPanelOpen, setMicroPanelOpen] = useState(false);
+  const [microEditMode, setMicroEditMode] = useState(false);
+  const [microNewEmoji, setMicroNewEmoji] = useState('');
+  const [microNewLabel, setMicroNewLabel] = useState('');
+
   // --- Affirmations ---
   const [currentAffirmationIdx, setCurrentAffirmationIdx] = useState<number>(() => Math.floor(Math.random() * AFFIRMATIONS.length));
   const drawRandomAffirmation = () => {
@@ -9456,7 +9507,193 @@ export default function App() {
                         )}
                       </div>
                     );
-                  })() : (
+                  })() : activeRelaxTool === 'choice-box' ? (
+                    <div className="flex flex-col items-center gap-8 py-6 w-full">
+                      <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Boîte à Choix' : 'Choice Box'}
+                      </h3>
+
+                      {/* --- La roue --- */}
+                      <div className="w-full max-w-sm flex flex-col items-center gap-4">
+                        <div className="relative w-52 h-52">
+                          <div className="absolute -top-1 left-1/2 -translate-x-1/2 z-10 w-0 h-0 border-l-[10px] border-r-[10px] border-t-[16px] border-l-transparent border-r-transparent border-t-app-accent drop-shadow" />
+                          <div
+                            className="w-52 h-52 rounded-full border-4 border-app-card shadow-lg"
+                            style={{
+                              background: getWheelGradient(),
+                              transform: `rotate(${wheelRotation}deg)`,
+                              transition: wheelSpinning ? 'transform 4s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none',
+                            }}
+                          />
+                        </div>
+
+                        {wheelResultIdx !== null && !wheelSpinning && (
+                          <div className="px-5 py-2.5 bg-app-accent/10 border border-app-accent/30 rounded-2xl text-sm font-black text-app-accent text-center animate-fade-in">
+                            🎉 {wheelOptions[wheelResultIdx]}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={spinWheel}
+                          disabled={wheelOptions.length < 2 || wheelSpinning}
+                          className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                        >
+                          <Repeat className="w-3.5 h-3.5" />
+                          {wheelSpinning ? (lang === 'fr' ? 'Ça tourne…' : 'Spinning…') : (lang === 'fr' ? 'Faire tourner la roue' : 'Spin the wheel')}
+                        </button>
+
+                        {/* Légende / gestion des options de la roue */}
+                        <div className="w-full space-y-2">
+                          <button
+                            onClick={() => setWheelEditMode(o => !o)}
+                            className="text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors flex items-center gap-1.5 mx-auto"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            {wheelEditMode ? (lang === 'fr' ? 'Fermer' : 'Close') : (lang === 'fr' ? 'Modifier les options' : 'Edit options')}
+                          </button>
+
+                          {!wheelEditMode ? (
+                            <div className="flex flex-wrap gap-1.5 justify-center">
+                              {wheelOptions.map((opt, i) => (
+                                <span
+                                  key={i}
+                                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold border ${wheelResultIdx === i && !wheelSpinning ? 'border-app-accent text-app-accent' : 'border-app-border/40 text-app-muted'}`}
+                                >
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: WHEEL_COLORS[i % WHEEL_COLORS.length] }} />
+                                  {opt}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="space-y-2 p-3 bg-app-card border border-app-border/40 rounded-2xl">
+                              {wheelOptions.map((opt, i) => (
+                                <div key={i} className="flex items-center gap-2">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: WHEEL_COLORS[i % WHEEL_COLORS.length] }} />
+                                  <input
+                                    type="text"
+                                    value={opt}
+                                    onChange={e => setWheelOptions(prev => prev.map((o, oi) => oi === i ? e.target.value : o))}
+                                    className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                  />
+                                  <button
+                                    onClick={() => setWheelOptions(prev => prev.filter((_, oi) => oi !== i))}
+                                    className="p-1 text-app-muted hover:text-red-500 transition-colors shrink-0"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              ))}
+                              <div className="flex items-center gap-2 pt-1">
+                                <input
+                                  type="text"
+                                  value={wheelNewOption}
+                                  onChange={e => setWheelNewOption(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === 'Enter' && wheelNewOption.trim()) {
+                                      setWheelOptions(prev => [...prev, wheelNewOption.trim()]);
+                                      setWheelNewOption('');
+                                    }
+                                  }}
+                                  placeholder={lang === 'fr' ? 'Nouvelle option...' : 'New option...'}
+                                  className="flex-1 min-w-0 bg-app-bg border border-dashed border-app-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                />
+                                <button
+                                  onClick={() => { if (wheelNewOption.trim()) { setWheelOptions(prev => [...prev, wheelNewOption.trim()]); setWheelNewOption(''); } }}
+                                  className="p-1.5 rounded-lg bg-app-accent/10 text-app-accent hover:bg-app-accent/20 transition-colors shrink-0"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* --- Qu'est-ce qu'on fait maintenant ? --- */}
+                      <div className="w-full max-w-sm space-y-3 pt-4 border-t border-app-border/25">
+                        <button
+                          onClick={() => setMicroPanelOpen(o => !o)}
+                          className="w-full py-3 rounded-xl border border-app-border text-xs font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 transition-colors"
+                        >
+                          {lang === 'fr' ? "Qu'est-ce qu'on fait maintenant ?" : 'What should we do now?'}
+                        </button>
+
+                        {microPanelOpen && (
+                          <div className="space-y-2">
+                            {microOptions.map(opt => (
+                              <div key={opt.id} className="flex items-center gap-3 px-4 py-2.5 bg-app-card border border-app-border/30 rounded-xl">
+                                <span className="text-lg shrink-0">{opt.emoji}</span>
+                                <span className="text-sm text-app-text flex-1">{opt.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <button
+                          onClick={() => setMicroEditMode(o => !o)}
+                          className="text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors flex items-center gap-1.5 mx-auto"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          {microEditMode ? (lang === 'fr' ? 'Fermer' : 'Close') : (lang === 'fr' ? 'Modifier les micro-options' : 'Edit micro-options')}
+                        </button>
+
+                        {microEditMode && (
+                          <div className="space-y-2 p-3 bg-app-card border border-app-border/40 rounded-2xl">
+                            {microOptions.map(opt => (
+                              <div key={opt.id} className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={opt.emoji}
+                                  onChange={e => setMicroOptions(prev => prev.map(o => o.id === opt.id ? { ...o, emoji: e.target.value } : o))}
+                                  className="w-12 bg-app-bg border border-app-border rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                />
+                                <input
+                                  type="text"
+                                  value={opt.label}
+                                  onChange={e => setMicroOptions(prev => prev.map(o => o.id === opt.id ? { ...o, label: e.target.value } : o))}
+                                  className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                />
+                                <button
+                                  onClick={() => setMicroOptions(prev => prev.filter(o => o.id !== opt.id))}
+                                  className="p-1 text-app-muted hover:text-red-500 transition-colors shrink-0"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                            <div className="flex items-center gap-2 pt-1">
+                              <input
+                                type="text"
+                                value={microNewEmoji}
+                                onChange={e => setMicroNewEmoji(e.target.value)}
+                                placeholder="🙂"
+                                className="w-12 bg-app-bg border border-dashed border-app-border rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                              />
+                              <input
+                                type="text"
+                                value={microNewLabel}
+                                onChange={e => setMicroNewLabel(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter' && microNewLabel.trim()) {
+                                    setMicroOptions(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), emoji: microNewEmoji.trim() || '✦', label: microNewLabel.trim() }]);
+                                    setMicroNewEmoji(''); setMicroNewLabel('');
+                                  }
+                                }}
+                                placeholder={lang === 'fr' ? 'Nouvelle micro-option...' : 'New micro-option...'}
+                                className="flex-1 min-w-0 bg-app-bg border border-dashed border-app-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                              />
+                              <button
+                                onClick={() => { if (microNewLabel.trim()) { setMicroOptions(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), emoji: microNewEmoji.trim() || '✦', label: microNewLabel.trim() }]); setMicroNewEmoji(''); setMicroNewLabel(''); } }}
+                                className="p-1.5 rounded-lg bg-app-accent/10 text-app-accent hover:bg-app-accent/20 transition-colors shrink-0"
+                              >
+                                <Plus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
                     <div className="flex flex-col items-center gap-4 py-16 text-center">
                       {activeToolMeta && <activeToolMeta.icon className="w-10 h-10 text-app-muted opacity-30" />}
                       <h3 className="text-lg font-black uppercase tracking-wider text-app-text">{activeToolMeta?.label}</h3>
