@@ -290,6 +290,222 @@ const NAMED_COLORS: { name: string; nameFr: string; hex: string }[] = [
   { name: 'Yellow Green', nameFr: 'Vert jaune', hex: '#9ACD32' },
 ];
 
+// ─── Affirmations (Détente) ────────────────────────────────────────────────
+interface Affirmation { category: string; text: string; }
+const AFFIRMATIONS: Affirmation[] = [
+  { category: "Sécurité & Ancrage", text: "Le corps est en sécurité ici et maintenant." },
+  { category: "Sécurité & Ancrage", text: "Le danger du passé appartient au passé." },
+  { category: "Sécurité & Ancrage", text: "Nous sommes aujourd'hui dans un environnement sûr." },
+  { category: "Sécurité & Ancrage", text: "Tu as le droit de prendre une grande respiration et de te poser." },
+  { category: "Sécurité & Ancrage", text: "Regarde autour de toi : tu es dans le présent." },
+  { category: "Sécurité & Ancrage", text: "Rien de grave ne va arriver en cet instant." },
+  { category: "Sécurité & Ancrage", text: "Tu es en sécurité, même si tu ressens de la peur." },
+  { category: "Sécurité & Ancrage", text: "Les personnes autour de nous aujourd'hui sont choisies et bienveillantes." },
+  { category: "Sécurité & Ancrage", text: "Tes pieds touchent le sol, tu es bien ancré(e) ici." },
+  { category: "Sécurité & Ancrage", text: "La sécurité se construit un jour à la fois, et nous avançons bien." },
+  { category: "Sécurité & Ancrage", text: "Tu as le droit de te détendre, personne ne te menace." },
+  { category: "Sécurité & Ancrage", text: "Ce moment t'appartient, en toute tranquillité." },
+  { category: "Sécurité & Ancrage", text: "Le temps a passé, nous sommes plus fort(e)s et protégé(e)s aujourd'hui." },
+  { category: "Sécurité & Ancrage", text: "Tu peux relâcher les épaules, tout va bien." },
+  { category: "Sécurité & Ancrage", text: "L'espace dans lequel tu es est un lieu de calme." },
+  { category: "Sécurité & Ancrage", text: "Les échos du passé ne peuvent plus nous blesser comme avant." },
+  { category: "Sécurité & Ancrage", text: "Tu as le contrôle de ton présent." },
+  { category: "Sécurité & Ancrage", text: "Respire. La tempête est terminée." },
+  { category: "Sécurité & Ancrage", text: "Nous avons le droit d'occuper notre place en sécurité." },
+  { category: "Sécurité & Ancrage", text: "Aujourd'hui, nous sommes protégé(e)s." },
+  { category: "Sécurité & Ancrage", text: "Le corps est notre maison aujourd'hui, et nous en prenons soin." },
+  { category: "Sécurité & Ancrage", text: "Ce que tu entends ou ressens ici est lié au présent, tout va bien." },
+  { category: "Sécurité & Ancrage", text: "Le temps s'écoule paisiblement, nous ne sommes plus dans l'urgence." },
+  { category: "Sécurité & Ancrage", text: "Tu peux déposer ce fardeau un instant, le danger s'est éloigné." },
+  { category: "Sécurité & Ancrage", text: "Toucher un objet autour de toi peut t'aider à revenir ici." },
+  { category: "Sécurité & Ancrage", text: "Le présent offre une protection que le passé n'avait pas." },
+  { category: "Sécurité & Ancrage", text: "Notre environnement actuel respecte nos besoins et nos limites." },
+  { category: "Sécurité & Ancrage", text: "Tu as le droit d'occuper de l'espace en toute quiétude." },
+  { category: "Sécurité & Ancrage", text: "La sécurité n'est pas qu'un mot, c'est une réalité de notre quotidien actuel." },
+  { category: "Sécurité & Ancrage", text: "Inspirer profondément aide notre corps à se rappeler qu'il est en paix." },
+  { category: "Sécurité & Ancrage", text: "Tu es à l'abri des tempêtes d'autrefois." },
+  { category: "Sécurité & Ancrage", text: "Rien ne te force à réagir immédiatement : tu as le temps de ressentir." },
+  { category: "Sécurité & Ancrage", text: "Le sol sous nos pieds est stable et solide." },
+  { category: "Sécurité & Ancrage", text: "Tu peux fermer les yeux ou les garder ouverts, selon ce qui te réconforte." },
+  { category: "Sécurité & Ancrage", text: "Le monde extérieur aujourd'hui est plus vaste et plus doux." },
+  { category: "Sécurité & Ancrage", text: "Tu as le pouvoir de choisir ce qui te fait du bien maintenant." },
+  { category: "Sécurité & Ancrage", text: "Chaque minute qui passe confirme que nous sommes en sécurité." },
+  { category: "Sécurité & Ancrage", text: "Tu peux te détendre, personne ne te demande d'être en alerte." },
+  { category: "Sécurité & Ancrage", text: "Notre espace de vie est un refuge bienveillant." },
+  { category: "Sécurité & Ancrage", text: "Nous avons appris à nous protéger, et nous savons le faire." },
+
+  { category: "Cohésion & Travail d'équipe", text: "Chaque alter fait de son mieux aujourd'hui." },
+  { category: "Cohésion & Travail d'équipe", text: "Tous les membres du système ont de la valeur." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous sommes une équipe qui apprend à cheminer ensemble." },
+  { category: "Cohésion & Travail d'équipe", text: "Même sans être d'accord, nous pouvons nous écouter avec respect." },
+  { category: "Cohésion & Travail d'équipe", text: "Chaque voix dans ce système mérite d'être entendue." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous n'avons pas besoin d'être parfait(e)s pour avancer ensemble." },
+  { category: "Cohésion & Travail d'équipe", text: "La communication interne s'améliore à son propre rythme." },
+  { category: "Cohésion & Travail d'équipe", text: "Merci à ceux et celles qui ont gardé le système en vie." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous méritons tou(te)s d'avoir un espace de paix." },
+  { category: "Cohésion & Travail d'équipe", text: "L'entraide est notre plus grande force." },
+  { category: "Cohésion & Travail d'équipe", text: "Chaque alter a sa propre sensibilité, et c'est légitime." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous apprenons à nous faire confiance jour après jour." },
+  { category: "Cohésion & Travail d'équipe", text: "Même dans la confusion, nous restons soudé(e)s." },
+  { category: "Cohésion & Travail d'équipe", text: "Il n'y a pas de \"mauvais\" alter, seulement des rôles de protection." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous pouvons trouver des compromis réconfortants pour tout le monde." },
+  { category: "Cohésion & Travail d'équipe", text: "Prendre soin des plus jeunes d'entre nous est une priorité douce." },
+  { category: "Cohésion & Travail d'équipe", text: "Chaque présence dans le système a sa raison d'être." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous pouvons partager la charge sans nous épuiser." },
+  { category: "Cohésion & Travail d'équipe", text: "La diversité de notre système est une richesse." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous avançons main dans la main, à notre rythme." },
+  { category: "Cohésion & Travail d'équipe", text: "La communication interne s'adoucit à chaque tentative d'écoute." },
+  { category: "Cohésion & Travail d'équipe", text: "Chaque alter apporte une perspective unique qui peut nous aider." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous apprenons à partager le quotidien avec patience." },
+  { category: "Cohésion & Travail d'équipe", text: "Remercions ceux qui gèrent les tâches invisibles du système." },
+  { category: "Cohésion & Travail d'équipe", text: "La coopération se bâtit petit à petit, sans pression." },
+  { category: "Cohésion & Travail d'équipe", text: "Même dans le silence, nous restons une équipe liée." },
+  { category: "Cohésion & Travail d'équipe", text: "Il est possible d'accorder de l'attention aux besoins de chacun(e)." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous n'avons pas besoin d'être d'accord sur tout pour avancer ensemble." },
+  { category: "Cohésion & Travail d'équipe", text: "La présence des autres membres est un soutien, pas une menace." },
+  { category: "Cohésion & Travail d'équipe", text: "Chaque émotion exprimée dans le système a sa raison d'être." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous pouvons nous transmettre de la douceur de l'intérieur." },
+  { category: "Cohésion & Travail d'équipe", text: "La co-conscience s'apprivoise dans le respect du rythme de tou(te)s." },
+  { category: "Cohésion & Travail d'équipe", text: "Il y a de la place pour les envies de chacun(e) au cours de la semaine." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous formant un tout complexe, riche et résilient." },
+  { category: "Cohésion & Travail d'équipe", text: "Offrir de la gentillesse aux alters plus jeunes apaise tout le monde." },
+  { category: "Cohésion & Travail d'équipe", text: "Aucun rôle n'est figé : nous pouvons évoluer ensemble." },
+  { category: "Cohésion & Travail d'équipe", text: "La compréhension mutuelle grandit jour après jour." },
+  { category: "Cohésion & Travail d'équipe", text: "Nous pouvons nous épauler quand l'énergie vient à manquer." },
+  { category: "Cohésion & Travail d'équipe", text: "Chaque voix intérieure mérite d'être entendue sans jugement." },
+  { category: "Cohésion & Travail d'équipe", text: "L'union de nos forces rend notre quotidien plus fluide." },
+
+  { category: "Auto-compassion & Bienveillance", text: "Tu as le droit de faire une pause si c'est trop lourd." },
+  { category: "Auto-compassion & Bienveillance", text: "Tes émotions sont valides, quelles qu'elles soient." },
+  { category: "Auto-compassion & Bienveillance", text: "On a le temps. Rien ne presse." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu fais preuve d'un courage immense chaque jour." },
+  { category: "Auto-compassion & Bienveillance", text: "Il est normal de se sentir fatigué(e) parfois." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu as le droit de dire non sans te justifier." },
+  { category: "Auto-compassion & Bienveillance", text: "Sois doux/douce avec toi-même aujourd'hui." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu n'as rien à prouver à personne pour mériter le respect." },
+  { category: "Auto-compassion & Bienveillance", text: "Les erreurs font partie du chemin et ne remettent pas en cause ta valeur." },
+  { category: "Auto-compassion & Bienveillance", text: "Prends ce dont tu as besoin en cet instant : du repos, du calme ou de la douceur." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu es une personne digne d'amour et de soin." },
+  { category: "Auto-compassion & Bienveillance", text: "Tes limites sont légitimes et méritent d'être respectées." },
+  { category: "Auto-compassion & Bienveillance", text: "C'est d'accord de ne pas aller bien aujourd'hui." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu fais déjà tellement de chemin, sois fier/fière de toi." },
+  { category: "Auto-compassion & Bienveillance", text: "La fatigue est un signal, pas une faiblesse." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu as le droit de prendre soin de toi avant d'aider les autres." },
+  { category: "Auto-compassion & Bienveillance", text: "La guérison n'est pas linéaire, et c'est tout à fait normal." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu mérites la même gentillesse que celle que tu offres aux autres." },
+  { category: "Auto-compassion & Bienveillance", text: "Il est permis de demander de l'aide quand c'est difficile." },
+  { category: "Auto-compassion & Bienveillance", text: "Chaque petit pas compte, même le plus discret." },
+  { category: "Auto-compassion & Bienveillance", text: "La lenteur est permise, tout ne doit pas être accompli tout de suite." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu as le droit d'avoir des moments de doute sans te culpabiliser." },
+  { category: "Auto-compassion & Bienveillance", text: "Tes réactions passées étaient des mécanismes de défense intelligents." },
+  { category: "Auto-compassion & Bienveillance", text: "S'accorder du repos est un investissement dans notre bien-être." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu es digne de bienveillance, y compris de la part de toi-même." },
+  { category: "Auto-compassion & Bienveillance", text: "Accueille tes ressentis comme de simples visiteurs de passage." },
+  { category: "Auto-compassion & Bienveillance", text: "Il n'y a aucune honte à ressentir de la fatigue émotionnelle." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu peux choisir d'être ton/ta plus grand(e) allié(e) aujourd'hui." },
+  { category: "Auto-compassion & Bienveillance", text: "Chaque geste d'auto-soin est une victoire sur la douleur." },
+  { category: "Auto-compassion & Bienveillance", text: "Ne pas être au top aujourd'hui ne remet pas en cause tes progrès." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu as le droit de réclamer du réconfort quand tu en as besoin." },
+  { category: "Auto-compassion & Bienveillance", text: "La gentillesse envers soi-même est la meilleure médecine." },
+  { category: "Auto-compassion & Bienveillance", text: "Accorde-toi la permission d'échouer et de réessayer plus tard." },
+  { category: "Auto-compassion & Bienveillance", text: "Ton bien-être passe avant les attentes des autres." },
+  { category: "Auto-compassion & Bienveillance", text: "Il est légitime de vouloir préserver sa bulle de sérénité." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu mérites de respirer sans porter tout le poids du monde." },
+  { category: "Auto-compassion & Bienveillance", text: "La guérison demande de la patience, et tu en fais preuve." },
+  { category: "Auto-compassion & Bienveillance", text: "Sois fier/fière de la manière dont tu traverser les jours sombres." },
+  { category: "Auto-compassion & Bienveillance", text: "Tu as le droit de ressentir de la joie sans culpabilité." },
+  { category: "Auto-compassion & Bienveillance", text: "Chaque bouffée d'air frais est une invitation à la douceur." },
+
+  { category: "Validation & Identité", text: "Ton expérience est réelle et ta parole est légitime." },
+  { category: "Validation & Identité", text: "Tu as le droit d'exister tel(le) que tu es." },
+  { category: "Validation & Identité", text: "Personne ne peut nier ce que tu ressens à l'intérieur." },
+  { category: "Validation & Identité", text: "Tu as le droit d'avoir tes propres goûts, envies et limites." },
+  { category: "Validation & Identité", text: "L'amnésie ou la dissociation ne définissent pas toute ton existence." },
+  { category: "Validation & Identité", text: "Tu es bien plus que tes traumatismes." },
+  { category: "Validation & Identité", text: "Chaque facette de nous a le droit de vivre ses moments." },
+  { category: "Validation & Identité", text: "Ton identité est valable, peu importe le regard des autres." },
+  { category: "Validation & Identité", text: "Tu as le droit d'exprimer ta personnalité librement." },
+  { category: "Validation & Identité", text: "Nous avons le droit de grandir et de changer." },
+  { category: "Validation & Identité", text: "La façon dont nous fonctionnons nous a permis de survivre." },
+  { category: "Validation & Identité", text: "Tu n'as pas besoin de te justifier d'exister." },
+  { category: "Validation & Identité", text: "C'est d'accord de ne pas tout comprendre tout de suite." },
+  { category: "Validation & Identité", text: "Tu peux prendre ta place dans ce monde." },
+  { category: "Validation & Identité", text: "Ce que tu as traversé montre ta résilience, pas ta vulnérabilité." },
+  { category: "Validation & Identité", text: "Tu as le droit d'avoir des besoins différents selon les moments." },
+  { category: "Validation & Identité", text: "Ton histoire compte et ton présent t'appartient." },
+  { category: "Validation & Identité", text: "Tu as le droit d'aimer ce que tu aimes sans jugement." },
+  { category: "Validation & Identité", text: "La personne que tu es en ce moment est importante." },
+  { category: "Validation & Identité", text: "Nous méritons de vivre une vie épanouissante et paisible." },
+  { category: "Validation & Identité", text: "Ton fonctionnement est unique, et il est totalement valable." },
+  { category: "Validation & Identité", text: "Tu as le droit de définir tes propres choix de vie." },
+  { category: "Validation & Identité", text: "La dissociation a été un bouclier, aujourd'hui tu réapprends à vivre." },
+  { category: "Validation & Identité", text: "Tu n'as pas besoin de prouver ta réalité à qui que ce soit." },
+  { category: "Validation & Identité", text: "Chaque membre du système a le droit d'avoir ses propres goûts." },
+  { category: "Validation & Identité", text: "Ton histoire est singulière, mais ton présent t'appartient pleinement." },
+  { category: "Validation & Identité", text: "Tu as le droit de changer d'avis et d'explorer de nouvelles choses." },
+  { category: "Validation & Identité", text: "Exister tel(le) que tu es suffit amplement." },
+  { category: "Validation & Identité", text: "Tes limites personnelles sont de véritables remparts protecteurs." },
+  { category: "Validation & Identité", text: "Tu n'es pas bizarre, tu es un être humain qui s'est adapté." },
+  { category: "Validation & Identité", text: "La pluralité est une manière légitime d'expérimenter la vie." },
+  { category: "Validation & Identité", text: "Tu as le droit de choisir qui mérite de connaître ton histoire." },
+  { category: "Validation & Identité", text: "Tes émotions d'aujourd'hui ne gâchent en rien ton identité." },
+  { category: "Validation & Identité", text: "Chaque facette de notre système contribue à notre histoire globale." },
+  { category: "Validation & Identité", text: "Tu mérites de trouver ta place dans la société sans te cacher." },
+  { category: "Validation & Identité", text: "Ton confort émotionnel est une priorité légitime." },
+  { category: "Validation & Identité", text: "Tu as le droit d'exprimer ton style et tes préférences uniques." },
+  { category: "Validation & Identité", text: "La complexité de notre esprit est la preuve de notre adaptation." },
+  { category: "Validation & Identité", text: "Tu peux vivre le moment présent en toute authenticité." },
+  { category: "Validation & Identité", text: "Ton existence est précieuse, quelle que soit la forme qu'elle prend." },
+
+  { category: "Espoir & Quotidien", text: "Demain est une nouvelle opportunité de calme." },
+  { category: "Espoir & Quotidien", text: "Une journée difficile n'annule pas tous tes progrès." },
+  { category: "Espoir & Quotidien", text: "Il y a de la beauté et de la douceur à découvrir aujourd'hui." },
+  { category: "Espoir & Quotidien", text: "Tu es capable de traverser ce moment d'inconfort." },
+  { category: "Espoir & Quotidien", text: "Chaque journée apporte sa petite victoire." },
+  { category: "Espoir & Quotidien", text: "La tempête finit toujours par laisser place au calme." },
+  { category: "Espoir & Quotidien", text: "Tu peux choisir de te concentrer sur une chose très simple maintenant." },
+  { category: "Espoir & Quotidien", text: "Nous construisons un avenir plus doux jour après jour." },
+  { category: "Espoir & Quotidien", text: "Il y a des moments de joie qui nous attendent." },
+  { category: "Espoir & Quotidien", text: "Tu as surmonté 100 % de tes pires journées jusqu'ici." },
+  { category: "Espoir & Quotidien", text: "Tu as le droit de sourire et de profiter des petits plaisirs." },
+  { category: "Espoir & Quotidien", text: "Aujourd'hui est une page différente du passé." },
+  { category: "Espoir & Quotidien", text: "Le calme revient toujours, même après un moment de désorientation." },
+  { category: "Espoir & Quotidien", text: "Tu es en train d'apprendre et de guérir." },
+  { category: "Espoir & Quotidien", text: "Prendre soin de soi est un acte de liberté." },
+  { category: "Espoir & Quotidien", text: "Un pas après l'autre, tout va se mettre en place." },
+  { category: "Espoir & Quotidien", text: "Tu es entouré(e) de possibilités de paix." },
+  { category: "Espoir & Quotidien", text: "Offre-toi un moment de gratitude pour le chemin accompli." },
+  { category: "Espoir & Quotidien", text: "Ce que tu ressens en ce moment va s'apaiser." },
+  { category: "Espoir & Quotidien", text: "Tu es à ta place, et le système est en sécurité." },
+  { category: "Espoir & Quotidien", text: "Aujourd'hui réserve de petites étincelles de calme et de beau." },
+  { category: "Espoir & Quotidien", text: "Ce que tu traverses en ce moment n'est qu'un chapitre, pas tout le livre." },
+  { category: "Espoir & Quotidien", text: "Le soleil se lève chaque jour, apportant avec lui de nouvelles possibilités." },
+  { category: "Espoir & Quotidien", text: "Tu as déjà franchi tant d'obstacles, tu sais trouver des ressources." },
+  { category: "Espoir & Quotidien", text: "Un moment de calme peut survenir à tout instant dans la journée." },
+  { category: "Espoir & Quotidien", text: "La vie s'apprivoise un jour après l'autre, sans précipitation." },
+  { category: "Espoir & Quotidien", text: "Tu es capable de reconstruire un quotidien qui te ressemble." },
+  { category: "Espoir & Quotidien", text: "La confusion d'aujourd'hui laissera place à la clarté de demain." },
+  { category: "Espoir & Quotidien", text: "Tu as le droit de projeter de belles choses pour l'avenir." },
+  { category: "Espoir & Quotidien", text: "Même les plus petits efforts portent leurs fruits avec le temps." },
+  { category: "Espoir & Quotidien", text: "L'apaisement est un chemin que nous arpentons à notre rythme." },
+  { category: "Espoir & Quotidien", text: "Chaque sourire partagé ou ressenti est une petite victoire." },
+  { category: "Espoir & Quotidien", text: "Le futur contient de la douceur que tu n'imagines pas encore." },
+  { category: "Espoir & Quotidien", text: "Tu as la capacité de créer des souvenirs heureux dès aujourd'hui." },
+  { category: "Espoir & Quotidien", text: "Le calme intérieur est un état que nous pouvons retrouver." },
+  { category: "Espoir & Quotidien", text: "Demain apportera son lot de fraîcheur et de répit." },
+  { category: "Espoir & Quotidien", text: "Tu es en train de vous bâtir un avenir plus serein." },
+  { category: "Espoir & Quotidien", text: "Les moments difficiles ne durent jamais éternellement." },
+  { category: "Espoir & Quotidien", text: "Il y a de la force dans la façon dont tu choisis de continuer." },
+  { category: "Espoir & Quotidien", text: "Nous sommes en route vers une vie de plus en plus apaisée." },
+];
+const AFFIRMATION_CATEGORY_ICONS: Record<string, string> = {
+  "Sécurité & Ancrage": "🛡️",
+  "Cohésion & Travail d'équipe": "🤝",
+  "Auto-compassion & Bienveillance": "💖",
+  "Validation & Identité": "🌱",
+  "Espoir & Quotidien": "☀️",
+};
+
 function hexToRgbTriplet(hex: string): [number, number, number] {
   const clean = hex.trim().replace('#', '');
   const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean.padEnd(6, '0').slice(0, 6);
@@ -2121,6 +2337,17 @@ export default function App() {
       const current = prev[id];
       const idx = current ? (MANDALA_PALETTE.indexOf(current) + 1) % MANDALA_PALETTE.length : 0;
       return { ...prev, [id]: MANDALA_PALETTE[idx] };
+    });
+  };
+
+  // --- Affirmations ---
+  const [currentAffirmationIdx, setCurrentAffirmationIdx] = useState<number>(() => Math.floor(Math.random() * AFFIRMATIONS.length));
+  const drawRandomAffirmation = () => {
+    setCurrentAffirmationIdx(prev => {
+      if (AFFIRMATIONS.length <= 1) return 0;
+      let next = Math.floor(Math.random() * AFFIRMATIONS.length);
+      while (next === prev) next = Math.floor(Math.random() * AFFIRMATIONS.length);
+      return next;
     });
   };
 
@@ -8959,7 +9186,32 @@ export default function App() {
                         {lang === 'fr' ? 'Touche les lames pour jouer une note.' : 'Tap the tines to play a note.'}
                       </p>
                     </div>
-                  ) : (
+                  ) : activeRelaxTool === 'affirmations' ? (() => {
+                    const affirmation = AFFIRMATIONS[currentAffirmationIdx];
+                    return (
+                      <div className="flex flex-col items-center gap-6 py-6">
+                        <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
+                          {lang === 'fr' ? 'Affirmations' : 'Affirmations'}
+                        </h3>
+                        <div className="w-full max-w-sm bg-app-card border border-app-border/40 rounded-3xl p-8 space-y-4 shadow-sm">
+                          <div className="text-[10px] font-black uppercase tracking-widest text-app-accent text-center flex items-center justify-center gap-1.5">
+                            <span>{AFFIRMATION_CATEGORY_ICONS[affirmation.category] || '✦'}</span>
+                            <span>{affirmation.category}</span>
+                          </div>
+                          <p className="text-base font-semibold text-app-text text-center leading-relaxed animate-fade-in">
+                            {affirmation.text}
+                          </p>
+                        </div>
+                        <button
+                          onClick={drawRandomAffirmation}
+                          className="w-full max-w-sm flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                          {lang === 'fr' ? 'Rafraîchir' : 'Refresh'}
+                        </button>
+                      </div>
+                    );
+                  })() : (
                     <div className="flex flex-col items-center gap-4 py-16 text-center">
                       {activeToolMeta && <activeToolMeta.icon className="w-10 h-10 text-app-muted opacity-30" />}
                       <h3 className="text-lg font-black uppercase tracking-wider text-app-text">{activeToolMeta?.label}</h3>
