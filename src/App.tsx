@@ -2354,6 +2354,8 @@ export default function App() {
   const [memoryDraftText, setMemoryDraftText] = useState('');
   const [memoryDraftElement, setMemoryDraftElement] = useState<MemoryItem['elementType']>('bougie');
   const [memoryDraftAuthorId, setMemoryDraftAuthorId] = useState<string>('');
+  const [memoryAuthorOpen, setMemoryAuthorOpen] = useState(false);
+  const [memoryAuthorSearch, setMemoryAuthorSearch] = useState('');
   const [revealedMemoryId, setRevealedMemoryId] = useState<string | null>(null);
   const MEMORY_ELEMENTS: { id: MemoryItem['elementType']; label: string; labelEn: string }[] = [
     { id: 'bougie', label: 'Bougie', labelEn: 'Candle' },
@@ -2390,6 +2392,8 @@ export default function App() {
     };
     setMemories(prev => [...prev, newMemory]);
     setMemoryDraftText('');
+    setMemoryDraftAuthorId('');
+    setMemoryAuthorSearch('');
     setMemoryFormOpen(false);
   };
   const deleteMemory = (id: string) => {
@@ -9366,16 +9370,72 @@ export default function App() {
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
                                 {lang === 'fr' ? 'Qui dépose ?' : 'Who is leaving it?'}
                               </label>
-                              <select
-                                value={memoryDraftAuthorId}
-                                onChange={e => setMemoryDraftAuthorId(e.target.value)}
-                                className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20"
-                              >
-                                <option value="">{lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System'}</option>
-                                {[...savedAlters].sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang)).map(a => (
-                                  <option key={a.id} value={a.id}>{a.alterName}</option>
-                                ))}
-                              </select>
+                              {(() => {
+                                const current = memoryDraftAuthorId ? savedAlters.find(a => a.id === memoryDraftAuthorId) : null;
+                                const filtered = [...savedAlters]
+                                  .filter(a => !memoryAuthorSearch || (a.alterName || '').toLowerCase().includes(memoryAuthorSearch.toLowerCase()))
+                                  .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
+                                return (
+                                  <div className="relative">
+                                    <div
+                                      className="w-full flex items-center gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-xs cursor-pointer hover:border-app-accent/40 transition-colors"
+                                      onClick={() => setMemoryAuthorOpen(o => !o)}
+                                    >
+                                      {current?.profileImage
+                                        ? <img src={current.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                        : current && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] font-black text-app-accent flex-shrink-0">{(current.alterName || '?').charAt(0)}</div>
+                                      }
+                                      <span className={`flex-1 font-semibold ${current ? 'text-app-text' : 'text-app-muted'}`}>
+                                        {current ? current.alterName : (lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System')}
+                                      </span>
+                                      <ChevronDown className={`w-3.5 h-3.5 text-app-muted flex-shrink-0 transition-transform ${memoryAuthorOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+                                    {memoryAuthorOpen && (
+                                      <>
+                                        <div className="fixed inset-0 z-40" onClick={() => { setMemoryAuthorOpen(false); setMemoryAuthorSearch(''); }} />
+                                        <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                                          <div className="p-2 border-b border-app-border/30">
+                                            <input
+                                              autoFocus
+                                              type="text"
+                                              value={memoryAuthorSearch}
+                                              onChange={e => setMemoryAuthorSearch(e.target.value)}
+                                              placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                              className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                              onClick={e => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="max-h-52 overflow-y-auto py-1">
+                                            <button
+                                              type="button"
+                                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${!memoryDraftAuthorId ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                              onClick={() => { setMemoryDraftAuthorId(''); setMemoryAuthorOpen(false); setMemoryAuthorSearch(''); }}
+                                            >
+                                              {lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System'}
+                                            </button>
+                                            {filtered.length === 0 ? (
+                                              <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                            ) : filtered.map(a => (
+                                              <button
+                                                type="button"
+                                                key={a.id}
+                                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${memoryDraftAuthorId === a.id ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                                onClick={() => { setMemoryDraftAuthorId(a.id); setMemoryAuthorOpen(false); setMemoryAuthorSearch(''); }}
+                                              >
+                                                {a.profileImage
+                                                  ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                                  : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] font-black text-app-accent flex-shrink-0">{(a.alterName || '?').charAt(0)}</div>
+                                                }
+                                                {a.alterName}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                             <div className="flex gap-2">
                               <button
