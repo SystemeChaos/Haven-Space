@@ -9169,7 +9169,7 @@ export default function App() {
                         <div className="w-14 h-14 rounded-full bg-app-bg border border-app-border/40 mx-auto mb-6" />
                         <div className="flex justify-center items-start gap-0.5 sm:gap-1">
                           {KALIMBA_NOTES.map((n, i) => {
-                            const height = 150 - i * 6;
+                            const height = 150 - Math.abs(i - 8) * 9;
                             return (
                               <button
                                 key={i}
