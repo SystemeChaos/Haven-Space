@@ -2128,11 +2128,11 @@ export default function App() {
   // Disposition classique d'un kalimba 17 lames (clé de C) : la lame la plus longue/grave est
   // au centre, et le grave monte en zigzag vers les bords (lames de plus en plus courtes/aiguës).
   const KALIMBA_NOTES: { note: string; octave: number }[] = [
-    { note: 'D', octave: 6 }, { note: 'B', octave: 5 }, { note: 'G', octave: 5 }, { note: 'E', octave: 5 },
-    { note: 'C', octave: 5 }, { note: 'A', octave: 4 }, { note: 'F', octave: 4 }, { note: 'D', octave: 4 },
-    { note: 'C', octave: 4 },
-    { note: 'E', octave: 4 }, { note: 'G', octave: 4 }, { note: 'B', octave: 4 }, { note: 'D', octave: 5 },
-    { note: 'F', octave: 5 }, { note: 'A', octave: 5 }, { note: 'C', octave: 6 }, { note: 'E', octave: 6 },
+    { note: 'C', octave: 4 }, { note: 'D', octave: 4 }, { note: 'E', octave: 4 }, { note: 'F', octave: 4 },
+    { note: 'G', octave: 4 }, { note: 'A', octave: 4 }, { note: 'B', octave: 4 }, { note: 'C', octave: 5 },
+    { note: 'D', octave: 5 }, { note: 'E', octave: 5 }, { note: 'F', octave: 5 }, { note: 'G', octave: 5 },
+    { note: 'A', octave: 5 }, { note: 'B', octave: 5 }, { note: 'C', octave: 6 }, { note: 'D', octave: 6 },
+    { note: 'E', octave: 6 },
   ];
   const NOTE_SEMITONES: Record<string, number> = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
   const noteToFreq = (note: string, octave: number) => {
@@ -2159,11 +2159,11 @@ export default function App() {
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, now);
       gain.gain.exponentialRampToValueAtTime(0.32, now + 0.006);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.4);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.6);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 1.5);
+      osc.stop(now + 2.7);
       // Harmonique légère pour un timbre plus métallique (attaque du "pincement")
       const osc2 = ctx.createOscillator();
       osc2.type = 'sine';
@@ -2171,11 +2171,11 @@ export default function App() {
       const gain2 = ctx.createGain();
       gain2.gain.setValueAtTime(0.0001, now);
       gain2.gain.exponentialRampToValueAtTime(0.1, now + 0.004);
-      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
       osc2.connect(gain2);
       gain2.connect(ctx.destination);
       osc2.start(now);
-      osc2.stop(now + 0.4);
+      osc2.stop(now + 0.65);
     } catch { /* Web Audio indisponible — silencieux */ }
   };
 
@@ -8937,24 +8937,23 @@ export default function App() {
                   ) : activeRelaxTool === 'kalimba' ? (
                     <div className="flex flex-col items-center gap-6 py-6">
                       <h3 className="text-xl font-black uppercase tracking-wider text-app-text">Kalimba</h3>
-                      <div className="w-full max-w-md bg-gradient-to-b from-app-accent/10 to-app-accent/5 border border-app-accent/20 rounded-3xl p-5 pb-8">
-                        <div className="flex justify-center items-end gap-0.5 sm:gap-1">
+                      <div className="w-full max-w-md bg-gradient-to-t from-app-accent/10 to-app-accent/5 border border-app-accent/20 rounded-3xl p-5 pt-8">
+                        {/* Corps / trou de résonance décoratif */}
+                        <div className="w-14 h-14 rounded-full bg-app-bg border border-app-border/40 mx-auto mb-6" />
+                        <div className="flex justify-center items-start gap-0.5 sm:gap-1">
                           {KALIMBA_NOTES.map((n, i) => {
-                            const dist = Math.abs(i - 8);
-                            const height = 150 - dist * 9;
+                            const height = 150 - i * 6;
                             return (
                               <button
                                 key={i}
                                 onPointerDown={() => playKalimbaNote(noteToFreq(n.note, n.octave))}
                                 style={{ height: `${height}px` }}
-                                className="w-4 sm:w-5 rounded-t-md bg-gradient-to-b from-app-card to-app-border/50 border border-app-border/60 active:from-app-accent/50 active:to-app-accent/20 transition-colors shadow-sm shrink-0"
+                                className="w-4 sm:w-5 rounded-b-md bg-gradient-to-t from-app-card to-app-border/50 border border-app-border/60 active:from-app-accent/50 active:to-app-accent/20 transition-colors shadow-sm shrink-0"
                                 title={`${n.note}${n.octave}`}
                               />
                             );
                           })}
                         </div>
-                        {/* Corps / trou de résonance décoratif */}
-                        <div className="w-14 h-14 rounded-full bg-app-bg border border-app-border/40 mx-auto mt-6" />
                       </div>
                       <p className="text-[10px] text-app-muted text-center italic max-w-xs">
                         {lang === 'fr' ? 'Touche les lames pour jouer une note.' : 'Tap the tines to play a note.'}
