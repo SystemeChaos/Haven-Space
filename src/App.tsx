@@ -137,6 +137,8 @@ import {
   CalendarDays,
   Mail,
   Send,
+  Lamp,
+  Package,
   ChevronRight,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
@@ -2338,6 +2340,61 @@ export default function App() {
       const idx = current ? (MANDALA_PALETTE.indexOf(current) + 1) % MANDALA_PALETTE.length : 0;
       return { ...prev, [id]: MANDALA_PALETTE[idx] };
     });
+  };
+
+  // --- Boîte à Souvenirs (partagée entre tous les alters du système) ---
+  interface MemoryItem { id: string; text: string; elementType: 'bougie' | 'lanterne' | 'message' | 'papillon' | 'coffre'; authorAlterId?: string; timestamp: number; }
+  const [memories, setMemories] = useState<MemoryItem[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-memories') || '[]'); } catch { return []; }
+  });
+  useEffect(() => {
+    localStorage.setItem('hs-memories', JSON.stringify(memories));
+  }, [memories]);
+  const [memoryFormOpen, setMemoryFormOpen] = useState(false);
+  const [memoryDraftText, setMemoryDraftText] = useState('');
+  const [memoryDraftElement, setMemoryDraftElement] = useState<MemoryItem['elementType']>('bougie');
+  const [memoryDraftAuthorId, setMemoryDraftAuthorId] = useState<string>('');
+  const [revealedMemoryId, setRevealedMemoryId] = useState<string | null>(null);
+  const MEMORY_ELEMENTS: { id: MemoryItem['elementType']; label: string; labelEn: string }[] = [
+    { id: 'bougie', label: 'Bougie', labelEn: 'Candle' },
+    { id: 'lanterne', label: 'Lanterne', labelEn: 'Lantern' },
+    { id: 'message', label: 'Mot en bouteille', labelEn: 'Message in a bottle' },
+    { id: 'papillon', label: 'Papillon', labelEn: 'Butterfly' },
+    { id: 'coffre', label: 'Petit coffre', labelEn: 'Small chest' },
+  ];
+  const getMemoryElementIcon = (type: MemoryItem['elementType'], className: string) => {
+    switch (type) {
+      case 'bougie': return <Flame className={className} />;
+      case 'lanterne': return <Lamp className={className} />;
+      case 'message': return <Mail className={className} />;
+      case 'coffre': return <Package className={className} />;
+      case 'papillon': return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          <path d="M11 11c-1-1-2.5-1.5-4-1.5C5 9.5 3.5 11 3.5 13c0 1.5 1 2.5 2.5 3c-1.5 0.5-2.5 1.5-2.5 3c0 2 1.5 3.5 3.5 3.5c1.5 0 3-0.5 4-1.5" />
+          <path d="M13 11c1-1 2.5-1.5 4-1.5c2 0 3.5 1.5 3.5 3.5c0 1.5-1 2.5-2.5 3c1.5 0.5 2.5 1.5 2.5 3c0 2-1.5 3.5-3.5 3.5c-1.5 0-3-0.5-4-1.5" />
+          <path d="M12 10v10" />
+          <circle cx="10.5" cy="7" r="0.5" />
+          <circle cx="13.5" cy="7" r="0.5" />
+        </svg>
+      );
+    }
+  };
+  const addMemory = () => {
+    if (!memoryDraftText.trim()) return;
+    const newMemory: MemoryItem = {
+      id: Math.random().toString(36).substring(2, 11),
+      text: memoryDraftText.trim(),
+      elementType: memoryDraftElement,
+      authorAlterId: memoryDraftAuthorId || undefined,
+      timestamp: Date.now(),
+    };
+    setMemories(prev => [...prev, newMemory]);
+    setMemoryDraftText('');
+    setMemoryFormOpen(false);
+  };
+  const deleteMemory = (id: string) => {
+    setMemories(prev => prev.filter(m => m.id !== id));
+    if (revealedMemoryId === id) setRevealedMemoryId(null);
   };
 
   // --- Affirmations ---
@@ -9209,6 +9266,134 @@ export default function App() {
                           <RotateCcw className="w-3.5 h-3.5" />
                           {lang === 'fr' ? 'Rafraîchir' : 'Refresh'}
                         </button>
+                      </div>
+                    );
+                  })() : activeRelaxTool === 'memory-box' ? (() => {
+                    const revealed = memories.find(m => m.id === revealedMemoryId) || null;
+                    const revealedAuthor = revealed?.authorAlterId ? savedAlters.find(a => a.id === revealed.authorAlterId) : null;
+                    return (
+                      <div className="flex flex-col items-center gap-5 py-6 w-full">
+                        <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
+                          {lang === 'fr' ? 'Boîte à Souvenirs' : 'Memory Box'}
+                        </h3>
+
+                        {/* Scène chaleureuse avec les souvenirs déposés */}
+                        <div className="w-full max-w-lg min-h-[140px] bg-gradient-to-b from-amber-500/10 to-app-accent/5 border border-amber-500/20 rounded-3xl p-6 flex flex-wrap items-center justify-center gap-3">
+                          {memories.length === 0 ? (
+                            <p className="text-xs text-app-muted italic text-center">
+                              {lang === 'fr' ? 'Aucun souvenir déposé pour le moment.' : 'No memories left yet.'}
+                            </p>
+                          ) : (
+                            memories.map(m => (
+                              <button
+                                key={m.id}
+                                onClick={() => setRevealedMemoryId(m.id)}
+                                title={lang === 'fr' ? 'Cliquer pour lire' : 'Click to read'}
+                                className="w-11 h-11 rounded-2xl bg-app-card border border-amber-500/30 flex items-center justify-center text-amber-600 hover:scale-110 hover:border-amber-500/60 transition-all shadow-sm"
+                              >
+                                {getMemoryElementIcon(m.elementType, 'w-5 h-5')}
+                              </button>
+                            ))
+                          )}
+                        </div>
+
+                        {/* Panneau de lecture du souvenir sélectionné */}
+                        {revealed && (
+                          <div className="w-full max-w-lg bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-3 animate-fade-in">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-1.5">
+                                {getMemoryElementIcon(revealed.elementType, 'w-3.5 h-3.5')}
+                                {MEMORY_ELEMENTS.find(e => e.id === revealed.elementType)?.[lang === 'fr' ? 'label' : 'labelEn']}
+                              </span>
+                              <button onClick={() => setRevealedMemoryId(null)} className="p-1 text-app-muted hover:text-app-text transition-colors">
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <p className="text-sm text-app-text leading-relaxed">{revealed.text}</p>
+                            <div className="flex items-center justify-between pt-2 border-t border-app-border/15">
+                              <span className="text-[10px] text-app-muted font-bold">
+                                {revealedAuthor ? revealedAuthor.alterName : (lang === 'fr' ? 'Anonyme' : 'Anonymous')}
+                                {' · '}
+                                {new Date(revealed.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </span>
+                              <button
+                                onClick={() => deleteMemory(revealed.id)}
+                                className="p-1 text-app-muted hover:text-red-500 transition-colors"
+                                title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Formulaire de dépôt */}
+                        {!memoryFormOpen ? (
+                          <button
+                            onClick={() => setMemoryFormOpen(true)}
+                            className="w-full max-w-lg flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            {lang === 'fr' ? 'Déposer un souvenir' : 'Leave a memory'}
+                          </button>
+                        ) : (
+                          <div className="w-full max-w-lg bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-4">
+                            <textarea
+                              value={memoryDraftText}
+                              onChange={e => setMemoryDraftText(e.target.value)}
+                              placeholder={lang === 'fr' ? "Ce que tu veux laisser au système..." : "What you want to leave for the system..."}
+                              rows={3}
+                              className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none"
+                            />
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                                {lang === 'fr' ? 'Le déposer dans...' : 'Leave it as...'}
+                              </label>
+                              <div className="flex flex-wrap gap-1.5">
+                                {MEMORY_ELEMENTS.map(el => (
+                                  <button
+                                    key={el.id}
+                                    onClick={() => setMemoryDraftElement(el.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${memoryDraftElement === el.id ? 'bg-amber-500/15 border-amber-500/50 text-amber-600' : 'bg-app-bg border-app-border text-app-muted'}`}
+                                  >
+                                    {getMemoryElementIcon(el.id, 'w-3.5 h-3.5')}
+                                    {lang === 'fr' ? el.label : el.labelEn}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                                {lang === 'fr' ? 'Qui dépose ?' : 'Who is leaving it?'}
+                              </label>
+                              <select
+                                value={memoryDraftAuthorId}
+                                onChange={e => setMemoryDraftAuthorId(e.target.value)}
+                                className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                              >
+                                <option value="">{lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System'}</option>
+                                {[...savedAlters].sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang)).map(a => (
+                                  <option key={a.id} value={a.id}>{a.alterName}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={addMemory}
+                                disabled={!memoryDraftText.trim()}
+                                className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                              >
+                                {lang === 'fr' ? 'Déposer' : 'Leave it'}
+                              </button>
+                              <button
+                                onClick={() => { setMemoryFormOpen(false); setMemoryDraftText(''); }}
+                                className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors"
+                              >
+                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })() : (
