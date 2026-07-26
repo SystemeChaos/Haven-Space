@@ -2280,10 +2280,47 @@ export default function App() {
   const [fidgetSubTool, setFidgetSubTool] = useState<'sand' | 'bubbles' | 'coloring'>('sand');
   const [sandColorMode, setSandColorMode] = useState<'sand' | 'snow' | 'waves'>('sand');
   const [poppedBubbles, setPoppedBubbles] = useState<Set<number>>(new Set());
-  const [mandalaColors, setMandalaColors] = useState<Record<number, string>>({});
+  const [mandalaColors, setMandalaColors] = useState<Record<string, string>>({});
+  const [mandalaTemplate, setMandalaTemplate] = useState<'flower' | 'star' | 'rings'>('flower');
   const fidgetCanvasRef = useRef<HTMLCanvasElement>(null);
   const fidgetDrawingRef = useRef<boolean>(false);
-  const MANDALA_PALETTE = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE'];
+  const MANDALA_PALETTE = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE', '#D9F3EF', '#F3E0D9', '#EAD9F3', '#F3D9D9', '#D9F3E0', '#E0E0F3'];
+  // Trois modèles de mandala, chacun avec sa propre disposition et ses propres formes.
+  const getMandalaPoints = (template: 'flower' | 'star' | 'rings'): { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] => {
+    if (template === 'star') {
+      const pts: { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] = [
+        { key: 'center', x: 128, y: 128, size: 44, shape: 'diamond' },
+      ];
+      for (let i = 0; i < 8; i++) {
+        const angle = (i * 45 - 90) * (Math.PI / 180);
+        pts.push({ key: `p${i}`, x: 128 + 95 * Math.cos(angle), y: 128 + 95 * Math.sin(angle), size: 38, shape: 'diamond' });
+      }
+      return pts;
+    }
+    if (template === 'rings') {
+      const pts: { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] = [
+        { key: 'center', x: 128, y: 128, size: 28, shape: 'square' },
+      ];
+      for (let i = 0; i < 6; i++) {
+        const angle = (i * 60 - 90) * (Math.PI / 180);
+        pts.push({ key: `in${i}`, x: 128 + 50 * Math.cos(angle), y: 128 + 50 * Math.sin(angle), size: 24, shape: 'square' });
+      }
+      for (let i = 0; i < 12; i++) {
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        pts.push({ key: `out${i}`, x: 128 + 98 * Math.cos(angle), y: 128 + 98 * Math.sin(angle), size: 24, shape: 'square' });
+      }
+      return pts;
+    }
+    // flower (par défaut)
+    const pts: { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] = [
+      { key: 'center', x: 128, y: 128, size: 48, shape: 'circle' },
+    ];
+    for (let i = 0; i < 12; i++) {
+      const angle = (i * 30 - 90) * (Math.PI / 180);
+      pts.push({ key: `p${i}`, x: 128 + 90 * Math.cos(angle), y: 128 + 90 * Math.sin(angle), size: 36, shape: 'circle' });
+    }
+    return pts;
+  };
   const SAND_COLORS: Record<string, string> = { sand: '#C9A26D', snow: '#BFE3FF', waves: '#3B82F6' };
   const BUBBLE_COUNT = 30;
 
@@ -2314,18 +2351,38 @@ export default function App() {
     };
   };
 
+  const fidgetLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const paintFidgetDot = (x: number, y: number, radius: number, ctx: CanvasRenderingContext2D) => {
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    grad.addColorStop(0, SAND_COLORS[sandColorMode]);
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  };
   const drawFidgetDot = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = fidgetCanvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!canvas || !ctx) return;
     const { x, y } = getFidgetCanvasPoint(e);
-    const grad = ctx.createRadialGradient(x, y, 0, x, y, 22);
-    grad.addColorStop(0, SAND_COLORS[sandColorMode]);
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad;
-    ctx.beginPath();
-    ctx.arc(x, y, 22, 0, Math.PI * 2);
-    ctx.fill();
+    // La pression (stylet, ou certains écrans tactiles) agrandit le trait ; à défaut, taille moyenne.
+    const pressure = e.pressure > 0 ? e.pressure : 0.5;
+    const radius = 9 + pressure * 20;
+    const last = fidgetLastPointRef.current;
+    if (last) {
+      // On comble l'espace entre le dernier point et celui-ci pour un trait continu et fluide,
+      // au lieu de tampons isolés qui paraissent saccadés lors d'un geste rapide.
+      const dist = Math.hypot(x - last.x, y - last.y);
+      const steps = Math.max(1, Math.ceil(dist / (radius * 0.35)));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        paintFidgetDot(last.x + (x - last.x) * t, last.y + (y - last.y) * t, radius, ctx);
+      }
+    } else {
+      paintFidgetDot(x, y, radius, ctx);
+    }
+    fidgetLastPointRef.current = { x, y };
   };
 
   const toggleBubble = (i: number) => {
@@ -2334,11 +2391,11 @@ export default function App() {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
   };
 
-  const cycleMandalaColor = (id: number) => {
+  const cycleMandalaColor = (key: string) => {
     setMandalaColors(prev => {
-      const current = prev[id];
+      const current = prev[key];
       const idx = current ? (MANDALA_PALETTE.indexOf(current) + 1) % MANDALA_PALETTE.length : 0;
-      return { ...prev, [id]: MANDALA_PALETTE[idx] };
+      return { ...prev, [key]: MANDALA_PALETTE[idx] };
     });
   };
 
@@ -9198,10 +9255,10 @@ export default function App() {
                             width={320}
                             height={320}
                             className="w-full aspect-square rounded-2xl border border-app-border/40 bg-app-bg touch-none cursor-crosshair"
-                            onPointerDown={e => { fidgetDrawingRef.current = true; drawFidgetDot(e); }}
+                            onPointerDown={e => { fidgetDrawingRef.current = true; fidgetLastPointRef.current = null; drawFidgetDot(e); }}
                             onPointerMove={e => { if (fidgetDrawingRef.current) drawFidgetDot(e); }}
-                            onPointerUp={() => { fidgetDrawingRef.current = false; }}
-                            onPointerLeave={() => { fidgetDrawingRef.current = false; }}
+                            onPointerUp={() => { fidgetDrawingRef.current = false; fidgetLastPointRef.current = null; }}
+                            onPointerLeave={() => { fidgetDrawingRef.current = false; fidgetLastPointRef.current = null; }}
                           />
                           <p className="text-[10px] text-app-muted text-center italic">
                             {lang === 'fr' ? 'Fais glisser ton doigt — les traits s\'effacent tout seuls.' : 'Drag your finger — the marks fade on their own.'}
@@ -9240,32 +9297,50 @@ export default function App() {
                       {/* Coloriage / mandala */}
                       {fidgetSubTool === 'coloring' && (
                         <div className="w-full max-w-sm space-y-3 flex flex-col items-center">
+                          <div className="flex gap-2">
+                            {[
+                              { id: 'flower', label: lang === 'fr' ? 'Fleur' : 'Flower' },
+                              { id: 'star', label: lang === 'fr' ? 'Étoile' : 'Star' },
+                              { id: 'rings', label: lang === 'fr' ? 'Cercles' : 'Rings' },
+                            ].map(tpl => (
+                              <button
+                                key={tpl.id}
+                                onClick={() => setMandalaTemplate(tpl.id as any)}
+                                className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${mandalaTemplate === tpl.id ? 'border-app-accent text-app-accent' : 'border-app-border text-app-muted'}`}
+                              >
+                                {tpl.label}
+                              </button>
+                            ))}
+                          </div>
                           <div className="relative w-64 h-64">
-                            <button
-                              onClick={() => cycleMandalaColor(-1)}
-                              style={{ backgroundColor: mandalaColors[-1] || 'transparent', left: 128 - 24, top: 128 - 24 }}
-                              className="absolute w-12 h-12 rounded-full border-2 border-app-border/50 hover:border-app-accent transition-colors"
-                            />
-                            {Array.from({ length: 12 }).map((_, i) => {
-                              const angle = (i * 30 - 90) * (Math.PI / 180);
-                              const radius = 90;
-                              const x = 128 + radius * Math.cos(angle);
-                              const y = 128 + radius * Math.sin(angle);
+                            {getMandalaPoints(mandalaTemplate).map(pt => {
+                              const colorKey = `${mandalaTemplate}_${pt.key}`;
+                              const shapeClass = pt.shape === 'circle' ? 'rounded-full' : pt.shape === 'diamond' ? 'rounded-md rotate-45' : 'rounded-md';
                               return (
                                 <button
-                                  key={i}
-                                  onClick={() => cycleMandalaColor(i)}
-                                  style={{ backgroundColor: mandalaColors[i] || 'transparent', left: x - 18, top: y - 18 }}
-                                  className="absolute w-9 h-9 rounded-full border-2 border-app-border/50 hover:border-app-accent transition-colors"
+                                  key={pt.key}
+                                  onClick={() => cycleMandalaColor(colorKey)}
+                                  style={{
+                                    backgroundColor: mandalaColors[colorKey] || 'transparent',
+                                    left: pt.x - pt.size / 2,
+                                    top: pt.y - pt.size / 2,
+                                    width: pt.size,
+                                    height: pt.size,
+                                  }}
+                                  className={`absolute border-2 border-app-border/50 hover:border-app-accent transition-colors ${shapeClass}`}
                                 />
                               );
                             })}
                           </div>
                           <button
-                            onClick={() => setMandalaColors({})}
+                            onClick={() => setMandalaColors(prev => {
+                              const next = { ...prev };
+                              Object.keys(next).forEach(k => { if (k.startsWith(`${mandalaTemplate}_`)) delete next[k]; });
+                              return next;
+                            })}
                             className="w-full py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Effacer le mandala' : 'Clear mandala'}
+                            {lang === 'fr' ? 'Effacer ce mandala' : 'Clear this mandala'}
                           </button>
                           <p className="text-[10px] text-app-muted text-center italic">
                             {lang === 'fr' ? 'Clique sur une zone pour la colorer, reclique pour changer de couleur.' : 'Click a zone to color it, click again to cycle colors.'}
@@ -9281,7 +9356,7 @@ export default function App() {
                         <div className="w-14 h-14 rounded-full bg-app-bg border border-app-border/40 mx-auto mb-6" />
                         <div className="flex justify-center items-start gap-0.5 sm:gap-1">
                           {KALIMBA_NOTES.map((n, i) => {
-                            const height = 150 - Math.abs(i - 8) * 9;
+                            const height = 150 - i * 6;
                             return (
                               <button
                                 key={i}
