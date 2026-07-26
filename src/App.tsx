@@ -2524,11 +2524,11 @@ export default function App() {
   // Disposition classique d'un kalimba 17 lames (clé de C) : la lame la plus longue/grave est
   // au centre, et le grave monte en zigzag vers les bords (lames de plus en plus courtes/aiguës).
   const KALIMBA_NOTES: { note: string; octave: number }[] = [
-    { note: 'C', octave: 4 }, { note: 'D', octave: 4 }, { note: 'E', octave: 4 }, { note: 'F', octave: 4 },
-    { note: 'G', octave: 4 }, { note: 'A', octave: 4 }, { note: 'B', octave: 4 }, { note: 'C', octave: 5 },
-    { note: 'D', octave: 5 }, { note: 'E', octave: 5 }, { note: 'F', octave: 5 }, { note: 'G', octave: 5 },
-    { note: 'A', octave: 5 }, { note: 'B', octave: 5 }, { note: 'C', octave: 6 }, { note: 'D', octave: 6 },
-    { note: 'E', octave: 6 },
+    { note: 'D', octave: 6 }, { note: 'B', octave: 5 }, { note: 'G', octave: 5 }, { note: 'E', octave: 5 },
+    { note: 'C', octave: 5 }, { note: 'A', octave: 4 }, { note: 'F', octave: 4 }, { note: 'D', octave: 4 },
+    { note: 'C', octave: 4 },
+    { note: 'E', octave: 4 }, { note: 'G', octave: 4 }, { note: 'B', octave: 4 }, { note: 'D', octave: 5 },
+    { note: 'F', octave: 5 }, { note: 'A', octave: 5 }, { note: 'C', octave: 6 }, { note: 'E', octave: 6 },
   ];
   const NOTE_SEMITONES: Record<string, number> = { C: -9, D: -7, E: -5, F: -4, G: -2, A: 0, B: 2 };
   const noteToFreq = (note: string, octave: number) => {
@@ -9356,7 +9356,7 @@ export default function App() {
                         <div className="w-14 h-14 rounded-full bg-app-bg border border-app-border/40 mx-auto mb-6" />
                         <div className="flex justify-center items-start gap-0.5 sm:gap-1">
                           {KALIMBA_NOTES.map((n, i) => {
-                            const height = 150 - i * 6;
+                            const height = 150 - Math.abs(i - 8) * 9;
                             return (
                               <button
                                 key={i}
