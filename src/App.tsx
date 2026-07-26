@@ -2613,6 +2613,70 @@ export default function App() {
     if (revealedMemoryId === id) setRevealedMemoryId(null);
   };
 
+  // --- Éco-Système (partagé entre tous les alters du système) ---
+  interface EcoElement { id: string; type: 'plante' | 'poisson' | 'etoile' | 'lumignon'; x: number; y: number; authorAlterId?: string; timestamp: number; }
+  const [ecoElements, setEcoElements] = useState<EcoElement[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-eco-elements') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-eco-elements', JSON.stringify(ecoElements)); }, [ecoElements]);
+  const [ecoBackground, setEcoBackground] = useState<'aquarium' | 'greenhouse' | 'night'>(() => {
+    try { return (localStorage.getItem('hs-eco-bg') as any) || 'aquarium'; } catch { return 'aquarium'; }
+  });
+  useEffect(() => { localStorage.setItem('hs-eco-bg', ecoBackground); }, [ecoBackground]);
+  const [ecoFormOpen, setEcoFormOpen] = useState(false);
+  const [ecoDraftType, setEcoDraftType] = useState<EcoElement['type']>('plante');
+  const [ecoDraftAuthorId, setEcoDraftAuthorId] = useState('');
+  const [ecoAuthorOpen, setEcoAuthorOpen] = useState(false);
+  const [ecoAuthorSearch, setEcoAuthorSearch] = useState('');
+  const [ecoEditMode, setEcoEditMode] = useState(false);
+  const [ecoPulsingId, setEcoPulsingId] = useState<string | null>(null);
+  interface EcoParticle { id: string; x: number; y: number; emoji: string; }
+  const [ecoParticles, setEcoParticles] = useState<EcoParticle[]>([]);
+
+  const ECO_ELEMENT_TYPES: { id: EcoElement['type']; emoji: string; label: string; labelEn: string }[] = [
+    { id: 'plante', emoji: '🌱', label: 'Plante', labelEn: 'Plant' },
+    { id: 'poisson', emoji: '🐟', label: 'Poisson', labelEn: 'Fish' },
+    { id: 'etoile', emoji: '⭐', label: 'Étoile', labelEn: 'Star' },
+    { id: 'lumignon', emoji: '💡', label: 'Lumignon', labelEn: 'Little light' },
+  ];
+  const ECO_BACKGROUNDS: { id: 'aquarium' | 'greenhouse' | 'night'; label: string; labelEn: string; className: string }[] = [
+    { id: 'aquarium', label: 'Aquarium', labelEn: 'Aquarium', className: 'from-sky-500/15 to-cyan-500/10 border-sky-500/20' },
+    { id: 'greenhouse', label: 'Serre', labelEn: 'Greenhouse', className: 'from-emerald-500/15 to-lime-500/10 border-emerald-500/20' },
+    { id: 'night', label: 'Ciel nocturne', labelEn: 'Night sky', className: 'from-indigo-500/15 to-purple-500/10 border-indigo-500/20' },
+  ];
+
+  const addEcoElement = () => {
+    const newEl: EcoElement = {
+      id: Math.random().toString(36).substring(2, 11),
+      type: ecoDraftType,
+      x: 12 + Math.random() * 76,
+      y: 15 + Math.random() * 65,
+      authorAlterId: ecoDraftAuthorId || undefined,
+      timestamp: Date.now(),
+    };
+    setEcoElements(prev => [...prev, newEl]);
+    setEcoFormOpen(false);
+  };
+  const deleteEcoElement = (id: string) => {
+    setEcoElements(prev => prev.filter(el => el.id !== id));
+  };
+  // Tapoter un élément le fait doucement réagir (pulsation + petites bulles/étincelles) sans aucun objectif.
+  const tapEcoElement = (el: EcoElement) => {
+    setEcoPulsingId(el.id);
+    setTimeout(() => setEcoPulsingId(prev => prev === el.id ? null : prev), 700);
+    const particleEmoji = el.type === 'poisson' ? '〜' : el.type === 'lumignon' ? '✨' : el.type === 'etoile' ? '✨' : '·';
+    const newParticles: EcoParticle[] = Array.from({ length: 2 }).map((_, i) => ({
+      id: Math.random().toString(36).substring(2, 9),
+      x: el.x + (Math.random() * 8 - 4),
+      y: el.y,
+      emoji: particleEmoji,
+    }));
+    setEcoParticles(prev => [...prev, ...newParticles]);
+    newParticles.forEach(p => {
+      setTimeout(() => setEcoParticles(prev => prev.filter(pp => pp.id !== p.id)), 900);
+    });
+  };
+
   // --- Boîte à Choix ---
   const WHEEL_COLORS = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE', '#D9F3EF', '#F3E0D9'];
   const [wheelOptions, setWheelOptions] = useState<string[]>(() => {
@@ -9950,7 +10014,204 @@ export default function App() {
                         {lang === 'fr' ? 'Trace du bout du doigt — le trait brille puis s\'évanouit tout seul.' : 'Trace with your finger — the line glows then fades on its own.'}
                       </p>
                     </div>
-                  ) : (
+                  ) : activeRelaxTool === 'eco-system' ? (() => {
+                    const bg = ECO_BACKGROUNDS.find(b => b.id === ecoBackground)!;
+                    return (
+                      <div className="flex flex-col items-center gap-5 py-6 w-full">
+                        <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
+                          {lang === 'fr' ? 'Éco-Système' : 'Eco-System'}
+                        </h3>
+
+                        {/* Choix du paysage */}
+                        <div className="flex gap-2 w-full max-w-lg">
+                          {ECO_BACKGROUNDS.map(b => (
+                            <button
+                              key={b.id}
+                              onClick={() => setEcoBackground(b.id)}
+                              className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${ecoBackground === b.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                            >
+                              {lang === 'fr' ? b.label : b.labelEn}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* La scène */}
+                        <div className={`relative w-full max-w-lg h-56 rounded-3xl border bg-gradient-to-b ${bg.className} overflow-hidden`}>
+                          {ecoElements.length === 0 && (
+                            <p className="absolute inset-0 flex items-center justify-center text-xs text-app-muted italic px-6 text-center">
+                              {lang === 'fr' ? "Aucune présence posée pour le moment." : 'No presence placed yet.'}
+                            </p>
+                          )}
+                          {ecoElements.map(el => {
+                            const meta = ECO_ELEMENT_TYPES.find(t => t.id === el.type)!;
+                            const pulsing = ecoPulsingId === el.id;
+                            return (
+                              <button
+                                key={el.id}
+                                onClick={() => ecoEditMode ? deleteEcoElement(el.id) : tapEcoElement(el)}
+                                title={ecoEditMode ? (lang === 'fr' ? 'Retirer' : 'Remove') : undefined}
+                                style={{
+                                  left: `${el.x}%`,
+                                  top: `${el.y}%`,
+                                  transform: `translate(-50%, -50%) scale(${pulsing ? 1.35 : 1})`,
+                                }}
+                                className={`absolute text-2xl transition-transform duration-300 ${ecoEditMode ? 'hover:opacity-40' : 'hover:scale-110'}`}
+                              >
+                                {meta.emoji}
+                              </button>
+                            );
+                          })}
+                          <AnimatePresence>
+                            {ecoParticles.map(p => (
+                              <motion.span
+                                key={p.id}
+                                initial={{ opacity: 1, y: 0 }}
+                                animate={{ opacity: 0, y: -28 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.9, ease: 'easeOut' }}
+                                style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                                className="absolute text-sm pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                              >
+                                {p.emoji}
+                              </motion.span>
+                            ))}
+                          </AnimatePresence>
+                        </div>
+
+                        {/* Dépôt d'une présence */}
+                        {!ecoFormOpen ? (
+                          <div className="w-full max-w-lg flex gap-2">
+                            <button
+                              onClick={() => setEcoFormOpen(true)}
+                              className="flex-1 flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              {lang === 'fr' ? 'Poser ma présence' : 'Place my presence'}
+                            </button>
+                            <button
+                              onClick={() => setEcoEditMode(o => !o)}
+                              className={`px-4 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${ecoEditMode ? 'bg-red-500/10 border-red-500/40 text-red-500' : 'bg-app-card border-app-border text-app-muted'}`}
+                            >
+                              {ecoEditMode ? (lang === 'fr' ? 'Terminé' : 'Done') : (lang === 'fr' ? 'Gérer' : 'Manage')}
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="w-full max-w-lg bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                                {lang === 'fr' ? 'Quel élément ?' : 'Which element?'}
+                              </label>
+                              <div className="flex gap-1.5">
+                                {ECO_ELEMENT_TYPES.map(t => (
+                                  <button
+                                    key={t.id}
+                                    onClick={() => setEcoDraftType(t.id)}
+                                    className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-[9px] font-bold border transition-all ${ecoDraftType === t.id ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                                  >
+                                    <span className="text-lg">{t.emoji}</span>
+                                    {lang === 'fr' ? t.label : t.labelEn}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            <div className="space-y-1.5">
+                              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                                {lang === 'fr' ? 'Qui dépose ?' : 'Who is placing it?'}
+                              </label>
+                              {(() => {
+                                const current = ecoDraftAuthorId ? savedAlters.find(a => a.id === ecoDraftAuthorId) : null;
+                                const filtered = [...savedAlters]
+                                  .filter(a => !ecoAuthorSearch || (a.alterName || '').toLowerCase().includes(ecoAuthorSearch.toLowerCase()))
+                                  .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
+                                return (
+                                  <div className="relative">
+                                    <div
+                                      className="w-full flex items-center gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-xs cursor-pointer hover:border-app-accent/40 transition-colors"
+                                      onClick={() => setEcoAuthorOpen(o => !o)}
+                                    >
+                                      {current?.profileImage
+                                        ? <img src={current.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                        : current && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] font-black text-app-accent flex-shrink-0">{(current.alterName || '?').charAt(0)}</div>
+                                      }
+                                      <span className={`flex-1 font-semibold ${current ? 'text-app-text' : 'text-app-muted'}`}>
+                                        {current ? current.alterName : (lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System')}
+                                      </span>
+                                      <ChevronDown className={`w-3.5 h-3.5 text-app-muted flex-shrink-0 transition-transform ${ecoAuthorOpen ? 'rotate-180' : ''}`} />
+                                    </div>
+                                    {ecoAuthorOpen && (
+                                      <>
+                                        <div className="fixed inset-0 z-40" onClick={() => { setEcoAuthorOpen(false); setEcoAuthorSearch(''); }} />
+                                        <div className="absolute left-0 right-0 mt-1 z-50 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden">
+                                          <div className="p-2 border-b border-app-border/30">
+                                            <input
+                                              autoFocus
+                                              type="text"
+                                              value={ecoAuthorSearch}
+                                              onChange={e => setEcoAuthorSearch(e.target.value)}
+                                              placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                              className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                                              onClick={e => e.stopPropagation()}
+                                            />
+                                          </div>
+                                          <div className="max-h-52 overflow-y-auto py-1">
+                                            <button
+                                              type="button"
+                                              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${!ecoDraftAuthorId ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                              onClick={() => { setEcoDraftAuthorId(''); setEcoAuthorOpen(false); setEcoAuthorSearch(''); }}
+                                            >
+                                              {lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System'}
+                                            </button>
+                                            {filtered.length === 0 ? (
+                                              <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                            ) : filtered.map(a => (
+                                              <button
+                                                type="button"
+                                                key={a.id}
+                                                className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${ecoDraftAuthorId === a.id ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
+                                                onClick={() => { setEcoDraftAuthorId(a.id); setEcoAuthorOpen(false); setEcoAuthorSearch(''); }}
+                                              >
+                                                {a.profileImage
+                                                  ? <img src={a.profileImage} className="w-5 h-5 rounded-full object-cover flex-shrink-0" alt="" />
+                                                  : <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] font-black text-app-accent flex-shrink-0">{(a.alterName || '?').charAt(0)}</div>
+                                                }
+                                                {a.alterName}
+                                              </button>
+                                            ))}
+                                          </div>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </div>
+
+                            <div className="flex gap-2">
+                              <button
+                                onClick={addEcoElement}
+                                className="flex-1 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                              >
+                                {lang === 'fr' ? 'Déposer' : 'Place it'}
+                              </button>
+                              <button
+                                onClick={() => setEcoFormOpen(false)}
+                                className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors"
+                              >
+                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-app-muted text-center italic max-w-xs">
+                          {ecoEditMode
+                            ? (lang === 'fr' ? 'Clique sur un élément pour le retirer.' : 'Click an element to remove it.')
+                            : (lang === 'fr' ? 'Tapote un élément pour le voir réagir doucement.' : 'Tap an element to see it gently react.')}
+                        </p>
+                      </div>
+                    );
+                  })() : (
                     <div className="flex flex-col items-center gap-4 py-16 text-center">
                       {activeToolMeta && <activeToolMeta.icon className="w-10 h-10 text-app-muted opacity-30" />}
                       <h3 className="text-lg font-black uppercase tracking-wider text-app-text">{activeToolMeta?.label}</h3>
