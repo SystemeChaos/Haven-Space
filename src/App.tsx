@@ -2324,10 +2324,11 @@ export default function App() {
   const SAND_COLORS: Record<string, string> = { sand: '#C9A26D', snow: '#BFE3FF', waves: '#3B82F6' };
   const BUBBLE_COUNT = 30;
 
-  // Effet de fondu progressif du bac à sable — repeint une fine couche translucide par-dessus
-  // les traits existants pour qu'ils s'estompent doucement, comme du sable qu'on lisse.
+  // Effet de fondu progressif — réservé au Sable et à la Neige (l'eau a sa propre animation d'ondes).
+  // Repeint une fine couche translucide par-dessus les traits existants pour qu'ils s'estompent
+  // doucement, comme du sable qu'on lisse.
   useEffect(() => {
-    if (currentTab !== 'relax' || activeRelaxTool !== 'fidgets' || fidgetSubTool !== 'sand') return;
+    if (currentTab !== 'relax' || activeRelaxTool !== 'fidgets' || fidgetSubTool !== 'sand' || sandColorMode === 'waves') return;
     const canvas = fidgetCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
@@ -2339,7 +2340,16 @@ export default function App() {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }, 120);
     return () => clearInterval(interval);
-  }, [currentTab, activeRelaxTool, fidgetSubTool]);
+  }, [currentTab, activeRelaxTool, fidgetSubTool, sandColorMode]);
+
+  // On repart d'un canevas propre à chaque changement de matière — sable/neige et eau
+  // n'utilisent pas du tout le même moteur de rendu.
+  useEffect(() => {
+    const canvas = fidgetCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    fidgetRipplesRef.current = [];
+  }, [sandColorMode]);
 
   const getFidgetCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = fidgetCanvasRef.current;
@@ -2352,14 +2362,33 @@ export default function App() {
   };
 
   const fidgetLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  // Sable et neige ont chacun leur propre grain/texture, pas juste une couleur différente.
   const paintFidgetDot = (x: number, y: number, radius: number, ctx: CanvasRenderingContext2D) => {
     const grad = ctx.createRadialGradient(x, y, 0, x, y, radius);
-    grad.addColorStop(0, SAND_COLORS[sandColorMode]);
-    grad.addColorStop(1, 'transparent');
+    if (sandColorMode === 'snow') {
+      grad.addColorStop(0, '#FFFFFF');
+      grad.addColorStop(0.7, SAND_COLORS.snow);
+      grad.addColorStop(1, 'transparent');
+    } else {
+      grad.addColorStop(0, SAND_COLORS.sand);
+      grad.addColorStop(1, 'transparent');
+    }
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
+    // Grain (sable) ou paillettes (neige) semés aléatoirement dans le trait
+    const grainCount = sandColorMode === 'snow' ? 2 : 4;
+    for (let i = 0; i < grainCount; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * radius * 0.85;
+      ctx.fillStyle = sandColorMode === 'snow'
+        ? 'rgba(255,255,255,0.9)'
+        : (Math.random() > 0.5 ? 'rgba(120,90,50,0.35)' : 'rgba(255,240,210,0.5)');
+      ctx.beginPath();
+      ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
   };
   const drawFidgetDot = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = fidgetCanvasRef.current;
@@ -2384,6 +2413,65 @@ export default function App() {
     }
     fidgetLastPointRef.current = { x, y };
   };
+
+  // --- Mode Eau : de vraies ondes qui s'étendent et s'évanouissent au contact du doigt ---
+  const fidgetRipplesRef = useRef<{ x: number; y: number; start: number }[]>([]);
+  const fidgetLastRippleTimeRef = useRef(0);
+  const RIPPLE_LIFESPAN = 1600;
+  const spawnFidgetRipple = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const now = performance.now();
+    if (now - fidgetLastRippleTimeRef.current < 90) return; // on limite la fréquence des ondes générées
+    fidgetLastRippleTimeRef.current = now;
+    const { x, y } = getFidgetCanvasPoint(e);
+    fidgetRipplesRef.current.push({ x, y, start: now });
+  };
+  const handleFidgetPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (sandColorMode === 'waves') spawnFidgetRipple(e);
+    else drawFidgetDot(e);
+  };
+
+  // Boucle d'animation de l'eau : fond qui ondule légèrement en continu + ondes déclenchées au doigt.
+  useEffect(() => {
+    if (currentTab !== 'relax' || activeRelaxTool !== 'fidgets' || fidgetSubTool !== 'sand' || sandColorMode !== 'waves') return;
+    const canvas = fidgetCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    let rafId: number;
+    const tick = () => {
+      const now = performance.now();
+      fidgetRipplesRef.current = fidgetRipplesRef.current.filter(r => now - r.start < RIPPLE_LIFESPAN);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const waterGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+      waterGrad.addColorStop(0, 'rgba(59,130,246,0.10)');
+      waterGrad.addColorStop(1, 'rgba(14,116,144,0.18)');
+      ctx.fillStyle = waterGrad;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // Léger clapotis de fond, toujours en mouvement
+      ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+      ctx.lineWidth = 1;
+      for (let row = 0; row < 8; row++) {
+        const y0 = (row + 0.5) * (canvas.height / 8);
+        ctx.beginPath();
+        for (let x = 0; x <= canvas.width; x += 8) {
+          const y = y0 + Math.sin(x / 24 + row + now / 900) * 3;
+          if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      // Ondes générées par le doigt
+      fidgetRipplesRef.current.forEach(r => {
+        const p = (now - r.start) / RIPPLE_LIFESPAN;
+        ctx.beginPath();
+        ctx.arc(r.x, r.y, 6 + p * 60, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(59,130,246,${(1 - p) * 0.5})`;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+      });
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [currentTab, activeRelaxTool, fidgetSubTool, sandColorMode]);
 
   const toggleBubble = (i: number) => {
     if (poppedBubbles.has(i)) return;
@@ -9322,13 +9410,15 @@ export default function App() {
                             width={320}
                             height={320}
                             className="w-full aspect-square rounded-2xl border border-app-border/40 bg-app-bg touch-none cursor-crosshair"
-                            onPointerDown={e => { fidgetDrawingRef.current = true; fidgetLastPointRef.current = null; drawFidgetDot(e); }}
-                            onPointerMove={e => { if (fidgetDrawingRef.current) drawFidgetDot(e); }}
+                            onPointerDown={e => { fidgetDrawingRef.current = true; fidgetLastPointRef.current = null; handleFidgetPoint(e); }}
+                            onPointerMove={e => { if (fidgetDrawingRef.current) handleFidgetPoint(e); }}
                             onPointerUp={() => { fidgetDrawingRef.current = false; fidgetLastPointRef.current = null; }}
                             onPointerLeave={() => { fidgetDrawingRef.current = false; fidgetLastPointRef.current = null; }}
                           />
                           <p className="text-[10px] text-app-muted text-center italic">
-                            {lang === 'fr' ? 'Fais glisser ton doigt — les traits s\'effacent tout seuls.' : 'Drag your finger — the marks fade on their own.'}
+                            {sandColorMode === 'waves'
+                              ? (lang === 'fr' ? 'Fais glisser ton doigt — l\'eau ondule et clapote au contact.' : 'Drag your finger — the water ripples on contact.')
+                              : (lang === 'fr' ? 'Fais glisser ton doigt — les traits s\'effacent tout seuls.' : 'Drag your finger — the marks fade on their own.')}
                           </p>
                         </div>
                       )}
