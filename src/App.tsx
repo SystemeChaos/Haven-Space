@@ -2399,6 +2399,73 @@ export default function App() {
     });
   };
 
+  // --- Éphémère : trait lumineux dont chaque point a sa propre durée de vie ---
+  type EphPoint = { x: number; y: number; t: number } | null; // null = coupure entre deux tracés
+  const ephemeralCanvasRef = useRef<HTMLCanvasElement>(null);
+  const ephemeralPointsRef = useRef<EphPoint[]>([]);
+  const ephemeralDrawingRef = useRef(false);
+  const ephemeralLastPointRef = useRef<{ x: number; y: number } | null>(null);
+  const EPHEMERAL_LIFESPAN = 2600; // ms avant qu'un point ait totalement disparu
+
+  const addEphemeralPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = ephemeralCanvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+    const now = performance.now();
+    const last = ephemeralLastPointRef.current;
+    if (last) {
+      const dist = Math.hypot(x - last.x, y - last.y);
+      const steps = Math.max(1, Math.ceil(dist / 4));
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        ephemeralPointsRef.current.push({ x: last.x + (x - last.x) * t, y: last.y + (y - last.y) * t, t: now });
+      }
+    } else {
+      ephemeralPointsRef.current.push({ x, y, t: now });
+    }
+    ephemeralLastPointRef.current = { x, y };
+  };
+
+  // Boucle d'animation : efface et redessine chaque point selon son âge, pour un fondu continu
+  // même pendant qu'on trace (effet "comète"), plutôt qu'un fondu global du canevas.
+  useEffect(() => {
+    if (currentTab !== 'relax' || activeRelaxTool !== 'ephemeral') return;
+    const canvas = ephemeralCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    let rafId: number;
+    const glowColor = getComputedStyle(document.documentElement).getPropertyValue('--color-app-accent').trim() || '#8B5CF6';
+    const tick = () => {
+      const now = performance.now();
+      ephemeralPointsRef.current = ephemeralPointsRef.current.filter(p => p === null || now - p.t < EPHEMERAL_LIFESPAN);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.shadowColor = glowColor;
+      ctx.shadowBlur = 12;
+      ctx.strokeStyle = glowColor;
+      ctx.lineWidth = 3;
+      const pts = ephemeralPointsRef.current;
+      for (let i = 1; i < pts.length; i++) {
+        const prev = pts[i - 1];
+        const cur = pts[i];
+        if (!prev || !cur) continue;
+        const age = now - cur.t;
+        ctx.globalAlpha = Math.max(0, 1 - age / EPHEMERAL_LIFESPAN);
+        ctx.beginPath();
+        ctx.moveTo(prev.x, prev.y);
+        ctx.lineTo(cur.x, cur.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      rafId = requestAnimationFrame(tick);
+    };
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [currentTab, activeRelaxTool]);
+
   // --- Boîte à Souvenirs (partagée entre tous les alters du système) ---
   interface MemoryItem { id: string; text: string; elementType: 'bougie' | 'lanterne' | 'message' | 'papillon' | 'coffre'; authorAlterId?: string; timestamp: number; }
   const [memories, setMemories] = useState<MemoryItem[]>(() => {
@@ -9767,6 +9834,31 @@ export default function App() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  ) : activeRelaxTool === 'ephemeral' ? (
+                    <div className="flex flex-col items-center gap-4 py-6 w-full">
+                      <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Éphémère' : 'Ephemeral'}
+                      </h3>
+                      <canvas
+                        ref={ephemeralCanvasRef}
+                        width={320}
+                        height={320}
+                        className="w-full max-w-sm aspect-square rounded-2xl border border-app-border/40 bg-app-bg touch-none cursor-crosshair"
+                        onPointerDown={e => { ephemeralDrawingRef.current = true; ephemeralLastPointRef.current = null; addEphemeralPoint(e); }}
+                        onPointerMove={e => { if (ephemeralDrawingRef.current) addEphemeralPoint(e); }}
+                        onPointerUp={() => { ephemeralDrawingRef.current = false; ephemeralLastPointRef.current = null; ephemeralPointsRef.current.push(null); }}
+                        onPointerLeave={() => { ephemeralDrawingRef.current = false; ephemeralLastPointRef.current = null; ephemeralPointsRef.current.push(null); }}
+                      />
+                      <button
+                        onClick={() => { ephemeralPointsRef.current = []; }}
+                        className="w-full max-w-sm py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
+                      >
+                        {lang === 'fr' ? 'Effacer maintenant' : 'Clear now'}
+                      </button>
+                      <p className="text-[10px] text-app-muted text-center italic max-w-xs">
+                        {lang === 'fr' ? 'Trace du bout du doigt — le trait brille puis s\'évanouit tout seul.' : 'Trace with your finger — the line glows then fades on its own.'}
+                      </p>
                     </div>
                   ) : (
                     <div className="flex flex-col items-center gap-4 py-16 text-center">
