@@ -2614,9 +2614,13 @@ export default function App() {
   };
 
   // --- Éco-Système (partagé entre tous les alters du système) ---
-  interface EcoElement { id: string; type: 'plante' | 'poisson' | 'etoile' | 'lumignon'; x: number; y: number; authorAlterId?: string; timestamp: number; }
+  interface EcoElement { id: string; type: string; theme: 'aquarium' | 'greenhouse' | 'night'; x: number; y: number; authorAlterId?: string; timestamp: number; }
   const [ecoElements, setEcoElements] = useState<EcoElement[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-eco-elements') || '[]'); } catch { return []; }
+    try {
+      const raw = JSON.parse(localStorage.getItem('hs-eco-elements') || '[]');
+      // Compatibilité avec les anciennes présences posées avant l'ajout des thèmes
+      return raw.map((el: any) => ({ ...el, theme: el.theme || 'aquarium' }));
+    } catch { return []; }
   });
   useEffect(() => { localStorage.setItem('hs-eco-elements', JSON.stringify(ecoElements)); }, [ecoElements]);
   const [ecoBackground, setEcoBackground] = useState<'aquarium' | 'greenhouse' | 'night'>(() => {
@@ -2624,7 +2628,8 @@ export default function App() {
   });
   useEffect(() => { localStorage.setItem('hs-eco-bg', ecoBackground); }, [ecoBackground]);
   const [ecoFormOpen, setEcoFormOpen] = useState(false);
-  const [ecoDraftType, setEcoDraftType] = useState<EcoElement['type']>('plante');
+  const [ecoDraftType, setEcoDraftType] = useState<string>('meduse');
+  const [ecoDraftTab, setEcoDraftTab] = useState<string>('vivant');
   const [ecoDraftAuthorId, setEcoDraftAuthorId] = useState('');
   const [ecoAuthorOpen, setEcoAuthorOpen] = useState(false);
   const [ecoAuthorSearch, setEcoAuthorSearch] = useState('');
@@ -2632,25 +2637,96 @@ export default function App() {
   const [ecoPulsingId, setEcoPulsingId] = useState<string | null>(null);
   interface EcoParticle { id: string; x: number; y: number; emoji: string; }
   const [ecoParticles, setEcoParticles] = useState<EcoParticle[]>([]);
+  const ecoSceneRef = useRef<HTMLDivElement>(null);
+  const ecoDragRef = useRef<{ id: string; moved: boolean; startX: number; startY: number } | null>(null);
 
-  const ECO_ELEMENT_TYPES: { id: EcoElement['type']; emoji: string; label: string; labelEn: string }[] = [
-    { id: 'plante', emoji: '🌱', label: 'Plante', labelEn: 'Plant' },
-    { id: 'poisson', emoji: '🐟', label: 'Poisson', labelEn: 'Fish' },
-    { id: 'etoile', emoji: '⭐', label: 'Étoile', labelEn: 'Star' },
-    { id: 'lumignon', emoji: '💡', label: 'Lumignon', labelEn: 'Little light' },
-  ];
   const ECO_BACKGROUNDS: { id: 'aquarium' | 'greenhouse' | 'night'; label: string; labelEn: string; className: string }[] = [
-    { id: 'aquarium', label: 'Aquarium', labelEn: 'Aquarium', className: 'from-sky-500/15 to-cyan-500/10 border-sky-500/20' },
-    { id: 'greenhouse', label: 'Serre', labelEn: 'Greenhouse', className: 'from-emerald-500/15 to-lime-500/10 border-emerald-500/20' },
-    { id: 'night', label: 'Ciel nocturne', labelEn: 'Night sky', className: 'from-indigo-500/15 to-purple-500/10 border-indigo-500/20' },
+    { id: 'aquarium', label: 'Aquarium', labelEn: 'Aquarium', className: 'from-sky-300/40 via-sky-500/25 to-cyan-700/25 border-sky-500/25' },
+    { id: 'greenhouse', label: 'Serre', labelEn: 'Greenhouse', className: 'from-lime-200/35 via-emerald-400/20 to-emerald-700/20 border-emerald-500/25' },
+    { id: 'night', label: 'Ciel nocturne', labelEn: 'Night sky', className: 'from-indigo-950/70 via-indigo-900/60 to-purple-950/70 border-indigo-500/25' },
   ];
+
+  // Catalogue d'éléments par thème, organisé en sous-onglets pour ne pas surcharger le menu.
+  const ECO_CATALOG: Record<'aquarium' | 'greenhouse' | 'night', {
+    tabs: { id: string; label: string; labelEn: string }[];
+    items: { id: string; emoji: string; label: string; labelEn: string; tab: string }[];
+  }> = {
+    aquarium: {
+      tabs: [
+        { id: 'vivant', label: 'Vivant', labelEn: 'Living' },
+        { id: 'vegetal', label: 'Végétal', labelEn: 'Plants' },
+        { id: 'ambiance', label: 'Lumière / Ambiance', labelEn: 'Light / Mood' },
+      ],
+      items: [
+        { id: 'meduse', emoji: '🪼', label: 'Méduse luminescente', labelEn: 'Glowing jellyfish', tab: 'vivant' },
+        { id: 'poisson', emoji: '🐟', label: 'Poisson', labelEn: 'Fish', tab: 'vivant' },
+        { id: 'banc', emoji: '🐠', label: 'Banc de mini-poissons', labelEn: 'School of fish', tab: 'vivant' },
+        { id: 'tortue', emoji: '🐢', label: 'Tortue', labelEn: 'Turtle', tab: 'vivant' },
+        { id: 'crabe', emoji: '🦀', label: 'Petit crabe', labelEn: 'Small crab', tab: 'vivant' },
+        { id: 'crevette', emoji: '🦐', label: 'Crevette exploratrice', labelEn: 'Roaming shrimp', tab: 'vivant' },
+        { id: 'algue', emoji: '🌿', label: 'Algue ondoyante', labelEn: 'Swaying seaweed', tab: 'vegetal' },
+        { id: 'corail', emoji: '🪸', label: 'Corail phosphorescent', labelEn: 'Glowing coral', tab: 'vegetal' },
+        { id: 'coquillage', emoji: '🐚', label: 'Coquillage à perle', labelEn: 'Pearl shell', tab: 'vegetal' },
+        { id: 'bulles', emoji: '🫧', label: 'Colonne de bulles', labelEn: 'Bubble column', tab: 'ambiance' },
+        { id: 'rayon', emoji: '✨', label: 'Rayon de lumière', labelEn: 'Light ray', tab: 'ambiance' },
+        { id: 'tresor', emoji: '🏺', label: 'Trésor ancien', labelEn: 'Old treasure', tab: 'ambiance' },
+      ],
+    },
+    greenhouse: {
+      tabs: [
+        { id: 'vegetal', label: 'Végétal', labelEn: 'Plants' },
+        { id: 'vivant', label: 'Petite faune', labelEn: 'Little creatures' },
+        { id: 'ambiance', label: 'Décor / Chaleur', labelEn: 'Decor / Warmth' },
+      ],
+      items: [
+        { id: 'fougere', emoji: '🌿', label: 'Fougère géante', labelEn: 'Giant fern', tab: 'vegetal' },
+        { id: 'pot', emoji: '🪴', label: 'Plante en pot', labelEn: 'Potted plant', tab: 'vegetal' },
+        { id: 'cerisier', emoji: '🌸', label: 'Fleur de cerisier', labelEn: 'Cherry blossom', tab: 'vegetal' },
+        { id: 'orchidee', emoji: '🌺', label: 'Orchidée sauvage', labelEn: 'Wild orchid', tab: 'vegetal' },
+        { id: 'lotus', emoji: '🪷', label: 'Lotus', labelEn: 'Lotus', tab: 'vegetal' },
+        { id: 'champignon', emoji: '🍄', label: 'Champignon phosphorescent', labelEn: 'Glowing mushroom', tab: 'vegetal' },
+        { id: 'pousse', emoji: '🌱', label: 'Pousse / Graine', labelEn: 'Sprout / Seed', tab: 'vegetal' },
+        { id: 'papillon', emoji: '🦋', label: 'Papillon scintillant', labelEn: 'Sparkling butterfly', tab: 'vivant' },
+        { id: 'coccinelle', emoji: '🐞', label: 'Coccinelle', labelEn: 'Ladybug', tab: 'vivant' },
+        { id: 'escargot', emoji: '🐌', label: 'Escargot paisible', labelEn: 'Peaceful snail', tab: 'vivant' },
+        { id: 'lucioles', emoji: '✨', label: 'Lucioles en bocal', labelEn: 'Fireflies in a jar', tab: 'ambiance' },
+        { id: 'terrarium', emoji: '🫙', label: 'Terrarium', labelEn: 'Terrarium', tab: 'ambiance' },
+        { id: 'guirlande', emoji: '🎐', label: 'Guirlande guinguette', labelEn: 'Fairy lights', tab: 'ambiance' },
+      ],
+    },
+    night: {
+      tabs: [
+        { id: 'astres', label: 'Astres', labelEn: 'Celestial' },
+        { id: 'nuages', label: 'Nuages', labelEn: 'Clouds' },
+        { id: 'volants', label: 'Éléments volants', labelEn: 'Flying elements' },
+      ],
+      items: [
+        { id: 'croissant', emoji: '🌙', label: 'Croissant de lune', labelEn: 'Crescent moon', tab: 'astres' },
+        { id: 'pleinelune', emoji: '🌕', label: 'Pleine lune dorée', labelEn: 'Golden full moon', tab: 'astres' },
+        { id: 'filante', emoji: '🌠', label: 'Étoile filante', labelEn: 'Shooting star', tab: 'astres' },
+        { id: 'etoile', emoji: '⭐', label: 'Étoile', labelEn: 'Star', tab: 'astres' },
+        { id: 'nuagedoux', emoji: '☁️', label: 'Nuage doux', labelEn: 'Soft cloud', tab: 'nuages' },
+        { id: 'nuagepluie', emoji: '🌧️', label: 'Nuage de pluie poétique', labelEn: 'Poetic rain cloud', tab: 'nuages' },
+        { id: 'nuageorage', emoji: '⛈️', label: "Nuage d'orage doux", labelEn: 'Gentle storm cloud', tab: 'nuages' },
+        { id: 'lanterne', emoji: '🏮', label: 'Lanterne volante', labelEn: 'Flying lantern', tab: 'volants' },
+        { id: 'montgolfiere', emoji: '🎈', label: 'Montgolfière miniature', labelEn: 'Mini hot air balloon', tab: 'volants' },
+        { id: 'comete', emoji: '☄️', label: 'Comète lumineuse', labelEn: 'Glowing comet', tab: 'volants' },
+        { id: 'lumignon', emoji: '💡', label: 'Lumignon céleste', labelEn: 'Celestial light', tab: 'volants' },
+      ],
+    },
+  };
+  const getEcoItemMeta = (theme: EcoElement['theme'], type: string) => {
+    return ECO_CATALOG[theme].items.find(it => it.id === type)
+      || { id: type, emoji: '✦', label: type, labelEn: type, tab: '' };
+  };
 
   const addEcoElement = () => {
     const newEl: EcoElement = {
       id: Math.random().toString(36).substring(2, 11),
       type: ecoDraftType,
-      x: 12 + Math.random() * 76,
-      y: 15 + Math.random() * 65,
+      theme: ecoBackground,
+      x: 50 + (Math.random() * 20 - 10),
+      y: 50 + (Math.random() * 20 - 10),
       authorAlterId: ecoDraftAuthorId || undefined,
       timestamp: Date.now(),
     };
@@ -2664,8 +2740,8 @@ export default function App() {
   const tapEcoElement = (el: EcoElement) => {
     setEcoPulsingId(el.id);
     setTimeout(() => setEcoPulsingId(prev => prev === el.id ? null : prev), 700);
-    const particleEmoji = el.type === 'poisson' ? '〜' : el.type === 'lumignon' ? '✨' : el.type === 'etoile' ? '✨' : '·';
-    const newParticles: EcoParticle[] = Array.from({ length: 2 }).map((_, i) => ({
+    const particleEmoji = ecoBackground === 'aquarium' ? '🫧' : ecoBackground === 'night' ? '✨' : '🍃';
+    const newParticles: EcoParticle[] = Array.from({ length: 2 }).map(() => ({
       id: Math.random().toString(36).substring(2, 9),
       x: el.x + (Math.random() * 8 - 4),
       y: el.y,
@@ -2675,6 +2751,34 @@ export default function App() {
     newParticles.forEach(p => {
       setTimeout(() => setEcoParticles(prev => prev.filter(pp => pp.id !== p.id)), 900);
     });
+  };
+
+  // Déplacement à la souris/au doigt : on ne fait glisser que si le pointeur a réellement bougé,
+  // sinon un simple tap déclenche la réaction douce (ou la suppression en mode Gérer).
+  const handleEcoPointerDown = (e: React.PointerEvent<HTMLDivElement>, el: EcoElement) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    ecoDragRef.current = { id: el.id, moved: false, startX: e.clientX, startY: e.clientY };
+  };
+  const handleEcoPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = ecoDragRef.current;
+    const scene = ecoSceneRef.current;
+    if (!drag || !scene) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) drag.moved = true;
+    if (!drag.moved) return;
+    const rect = scene.getBoundingClientRect();
+    const x = Math.min(95, Math.max(5, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(92, Math.max(8, ((e.clientY - rect.top) / rect.height) * 100));
+    setEcoElements(prev => prev.map(el => el.id === drag.id ? { ...el, x, y } : el));
+  };
+  const handleEcoPointerUp = (e: React.PointerEvent<HTMLDivElement>, el: EcoElement) => {
+    const drag = ecoDragRef.current;
+    ecoDragRef.current = null;
+    if (drag && !drag.moved) {
+      if (ecoEditMode) deleteEcoElement(el.id);
+      else tapEcoElement(el);
+    }
   };
 
   // --- Boîte à Choix ---
@@ -10016,6 +10120,9 @@ export default function App() {
                     </div>
                   ) : activeRelaxTool === 'eco-system' ? (() => {
                     const bg = ECO_BACKGROUNDS.find(b => b.id === ecoBackground)!;
+                    const catalog = ECO_CATALOG[ecoBackground];
+                    const visibleElements = ecoElements.filter(el => el.theme === ecoBackground);
+                    const itemsInTab = catalog.items.filter(it => it.tab === ecoDraftTab);
                     return (
                       <div className="flex flex-col items-center gap-5 py-6 w-full">
                         <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
@@ -10027,7 +10134,12 @@ export default function App() {
                           {ECO_BACKGROUNDS.map(b => (
                             <button
                               key={b.id}
-                              onClick={() => setEcoBackground(b.id)}
+                              onClick={() => {
+                                setEcoBackground(b.id);
+                                const firstTab = ECO_CATALOG[b.id].tabs[0].id;
+                                setEcoDraftTab(firstTab);
+                                setEcoDraftType(ECO_CATALOG[b.id].items.find(it => it.tab === firstTab)?.id || '');
+                              }}
                               className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${ecoBackground === b.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
                             >
                               {lang === 'fr' ? b.label : b.labelEn}
@@ -10035,32 +10147,91 @@ export default function App() {
                           ))}
                         </div>
 
-                        {/* La scène */}
-                        <div className={`relative w-full max-w-lg h-56 rounded-3xl border bg-gradient-to-b ${bg.className} overflow-hidden`}>
-                          {ecoElements.length === 0 && (
-                            <p className="absolute inset-0 flex items-center justify-center text-xs text-app-muted italic px-6 text-center">
+                        {/* La scène — fond immersif propre à chaque thème */}
+                        <div
+                          ref={ecoSceneRef}
+                          className={`relative w-full max-w-lg h-64 rounded-3xl border bg-gradient-to-b ${bg.className} overflow-hidden touch-none select-none`}
+                        >
+                          {/* Décor d'arrière-plan, non-interactif */}
+                          <div className="absolute inset-0 pointer-events-none">
+                            {ecoBackground === 'aquarium' && (
+                              <>
+                                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-amber-200/50 to-transparent" />
+                                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[90%] h-3 rounded-full bg-amber-300/25 blur-sm" />
+                                <span className="absolute bottom-2 left-[8%] text-2xl opacity-50">🌿</span>
+                                <span className="absolute bottom-1 left-[28%] text-lg opacity-40">🌿</span>
+                                <span className="absolute bottom-2 right-[15%] text-2xl opacity-45">🌿</span>
+                                <span className="absolute bottom-1 right-[32%] text-lg opacity-35">🪨</span>
+                                <div className="absolute top-0 left-[20%] w-16 h-full bg-gradient-to-b from-white/15 to-transparent rotate-6" />
+                                <div className="absolute top-0 right-[25%] w-10 h-full bg-gradient-to-b from-white/10 to-transparent -rotate-3" />
+                              </>
+                            )}
+                            {ecoBackground === 'greenhouse' && (
+                              <>
+                                <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 32px), repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 32px)' }} />
+                                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-emerald-800/20 to-transparent" />
+                                <span className="absolute bottom-1 left-[10%] text-2xl opacity-50">🍃</span>
+                                <span className="absolute top-3 right-[10%] text-xl opacity-40">🍃</span>
+                                <span className="absolute bottom-2 right-[20%] text-lg opacity-35">🌾</span>
+                                <div className="absolute top-0 right-0 w-24 h-24 rounded-full" style={{ background: 'radial-gradient(circle, rgba(254,249,195,0.25), transparent 70%)' }} />
+                              </>
+                            )}
+                            {ecoBackground === 'night' && (
+                              <>
+                                {Array.from({ length: 22 }).map((_, i) => {
+                                  const seed = (i * 37) % 100;
+                                  const seed2 = (i * 61) % 100;
+                                  return (
+                                    <span
+                                      key={i}
+                                      className="absolute rounded-full bg-white"
+                                      style={{
+                                        left: `${seed}%`,
+                                        top: `${(seed2 * 0.85)}%`,
+                                        width: i % 4 === 0 ? 2.5 : 1.5,
+                                        height: i % 4 === 0 ? 2.5 : 1.5,
+                                        opacity: 0.3 + (seed % 5) * 0.12,
+                                      }}
+                                    />
+                                  );
+                                })}
+                                <div className="absolute top-4 right-6 w-10 h-10 rounded-full bg-yellow-50/25 blur-[2px]" />
+                              </>
+                            )}
+                          </div>
+
+                          {visibleElements.length === 0 && (
+                            <p className="absolute inset-0 flex items-center justify-center text-xs text-app-muted italic px-6 text-center pointer-events-none">
                               {lang === 'fr' ? "Aucune présence posée pour le moment." : 'No presence placed yet.'}
                             </p>
                           )}
-                          {ecoElements.map(el => {
-                            const meta = ECO_ELEMENT_TYPES.find(t => t.id === el.type)!;
+
+                          {visibleElements.map(el => {
+                            const meta = getEcoItemMeta(el.theme, el.type);
                             const pulsing = ecoPulsingId === el.id;
+                            const author = el.authorAlterId ? savedAlters.find(a => a.id === el.authorAlterId) : null;
                             return (
-                              <button
+                              <div
                                 key={el.id}
-                                onClick={() => ecoEditMode ? deleteEcoElement(el.id) : tapEcoElement(el)}
-                                title={ecoEditMode ? (lang === 'fr' ? 'Retirer' : 'Remove') : undefined}
+                                onPointerDown={e => handleEcoPointerDown(e, el)}
+                                onPointerMove={handleEcoPointerMove}
+                                onPointerUp={e => handleEcoPointerUp(e, el)}
                                 style={{
                                   left: `${el.x}%`,
                                   top: `${el.y}%`,
-                                  transform: `translate(-50%, -50%) scale(${pulsing ? 1.35 : 1})`,
+                                  transform: `translate(-50%, -50%) scale(${pulsing ? 1.3 : 1})`,
                                 }}
-                                className={`absolute text-2xl transition-transform duration-300 ${ecoEditMode ? 'hover:opacity-40' : 'hover:scale-110'}`}
+                                className={`absolute flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing transition-transform duration-300 ${ecoEditMode ? 'opacity-90 hover:opacity-40' : ''}`}
                               >
-                                {meta.emoji}
-                              </button>
+                                <span className="text-2xl pointer-events-none drop-shadow">{meta.emoji}</span>
+                                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
+                                  {lang === 'fr' ? meta.label : meta.labelEn}
+                                  {author ? ` · ${author.alterName}` : ` · ${lang === 'fr' ? 'Anonyme' : 'Anonymous'}`}
+                                </span>
+                              </div>
                             );
                           })}
+
                           <AnimatePresence>
                             {ecoParticles.map(p => (
                               <motion.span
@@ -10101,15 +10272,31 @@ export default function App() {
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
                                 {lang === 'fr' ? 'Quel élément ?' : 'Which element?'}
                               </label>
+                              {/* Sous-onglets de catégories */}
                               <div className="flex gap-1.5">
-                                {ECO_ELEMENT_TYPES.map(t => (
+                                {catalog.tabs.map(tab => (
+                                  <button
+                                    key={tab.id}
+                                    onClick={() => {
+                                      setEcoDraftTab(tab.id);
+                                      const firstItem = catalog.items.find(it => it.tab === tab.id);
+                                      if (firstItem) setEcoDraftType(firstItem.id);
+                                    }}
+                                    className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${ecoDraftTab === tab.id ? 'border-app-accent text-app-accent' : 'border-app-border text-app-muted'}`}
+                                  >
+                                    {lang === 'fr' ? tab.label : tab.labelEn}
+                                  </button>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto pt-1">
+                                {itemsInTab.map(t => (
                                   <button
                                     key={t.id}
                                     onClick={() => setEcoDraftType(t.id)}
-                                    className={`flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-[9px] font-bold border transition-all ${ecoDraftType === t.id ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                                    className={`flex flex-col items-center gap-1 py-2.5 rounded-xl text-[8px] font-bold border transition-all ${ecoDraftType === t.id ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
                                   >
                                     <span className="text-lg">{t.emoji}</span>
-                                    {lang === 'fr' ? t.label : t.labelEn}
+                                    <span className="text-center leading-tight">{lang === 'fr' ? t.label : t.labelEn}</span>
                                   </button>
                                 ))}
                               </div>
@@ -10207,7 +10394,7 @@ export default function App() {
                         <p className="text-[10px] text-app-muted text-center italic max-w-xs">
                           {ecoEditMode
                             ? (lang === 'fr' ? 'Clique sur un élément pour le retirer.' : 'Click an element to remove it.')
-                            : (lang === 'fr' ? 'Tapote un élément pour le voir réagir doucement.' : 'Tap an element to see it gently react.')}
+                            : (lang === 'fr' ? 'Fais glisser un élément pour le repositionner, ou tapote-le pour le voir réagir.' : 'Drag an element to reposition it, or tap it to see it gently react.')}
                         </p>
                       </div>
                     );
