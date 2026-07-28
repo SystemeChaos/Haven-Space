@@ -941,6 +941,7 @@ export default function App() {
   const [triggersNegative, setTriggersNegative] = useState('');
   const [alterLanguages, setAlterLanguages] = useState('');
   const [alterOriginWorld, setAlterOriginWorld] = useState('');
+  const [alterBirthday, setAlterBirthday] = useState('');
   const [alterTags, setAlterTags] = useState<string[]>([]);
   const [alterTagInput, setAlterTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -3063,6 +3064,7 @@ export default function App() {
       triggersNegative: triggersNegative || undefined,
       alterLanguages: alterLanguages || undefined,
       alterOriginWorld: alterOriginWorld || undefined,
+      birthday: alterBirthday || existingAlter?.birthday || undefined,
       tags: alterTags.length > 0 ? alterTags : undefined,
       customFields: customFields.length > 0 ? customFields : undefined,
       descriptionImages: descriptionImages.length > 0 ? descriptionImages : undefined,
@@ -3106,6 +3108,7 @@ export default function App() {
     setTriggersNegative(alter.triggersNegative || '');
     setAlterLanguages(alter.alterLanguages || '');
     setAlterOriginWorld(alter.alterOriginWorld || '');
+    setAlterBirthday((alter as any).birthday || '');
     setAlterTags(alter.tags || []);
     setCustomFields(alter.customFields || []);
     setDescriptionImages(alter.descriptionImages || []);
@@ -3149,6 +3152,7 @@ export default function App() {
     setTriggersNegative('');
     setAlterLanguages('');
     setAlterOriginWorld('');
+    setAlterBirthday('');
     setAlterTags([]);
     setAlterTagInput('');
     setCustomFields([]);
@@ -5242,6 +5246,14 @@ export default function App() {
                   <input type="text" value={alterLanguages} onChange={e => setAlterLanguages(e.target.value)}
                     placeholder={lang === 'fr' ? 'Francais, Anglais...' : 'French, English...'}
                     className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? "Date d'anniversaire" : 'Birthday'}</label>
+                  <input type="date" value={alterBirthday} onChange={e => setAlterBirthday(e.target.value)}
+                    className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
+                  <p className="text-[9px] text-app-muted italic">
+                    {lang === 'fr' ? 'Apparaîtra automatiquement chaque année dans le Planning.' : 'Will automatically appear every year in Planning.'}
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? "Source de l'alter" : 'Alter Source'}</label>
