@@ -224,6 +224,35 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     savePlanning(next, activeSystemId);
   };
 
+  // Anniversaires des alters : générés automatiquement chaque année à partir de la date renseignée
+  // sur la fiche, sans jamais être écrits dans le stockage (ils restent toujours à jour tout seuls).
+  const birthdayEntries = useMemo(() => {
+    const centerYear = refDate.getFullYear();
+    const years = [centerYear - 1, centerYear, centerYear + 1];
+    const result: PlanningEntry[] = [];
+    savedAlters.forEach(alter => {
+      const bday = (alter as any).birthday as string | undefined;
+      if (!bday) return;
+      const match = /^\d{4}-(\d{2})-(\d{2})/.exec(bday);
+      if (!match) return;
+      const [, mm, dd] = match;
+      years.forEach(y => {
+        result.push({
+          id: `bday-${alter.id}-${y}`,
+          date: `${y}-${mm}-${dd}`,
+          type: 'birthday',
+          text: lang === 'fr' ? `Anniversaire de ${alter.alterName}` : `${alter.alterName}'s birthday`,
+          alterIds: [alter.id],
+          createdAt: 0,
+        });
+      });
+    });
+    return result;
+  }, [savedAlters, refDate, lang]);
+
+  // Entrées effectivement affichées : celles créées à la main + les anniversaires calculés.
+  const allEntries = useMemo(() => [...entries, ...birthdayEntries], [entries, birthdayEntries]);
+
   const persistEisenhower = (next: EisenhowerTask[]) => {
     setEisenhowerTasks(next);
     saveEisenhower(next, activeSystemId);
@@ -383,11 +412,12 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   // ─── Rendu d'une entrée compacte ──────────────────────────────────────────
   const renderEntryRow = (entry: PlanningEntry, compact = false) => {
     const alters = (entry.alterIds || []).map(id => savedAlters.find(a => a.id === id)).filter(Boolean) as SavedAlter[];
+    const isAutoBirthday = entry.id.startsWith('bday-');
     return (
       <div
         key={entry.id}
-        onClick={compact ? () => openEditEntry(entry) : undefined}
-        className={`group flex items-start gap-2 rounded-xl hover:bg-app-accent/5 transition-colors ${compact ? 'px-1.5 py-1 cursor-pointer' : 'px-2.5 py-2'}`}
+        onClick={compact && !isAutoBirthday ? () => openEditEntry(entry) : undefined}
+        className={`group flex items-start gap-2 rounded-xl hover:bg-app-accent/5 transition-colors ${compact ? `px-1.5 py-1 ${isAutoBirthday ? '' : 'cursor-pointer'}` : 'px-2.5 py-2'}`}
       >
         <span className="mt-1 flex-shrink-0 flex items-center justify-center" style={{ width: compact ? 12 : 16, height: compact ? 12 : 16 }}>
           <BuJoBullet type={entry.type} size={compact ? 12 : 16} />
@@ -423,8 +453,16 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
         </div>
         {!compact && (
           <div className="flex items-center gap-1 flex-shrink-0">
-            <button onClick={() => openEditEntry(entry)} className="p-1 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3 h-3" /></button>
-            <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
+            {isAutoBirthday ? (
+              <span className="text-[8px] font-bold uppercase tracking-wide text-app-muted italic px-1">
+                {lang === 'fr' ? 'Auto' : 'Auto'}
+              </span>
+            ) : (
+              <>
+                <button onClick={() => openEditEntry(entry)} className="p-1 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3 h-3" /></button>
+                <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3 h-3" /></button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -434,7 +472,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
   // ─── Vue quotidienne ──────────────────────────────────────────────────────
   const renderDaily = () => {
     const dateStr = toISODate(refDate);
-    const dayEntries = entries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+    const dayEntries = allEntries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
     const untimed = dayEntries.filter(en => !en.time);
     const timed = dayEntries.filter(en => en.time);
 
@@ -486,7 +524,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {days.map((d, i) => {
           const dateStr = toISODate(d);
-          const dayEntries = entries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
+          const dayEntries = allEntries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr).sort((a, b) => (a.time || '99:99').localeCompare(b.time || '99:99'));
           const isToday = toISODate(new Date()) === dateStr;
           return (
             <div key={dateStr} className={`bg-app-card border rounded-2xl p-3.5 space-y-1.5 min-h-[9rem] ${isToday ? 'border-app-accent/50 ring-1 ring-app-accent/20' : 'border-app-border'}`}>
@@ -532,7 +570,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
           {cells.map((d, i) => {
             if (!d) return <div key={i} />;
             const dateStr = toISODate(d);
-            const dayEntries = entries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr);
+            const dayEntries = allEntries.filter(en => en.date <= dateStr && (en.endDate || en.date) >= dateStr);
             const isToday = toISODate(new Date()) === dateStr;
             return (
               <button
