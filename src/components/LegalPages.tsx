@@ -3,7 +3,7 @@ import {
   Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
-  LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid,
+  LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
@@ -80,6 +80,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fR: '✦ Systèmes parallèles',
       fS: '✦ Rôles personnalisés',
       fT: '✦ Export / import JSON',
+      fU: '✦ Détente (outils anti-dissociation)',
       openSourceTitle: 'Transparence',
       openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
 
@@ -145,6 +146,10 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g21Text: 'Sauvegarde l\'intégralité de ton système (fiches, sous-systèmes, journal, relations, planning...) dans un fichier JSON téléchargeable, à conserver comme copie de secours ou à transférer sur un autre appareil. L\'import restaure tout à l\'identique, sans compte ni serveur externe.',
       g22Title: 'Matrice d\'Eisenhower',
       g22Text: 'Une vue dédiée dans le Planning pour prioriser tes tâches selon leur urgence et leur importance, classées en quatre cases : à faire en premier, à planifier, à déléguer, et à laisser de côté. Idéal pour clarifier les priorités du système quand tout semble urgent en même temps.',
+      g23Title: 'Rôles personnalisés',
+      g23Text: 'En plus des rôles fixes (Hôte, Protecteur...), crée tes propres rôles avec leur nom, leur couleur et leur définition. Ils s\'affichent partout où les rôles fixes apparaissent : sur la fiche, dans le résumé, et dans la recherche par rôle.',
+      g24Title: 'Détente',
+      g24Text: 'Une section d\'outils anti-dissociation partagés par tout le système : respiration guidée, fidgets sensoriels, kalimba jouable, affirmations, boîte à souvenirs, boîte à choix, canevas éphémère et éco-système. Accessible depuis le tableau de bord.',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -208,6 +213,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fR: '✦ Parallel Systems',
       fS: '✦ Custom Roles',
       fT: '✦ JSON Export / Import',
+      fU: '✦ Relax (anti-dissociation tools)',
       openSourceTitle: 'Transparency',
       openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
 
@@ -273,6 +279,10 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g21Text: 'Save your entire system (profiles, subsystems, journal, relationships, planning...) as a downloadable JSON file, to keep as a backup or move to another device. Importing restores everything exactly as it was, with no account or external server involved.',
       g22Title: 'Eisenhower Matrix',
       g22Text: 'A dedicated view inside Planning to prioritize your tasks by urgency and importance, sorted into four boxes: do first, schedule, delegate, and drop. Great for clarifying what actually matters when everything feels urgent at once.',
+      g23Title: 'Custom Roles',
+      g23Text: 'Beyond the fixed roles (Host, Protector...), create your own roles with a name, color and definition. They show up everywhere fixed roles do: on the card, in the summary, and in role search.',
+      g24Title: 'Relax',
+      g24Text: 'A section of anti-dissociation tools shared by the whole system: guided breathing, sensory fidgets, a playable kalimba, affirmations, a memory box, a choice box, an ephemeral canvas, and an eco-system. Accessible from the dashboard.',
     }
   };
 
@@ -341,6 +351,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
           { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
           { id: 'g22', icon: LayoutGrid, title: currentT.g22Title, text: currentT.g22Text },
+          { id: 'g24', icon: Wind, title: currentT.g24Title, text: currentT.g24Text },
+          { id: 'g23', icon: Sparkles, title: currentT.g23Title, text: currentT.g23Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
           { id: 'g12', icon: Link2, title: currentT.g12Title, text: currentT.g12Text },
           { id: 'g21', icon: Database, title: currentT.g21Title, text: currentT.g21Text },
@@ -584,6 +596,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 currentT.fR,
                 currentT.fS,
                 currentT.fT,
+                currentT.fU,
               ].map(item => (
                 <div key={item} className="p-2.5 bg-app-bg/50 border border-app-border/40 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-text/90">
                   {item}
