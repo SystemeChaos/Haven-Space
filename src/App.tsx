@@ -1099,7 +1099,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'pluralkit' | 'planning'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'pluralkit' | 'planning'>('home');
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
@@ -2612,6 +2612,120 @@ export default function App() {
   const deleteMemory = (id: string) => {
     setMemories(prev => prev.filter(m => m.id !== id));
     if (revealedMemoryId === id) setRevealedMemoryId(null);
+  };
+
+  // --- Santé (carnet partagé du système : un seul corps, une seule santé) ---
+  interface Medication { id: string; name: string; dosage: string; times: { time: string; period: 'AM' | 'PM' }[]; note: string; }
+  interface HealthHistoryEntry { id: string; title: string; date: string; note: string; }
+  interface EmergencyInfo { conditions: string; allergies: string; bloodType: string; note: string; showQuickAccess: boolean; }
+
+  const [medications, setMedications] = useState<Medication[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-health-meds') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-health-meds', JSON.stringify(medications)); }, [medications]);
+
+  const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-health-history') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-health-history', JSON.stringify(healthHistory)); }, [healthHistory]);
+
+  const [emergencyInfo, setEmergencyInfo] = useState<EmergencyInfo>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-health-emergency') || 'null') || { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false }; } catch { return { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false }; }
+  });
+  useEffect(() => { localStorage.setItem('hs-health-emergency', JSON.stringify(emergencyInfo)); }, [emergencyInfo]);
+
+  const [healthSubTab, setHealthSubTab] = useState<'traitements' | 'antecedents' | 'urgence'>('traitements');
+  const [medFormOpen, setMedFormOpen] = useState(false);
+  const [editingMedId, setEditingMedId] = useState<string | null>(null);
+  const [medDraftName, setMedDraftName] = useState('');
+  const [medDraftDosage, setMedDraftDosage] = useState('');
+  const [medDraftNote, setMedDraftNote] = useState('');
+  const [medDraftTimes, setMedDraftTimes] = useState<{ time: string; period: 'AM' | 'PM' }[]>([]);
+  const [medDraftTimeInput, setMedDraftTimeInput] = useState('09:00');
+  const [medDraftPeriodInput, setMedDraftPeriodInput] = useState<'AM' | 'PM'>('AM');
+  const [deleteMedId, setDeleteMedId] = useState<string | null>(null);
+
+  const [histFormOpen, setHistFormOpen] = useState(false);
+  const [editingHistId, setEditingHistId] = useState<string | null>(null);
+  const [histDraftTitle, setHistDraftTitle] = useState('');
+  const [histDraftDate, setHistDraftDate] = useState('');
+  const [histDraftNote, setHistDraftNote] = useState('');
+  const [deleteHistId, setDeleteHistId] = useState<string | null>(null);
+
+  const [emergencyDraft, setEmergencyDraft] = useState<EmergencyInfo>(emergencyInfo);
+  useEffect(() => {
+    if (currentTab === 'health' && healthSubTab === 'urgence') setEmergencyDraft(emergencyInfo);
+  }, [currentTab, healthSubTab]);
+
+  const openMedForm = (med?: Medication) => {
+    if (med) {
+      setEditingMedId(med.id);
+      setMedDraftName(med.name);
+      setMedDraftDosage(med.dosage);
+      setMedDraftNote(med.note);
+      setMedDraftTimes(med.times);
+    } else {
+      setEditingMedId(null);
+      setMedDraftName('');
+      setMedDraftDosage('');
+      setMedDraftNote('');
+      setMedDraftTimes([]);
+    }
+    setMedFormOpen(true);
+  };
+  const saveMedication = () => {
+    if (!medDraftName.trim()) return;
+    if (editingMedId) {
+      setMedications(prev => prev.map(m => m.id === editingMedId
+        ? { ...m, name: medDraftName.trim(), dosage: medDraftDosage.trim(), note: medDraftNote.trim(), times: medDraftTimes }
+        : m));
+    } else {
+      setMedications(prev => [...prev, {
+        id: Math.random().toString(36).substring(2, 11),
+        name: medDraftName.trim(),
+        dosage: medDraftDosage.trim(),
+        note: medDraftNote.trim(),
+        times: medDraftTimes,
+      }]);
+    }
+    setMedFormOpen(false);
+  };
+  const addMedTime = () => {
+    setMedDraftTimes(prev => [...prev, { time: medDraftTimeInput, period: medDraftPeriodInput }]);
+  };
+
+  const openHistForm = (entry?: HealthHistoryEntry) => {
+    if (entry) {
+      setEditingHistId(entry.id);
+      setHistDraftTitle(entry.title);
+      setHistDraftDate(entry.date);
+      setHistDraftNote(entry.note);
+    } else {
+      setEditingHistId(null);
+      setHistDraftTitle('');
+      setHistDraftDate(new Date().toISOString().slice(0, 16));
+      setHistDraftNote('');
+    }
+    setHistFormOpen(true);
+  };
+  const saveHistEntry = () => {
+    if (!histDraftTitle.trim()) return;
+    if (editingHistId) {
+      setHealthHistory(prev => prev.map(h => h.id === editingHistId
+        ? { ...h, title: histDraftTitle.trim(), date: histDraftDate, note: histDraftNote.trim() }
+        : h));
+    } else {
+      setHealthHistory(prev => [...prev, {
+        id: Math.random().toString(36).substring(2, 11),
+        title: histDraftTitle.trim(),
+        date: histDraftDate,
+        note: histDraftNote.trim(),
+      }].sort((a, b) => (b.date || '').localeCompare(a.date || '')));
+    }
+    setHistFormOpen(false);
+  };
+  const saveEmergencyInfo = () => {
+    setEmergencyInfo(emergencyDraft);
   };
 
   // --- Éco-Système (partagé entre tous les alters du système) ---
@@ -4633,6 +4747,17 @@ export default function App() {
               <AlertTriangle className="w-5 h-5 text-red-500" />
             </button>
 
+            {/* Accès rapide aux infos d'urgence — équivalent web de la notification persistante */}
+            {emergencyInfo.showQuickAccess && (
+              <button
+                onClick={() => { setCurrentTab('health'); setHealthSubTab('urgence'); }}
+                className="p-3 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 rounded-full transition-all flex items-center justify-center shadow-sm"
+                title={lang === 'fr' ? "Infos d'urgence" : 'Emergency info'}
+              >
+                <HeartPulse className="w-5 h-5 text-red-500" />
+              </button>
+            )}
+
             {/* Unified Settings Dropdown */}
             <div className="relative">
               <button
@@ -6502,6 +6627,7 @@ export default function App() {
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
             { value: 'planning',  label: t.menuPlanning,  icon: CalendarDays, desc: lang === 'fr' ? 'Planning façon Bullet Journal' : 'Bullet Journal style planning' },
+            { value: 'health',    label: lang === 'fr' ? 'Santé' : 'Health', icon: HeartPulse, desc: lang === 'fr' ? 'Traitements, antécédents, urgence' : 'Treatments, history, emergency' },
             { value: 'relax',     label: lang === 'fr' ? 'Détente' : 'Relax', icon: Wind, desc: lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools' },
             { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
           ];
@@ -9422,6 +9548,616 @@ export default function App() {
                   ? "Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical."
                   : "Content reproduced with respect for the work of Dr Igor Thiriez (v3.1, 2021). Haven Space is not a medical tool."}
               </p>
+            </div>
+          );
+        })()}
+
+        {currentTab === 'health' && (() => {
+          const sortedHistory = [...healthHistory].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          return (
+            <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
+              <div className="pb-4 border-b border-app-border/30 space-y-1">
+                <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Santé' : 'Health'}</h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
+                  {lang === 'fr' ? 'Carnet de santé partagé du système' : "The system's shared health record"}
+                </p>
+              </div>
+
+              {/* Sous-onglets */}
+              <div className="flex gap-2">
+                {[
+                  { id: 'traitements', label: lang === 'fr' ? 'Traitements' : 'Treatments' },
+                  { id: 'antecedents', label: lang === 'fr' ? 'Antécédents' : 'History' },
+                  { id: 'urgence', label: lang === 'fr' ? 'Urgence' : 'Emergency' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setHealthSubTab(tab.id as any)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${healthSubTab === tab.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'} ${tab.id === 'urgence' ? (healthSubTab === tab.id ? '' : '!text-red-500 !border-red-500/30') : ''}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* --- Traitements --- */}
+              {healthSubTab === 'traitements' && (
+                <div className="space-y-4">
+                  {!medFormOpen ? (
+                    <button
+                      onClick={() => openMedForm()}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {lang === 'fr' ? 'Ajouter un médicament' : 'Add a medication'}
+                    </button>
+                  ) : (
+                    <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Nom *' : 'Name *'}</label>
+                        <input type="text" value={medDraftName} onChange={e => setMedDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom du médicament...' : 'Medication name...'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dosage' : 'Dosage'}</label>
+                        <input type="text" value={medDraftDosage} onChange={e => setMedDraftDosage(e.target.value)}
+                          placeholder={lang === 'fr' ? 'ex. 50mg' : 'e.g. 50mg'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Heures de rappel' : 'Reminder times'}</label>
+                        {medDraftTimes.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {medDraftTimes.map((t, i) => (
+                              <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-app-bg border border-app-border/40">
+                                {t.time} {t.period}
+                                <button onClick={() => setMedDraftTimes(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-red-500 transition-colors">
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <input type="time" value={medDraftTimeInput} onChange={e => setMedDraftTimeInput(e.target.value)}
+                            className="bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                          <div className="flex gap-1">
+                            <button onClick={() => setMedDraftPeriodInput('AM')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${medDraftPeriodInput === 'AM' ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}>AM</button>
+                            <button onClick={() => setMedDraftPeriodInput('PM')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${medDraftPeriodInput === 'PM' ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}>PM</button>
+                          </div>
+                          <button onClick={addMedTime} className="px-3 py-2 rounded-xl border border-dashed border-app-border text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
+                            + {lang === 'fr' ? 'Ajouter' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                        <textarea value={medDraftNote} onChange={e => setMedDraftNote(e.target.value)} rows={2}
+                          placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={saveMedication} disabled={!medDraftName.trim()}
+                          className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                          {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                        </button>
+                        <button onClick={() => setMedFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
+                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {medications.length === 0 ? (
+                    <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
+                      {lang === 'fr' ? 'Aucun médicament enregistré.' : 'No medication logged.'}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {medications.map(med => (
+                        <div key={med.id} className="p-4 bg-app-card border border-app-border/30 rounded-2xl flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-black text-sm text-app-text">{med.name}</span>
+                              {med.dosage && <span className="text-[10px] font-bold text-app-muted bg-app-bg px-2 py-0.5 rounded-full border border-app-border/30">{med.dosage}</span>}
+                            </div>
+                            {med.times.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {med.times.map((t, i) => (
+                                  <span key={i} className="text-[10px] font-bold text-app-accent bg-app-accent/10 px-2 py-0.5 rounded-full">{t.time} {t.period}</span>
+                                ))}
+                              </div>
+                            )}
+                            {med.note && <p className="text-xs text-app-muted italic">{med.note}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => openMedForm(med)} className="p-1.5 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setDeleteMedId(med.id)} className="p-1.5 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- Antécédents --- */}
+              {healthSubTab === 'antecedents' && (
+                <div className="space-y-4">
+                  {!histFormOpen ? (
+                    <button
+                      onClick={() => openHistForm()}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {lang === 'fr' ? 'Ajouter une entrée' : 'Add an entry'}
+                    </button>
+                  ) : (
+                    <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Titre' : 'Title'}</label>
+                        <input type="text" value={histDraftTitle} onChange={e => setHistDraftTitle(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Condition, chirurgie, diagnostic...' : 'Condition, surgery, diagnosis...'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Date' : 'Date'}</label>
+                        <input type="datetime-local" value={histDraftDate} onChange={e => setHistDraftDate(e.target.value)}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                        <textarea value={histDraftNote} onChange={e => setHistDraftNote(e.target.value)} rows={2}
+                          placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={saveHistEntry} disabled={!histDraftTitle.trim()}
+                          className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                          {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                        </button>
+                        <button onClick={() => setHistFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
+                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {sortedHistory.length === 0 ? (
+                    <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
+                      {lang === 'fr' ? 'Aucun antécédent enregistré.' : 'No history logged.'}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sortedHistory.map(entry => (
+                        <div key={entry.id} className="p-4 bg-app-card border border-app-border/30 rounded-2xl flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <span className="font-black text-sm text-app-text block">{entry.title}</span>
+                            {entry.date && (
+                              <span className="text-[10px] font-mono text-app-muted">
+                                {new Date(entry.date).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                            {entry.note && <p className="text-xs text-app-muted italic">{entry.note}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => openHistForm(entry)} className="p-1.5 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setDeleteHistId(entry.id)} className="p-1.5 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- Urgence --- */}
+              {healthSubTab === 'urgence' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl text-xs text-app-muted leading-relaxed">
+                    {lang === 'fr'
+                      ? "Informations critiques pour les secours. Reste bref et clair : ces infos sont pensées pour être lues rapidement par quelqu'un d'autre en cas de besoin."
+                      : 'Critical info for first responders. Keep it brief and clear: this is meant to be quickly read by someone else if needed.'}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Conditions' : 'Conditions'}</label>
+                    <input type="text" value={emergencyDraft.conditions} onChange={e => setEmergencyDraft(prev => ({ ...prev, conditions: e.target.value }))}
+                      placeholder={lang === 'fr' ? 'ex. Diabétique de type 1' : 'e.g. Type 1 Diabetic'}
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Allergies' : 'Allergies'}</label>
+                    <input type="text" value={emergencyDraft.allergies} onChange={e => setEmergencyDraft(prev => ({ ...prev, allergies: e.target.value }))}
+                      placeholder={lang === 'fr' ? 'ex. Pénicilline' : 'e.g. Penicillin'}
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Groupe sanguin' : 'Blood type'}</label>
+                    <input type="text" value={emergencyDraft.bloodType} onChange={e => setEmergencyDraft(prev => ({ ...prev, bloodType: e.target.value }))}
+                      placeholder="O+"
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                    <textarea value={emergencyDraft.note} onChange={e => setEmergencyDraft(prev => ({ ...prev, note: e.target.value }))} rows={3}
+                      placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
+                  </div>
+                  <button
+                    onClick={() => setEmergencyDraft(prev => ({ ...prev, showQuickAccess: !prev.showQuickAccess }))}
+                    className="w-full flex items-center gap-3 p-3 bg-app-card border border-app-border/40 rounded-xl"
+                  >
+                    <div className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${emergencyDraft.showQuickAccess ? 'bg-app-accent' : 'bg-app-border'}`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${emergencyDraft.showQuickAccess ? 'left-[18px]' : 'left-0.5'}`} />
+                    </div>
+                    <span className="text-xs text-app-text text-left">
+                      {lang === 'fr' ? "Afficher un accès rapide aux infos d'urgence dans l'en-tête de l'app" : "Show a quick-access shortcut to emergency info in the app's header"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={saveEmergencyInfo}
+                    className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                  >
+                    {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                  </button>
+                </div>
+              )}
+
+              {/* Confirmation suppression médicament */}
+              {deleteMedId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <div className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                      <Trash2 className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Supprimer ce médicament ?' : 'Delete this medication?'}
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button onClick={() => { setMedications(prev => prev.filter(m => m.id !== deleteMedId)); setDeleteMedId(null); }}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                      </button>
+                      <button onClick={() => setDeleteMedId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation suppression antécédent */}
+              {deleteHistId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <div className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                      <Trash2 className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Supprimer cet antécédent ?' : 'Delete this history entry?'}
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button onClick={() => { setHealthHistory(prev => prev.filter(h => h.id !== deleteHistId)); setDeleteHistId(null); }}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                      </button>
+                      <button onClick={() => setDeleteHistId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {currentTab === 'health' && (() => {
+          const sortedHistory = [...healthHistory].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+          return (
+            <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
+              <div className="pb-4 border-b border-app-border/30 space-y-1">
+                <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Santé' : 'Health'}</h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
+                  {lang === 'fr' ? 'Carnet de santé partagé du système' : "The system's shared health record"}
+                </p>
+              </div>
+
+              {/* Sous-onglets */}
+              <div className="flex gap-2">
+                {[
+                  { id: 'traitements', label: lang === 'fr' ? 'Traitements' : 'Treatments' },
+                  { id: 'antecedents', label: lang === 'fr' ? 'Antécédents' : 'History' },
+                  { id: 'urgence', label: lang === 'fr' ? 'Urgence' : 'Emergency' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setHealthSubTab(tab.id as any)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${healthSubTab === tab.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'} ${tab.id === 'urgence' ? (healthSubTab === tab.id ? '' : '!text-red-500 !border-red-500/30') : ''}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* --- Traitements --- */}
+              {healthSubTab === 'traitements' && (
+                <div className="space-y-4">
+                  {!medFormOpen ? (
+                    <button
+                      onClick={() => openMedForm()}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {lang === 'fr' ? 'Ajouter un médicament' : 'Add a medication'}
+                    </button>
+                  ) : (
+                    <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Nom *' : 'Name *'}</label>
+                        <input type="text" value={medDraftName} onChange={e => setMedDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom du médicament...' : 'Medication name...'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dosage' : 'Dosage'}</label>
+                        <input type="text" value={medDraftDosage} onChange={e => setMedDraftDosage(e.target.value)}
+                          placeholder={lang === 'fr' ? 'ex. 50mg' : 'e.g. 50mg'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Heures de rappel' : 'Reminder times'}</label>
+                        {medDraftTimes.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {medDraftTimes.map((t, i) => (
+                              <span key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-app-bg border border-app-border/40">
+                                {t.time} {t.period}
+                                <button onClick={() => setMedDraftTimes(prev => prev.filter((_, idx) => idx !== i))} className="hover:text-red-500 transition-colors">
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <input type="time" value={medDraftTimeInput} onChange={e => setMedDraftTimeInput(e.target.value)}
+                            className="bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                          <div className="flex gap-1">
+                            <button onClick={() => setMedDraftPeriodInput('AM')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${medDraftPeriodInput === 'AM' ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}>AM</button>
+                            <button onClick={() => setMedDraftPeriodInput('PM')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${medDraftPeriodInput === 'PM' ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}>PM</button>
+                          </div>
+                          <button onClick={addMedTime} className="px-3 py-2 rounded-xl border border-dashed border-app-border text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
+                            + {lang === 'fr' ? 'Ajouter' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                        <textarea value={medDraftNote} onChange={e => setMedDraftNote(e.target.value)} rows={2}
+                          placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={saveMedication} disabled={!medDraftName.trim()}
+                          className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                          {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                        </button>
+                        <button onClick={() => setMedFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
+                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {medications.length === 0 ? (
+                    <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
+                      {lang === 'fr' ? 'Aucun médicament enregistré.' : 'No medication logged.'}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {medications.map(med => (
+                        <div key={med.id} className="p-4 bg-app-card border border-app-border/30 rounded-2xl flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-black text-sm text-app-text">{med.name}</span>
+                              {med.dosage && <span className="text-[10px] font-bold text-app-muted bg-app-bg px-2 py-0.5 rounded-full border border-app-border/30">{med.dosage}</span>}
+                            </div>
+                            {med.times.length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {med.times.map((t, i) => (
+                                  <span key={i} className="text-[10px] font-bold text-app-accent bg-app-accent/10 px-2 py-0.5 rounded-full">{t.time} {t.period}</span>
+                                ))}
+                              </div>
+                            )}
+                            {med.note && <p className="text-xs text-app-muted italic">{med.note}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => openMedForm(med)} className="p-1.5 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setDeleteMedId(med.id)} className="p-1.5 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- Antécédents --- */}
+              {healthSubTab === 'antecedents' && (
+                <div className="space-y-4">
+                  {!histFormOpen ? (
+                    <button
+                      onClick={() => openHistForm()}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      {lang === 'fr' ? 'Ajouter une entrée' : 'Add an entry'}
+                    </button>
+                  ) : (
+                    <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Titre' : 'Title'}</label>
+                        <input type="text" value={histDraftTitle} onChange={e => setHistDraftTitle(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Condition, chirurgie, diagnostic...' : 'Condition, surgery, diagnosis...'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Date' : 'Date'}</label>
+                        <input type="datetime-local" value={histDraftDate} onChange={e => setHistDraftDate(e.target.value)}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                        <textarea value={histDraftNote} onChange={e => setHistDraftNote(e.target.value)} rows={2}
+                          placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={saveHistEntry} disabled={!histDraftTitle.trim()}
+                          className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                          {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                        </button>
+                        <button onClick={() => setHistFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
+                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {sortedHistory.length === 0 ? (
+                    <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
+                      {lang === 'fr' ? 'Aucun antécédent enregistré.' : 'No history logged.'}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {sortedHistory.map(entry => (
+                        <div key={entry.id} className="p-4 bg-app-card border border-app-border/30 rounded-2xl flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1 space-y-1">
+                            <span className="font-black text-sm text-app-text block">{entry.title}</span>
+                            {entry.date && (
+                              <span className="text-[10px] font-mono text-app-muted">
+                                {new Date(entry.date).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                            {entry.note && <p className="text-xs text-app-muted italic">{entry.note}</p>}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button onClick={() => openHistForm(entry)} className="p-1.5 text-app-muted hover:text-app-accent transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                            <button onClick={() => setDeleteHistId(entry.id)} className="p-1.5 text-app-muted hover:text-red-500 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* --- Urgence --- */}
+              {healthSubTab === 'urgence' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl text-xs text-app-muted leading-relaxed">
+                    {lang === 'fr'
+                      ? "Informations critiques pour les secours. Reste bref et clair : ces infos sont pensées pour être lues rapidement par quelqu'un d'autre en cas de besoin."
+                      : 'Critical info for first responders. Keep it brief and clear: this is meant to be quickly read by someone else if needed.'}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Conditions' : 'Conditions'}</label>
+                    <input type="text" value={emergencyDraft.conditions} onChange={e => setEmergencyDraft(prev => ({ ...prev, conditions: e.target.value }))}
+                      placeholder={lang === 'fr' ? 'ex. Diabétique de type 1' : 'e.g. Type 1 Diabetic'}
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Allergies' : 'Allergies'}</label>
+                    <input type="text" value={emergencyDraft.allergies} onChange={e => setEmergencyDraft(prev => ({ ...prev, allergies: e.target.value }))}
+                      placeholder={lang === 'fr' ? 'ex. Pénicilline' : 'e.g. Penicillin'}
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Groupe sanguin' : 'Blood type'}</label>
+                    <input type="text" value={emergencyDraft.bloodType} onChange={e => setEmergencyDraft(prev => ({ ...prev, bloodType: e.target.value }))}
+                      placeholder="O+"
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                    <textarea value={emergencyDraft.note} onChange={e => setEmergencyDraft(prev => ({ ...prev, note: e.target.value }))} rows={3}
+                      placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                      className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
+                  </div>
+                  <button
+                    onClick={() => setEmergencyDraft(prev => ({ ...prev, showQuickAccess: !prev.showQuickAccess }))}
+                    className="w-full flex items-center gap-3 p-3 bg-app-card border border-app-border/40 rounded-xl"
+                  >
+                    <div className={`w-9 h-5 rounded-full transition-colors relative shrink-0 ${emergencyDraft.showQuickAccess ? 'bg-app-accent' : 'bg-app-border'}`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${emergencyDraft.showQuickAccess ? 'left-[18px]' : 'left-0.5'}`} />
+                    </div>
+                    <span className="text-xs text-app-text text-left">
+                      {lang === 'fr' ? "Afficher un accès rapide aux infos d'urgence dans l'en-tête de l'app" : "Show a quick-access shortcut to emergency info in the app's header"}
+                    </span>
+                  </button>
+                  <button
+                    onClick={saveEmergencyInfo}
+                    className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
+                  >
+                    {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                  </button>
+                </div>
+              )}
+
+              {/* Confirmation suppression médicament */}
+              {deleteMedId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <div className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                      <Trash2 className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Supprimer ce médicament ?' : 'Delete this medication?'}
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button onClick={() => { setMedications(prev => prev.filter(m => m.id !== deleteMedId)); setDeleteMedId(null); }}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                      </button>
+                      <button onClick={() => setDeleteMedId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Confirmation suppression antécédent */}
+              {deleteHistId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <div className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                      <Trash2 className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Supprimer cet antécédent ?' : 'Delete this history entry?'}
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button onClick={() => { setHealthHistory(prev => prev.filter(h => h.id !== deleteHistId)); setDeleteHistId(null); }}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm">
+                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                      </button>
+                      <button onClick={() => setDeleteHistId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         })()}
