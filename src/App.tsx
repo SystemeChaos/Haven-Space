@@ -9564,7 +9564,7 @@ export default function App() {
               </div>
 
               {/* Sous-onglets */}
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {[
                   { id: 'traitements', label: lang === 'fr' ? 'Traitements' : 'Treatments' },
                   { id: 'antecedents', label: lang === 'fr' ? 'Antécédents' : 'History' },
@@ -9573,7 +9573,7 @@ export default function App() {
                   <button
                     key={tab.id}
                     onClick={() => setHealthSubTab(tab.id as any)}
-                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-all ${healthSubTab === tab.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'} ${tab.id === 'urgence' ? (healthSubTab === tab.id ? '' : '!text-red-500 !border-red-500/30') : ''}`}
+                    className={`px-3 py-2 sm:px-4 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest border transition-all whitespace-nowrap ${healthSubTab === tab.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'} ${tab.id === 'urgence' ? (healthSubTab === tab.id ? '' : '!text-red-500 !border-red-500/30') : ''}`}
                   >
                     {tab.label}
                   </button>
