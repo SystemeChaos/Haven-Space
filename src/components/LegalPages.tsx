@@ -4,6 +4,7 @@ import {
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
   LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
+  HeartPulse,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
@@ -150,6 +151,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g23Text: 'En plus des rôles fixes (Hôte, Protecteur...), crée tes propres rôles avec leur nom, leur couleur et leur définition. Ils s\'affichent partout où les rôles fixes apparaissent : sur la fiche, dans le résumé, et dans la recherche par rôle.',
       g24Title: 'Détente',
       g24Text: 'Une section d\'outils anti-dissociation partagés par tout le système : respiration guidée, fidgets sensoriels, kalimba jouable, affirmations, boîte à souvenirs, boîte à choix, canevas éphémère et éco-système. Accessible depuis le tableau de bord.',
+      g25Title: 'Santé',
+      g25Text: 'Un carnet de santé partagé par le système : traitements en cours, antécédents médicaux et informations d\'urgence, le tout accessible d\'un coup d\'œil depuis le tableau de bord.',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -283,6 +286,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g23Text: 'Beyond the fixed roles (Host, Protector...), create your own roles with a name, color and definition. They show up everywhere fixed roles do: on the card, in the summary, and in role search.',
       g24Title: 'Relax',
       g24Text: 'A section of anti-dissociation tools shared by the whole system: guided breathing, sensory fidgets, a playable kalimba, affirmations, a memory box, a choice box, an ephemeral canvas, and an eco-system. Accessible from the dashboard.',
+      g25Title: 'Health',
+      g25Text: 'A health record shared by the system: current treatments, medical history and emergency information, all viewable at a glance from the dashboard.',
     }
   };
 
@@ -351,6 +356,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
           { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
           { id: 'g22', icon: LayoutGrid, title: currentT.g22Title, text: currentT.g22Text },
+          { id: 'g25', icon: HeartPulse, title: currentT.g25Title, text: currentT.g25Text },
           { id: 'g24', icon: Wind, title: currentT.g24Title, text: currentT.g24Text },
           { id: 'g23', icon: Sparkles, title: currentT.g23Title, text: currentT.g23Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
