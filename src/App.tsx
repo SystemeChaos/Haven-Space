@@ -1088,6 +1088,136 @@ export default function App() {
   const [pkSystem, setPkSystem] = useState<any | null>(null);
   const [pkMembers, setPkMembers] = useState<any[]>([]);
   const [pkLoading, setPkLoading] = useState<boolean>(false);
+
+  // --- Verrouillage par code PIN ---
+  const simpleHash = (str: string): string => {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+    }
+    return hash.toString(36);
+  };
+
+  const [pinEnabled, setPinEnabled] = useState<boolean>(() => localStorage.getItem('hs-pin-enabled') === 'true');
+  const [pinHash, setPinHash] = useState<string>(() => localStorage.getItem('hs-pin-hash') || '');
+  const [pinQuestion, setPinQuestion] = useState<string>(() => localStorage.getItem('hs-pin-question') || '');
+  const [pinAnswerHash, setPinAnswerHash] = useState<string>(() => localStorage.getItem('hs-pin-answer-hash') || '');
+  const [isLocked, setIsLocked] = useState<boolean>(() => localStorage.getItem('hs-pin-enabled') === 'true');
+  const [pinBannerDismissed, setPinBannerDismissed] = useState<boolean>(() => localStorage.getItem('hs-pin-banner-dismissed') === 'true');
+  const dismissPinBanner = () => {
+    localStorage.setItem('hs-pin-banner-dismissed', 'true');
+    setPinBannerDismissed(true);
+  };
+
+  // Verrouillage auto quand l'app repasse en arrière-plan
+  useEffect(() => {
+    if (!pinEnabled) return;
+    const handleVisibility = () => {
+      if (document.hidden) setIsLocked(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [pinEnabled]);
+
+  // Configuration du PIN (depuis les paramètres)
+  const [pinSetupStep, setPinSetupStep] = useState<'idle' | 'enter' | 'confirm' | 'question'>('idle');
+  const [pinSetupValue, setPinSetupValue] = useState('');
+  const [pinSetupConfirm, setPinSetupConfirm] = useState('');
+  const [pinSetupQuestion, setPinSetupQuestion] = useState('');
+  const [pinSetupAnswer, setPinSetupAnswer] = useState('');
+  const [pinSetupError, setPinSetupError] = useState('');
+
+  const startPinSetup = () => {
+    setPinSetupStep('enter');
+    setPinSetupValue('');
+    setPinSetupConfirm('');
+    setPinSetupQuestion('');
+    setPinSetupAnswer('');
+    setPinSetupError('');
+  };
+
+  const confirmPinSetup = () => {
+    if (pinSetupValue.length < 4) {
+      setPinSetupError(lang === 'fr' ? 'Le code doit faire au moins 4 chiffres.' : 'The code must be at least 4 digits.');
+      return;
+    }
+    setPinSetupStep('confirm');
+    setPinSetupError('');
+  };
+
+  const validatePinConfirm = () => {
+    if (pinSetupConfirm !== pinSetupValue) {
+      setPinSetupError(lang === 'fr' ? 'Les deux codes ne correspondent pas.' : "The two codes don't match.");
+      setPinSetupConfirm('');
+      return;
+    }
+    setPinSetupStep('question');
+    setPinSetupError('');
+  };
+
+  const finalizePinSetup = () => {
+    if (!pinSetupQuestion.trim() || !pinSetupAnswer.trim()) {
+      setPinSetupError(lang === 'fr' ? "Renseigne une question et une réponse." : 'Please fill in a question and an answer.');
+      return;
+    }
+    const hash = simpleHash(pinSetupValue);
+    const answerHash = simpleHash(pinSetupAnswer.trim().toLowerCase());
+    localStorage.setItem('hs-pin-enabled', 'true');
+    localStorage.setItem('hs-pin-hash', hash);
+    localStorage.setItem('hs-pin-question', pinSetupQuestion.trim());
+    localStorage.setItem('hs-pin-answer-hash', answerHash);
+    setPinEnabled(true);
+    setPinHash(hash);
+    setPinQuestion(pinSetupQuestion.trim());
+    setPinAnswerHash(answerHash);
+    setPinSetupStep('idle');
+    setPinSetupValue('');
+    setPinSetupConfirm('');
+    setPinSetupQuestion('');
+    setPinSetupAnswer('');
+    setPinSetupError('');
+  };
+
+  const disablePin = () => {
+    localStorage.removeItem('hs-pin-enabled');
+    localStorage.removeItem('hs-pin-hash');
+    localStorage.removeItem('hs-pin-question');
+    localStorage.removeItem('hs-pin-answer-hash');
+    setPinEnabled(false);
+    setPinHash('');
+    setPinQuestion('');
+    setPinAnswerHash('');
+    setIsLocked(false);
+  };
+
+  // Écran de verrouillage (saisie du code / question de secours)
+  const [lockPinInput, setLockPinInput] = useState('');
+  const [lockError, setLockError] = useState('');
+  const [forgotPinMode, setForgotPinMode] = useState(false);
+  const [forgotPinAnswer, setForgotPinAnswer] = useState('');
+
+  const attemptUnlock = () => {
+    if (simpleHash(lockPinInput) === pinHash) {
+      setIsLocked(false);
+      setLockPinInput('');
+      setLockError('');
+      setForgotPinMode(false);
+      setForgotPinAnswer('');
+    } else {
+      setLockError(lang === 'fr' ? 'Code incorrect.' : 'Incorrect code.');
+      setLockPinInput('');
+    }
+  };
+
+  const attemptForgotPinUnlock = () => {
+    if (simpleHash(forgotPinAnswer.trim().toLowerCase()) === pinAnswerHash) {
+      // Réponse correcte : on retire le verrou pour que la personne puisse en redéfinir un nouveau depuis les paramètres
+      disablePin();
+    } else {
+      setLockError(lang === 'fr' ? 'Réponse incorrecte.' : 'Incorrect answer.');
+      setForgotPinAnswer('');
+    }
+  };
   const [pkError, setPkError] = useState<string | null>(null);
   const [pkSuccess, setPkSuccess] = useState<string | null>(null);
   const [isExportingPkId, setIsExportingPkId] = useState<string | null>(null);
@@ -4623,6 +4753,84 @@ export default function App() {
 
   return (
     <>
+      {/* Écran de verrouillage PIN */}
+      {pinEnabled && isLocked && (
+        <div className="fixed inset-0 z-[10000] bg-app-bg flex items-center justify-center p-6">
+          <div className="w-full max-w-xs space-y-6 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent">
+              <Lock className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black uppercase tracking-wider text-app-text">
+                {lang === 'fr' ? 'Système verrouillé' : 'System locked'}
+              </h2>
+              <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
+                {lang === 'fr' ? 'Entre ton code pour continuer' : 'Enter your code to continue'}
+              </p>
+            </div>
+
+            {!forgotPinMode ? (
+              <>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  autoFocus
+                  value={lockPinInput}
+                  onChange={e => { setLockPinInput(e.target.value.replace(/\D/g, '')); setLockError(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') attemptUnlock(); }}
+                  className="w-full text-center tracking-[0.5em] text-xl font-black bg-app-card border border-app-border rounded-xl px-4 py-3 focus:outline-none focus:border-app-accent transition-colors"
+                  placeholder="••••"
+                />
+                {lockError && <p className="text-xs text-red-500 font-bold">{lockError}</p>}
+                <button
+                  onClick={attemptUnlock}
+                  className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+                >
+                  {lang === 'fr' ? 'Déverrouiller' : 'Unlock'}
+                </button>
+                <button
+                  onClick={() => { setForgotPinMode(true); setLockError(''); }}
+                  className="text-[11px] text-app-muted hover:text-app-text underline underline-offset-2 transition-colors"
+                >
+                  {lang === 'fr' ? 'Code oublié ?' : 'Forgot your code?'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-app-text font-semibold">{pinQuestion}</p>
+                <input
+                  type="text"
+                  autoFocus
+                  value={forgotPinAnswer}
+                  onChange={e => { setForgotPinAnswer(e.target.value); setLockError(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') attemptForgotPinUnlock(); }}
+                  className="w-full text-center bg-app-card border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-app-accent transition-colors"
+                  placeholder={lang === 'fr' ? 'Ta réponse' : 'Your answer'}
+                />
+                {lockError && <p className="text-xs text-red-500 font-bold">{lockError}</p>}
+                <p className="text-[10px] text-app-muted italic">
+                  {lang === 'fr'
+                    ? 'Une bonne réponse retire le verrou — tu pourras en redéfinir un nouveau dans les paramètres.'
+                    : "A correct answer removes the lock — you'll be able to set a new one in settings."}
+                </p>
+                <button
+                  onClick={attemptForgotPinUnlock}
+                  className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+                >
+                  {lang === 'fr' ? 'Valider' : 'Confirm'}
+                </button>
+                <button
+                  onClick={() => { setForgotPinMode(false); setLockError(''); setForgotPinAnswer(''); }}
+                  className="text-[11px] text-app-muted hover:text-app-text underline underline-offset-2 transition-colors"
+                >
+                  {lang === 'fr' ? 'Retour au code' : 'Back to code'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Lightbox */}
       {lightboxImage && (
         <div
@@ -5053,6 +5261,123 @@ export default function App() {
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifBrowser ? 'left-[18px]' : 'left-0.5'}`} />
                           </div>
                         </button>
+                      </div>
+
+                      {/* Verrouillage PIN */}
+                      <div className="pt-3 border-t border-app-border/20 flex flex-col gap-2">
+                        <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
+                          {lang === 'fr' ? 'Verrouillage' : 'Lock'}
+                        </span>
+
+                        {!pinEnabled && pinSetupStep === 'idle' && (
+                          <button
+                            onClick={startPinSetup}
+                            className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                          >
+                            <span className="text-xs font-bold text-app-text">
+                              {lang === 'fr' ? "Protéger l'accès avec un code" : 'Protect access with a code'}
+                            </span>
+                            <Lock className="w-3.5 h-3.5 text-app-muted" />
+                          </button>
+                        )}
+
+                        {pinEnabled && pinSetupStep === 'idle' && (
+                          <button
+                            onClick={disablePin}
+                            className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-red-500/30 transition-colors rounded-xl"
+                          >
+                            <span className="text-xs font-bold text-app-text">
+                              {lang === 'fr' ? 'Désactiver le code' : 'Disable the code'}
+                            </span>
+                            <div className="w-8 h-4 rounded-full transition-colors relative bg-app-accent">
+                              <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all left-[18px]" />
+                            </div>
+                          </button>
+                        )}
+
+                        {pinSetupStep === 'enter' && (
+                          <div className="space-y-2 p-3 bg-app-bg/50 border border-app-border/10 rounded-xl">
+                            <p className="text-[10px] text-app-muted font-bold">
+                              {lang === 'fr' ? 'Choisis un code (4 à 6 chiffres)' : 'Choose a code (4 to 6 digits)'}
+                            </p>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={pinSetupValue}
+                              onChange={e => setPinSetupValue(e.target.value.replace(/\D/g, ''))}
+                              className="w-full text-center tracking-[0.4em] font-black bg-app-card border border-app-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-app-accent"
+                              placeholder="••••"
+                            />
+                            {pinSetupError && <p className="text-[10px] text-red-500 font-bold">{pinSetupError}</p>}
+                            <button
+                              onClick={confirmPinSetup}
+                              className="w-full py-2 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest"
+                            >
+                              {lang === 'fr' ? 'Continuer' : 'Continue'}
+                            </button>
+                          </div>
+                        )}
+
+                        {pinSetupStep === 'confirm' && (
+                          <div className="space-y-2 p-3 bg-app-bg/50 border border-app-border/10 rounded-xl">
+                            <p className="text-[10px] text-app-muted font-bold">
+                              {lang === 'fr' ? 'Confirme le code' : 'Confirm the code'}
+                            </p>
+                            <input
+                              type="password"
+                              inputMode="numeric"
+                              maxLength={6}
+                              value={pinSetupConfirm}
+                              onChange={e => setPinSetupConfirm(e.target.value.replace(/\D/g, ''))}
+                              className="w-full text-center tracking-[0.4em] font-black bg-app-card border border-app-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-app-accent"
+                              placeholder="••••"
+                            />
+                            {pinSetupError && <p className="text-[10px] text-red-500 font-bold">{pinSetupError}</p>}
+                            <button
+                              onClick={validatePinConfirm}
+                              className="w-full py-2 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest"
+                            >
+                              {lang === 'fr' ? 'Continuer' : 'Continue'}
+                            </button>
+                          </div>
+                        )}
+
+                        {pinSetupStep === 'question' && (
+                          <div className="space-y-2 p-3 bg-app-bg/50 border border-app-border/10 rounded-xl">
+                            <p className="text-[10px] text-app-muted font-bold">
+                              {lang === 'fr'
+                                ? 'Question de secours (si tu oublies ton code — choisis un truc simple, pas sensible)'
+                                : "Backup question (if you forget your code — pick something simple, not sensitive)"}
+                            </p>
+                            <input
+                              type="text"
+                              value={pinSetupQuestion}
+                              onChange={e => setPinSetupQuestion(e.target.value)}
+                              className="w-full bg-app-card border border-app-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-app-accent"
+                              placeholder={lang === 'fr' ? 'Ex : couleur préférée ?' : 'Ex: favorite color?'}
+                            />
+                            <input
+                              type="text"
+                              value={pinSetupAnswer}
+                              onChange={e => setPinSetupAnswer(e.target.value)}
+                              className="w-full bg-app-card border border-app-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-app-accent"
+                              placeholder={lang === 'fr' ? 'Réponse' : 'Answer'}
+                            />
+                            {pinSetupError && <p className="text-[10px] text-red-500 font-bold">{pinSetupError}</p>}
+                            <p className="text-[10px] text-app-muted italic">
+                              {lang === 'fr'
+                                ? "⚠️ Sans récupération classique (pas d'e-mail, pas de serveur) : pense à faire un export JSON régulier de ton système."
+                                : "⚠️ No classic recovery (no email, no server): remember to export your system as JSON regularly."}
+                            </p>
+                            <button
+                              onClick={finalizePinSetup}
+                              className="w-full py-2 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest"
+                            >
+                              {lang === 'fr' ? 'Activer le verrouillage' : 'Enable lock'}
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {/* TDI Resources section embedded directly inside settings at the very bottom */}
@@ -6639,9 +6964,34 @@ export default function App() {
                   {lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}
                 </h2>
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
-                  {lang === 'fr' ? `${savedAlters.length} alters · ${parallelSystems.length > 0 ? parallelSystems.length + ' système(s) parallèle(s)' : 'système principal'}` : `${savedAlters.length} alters · ${parallelSystems.length > 0 ? parallelSystems.length + ' parallel system(s)' : 'main system'}`}
                 </p>
               </div>
+
+              {/* Encart suggestion verrouillage PIN */}
+              {!pinEnabled && !pinBannerDismissed && (
+                <div className="flex items-center gap-3 p-4 bg-app-accent/5 border border-app-accent/20 rounded-2xl">
+                  <div className="w-9 h-9 rounded-xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent shrink-0">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <p className="text-xs text-app-text flex-1">
+                    {lang === 'fr'
+                      ? "Protège l'accès à ton système avec un code."
+                      : 'Protect access to your system with a code.'}
+                  </p>
+                  <button
+                    onClick={() => { startPinSetup(); setSettingsMenuOpen(true); dismissPinBanner(); }}
+                    className="px-3 py-1.5 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest shrink-0"
+                  >
+                    {lang === 'fr' ? 'Activer' : 'Enable'}
+                  </button>
+                  <button
+                    onClick={dismissPinBanner}
+                    className="text-app-muted hover:text-app-text transition-colors shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
 
               {/* Grille des pages */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
