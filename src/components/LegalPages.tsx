@@ -153,6 +153,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g24Text: 'Une section d\'outils anti-dissociation partagés par tout le système : respiration guidée, fidgets sensoriels, kalimba jouable, affirmations, boîte à souvenirs, boîte à choix, canevas éphémère et éco-système. Accessible depuis le tableau de bord.',
       g25Title: 'Santé',
       g25Text: 'Un carnet de santé partagé par le système : traitements en cours, antécédents médicaux et informations d\'urgence, le tout accessible d\'un coup d\'œil depuis le tableau de bord.',
+      g26Title: 'Verrouillage par code',
+      g26Text: 'Protège l\'accès à l\'app avec un code de 4 à 6 chiffres, réactivable en cas d\'oubli via une question de secours que tu choisis toi-même. L\'app se reverrouille automatiquement dès qu\'elle repasse en arrière-plan. Attention : ce code empêche un coup d\'œil rapide sur ton téléphone, mais ce n\'est pas un chiffrement — les données restent techniquement lisibles sur l\'appareil pour quelqu\'un qui saurait les extraire. Pense donc à exporter régulièrement ton système (JSON) et à ne pas compter uniquement sur ce verrou face à quelqu\'un ayant un accès physique répété et des connaissances techniques.',
     },
     en: {
       privacy: 'Privacy Policy',
@@ -288,6 +290,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g24Text: 'A section of anti-dissociation tools shared by the whole system: guided breathing, sensory fidgets, a playable kalimba, affirmations, a memory box, a choice box, an ephemeral canvas, and an eco-system. Accessible from the dashboard.',
       g25Title: 'Health',
       g25Text: 'A health record shared by the system: current treatments, medical history and emergency information, all viewable at a glance from the dashboard.',
+      g26Title: 'Code lock',
+      g26Text: "Protect access to the app with a 4-to-6-digit code, recoverable if forgotten via a backup question you choose yourself. The app automatically re-locks as soon as it goes to the background. Note: this code prevents a quick glance at your phone, but it is not encryption — the data remains technically readable on the device by someone who knows how to extract it. Export your system regularly (JSON) and don't rely on this lock alone against someone with repeated physical access and technical knowledge.",
     }
   };
 
@@ -357,6 +361,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g19', icon: CalendarDays, title: currentT.g19Title, text: currentT.g19Text },
           { id: 'g22', icon: LayoutGrid, title: currentT.g22Title, text: currentT.g22Text },
           { id: 'g25', icon: HeartPulse, title: currentT.g25Title, text: currentT.g25Text },
+          { id: 'g26', icon: Lock, title: currentT.g26Title, text: currentT.g26Text },
           { id: 'g24', icon: Wind, title: currentT.g24Title, text: currentT.g24Text },
           { id: 'g23', icon: Sparkles, title: currentT.g23Title, text: currentT.g23Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
