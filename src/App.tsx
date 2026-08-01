@@ -839,6 +839,11 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
   const [font, setFont] = useState<string>(() => localStorage.getItem('hs-font') || 'font-sans');
+  const [fontScale, setFontScale] = useState<'small' | 'normal' | 'large' | 'xlarge'>(() => (localStorage.getItem('hs-font-scale') as any) || 'normal');
+  useEffect(() => {
+    const scales: Record<string, string> = { small: '93.75%', normal: '100%', large: '112.5%', xlarge: '125%' };
+    document.documentElement.style.fontSize = scales[fontScale] || '100%';
+  }, [fontScale]);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('hs-theme') as Theme) || Theme.LIGHT);
   const [activeLegalPage, setActiveLegalPage] = useState<LegalPage | null>(null);
 
@@ -1504,6 +1509,44 @@ export default function App() {
     const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
   }, [activeSystemId, lang]);
+
+  // Vérifie toutes les 30s si un rappel de traitement doit se déclencher — même logique que le
+  // rappel de planning ci-dessus : réguliers (chaque jour) ou ponctuels (une seule date, une seule fois).
+  const MED_REMINDED_STORAGE_KEY = 'hs-med-reminded';
+  useEffect(() => {
+    const check = () => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      let remindedKeys: string[] = [];
+      try { remindedKeys = JSON.parse(localStorage.getItem(MED_REMINDED_STORAGE_KEY) || '[]'); } catch { /* ignore */ }
+      let changed = false;
+      medications.forEach(med => {
+        if (!med.recurring && med.oneTimeDate && med.oneTimeDate !== todayStr) return;
+        med.times.forEach((t, idx) => {
+          const key = med.recurring ? `${med.id}-${idx}-${todayStr}` : `${med.id}-${idx}`;
+          if (remindedKeys.includes(key)) return;
+          const [hh, mm] = t.time.split(':').map(Number);
+          if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+          const target = new Date(now);
+          target.setHours(hh, mm, 0, 0);
+          const diffMs = now.getTime() - target.getTime();
+          if (diffMs >= 0 && diffMs < 60000) {
+            new Notification(lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder', {
+              body: med.dosage ? `${med.name} — ${med.dosage}` : med.name,
+              icon: '/icon-192.png',
+            });
+            remindedKeys.push(key);
+            changed = true;
+          }
+        });
+      });
+      if (changed) localStorage.setItem(MED_REMINDED_STORAGE_KEY, JSON.stringify(remindedKeys));
+    };
+    check();
+    const medInterval = setInterval(check, 30000);
+    return () => clearInterval(medInterval);
+  }, [medications, lang]);
 
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
@@ -2745,7 +2788,7 @@ export default function App() {
   };
 
   // --- Santé (carnet partagé du système : un seul corps, une seule santé) ---
-  interface Medication { id: string; name: string; dosage: string; times: { time: string; period: 'AM' | 'PM' }[]; note: string; }
+  interface Medication { id: string; name: string; dosage: string; times: { time: string; period: 'AM' | 'PM' }[]; note: string; recurring: boolean; oneTimeDate: string; }
   interface HealthHistoryEntry { id: string; title: string; date: string; note: string; }
   interface EmergencyInfo { conditions: string; allergies: string; bloodType: string; note: string; showQuickAccess: boolean; }
 
@@ -2773,6 +2816,8 @@ export default function App() {
   const [medDraftTimes, setMedDraftTimes] = useState<{ time: string; period: 'AM' | 'PM' }[]>([]);
   const [medDraftTimeInput, setMedDraftTimeInput] = useState('09:00');
   const [medDraftPeriodInput, setMedDraftPeriodInput] = useState<'AM' | 'PM'>('AM');
+  const [medDraftRecurring, setMedDraftRecurring] = useState(true);
+  const [medDraftOneTimeDate, setMedDraftOneTimeDate] = useState('');
   const [deleteMedId, setDeleteMedId] = useState<string | null>(null);
 
   const [histFormOpen, setHistFormOpen] = useState(false);
@@ -2794,12 +2839,16 @@ export default function App() {
       setMedDraftDosage(med.dosage);
       setMedDraftNote(med.note);
       setMedDraftTimes(med.times);
+      setMedDraftRecurring(med.recurring !== false);
+      setMedDraftOneTimeDate(med.oneTimeDate || '');
     } else {
       setEditingMedId(null);
       setMedDraftName('');
       setMedDraftDosage('');
       setMedDraftNote('');
       setMedDraftTimes([]);
+      setMedDraftRecurring(true);
+      setMedDraftOneTimeDate('');
     }
     setMedFormOpen(true);
   };
@@ -2807,7 +2856,7 @@ export default function App() {
     if (!medDraftName.trim()) return;
     if (editingMedId) {
       setMedications(prev => prev.map(m => m.id === editingMedId
-        ? { ...m, name: medDraftName.trim(), dosage: medDraftDosage.trim(), note: medDraftNote.trim(), times: medDraftTimes }
+        ? { ...m, name: medDraftName.trim(), dosage: medDraftDosage.trim(), note: medDraftNote.trim(), times: medDraftTimes, recurring: medDraftRecurring, oneTimeDate: medDraftRecurring ? '' : medDraftOneTimeDate }
         : m));
     } else {
       setMedications(prev => [...prev, {
@@ -2816,6 +2865,8 @@ export default function App() {
         dosage: medDraftDosage.trim(),
         note: medDraftNote.trim(),
         times: medDraftTimes,
+        recurring: medDraftRecurring,
+        oneTimeDate: medDraftRecurring ? '' : medDraftOneTimeDate,
       }]);
     }
     setMedFormOpen(false);
@@ -5059,6 +5110,30 @@ export default function App() {
                               </motion.div>
                             )}
                           </AnimatePresence>
+                        </div>
+                      </div>
+
+                      {/* Accessibilité — taille du texte */}
+                      <div className="space-y-1.5">
+                        <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
+                          {lang === 'fr' ? 'Taille du texte' : 'Text size'}
+                        </span>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {([
+                            { id: 'small', label: 'A', size: '11px' },
+                            { id: 'normal', label: 'A', size: '13px' },
+                            { id: 'large', label: 'A', size: '15px' },
+                            { id: 'xlarge', label: 'A', size: '17px' },
+                          ] as const).map(opt => (
+                            <button
+                              key={opt.id}
+                              onClick={() => { setFontScale(opt.id); localStorage.setItem('hs-font-scale', opt.id); }}
+                              style={{ fontSize: opt.size }}
+                              className={`py-2 rounded-xl font-black border transition-all ${fontScale === opt.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border/45 text-app-muted hover:text-app-text'}`}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
@@ -9956,6 +10031,31 @@ export default function App() {
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                       </div>
                       <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Prise' : 'Intake'}</label>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setMedDraftRecurring(true)}
+                            className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${medDraftRecurring ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                          >
+                            {lang === 'fr' ? 'Régulière' : 'Regular'}
+                          </button>
+                          <button
+                            onClick={() => setMedDraftRecurring(false)}
+                            className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${!medDraftRecurring ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                          >
+                            {lang === 'fr' ? 'Ponctuelle' : 'One-time'}
+                          </button>
+                        </div>
+                        {!medDraftRecurring && (
+                          <input
+                            type="date"
+                            value={medDraftOneTimeDate}
+                            onChange={e => setMedDraftOneTimeDate(e.target.value)}
+                            className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Heures de rappel' : 'Reminder times'}</label>
                         {medDraftTimes.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
@@ -10011,6 +10111,11 @@ export default function App() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-black text-sm text-app-text">{med.name}</span>
                               {med.dosage && <span className="text-[10px] font-bold text-app-muted bg-app-bg px-2 py-0.5 rounded-full border border-app-border/30">{med.dosage}</span>}
+                              <span className="text-[10px] font-bold text-app-muted bg-app-bg px-2 py-0.5 rounded-full border border-app-border/30">
+                                {med.recurring !== false
+                                  ? (lang === 'fr' ? 'Quotidien' : 'Daily')
+                                  : (lang === 'fr' ? `Ponctuel${med.oneTimeDate ? ' — ' + med.oneTimeDate : ''}` : `One-time${med.oneTimeDate ? ' — ' + med.oneTimeDate : ''}`)}
+                              </span>
                             </div>
                             {med.times.length > 0 && (
                               <div className="flex flex-wrap gap-1.5">
