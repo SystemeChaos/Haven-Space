@@ -1249,6 +1249,27 @@ export default function App() {
     }
   });
 
+  // --- Onboarding (carrousel de bienvenue) ---
+  const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
+    if (localStorage.getItem('hs-onboarding-seen') === 'true') return false;
+    try {
+      const existing = JSON.parse(localStorage.getItem('savedAlters') || '[]');
+      return existing.length === 0;
+    } catch {
+      return true;
+    }
+  });
+  const [onboardingStep, setOnboardingStep] = useState(0);
+  const closeOnboarding = () => {
+    localStorage.setItem('hs-onboarding-seen', 'true');
+    setShowOnboarding(false);
+    setOnboardingStep(0);
+  };
+  const restartOnboarding = () => {
+    setOnboardingStep(0);
+    setShowOnboarding(true);
+  };
+
   const [subsystems, setSubsystems] = useState<Subsystem[]>(() => {
     try {
       return JSON.parse(localStorage.getItem('subsystems') || '[]');
@@ -4882,6 +4903,113 @@ export default function App() {
         </div>
       )}
 
+      {/* Onboarding — carrousel de bienvenue (premier lancement) */}
+      {showOnboarding && !isLocked && (() => {
+        const slides = [
+          {
+            icon: Shield,
+            title: lang === 'fr' ? 'Bienvenue sur Haven Space' : 'Welcome to Haven Space',
+            text: lang === 'fr'
+              ? 'Tout ce que tu ajoutes ici reste sur ton appareil. Rien n\'est envoyé sur un serveur, il n\'y a pas de compte à créer.'
+              : "Everything you add here stays on your device. Nothing is sent to a server, there's no account to create.",
+          },
+          {
+            icon: Users,
+            title: lang === 'fr' ? 'Ton système' : 'Your system',
+            text: lang === 'fr'
+              ? 'Chaque membre du système a sa propre fiche (alter) : nom, rôle, apparence, notes... Tu peux en créer autant que besoin, et les organiser en sous-systèmes.'
+              : 'Each system member has their own profile (alter): name, role, appearance, notes... Create as many as you need, and organize them into subsystems.',
+          },
+          {
+            icon: LayoutDashboard,
+            title: lang === 'fr' ? 'Le tableau de bord' : 'The dashboard',
+            text: lang === 'fr'
+              ? "C'est ton point de départ : accès rapide au planning, à la santé, à la détente, à la messagerie interne et à bien plus."
+              : "It's your starting point: quick access to planning, health, relax tools, internal messaging, and more.",
+          },
+          {
+            icon: HelpCircle,
+            title: lang === 'fr' ? 'Un doute ? Le Guide est là' : 'Not sure? Check the Guide',
+            text: lang === 'fr'
+              ? 'Toutes les fonctionnalités sont réexpliquées dans le Guide, accessible à tout moment. Tu peux aussi revoir cette visite depuis les Paramètres.'
+              : 'Every feature is explained in the Guide, accessible any time. You can also replay this tour from Settings.',
+          },
+        ];
+        const isLast = onboardingStep === slides.length - 1;
+        const slide = slides[onboardingStep];
+        const SlideIcon = slide.icon;
+        return (
+          <div className="fixed inset-0 z-[9998] bg-black/70 flex items-center justify-center p-4">
+            <div className="w-full max-w-sm bg-app-card border border-app-border rounded-3xl shadow-2xl p-6 space-y-5 relative">
+              <button
+                onClick={closeOnboarding}
+                className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors"
+              >
+                <span className="sr-only">{lang === 'fr' ? 'Passer' : 'Skip'}</span>
+                <X className="w-4 h-4" />
+              </button>
+
+              <div className="w-14 h-14 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent">
+                <SlideIcon className="w-6 h-6" />
+              </div>
+
+              <div className="space-y-2">
+                <h2 className="text-lg font-black text-app-text">{slide.title}</h2>
+                <p className="text-sm text-app-muted leading-relaxed">{slide.text}</p>
+              </div>
+
+              <div className="flex items-center justify-center gap-1.5 py-1">
+                {slides.map((_, i) => (
+                  <div key={i} className={`h-1.5 rounded-full transition-all ${i === onboardingStep ? 'w-5 bg-app-accent' : 'w-1.5 bg-app-border'}`} />
+                ))}
+              </div>
+
+              {!isLast ? (
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    onClick={closeOnboarding}
+                    className="text-xs font-bold text-app-muted hover:text-app-text transition-colors px-2"
+                  >
+                    {lang === 'fr' ? 'Passer' : 'Skip'}
+                  </button>
+                  <div className="flex items-center gap-2">
+                    {onboardingStep > 0 && (
+                      <button
+                        onClick={() => setOnboardingStep(s => s - 1)}
+                        className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-xs font-bold text-app-text transition-colors"
+                      >
+                        {lang === 'fr' ? 'Retour' : 'Back'}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setOnboardingStep(s => s + 1)}
+                      className="px-5 py-2.5 bg-app-accent text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+                    >
+                      {lang === 'fr' ? 'Suivant' : 'Next'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => { closeOnboarding(); handleResetCreator(); }}
+                    className="w-full py-3 bg-app-accent text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+                  >
+                    {lang === 'fr' ? 'Créer mon premier alter' : 'Create my first alter'}
+                  </button>
+                  <button
+                    onClick={closeOnboarding}
+                    className="w-full py-3 bg-app-bg border border-app-border rounded-xl text-xs font-bold text-app-text transition-colors"
+                  >
+                    {lang === 'fr' ? 'Explorer par moi-même' : 'Explore on my own'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Lightbox */}
       {lightboxImage && (
         <div
@@ -5335,6 +5463,19 @@ export default function App() {
                           <div className={`w-8 h-4 rounded-full transition-colors relative ${notifBrowser ? 'bg-app-accent' : 'bg-app-border'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifBrowser ? 'left-[18px]' : 'left-0.5'}`} />
                           </div>
+                        </button>
+                      </div>
+
+                      {/* Revoir la visite guidée */}
+                      <div className="pt-3 border-t border-app-border/20">
+                        <button
+                          onClick={() => { setSettingsMenuOpen(false); restartOnboarding(); }}
+                          className="w-full flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                        >
+                          <span className="text-xs font-bold text-app-text">
+                            {lang === 'fr' ? 'Revoir la visite guidée' : 'Replay the welcome tour'}
+                          </span>
+                          <Sparkles className="w-3.5 h-3.5 text-app-muted" />
                         </button>
                       </div>
 
