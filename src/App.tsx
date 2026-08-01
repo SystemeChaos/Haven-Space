@@ -1510,44 +1510,6 @@ export default function App() {
     return () => clearInterval(interval);
   }, [activeSystemId, lang]);
 
-  // Vérifie toutes les 30s si un rappel de traitement doit se déclencher — même logique que le
-  // rappel de planning ci-dessus : réguliers (chaque jour) ou ponctuels (une seule date, une seule fois).
-  const MED_REMINDED_STORAGE_KEY = 'hs-med-reminded';
-  useEffect(() => {
-    const check = () => {
-      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      const now = new Date();
-      const todayStr = now.toISOString().slice(0, 10);
-      let remindedKeys: string[] = [];
-      try { remindedKeys = JSON.parse(localStorage.getItem(MED_REMINDED_STORAGE_KEY) || '[]'); } catch { /* ignore */ }
-      let changed = false;
-      medications.forEach(med => {
-        if (!med.recurring && med.oneTimeDate && med.oneTimeDate !== todayStr) return;
-        med.times.forEach((t, idx) => {
-          const key = med.recurring ? `${med.id}-${idx}-${todayStr}` : `${med.id}-${idx}`;
-          if (remindedKeys.includes(key)) return;
-          const [hh, mm] = t.time.split(':').map(Number);
-          if (Number.isNaN(hh) || Number.isNaN(mm)) return;
-          const target = new Date(now);
-          target.setHours(hh, mm, 0, 0);
-          const diffMs = now.getTime() - target.getTime();
-          if (diffMs >= 0 && diffMs < 60000) {
-            new Notification(lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder', {
-              body: med.dosage ? `${med.name} — ${med.dosage}` : med.name,
-              icon: '/icon-192.png',
-            });
-            remindedKeys.push(key);
-            changed = true;
-          }
-        });
-      });
-      if (changed) localStorage.setItem(MED_REMINDED_STORAGE_KEY, JSON.stringify(remindedKeys));
-    };
-    check();
-    const medInterval = setInterval(check, 30000);
-    return () => clearInterval(medInterval);
-  }, [medications, lang]);
-
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
   }, [switchLogs]);
@@ -2796,6 +2758,44 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('hs-health-meds') || '[]'); } catch { return []; }
   });
   useEffect(() => { localStorage.setItem('hs-health-meds', JSON.stringify(medications)); }, [medications]);
+
+  // Vérifie toutes les 30s si un rappel de traitement doit se déclencher — même logique que le
+  // rappel de planning : réguliers (chaque jour) ou ponctuels (une seule date, une seule fois).
+  const MED_REMINDED_STORAGE_KEY = 'hs-med-reminded';
+  useEffect(() => {
+    const check = () => {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const now = new Date();
+      const todayStr = now.toISOString().slice(0, 10);
+      let remindedKeys: string[] = [];
+      try { remindedKeys = JSON.parse(localStorage.getItem(MED_REMINDED_STORAGE_KEY) || '[]'); } catch { /* ignore */ }
+      let changed = false;
+      medications.forEach(med => {
+        if (!med.recurring && med.oneTimeDate && med.oneTimeDate !== todayStr) return;
+        med.times.forEach((t, idx) => {
+          const key = med.recurring ? `${med.id}-${idx}-${todayStr}` : `${med.id}-${idx}`;
+          if (remindedKeys.includes(key)) return;
+          const [hh, mm] = t.time.split(':').map(Number);
+          if (Number.isNaN(hh) || Number.isNaN(mm)) return;
+          const target = new Date(now);
+          target.setHours(hh, mm, 0, 0);
+          const diffMs = now.getTime() - target.getTime();
+          if (diffMs >= 0 && diffMs < 60000) {
+            new Notification(lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder', {
+              body: med.dosage ? `${med.name} — ${med.dosage}` : med.name,
+              icon: '/icon-192.png',
+            });
+            remindedKeys.push(key);
+            changed = true;
+          }
+        });
+      });
+      if (changed) localStorage.setItem(MED_REMINDED_STORAGE_KEY, JSON.stringify(remindedKeys));
+    };
+    check();
+    const medInterval = setInterval(check, 30000);
+    return () => clearInterval(medInterval);
+  }, [medications, lang]);
 
   const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>(() => {
     try { return JSON.parse(localStorage.getItem('hs-health-history') || '[]'); } catch { return []; }
