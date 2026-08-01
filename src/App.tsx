@@ -4928,6 +4928,27 @@ export default function App() {
               : "It's your starting point: quick access to planning, health, relax tools, internal messaging, and more.",
           },
           {
+            icon: Repeat,
+            title: lang === 'fr' ? 'Le switch' : 'Switching',
+            text: lang === 'fr'
+              ? "Indique qui est aux commandes à tout moment, et garde un historique des passages. C'est le cœur du suivi au quotidien."
+              : "Track who's fronting at any moment, with a history of past switches. It's the core of day-to-day tracking.",
+          },
+          {
+            icon: Download,
+            title: lang === 'fr' ? 'Pense à sauvegarder' : 'Remember to back up',
+            text: lang === 'fr'
+              ? "Comme il n'y a pas de compte ni de cloud, exporte régulièrement ton système (JSON) depuis les Paramètres — c'est ta seule sauvegarde en cas de souci."
+              : "Since there's no account or cloud, regularly export your system (JSON) from Settings — it's your only backup if something goes wrong.",
+          },
+          {
+            icon: AlertTriangle,
+            title: lang === 'fr' ? 'Le bouton SOS' : 'The SOS button',
+            text: lang === 'fr'
+              ? 'Toujours visible en haut de l\'écran : il t\'amène direct vers l\'Ancrage en cas de coup dur. Repère-le dès maintenant, avant d\'en avoir besoin.'
+              : "Always visible at the top of the screen: it takes you straight to Grounding when things get hard. Spot it now, before you need it.",
+          },
+          {
             icon: HelpCircle,
             title: lang === 'fr' ? 'Un doute ? Le Guide est là' : 'Not sure? Check the Guide',
             text: lang === 'fr'
