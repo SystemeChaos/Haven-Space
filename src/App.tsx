@@ -1,6 +1,4 @@
-git add src/App.tsx
-git commit -m "Export/import JSON: Planning + Matrice d'Eisenhower restaurables"
-git pushimport MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
+import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -143,7 +141,7 @@ import {
   Package,
   ChevronRight,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
+import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
@@ -963,6 +961,20 @@ export default function App() {
   const [customRoleDraftColor, setCustomRoleDraftColor] = useState('#8B5CF6');
   const [editingCustomRoleId, setEditingCustomRoleId] = useState<string | null>(null);
   const [customRoleDeleteConfirmId, setCustomRoleDeleteConfirmId] = useState<string | null>(null);
+  // Traits personnalisés attribués à l'alter en cours d'édition
+  const [selectedCustomTraitIds, setSelectedCustomTraitIds] = useState<string[]>([]);
+  const [customTraitDraftName, setCustomTraitDraftName] = useState('');
+  const [customTraitDraftDefinition, setCustomTraitDraftDefinition] = useState('');
+  const [customTraitDraftColor, setCustomTraitDraftColor] = useState('#8B5CF6');
+  const [editingCustomTraitId, setEditingCustomTraitId] = useState<string | null>(null);
+  const [customTraitDeleteConfirmId, setCustomTraitDeleteConfirmId] = useState<string | null>(null);
+  // Troubles personnalisés attribués à l'alter en cours d'édition
+  const [selectedCustomDisorderIds, setSelectedCustomDisorderIds] = useState<string[]>([]);
+  const [customDisorderDraftName, setCustomDisorderDraftName] = useState('');
+  const [customDisorderDraftDefinition, setCustomDisorderDraftDefinition] = useState('');
+  const [customDisorderDraftColor, setCustomDisorderDraftColor] = useState('#8B5CF6');
+  const [editingCustomDisorderId, setEditingCustomDisorderId] = useState<string | null>(null);
+  const [customDisorderDeleteConfirmId, setCustomDisorderDeleteConfirmId] = useState<string | null>(null);
   const [mainSystemName, setMainSystemName] = useState<string>(() => {
     return localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System');
   });
@@ -1289,6 +1301,24 @@ export default function App() {
     }
   });
 
+  // --- Traits personnalisés (définis par l'utilisateur, en plus des traits fixes) ---
+  const [customTraits, setCustomTraits] = useState<CustomTrait[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('customTraits') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
+  // --- Troubles personnalisés (définis par l'utilisateur, en plus des troubles fixes) ---
+  const [customDisorders, setCustomDisorders] = useState<CustomDisorder[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('customDisorders') || '[]');
+    } catch {
+      return [];
+    }
+  });
+
   // --- Systèmes parallèles ---
   const [parallelSystems, setParallelSystems] = useState<ParallelSystem[]>(() => {
     try {
@@ -1407,6 +1437,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('customRoles', JSON.stringify(customRoles));
   }, [customRoles]);
+
+  useEffect(() => {
+    localStorage.setItem('customTraits', JSON.stringify(customTraits));
+  }, [customTraits]);
+
+  useEffect(() => {
+    localStorage.setItem('customDisorders', JSON.stringify(customDisorders));
+  }, [customDisorders]);
 
   useEffect(() => {
     localStorage.setItem('parallelSystems', JSON.stringify(parallelSystems));
@@ -1829,6 +1867,9 @@ export default function App() {
         savedAlters,
         subsystems,
         parallelSystems,
+        customRoles,
+        customTraits,
+        customDisorders,
         chatMessages,
         conversations,
         directMessages,
@@ -1979,6 +2020,18 @@ export default function App() {
       setParallelSystems(importedParallelSystems);
       localStorage.setItem('parallelSystems', JSON.stringify(importedParallelSystems));
 
+      const importedCustomRoles = Array.isArray(data.customRoles) ? data.customRoles : [];
+      setCustomRoles(importedCustomRoles);
+      localStorage.setItem('customRoles', JSON.stringify(importedCustomRoles));
+
+      const importedCustomTraits = Array.isArray(data.customTraits) ? data.customTraits : [];
+      setCustomTraits(importedCustomTraits);
+      localStorage.setItem('customTraits', JSON.stringify(importedCustomTraits));
+
+      const importedCustomDisorders = Array.isArray(data.customDisorders) ? data.customDisorders : [];
+      setCustomDisorders(importedCustomDisorders);
+      localStorage.setItem('customDisorders', JSON.stringify(importedCustomDisorders));
+
       const importedConversations = Array.isArray(data.conversations) ? data.conversations : [];
       setConversations(importedConversations);
       localStorage.setItem('hs-conversations', JSON.stringify(importedConversations));
@@ -2107,6 +2160,37 @@ export default function App() {
       });
       setParallelSystems(currentParallelSystems);
       localStorage.setItem('parallelSystems', JSON.stringify(currentParallelSystems));
+
+      // 7b. Rôles / traits / troubles personnalisés : écrase les doublons par id ou nom, ajoute les nouveaux
+      const currentCustomRoles = [...customRoles];
+      const incomingCustomRoles = Array.isArray(data.customRoles) ? data.customRoles : [];
+      incomingCustomRoles.forEach((incoming: CustomRole) => {
+        const existingIndex = currentCustomRoles.findIndex(r => r.id === incoming.id || r.name.toLowerCase() === incoming.name?.toLowerCase());
+        if (existingIndex > -1) currentCustomRoles[existingIndex] = { ...currentCustomRoles[existingIndex], ...incoming };
+        else currentCustomRoles.push(incoming);
+      });
+      setCustomRoles(currentCustomRoles);
+      localStorage.setItem('customRoles', JSON.stringify(currentCustomRoles));
+
+      const currentCustomTraits = [...customTraits];
+      const incomingCustomTraits = Array.isArray(data.customTraits) ? data.customTraits : [];
+      incomingCustomTraits.forEach((incoming: CustomTrait) => {
+        const existingIndex = currentCustomTraits.findIndex(tr => tr.id === incoming.id || tr.name.toLowerCase() === incoming.name?.toLowerCase());
+        if (existingIndex > -1) currentCustomTraits[existingIndex] = { ...currentCustomTraits[existingIndex], ...incoming };
+        else currentCustomTraits.push(incoming);
+      });
+      setCustomTraits(currentCustomTraits);
+      localStorage.setItem('customTraits', JSON.stringify(currentCustomTraits));
+
+      const currentCustomDisorders = [...customDisorders];
+      const incomingCustomDisorders = Array.isArray(data.customDisorders) ? data.customDisorders : [];
+      incomingCustomDisorders.forEach((incoming: CustomDisorder) => {
+        const existingIndex = currentCustomDisorders.findIndex(d => d.id === incoming.id || d.name.toLowerCase() === incoming.name?.toLowerCase());
+        if (existingIndex > -1) currentCustomDisorders[existingIndex] = { ...currentCustomDisorders[existingIndex], ...incoming };
+        else currentCustomDisorders.push(incoming);
+      });
+      setCustomDisorders(currentCustomDisorders);
+      localStorage.setItem('customDisorders', JSON.stringify(currentCustomDisorders));
 
       // 8. Messagerie : fusion des conversations et des messages, uniques par id
       const currentConversations = [...conversations];
@@ -2474,11 +2558,15 @@ export default function App() {
     selectedRoles.forEach(role => {
       content += `- ${t.roleNames[role as keyof typeof t.roleNames]}: ${t.rolesData[role as keyof typeof t.rolesData]}\n`;
     });
+    selectedCustomRoleIds.forEach(roleId => {
+      const role = customRoles.find(r => r.id === roleId);
+      if (role) content += `- ${role.name}${role.definition ? `: ${role.definition}` : ''}\n`;
+    });
     
     content += `\nGender: ${selectedGenders.map(g => `${t.genders[g as keyof typeof t.genders]} (${t.genderData[g as keyof typeof t.genderData] || ''})`).join(', ')}\n`;
     content += `Sexuality: ${selectedSexualities.map(s => `${t.sexualityNames[s as keyof typeof t.sexualityNames]} (${t.sexualityData[s as keyof typeof t.sexualityData] || ''})`).join(', ')}\n`;
     
-    if (traitDecorations.length > 0) {
+    if (traitDecorations.length > 0 || selectedCustomTraitIds.length > 0 || selectedCustomDisorderIds.length > 0) {
       content += `\nTraits & Conditions:\n`;
       traitDecorations.forEach(td => {
         const isDisorder = Object.values(Disorder).includes(td.trait as Disorder);
@@ -2489,6 +2577,14 @@ export default function App() {
           ? t.disorderData[td.trait as keyof typeof t.disorderData] 
           : t.personalityTraitData[td.trait as keyof typeof t.personalityTraitData];
         content += `- ${name}: ${data}\n`;
+      });
+      selectedCustomTraitIds.forEach(traitId => {
+        const trait = customTraits.find(tr => tr.id === traitId);
+        if (trait) content += `- ${trait.name}${trait.definition ? `: ${trait.definition}` : ''}\n`;
+      });
+      selectedCustomDisorderIds.forEach(disorderId => {
+        const disorder = customDisorders.find(d => d.id === disorderId);
+        if (disorder) content += `- ${disorder.name}${disorder.definition ? `: ${disorder.definition}` : ''}\n`;
       });
     }
     
@@ -3516,6 +3612,8 @@ export default function App() {
       descriptionImages: descriptionImages.length > 0 ? descriptionImages : undefined,
       internalNotesImages: internalNotesImages.length > 0 ? internalNotesImages : undefined,
       customRoleIds: selectedCustomRoleIds.length > 0 ? selectedCustomRoleIds : undefined,
+      customTraitIds: selectedCustomTraitIds.length > 0 ? selectedCustomTraitIds : undefined,
+      customDisorderIds: selectedCustomDisorderIds.length > 0 ? selectedCustomDisorderIds : undefined,
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
     };
@@ -3560,6 +3658,8 @@ export default function App() {
     setDescriptionImages(alter.descriptionImages || []);
     setInternalNotesImages(alter.internalNotesImages || []);
     setSelectedCustomRoleIds(alter.customRoleIds || []);
+    setSelectedCustomTraitIds(alter.customTraitIds || []);
+    setSelectedCustomDisorderIds(alter.customDisorderIds || []);
     setFrontStatus(alter.frontStatus || 'none');
     setEditingAlterId(alter.id);
     setCreatorReturnTab(currentTab !== 'creator' ? currentTab : creatorReturnTab);
@@ -3605,6 +3705,8 @@ export default function App() {
     setDescriptionImages([]);
     setInternalNotesImages([]);
     setSelectedCustomRoleIds([]);
+    setSelectedCustomTraitIds([]);
+    setSelectedCustomDisorderIds([]);
     resetCustomRoleDraft();
     setFrontStatus('none');
     setEditingAlterId(null);
@@ -4540,6 +4642,114 @@ export default function App() {
       : a));
     if (editingCustomRoleId === roleId) resetCustomRoleDraft();
     setCustomRoleDeleteConfirmId(null);
+  };
+
+  // Attribue / retire un trait personnalisé sur l'alter en cours d'édition
+  const toggleCustomTraitSelection = (traitId: string) => {
+    setSelectedCustomTraitIds(prev =>
+      prev.includes(traitId) ? prev.filter(id => id !== traitId) : [...prev, traitId]
+    );
+    setTimeout(saveToHistory, 0);
+  };
+
+  const resetCustomTraitDraft = () => {
+    setEditingCustomTraitId(null);
+    setCustomTraitDraftName('');
+    setCustomTraitDraftDefinition('');
+    setCustomTraitDraftColor('#8B5CF6');
+  };
+
+  // Crée un nouveau trait personnalisé, ou enregistre les modifications si on est en mode édition
+  const saveCustomTraitDraft = () => {
+    const name = customTraitDraftName.trim();
+    if (!name) return;
+    if (editingCustomTraitId) {
+      setCustomTraits(prev => prev.map(tr => tr.id === editingCustomTraitId
+        ? { ...tr, name, definition: customTraitDraftDefinition.trim(), color: customTraitDraftColor }
+        : tr));
+    } else {
+      const newTrait: CustomTrait = {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        definition: customTraitDraftDefinition.trim(),
+        color: customTraitDraftColor,
+      };
+      setCustomTraits(prev => [...prev, newTrait]);
+      setSelectedCustomTraitIds(prev => [...prev, newTrait.id]);
+    }
+    resetCustomTraitDraft();
+  };
+
+  const startEditCustomTrait = (trait: CustomTrait) => {
+    setEditingCustomTraitId(trait.id);
+    setCustomTraitDraftName(trait.name);
+    setCustomTraitDraftDefinition(trait.definition);
+    setCustomTraitDraftColor(trait.color || '#8B5CF6');
+  };
+
+  // Supprime un trait personnalisé de la liste globale et le détache de tous les alters qui l'utilisaient
+  const deleteCustomTraitDefinition = (traitId: string) => {
+    setCustomTraits(prev => prev.filter(tr => tr.id !== traitId));
+    setSelectedCustomTraitIds(prev => prev.filter(id => id !== traitId));
+    setSavedAlters(prev => prev.map(a => a.customTraitIds?.includes(traitId)
+      ? { ...a, customTraitIds: a.customTraitIds.filter(id => id !== traitId) }
+      : a));
+    if (editingCustomTraitId === traitId) resetCustomTraitDraft();
+    setCustomTraitDeleteConfirmId(null);
+  };
+
+  // Attribue / retire un trouble personnalisé sur l'alter en cours d'édition
+  const toggleCustomDisorderSelection = (disorderId: string) => {
+    setSelectedCustomDisorderIds(prev =>
+      prev.includes(disorderId) ? prev.filter(id => id !== disorderId) : [...prev, disorderId]
+    );
+    setTimeout(saveToHistory, 0);
+  };
+
+  const resetCustomDisorderDraft = () => {
+    setEditingCustomDisorderId(null);
+    setCustomDisorderDraftName('');
+    setCustomDisorderDraftDefinition('');
+    setCustomDisorderDraftColor('#8B5CF6');
+  };
+
+  // Crée un nouveau trouble personnalisé, ou enregistre les modifications si on est en mode édition
+  const saveCustomDisorderDraft = () => {
+    const name = customDisorderDraftName.trim();
+    if (!name) return;
+    if (editingCustomDisorderId) {
+      setCustomDisorders(prev => prev.map(d => d.id === editingCustomDisorderId
+        ? { ...d, name, definition: customDisorderDraftDefinition.trim(), color: customDisorderDraftColor }
+        : d));
+    } else {
+      const newDisorder: CustomDisorder = {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        definition: customDisorderDraftDefinition.trim(),
+        color: customDisorderDraftColor,
+      };
+      setCustomDisorders(prev => [...prev, newDisorder]);
+      setSelectedCustomDisorderIds(prev => [...prev, newDisorder.id]);
+    }
+    resetCustomDisorderDraft();
+  };
+
+  const startEditCustomDisorder = (disorder: CustomDisorder) => {
+    setEditingCustomDisorderId(disorder.id);
+    setCustomDisorderDraftName(disorder.name);
+    setCustomDisorderDraftDefinition(disorder.definition);
+    setCustomDisorderDraftColor(disorder.color || '#8B5CF6');
+  };
+
+  // Supprime un trouble personnalisé de la liste globale et le détache de tous les alters qui l'utilisaient
+  const deleteCustomDisorderDefinition = (disorderId: string) => {
+    setCustomDisorders(prev => prev.filter(d => d.id !== disorderId));
+    setSelectedCustomDisorderIds(prev => prev.filter(id => id !== disorderId));
+    setSavedAlters(prev => prev.map(a => a.customDisorderIds?.includes(disorderId)
+      ? { ...a, customDisorderIds: a.customDisorderIds.filter(id => id !== disorderId) }
+      : a));
+    if (editingCustomDisorderId === disorderId) resetCustomDisorderDraft();
+    setCustomDisorderDeleteConfirmId(null);
   };
 
   const toggleTrait = (trait: Trait) => {
@@ -6557,6 +6767,7 @@ export default function App() {
                         <button
                           key={trait}
                           onClick={() => toggleTrait(trait)}
+                          title={t.personalityTraitData[trait as keyof typeof t.personalityTraitData] || undefined}
                           className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all flex items-center gap-2 ${
                             isSelected
                               ? 'bg-app-text text-app-bg border-transparent shadow-lg shadow-app-text/20'
@@ -6570,6 +6781,127 @@ export default function App() {
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Traits personnalisés */}
+                  <div className="pt-4 border-t border-app-border/25 space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                      {lang === 'fr' ? 'Traits personnalisés' : 'Custom traits'}
+                    </div>
+
+                    {customTraits.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {[...customTraits].sort((a, b) => a.name.localeCompare(b.name, lang)).map((trait) => {
+                          const isSelected = selectedCustomTraitIds.includes(trait.id);
+                          return (
+                            <div
+                              key={trait.id}
+                              className={`relative group flex items-center gap-2 pl-3 pr-1.5 py-2 rounded-xl border text-sm transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                              onClick={() => toggleCustomTraitSelection(trait.id)}
+                              title={trait.definition || undefined}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: trait.color || '#8B5CF6' }}
+                              />
+                              <span className="font-medium truncate">{trait.name}</span>
+                              <span className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); startEditCustomTrait(trait); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-app-accent/10 text-app-muted hover:text-app-text'}`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCustomTraitDeleteConfirmId(trait.id); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-red-500/10 text-app-muted hover:text-red-500'}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {customTraitDeleteConfirmId && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                        <span className="text-xs text-app-text">
+                          {lang === 'fr'
+                            ? `Supprimer « ${customTraits.find(tr => tr.id === customTraitDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
+                            : `Delete "${customTraits.find(tr => tr.id === customTraitDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomTraitDefinition(customTraitDeleteConfirmId)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomTraitDeleteConfirmId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 p-3 rounded-xl border border-dashed border-app-border">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={customTraitDraftColor}
+                          onChange={(e) => setCustomTraitDraftColor(e.target.value)}
+                          className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={customTraitDraftName}
+                          onChange={(e) => setCustomTraitDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom du trait...' : 'Trait name...'}
+                          className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
+                        />
+                      </div>
+                      <textarea
+                        value={customTraitDraftDefinition}
+                        onChange={(e) => setCustomTraitDraftDefinition(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Définition de ce trait...' : 'Definition of this trait...'}
+                        rows={2}
+                        className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={saveCustomTraitDraft}
+                          disabled={!customTraitDraftName.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                        >
+                          {editingCustomTraitId
+                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
+                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un trait' : 'Add a trait'}</>}
+                        </button>
+                        {editingCustomTraitId && (
+                          <button
+                            type="button"
+                            onClick={resetCustomTraitDraft}
+                            className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -6602,6 +6934,7 @@ export default function App() {
                         <button
                           key={trait}
                           onClick={() => toggleTrait(trait)}
+                          title={t.disorderData[trait as keyof typeof t.disorderData] || undefined}
                           className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all flex items-center gap-2 ${
                             isSelected
                               ? 'bg-app-text text-app-bg border-transparent shadow-lg shadow-app-text/20'
@@ -6615,6 +6948,127 @@ export default function App() {
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Troubles personnalisés */}
+                  <div className="pt-4 border-t border-app-border/25 space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                      {lang === 'fr' ? 'Troubles personnalisés' : 'Custom disorders'}
+                    </div>
+
+                    {customDisorders.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {[...customDisorders].sort((a, b) => a.name.localeCompare(b.name, lang)).map((disorder) => {
+                          const isSelected = selectedCustomDisorderIds.includes(disorder.id);
+                          return (
+                            <div
+                              key={disorder.id}
+                              className={`relative group flex items-center gap-2 pl-3 pr-1.5 py-2 rounded-xl border text-sm transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                              onClick={() => toggleCustomDisorderSelection(disorder.id)}
+                              title={disorder.definition || undefined}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: disorder.color || '#8B5CF6' }}
+                              />
+                              <span className="font-medium truncate">{disorder.name}</span>
+                              <span className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); startEditCustomDisorder(disorder); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-app-accent/10 text-app-muted hover:text-app-text'}`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCustomDisorderDeleteConfirmId(disorder.id); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-red-500/10 text-app-muted hover:text-red-500'}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {customDisorderDeleteConfirmId && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                        <span className="text-xs text-app-text">
+                          {lang === 'fr'
+                            ? `Supprimer « ${customDisorders.find(d => d.id === customDisorderDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
+                            : `Delete "${customDisorders.find(d => d.id === customDisorderDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomDisorderDefinition(customDisorderDeleteConfirmId)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomDisorderDeleteConfirmId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 p-3 rounded-xl border border-dashed border-app-border">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={customDisorderDraftColor}
+                          onChange={(e) => setCustomDisorderDraftColor(e.target.value)}
+                          className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={customDisorderDraftName}
+                          onChange={(e) => setCustomDisorderDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom du trouble...' : 'Disorder name...'}
+                          className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
+                        />
+                      </div>
+                      <textarea
+                        value={customDisorderDraftDefinition}
+                        onChange={(e) => setCustomDisorderDraftDefinition(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Définition de ce trouble...' : 'Definition of this disorder...'}
+                        rows={2}
+                        className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={saveCustomDisorderDraft}
+                          disabled={!customDisorderDraftName.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                        >
+                          {editingCustomDisorderId
+                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
+                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un trouble' : 'Add a disorder'}</>}
+                        </button>
+                        {editingCustomDisorderId && (
+                          <button
+                            type="button"
+                            onClick={resetCustomDisorderDraft}
+                            className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               )}
@@ -6891,14 +7345,14 @@ export default function App() {
                       )}
 
                       {/* Traits & Disorders Section */}
-                      {traitDecorations.length > 0 && (
+                      {(traitDecorations.length > 0 || selectedCustomTraitIds.length > 0 || selectedCustomDisorderIds.length > 0) && (
                         <div className="space-y-4">
                           <div className="text-[10px] font-bold uppercase tracking-widest text-app-text animate-pulse">
                             {lang === 'fr' ? 'Traits & Troubles' : 'Traits & Conditions'}
                           </div>
 
                           {/* Personality Traits Sub-section */}
-                          {traitDecorations.filter(td => !Object.values(Disorder).includes(td.trait as Disorder)).length > 0 && (
+                          {(traitDecorations.filter(td => !Object.values(Disorder).includes(td.trait as Disorder)).length > 0 || selectedCustomTraitIds.length > 0) && (
                             <div className="space-y-1.5">
                               <div className="text-[8px] font-black uppercase tracking-widest text-app-text/70 px-1 font-mono">
                                 {t.personalityTraitsTitle}
@@ -6911,6 +7365,7 @@ export default function App() {
                                     return (
                                       <div 
                                         key={td.trait} 
+                                        title={t.personalityTraitData[td.trait as keyof typeof t.personalityTraitData] || undefined}
                                         className="px-2.5 py-1.5 bg-app-card/75 backdrop-blur-sm rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-app-border/15 shadow-sm text-app-text/90 animate-fade-in duration-300 hover:border-app-accent/30 transition-colors"
                                       >
                                         <span className="text-app-accent bg-app-accent/10 p-1 rounded-full shrink-0">
@@ -6920,12 +7375,29 @@ export default function App() {
                                       </div>
                                     );
                                   })}
+                                {selectedCustomTraitIds.map(traitId => {
+                                  const trait = customTraits.find(tr => tr.id === traitId);
+                                  if (!trait) return null;
+                                  return (
+                                    <div
+                                      key={traitId}
+                                      title={trait.definition || undefined}
+                                      className="px-2.5 py-1.5 bg-app-card/75 backdrop-blur-sm rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-app-border/15 shadow-sm text-app-text/90 animate-fade-in duration-300 hover:border-app-accent/30 transition-colors"
+                                    >
+                                      <span
+                                        className="w-2 h-2 rounded-full shrink-0"
+                                        style={{ backgroundColor: trait.color || '#8B5CF6' }}
+                                      />
+                                      <span>{trait.name}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
 
                           {/* Disorders Sub-section */}
-                          {traitDecorations.filter(td => Object.values(Disorder).includes(td.trait as Disorder)).length > 0 && (
+                          {(traitDecorations.filter(td => Object.values(Disorder).includes(td.trait as Disorder)).length > 0 || selectedCustomDisorderIds.length > 0) && (
                             <div className="space-y-1.5">
                               <div className="text-[8px] font-black uppercase tracking-widest text-app-text/70 px-1 font-mono">
                                 {t.disordersTitle}
@@ -6938,6 +7410,7 @@ export default function App() {
                                     return (
                                       <div 
                                         key={td.trait} 
+                                        title={t.disorderData[td.trait as keyof typeof t.disorderData] || undefined}
                                         className="px-2.5 py-1.5 bg-app-card/75 backdrop-blur-sm rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-app-border/15 shadow-sm text-app-text/90 animate-fade-in duration-300 hover:border-app-accent/30 transition-colors"
                                       >
                                         <span className="text-app-accent bg-app-accent/10 p-1 rounded-full shrink-0">
@@ -6947,6 +7420,23 @@ export default function App() {
                                       </div>
                                     );
                                   })}
+                                {selectedCustomDisorderIds.map(disorderId => {
+                                  const disorder = customDisorders.find(d => d.id === disorderId);
+                                  if (!disorder) return null;
+                                  return (
+                                    <div
+                                      key={disorderId}
+                                      title={disorder.definition || undefined}
+                                      className="px-2.5 py-1.5 bg-app-card/75 backdrop-blur-sm rounded-full text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 border border-app-border/15 shadow-sm text-app-text/90 animate-fade-in duration-300 hover:border-app-accent/30 transition-colors"
+                                    >
+                                      <span
+                                        className="w-2 h-2 rounded-full shrink-0"
+                                        style={{ backgroundColor: disorder.color || '#8B5CF6' }}
+                                      />
+                                      <span>{disorder.name}</span>
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
@@ -7259,7 +7749,7 @@ export default function App() {
                         ))}
                       </div>
 
-                      {traitDecorations.length > 0 && (
+                      {(traitDecorations.length > 0 || selectedCustomTraitIds.length > 0 || selectedCustomDisorderIds.length > 0) && (
                         <div className="pt-4 border-t border-app-border">
                           <p className="text-xs font-bold uppercase tracking-widest text-app-muted mb-2">{t.traitsIncluded}</p>
                           <div className="flex flex-wrap gap-2">
@@ -7268,10 +7758,33 @@ export default function App() {
                               const name = isDisorder
                                 ? t.disorders[td.trait as keyof typeof t.disorders]
                                 : t.personalityTraits[td.trait as keyof typeof t.personalityTraits];
+                              const definition = isDisorder
+                                ? t.disorderData[td.trait as keyof typeof t.disorderData]
+                                : t.personalityTraitData[td.trait as keyof typeof t.personalityTraitData];
                               return (
-                                <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1">
+                                <span key={td.trait} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1" title={definition || undefined}>
                                   {getTraitIcon(td.trait)}
-                                  {name}
+                                  {name}{definition ? `: ${definition}` : ''}
+                                </span>
+                              );
+                            })}
+                            {selectedCustomTraitIds.map(traitId => {
+                              const trait = customTraits.find(tr => tr.id === traitId);
+                              if (!trait) return null;
+                              return (
+                                <span key={traitId} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1 animate-fade-in">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: trait.color || '#8B5CF6' }} />
+                                  {trait.name}{trait.definition ? `: ${trait.definition}` : ''}
+                                </span>
+                              );
+                            })}
+                            {selectedCustomDisorderIds.map(disorderId => {
+                              const disorder = customDisorders.find(d => d.id === disorderId);
+                              if (!disorder) return null;
+                              return (
+                                <span key={disorderId} className="px-3 py-1 bg-app-bg rounded-full text-xs font-medium flex items-center gap-1 animate-fade-in">
+                                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: disorder.color || '#8B5CF6' }} />
+                                  {disorder.name}{disorder.definition ? `: ${disorder.definition}` : ''}
                                 </span>
                               );
                             })}

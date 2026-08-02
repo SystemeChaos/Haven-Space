@@ -610,6 +610,20 @@ export interface CustomRole {
   color: string;
 }
 
+export interface CustomTrait {
+  id: string;
+  name: string;
+  definition: string;
+  color: string;
+}
+
+export interface CustomDisorder {
+  id: string;
+  name: string;
+  definition: string;
+  color: string;
+}
+
 export interface SavedAlter {
   id: string;
   alterName: string;
@@ -643,6 +657,8 @@ export interface SavedAlter {
   systemId?: string; // 'main' ou id d'un système parallèle
   tags?: string[]; // tags personnalisés libres, en plus des rôles fixes
   customRoleIds?: string[]; // ids des rôles personnalisés (CustomRole) attribués à cet alter
+  customTraitIds?: string[]; // ids des traits personnalisés (CustomTrait) attribués à cet alter
+  customDisorderIds?: string[]; // ids des troubles personnalisés (CustomDisorder) attribués à cet alter
   descriptionImages?: string[]; // photos jointes à la description (stockées à part, pas de base64 dans le texte)
   internalNotesImages?: string[]; // photos jointes aux notes internes
 }
