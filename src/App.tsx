@@ -1826,9 +1826,16 @@ export default function App() {
         mainSystemName: localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
         savedAlters,
         subsystems,
+        parallelSystems,
         chatMessages,
+        conversations,
+        directMessages,
         switchLogs,
         journalEntries,
+        planningEntries: loadPlanning(activeSystemId),
+        medications,
+        healthHistory,
+        emergencyInfo,
         mappingData: loadMapping()
       };
 
@@ -1878,8 +1885,12 @@ export default function App() {
         const chatsCount = Array.isArray(parsed.chatMessages) ? parsed.chatMessages.length : 0;
         const switchesCount = Array.isArray(parsed.switchLogs) ? parsed.switchLogs.length : 0;
         const journalsCount = Array.isArray(parsed.journalEntries) ? parsed.journalEntries.length : 0;
+        const parallelSystemsCount = Array.isArray(parsed.parallelSystems) ? parsed.parallelSystems.length : 0;
+        const directMessagesCount = Array.isArray(parsed.directMessages) ? parsed.directMessages.length : 0;
+        const healthCount = (Array.isArray(parsed.medications) ? parsed.medications.length : 0) + (Array.isArray(parsed.healthHistory) ? parsed.healthHistory.length : 0);
 
-        if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0) {
+        if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0
+          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0) {
           throw new Error(lang === 'fr' 
             ? "Le fichier ne contient aucune donnée compatible ou aucune donnée de système." 
             : "The file contains no compatible system data."
@@ -1960,6 +1971,31 @@ export default function App() {
       const importedJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
       setJournalEntries(importedJournals);
       localStorage.setItem('journalEntries', JSON.stringify(importedJournals));
+
+      const importedParallelSystems = Array.isArray(data.parallelSystems) ? data.parallelSystems : [];
+      setParallelSystems(importedParallelSystems);
+      localStorage.setItem('parallelSystems', JSON.stringify(importedParallelSystems));
+
+      const importedConversations = Array.isArray(data.conversations) ? data.conversations : [];
+      setConversations(importedConversations);
+      localStorage.setItem('hs-conversations', JSON.stringify(importedConversations));
+
+      const importedDirectMessages = Array.isArray(data.directMessages) ? data.directMessages : [];
+      setDirectMessages(importedDirectMessages);
+      localStorage.setItem('hs-direct-messages', JSON.stringify(importedDirectMessages));
+
+      const importedMedications = Array.isArray(data.medications) ? data.medications : [];
+      setMedications(importedMedications);
+      localStorage.setItem('hs-health-meds', JSON.stringify(importedMedications));
+
+      const importedHealthHistory = Array.isArray(data.healthHistory) ? data.healthHistory : [];
+      setHealthHistory(importedHealthHistory);
+      localStorage.setItem('hs-health-history', JSON.stringify(importedHealthHistory));
+
+      if (data.emergencyInfo && typeof data.emergencyInfo === 'object') {
+        setEmergencyInfo(data.emergencyInfo);
+        localStorage.setItem('hs-health-emergency', JSON.stringify(data.emergencyInfo));
+      }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
         saveMapping(data.mappingData);
@@ -2050,6 +2086,68 @@ export default function App() {
       currentJournals.sort((a, b) => b.timestamp - a.timestamp);
       setJournalEntries(currentJournals);
       localStorage.setItem('journalEntries', JSON.stringify(currentJournals));
+
+      // 7. Systèmes parallèles : écrase les doublons par id ou nom, ajoute les nouveaux
+      const currentParallelSystems = [...parallelSystems];
+      const incomingParallelSystems = Array.isArray(data.parallelSystems) ? data.parallelSystems : [];
+      incomingParallelSystems.forEach((incoming: ParallelSystem) => {
+        const existingIndex = currentParallelSystems.findIndex((s: any) => s.id === incoming.id || s.name?.toLowerCase() === (incoming as any).name?.toLowerCase());
+        if (existingIndex > -1) currentParallelSystems[existingIndex] = { ...currentParallelSystems[existingIndex], ...incoming };
+        else currentParallelSystems.push(incoming);
+      });
+      setParallelSystems(currentParallelSystems);
+      localStorage.setItem('parallelSystems', JSON.stringify(currentParallelSystems));
+
+      // 8. Messagerie : fusion des conversations et des messages, uniques par id
+      const currentConversations = [...conversations];
+      const incomingConversations = Array.isArray(data.conversations) ? data.conversations : [];
+      incomingConversations.forEach((incoming: DirectConversation) => {
+        if (!currentConversations.some((c: any) => c.id === (incoming as any).id)) currentConversations.push(incoming);
+      });
+      setConversations(currentConversations);
+      localStorage.setItem('hs-conversations', JSON.stringify(currentConversations));
+
+      const currentDirectMessages = [...directMessages];
+      const incomingDirectMessages = Array.isArray(data.directMessages) ? data.directMessages : [];
+      incomingDirectMessages.forEach((incoming: DirectMessage) => {
+        if (!currentDirectMessages.some((m: any) => m.id === (incoming as any).id)) currentDirectMessages.push(incoming);
+      });
+      currentDirectMessages.sort((a: any, b: any) => a.timestamp - b.timestamp);
+      setDirectMessages(currentDirectMessages);
+      localStorage.setItem('hs-direct-messages', JSON.stringify(currentDirectMessages));
+
+      // 9. Santé : médicaments et antécédents fusionnés par id, infos d'urgence complétées si vides
+      const currentMedications = [...medications];
+      const incomingMedications = Array.isArray(data.medications) ? data.medications : [];
+      incomingMedications.forEach((incoming: Medication) => {
+        const existingIndex = currentMedications.findIndex(m => m.id === incoming.id);
+        if (existingIndex > -1) currentMedications[existingIndex] = { ...currentMedications[existingIndex], ...incoming };
+        else currentMedications.push(incoming);
+      });
+      setMedications(currentMedications);
+      localStorage.setItem('hs-health-meds', JSON.stringify(currentMedications));
+
+      const currentHealthHistory = [...healthHistory];
+      const incomingHealthHistory = Array.isArray(data.healthHistory) ? data.healthHistory : [];
+      incomingHealthHistory.forEach((incoming: HealthHistoryEntry) => {
+        const existingIndex = currentHealthHistory.findIndex(h => h.id === incoming.id);
+        if (existingIndex > -1) currentHealthHistory[existingIndex] = { ...currentHealthHistory[existingIndex], ...incoming };
+        else currentHealthHistory.push(incoming);
+      });
+      setHealthHistory(currentHealthHistory);
+      localStorage.setItem('hs-health-history', JSON.stringify(currentHealthHistory));
+
+      if (data.emergencyInfo && typeof data.emergencyInfo === 'object') {
+        const mergedEmergency: EmergencyInfo = { ...emergencyInfo };
+        (Object.keys(data.emergencyInfo) as (keyof EmergencyInfo)[]).forEach(key => {
+          const currentVal = mergedEmergency[key];
+          if ((currentVal === '' || currentVal === undefined || currentVal === null) && data.emergencyInfo[key]) {
+            (mergedEmergency as any)[key] = data.emergencyInfo[key];
+          }
+        });
+        setEmergencyInfo(mergedEmergency);
+        localStorage.setItem('hs-health-emergency', JSON.stringify(mergedEmergency));
+      }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
         const current = loadMapping();
@@ -11743,8 +11841,8 @@ export default function App() {
                     </div>
                     <p className="text-xs text-app-muted leading-relaxed">
                       {lang === 'fr'
-                        ? 'Téléchargez une sauvegarde chiffrée en local de toutes vos fiches d\'alters, enregistrements de switchs, messages de chat et journal de bord.'
-                        : 'Download a total offline backup containing all your alter cards, switch registration logs, inner chat history, and journals info.'}
+                        ? 'Téléchargez une sauvegarde en local de toutes vos fiches d\'alters, systèmes parallèles, historique de front, chat interne, messagerie, journal de bord, planning et santé.'
+                        : 'Download a total offline backup containing your alter cards, parallel systems, front history, inner chat, messaging, journal, planning, and health data.'}
                     </p>
                     
                     {/* Quick Stats of local database */}
@@ -11752,9 +11850,13 @@ export default function App() {
                       <div><strong className="text-app-text">{lang === 'fr' ? 'Système actuel :' : 'Current System :'}</strong> {mainSystemName}</div>
                       <div><strong className="text-app-text">{savedAlters.length}</strong> {lang === 'fr' ? 'alters' : 'alters'}</div>
                       <div><strong className="text-app-text">{subsystems.length}</strong> {lang === 'fr' ? 'sous-systèmes' : 'subsystems'}</div>
-                      <div><strong className="text-app-text">{chatMessages.length}</strong> {lang === 'fr' ? 'messages de discussion' : 'chats'}</div>
-                      <div><strong className="text-app-text">{switchLogs.length}</strong> {lang === 'fr' ? 'entrées de switch' : 'switches'}</div>
+                      <div><strong className="text-app-text">{parallelSystems.length}</strong> {lang === 'fr' ? 'systèmes parallèles' : 'parallel systems'}</div>
+                      <div><strong className="text-app-text">{switchLogs.length}</strong> {lang === 'fr' ? 'entrées d\'historique de front' : 'front history entries'}</div>
+                      <div><strong className="text-app-text">{chatMessages.length}</strong> {lang === 'fr' ? 'messages de chat interne' : 'inner chat messages'}</div>
+                      <div><strong className="text-app-text">{directMessages.length}</strong> {lang === 'fr' ? 'messages de messagerie' : 'direct messages'}</div>
                       <div><strong className="text-app-text">{journalEntries.length}</strong> {lang === 'fr' ? 'notes de journal' : 'journals'}</div>
+                      <div><strong className="text-app-text">{loadPlanning(activeSystemId).length}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
+                      <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
                     </div>
                   </div>
 
