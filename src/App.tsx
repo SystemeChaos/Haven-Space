@@ -1,5 +1,7 @@
-import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
-import PlanningPage, { loadPlanning, REMINDED_STORAGE_KEY } from './PlanningPage';
+git add src/App.tsx
+git commit -m "Export/import JSON: Planning + Matrice d'Eisenhower restaurables"
+git pushimport MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
+import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -1833,6 +1835,7 @@ export default function App() {
         switchLogs,
         journalEntries,
         planningEntries: loadPlanning(activeSystemId),
+        eisenhowerTasks: loadEisenhower(activeSystemId),
         medications,
         healthHistory,
         emergencyInfo,
@@ -1997,6 +2000,13 @@ export default function App() {
         localStorage.setItem('hs-health-emergency', JSON.stringify(data.emergencyInfo));
       }
 
+      if (Array.isArray(data.planningEntries)) {
+        savePlanning(data.planningEntries, activeSystemId);
+      }
+      if (Array.isArray(data.eisenhowerTasks)) {
+        saveEisenhower(data.eisenhowerTasks, activeSystemId);
+      }
+
       if (data.mappingData && typeof data.mappingData === 'object') {
         saveMapping(data.mappingData);
       }
@@ -2147,6 +2157,28 @@ export default function App() {
         });
         setEmergencyInfo(mergedEmergency);
         localStorage.setItem('hs-health-emergency', JSON.stringify(mergedEmergency));
+      }
+
+      // 10. Planning : fusion des entrées uniques par id
+      const incomingPlanningEntries = Array.isArray(data.planningEntries) ? data.planningEntries : [];
+      if (incomingPlanningEntries.length > 0) {
+        const currentPlanningEntries = loadPlanning(activeSystemId);
+        const mergedPlanningEntries = [...currentPlanningEntries];
+        incomingPlanningEntries.forEach((incoming: PlanningEntry) => {
+          if (!mergedPlanningEntries.some(p => p.id === incoming.id)) mergedPlanningEntries.push(incoming);
+        });
+        savePlanning(mergedPlanningEntries, activeSystemId);
+      }
+
+      // 11. Matrice d'Eisenhower : fusion des tâches uniques par id
+      const incomingEisenhowerTasks = Array.isArray(data.eisenhowerTasks) ? data.eisenhowerTasks : [];
+      if (incomingEisenhowerTasks.length > 0) {
+        const currentEisenhowerTasks = loadEisenhower(activeSystemId);
+        const mergedEisenhowerTasks = [...currentEisenhowerTasks];
+        incomingEisenhowerTasks.forEach((incoming: EisenhowerTask) => {
+          if (!mergedEisenhowerTasks.some(t => t.id === incoming.id)) mergedEisenhowerTasks.push(incoming);
+        });
+        saveEisenhower(mergedEisenhowerTasks, activeSystemId);
       }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
@@ -11856,6 +11888,7 @@ export default function App() {
                       <div><strong className="text-app-text">{directMessages.length}</strong> {lang === 'fr' ? 'messages de messagerie' : 'direct messages'}</div>
                       <div><strong className="text-app-text">{journalEntries.length}</strong> {lang === 'fr' ? 'notes de journal' : 'journals'}</div>
                       <div><strong className="text-app-text">{loadPlanning(activeSystemId).length}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
+                      <div><strong className="text-app-text">{loadEisenhower(activeSystemId).length}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
                       <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
                     </div>
                   </div>
