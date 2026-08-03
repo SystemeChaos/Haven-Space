@@ -4,10 +4,10 @@ import {
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
   LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
-  HeartPulse,
+  HeartPulse, Languages,
 } from 'lucide-react';
 
-export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide';
+export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary';
 
 interface LegalPagesProps {
   initialPage?: LegalPage;
@@ -24,6 +24,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       about: 'À propos',
       contact: 'Contact',
       guide: 'Guide',
+      vocabulary: 'Vocabulaire',
       back: 'Retour',
       lastUpdate: 'Dernière mise à jour : juillet 2026',
       ownData: "Tes données t'appartiennent.",
@@ -155,12 +156,15 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g25Text: 'Un carnet de santé partagé par le système : traitements en cours, antécédents médicaux et informations d\'urgence, le tout accessible d\'un coup d\'œil depuis le tableau de bord.',
       g26Title: 'Verrouillage par code',
       g26Text: 'Protège l\'accès à l\'app avec un code de 4 à 6 chiffres, réactivable en cas d\'oubli via une question de secours que tu choisis toi-même. L\'app se reverrouille automatiquement dès qu\'elle repasse en arrière-plan. Attention : ce code empêche un coup d\'œil rapide sur ton téléphone, mais ce n\'est pas un chiffrement — les données restent techniquement lisibles sur l\'appareil pour quelqu\'un qui saurait les extraire. Pense donc à exporter régulièrement ton système (JSON) et à ne pas compter uniquement sur ce verrou face à quelqu\'un ayant un accès physique répété et des connaissances techniques.',
+      g27Title: 'Vocabulaire de la multiplicité',
+      g27Text: 'Un lexique dédié explique les termes utilisés autour de la multiplicité et du TDI (alter, front, switch, système, endogénique...), avec pour chacun son statut (clinique, communautaire ou débattu). Accessible directement depuis l\'onglet "Vocabulaire", à côté de ce Guide.',
     },
     en: {
       privacy: 'Privacy Policy',
       about: 'About Us',
       contact: 'Contact',
       guide: 'Guide',
+      vocabulary: 'Vocabulary',
       back: 'Back',
       lastUpdate: 'Last updated: July 2026',
       ownData: 'Your data belongs to you.',
@@ -292,6 +296,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g25Text: 'A health record shared by the system: current treatments, medical history and emergency information, all viewable at a glance from the dashboard.',
       g26Title: 'Code lock',
       g26Text: "Protect access to the app with a 4-to-6-digit code, recoverable if forgotten via a backup question you choose yourself. The app automatically re-locks as soon as it goes to the background. Note: this code prevents a quick glance at your phone, but it is not encryption — the data remains technically readable on the device by someone who knows how to extract it. Export your system regularly (JSON) and don't rely on this lock alone against someone with repeated physical access and technical knowledge.",
+      g27Title: 'Plurality vocabulary',
+      g27Text: 'A dedicated glossary explains terms used around plurality and DID (alter, front, switch, system, endogenic...), each tagged with its status (clinical, community, or debated). Accessible from the "Vocabulary" tab next to this Guide. Currently available in French only.',
     }
   };
 
@@ -299,6 +305,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
 
   const [copied, setCopied] = useState(false);
   const [guideSearch, setGuideSearch] = useState('');
+  const [vocabSearch, setVocabSearch] = useState('');
   const [openGuideIds, setOpenGuideIds] = useState<string[]>([]);
 
   const toggleGuideItem = (id: string) => {
@@ -327,7 +334,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           </button>
         )}
         <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          {(['guide', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
+          {(['guide', 'vocabulary', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -362,6 +369,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g22', icon: LayoutGrid, title: currentT.g22Title, text: currentT.g22Text },
           { id: 'g25', icon: HeartPulse, title: currentT.g25Title, text: currentT.g25Text },
           { id: 'g26', icon: Lock, title: currentT.g26Title, text: currentT.g26Text },
+          { id: 'g27', icon: Languages, title: currentT.g27Title, text: currentT.g27Text },
           { id: 'g24', icon: Wind, title: currentT.g24Title, text: currentT.g24Text },
           { id: 'g23', icon: Sparkles, title: currentT.g23Title, text: currentT.g23Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
@@ -432,6 +440,167 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 })}
               </div>
             )}
+          </div>
+        );
+      })()}
+
+      {currentPage === 'vocabulary' && (() => {
+        type TermStatus = 'clinique' | 'communautaire' | 'debattu';
+        interface VocabTerm { name: string; status: TermStatus; definition: string; }
+        interface VocabCategory { title: string; terms: VocabTerm[]; }
+
+        const categories: VocabCategory[] = [
+          {
+            title: 'Le socle',
+            terms: [
+              { name: 'Multiplicité / Pluralité', status: 'communautaire', definition: "Le fait, pour une personne, d'être composée de plusieurs identités distinctes partageant un même corps. Terme générique, non clinique, souvent préféré par la communauté pour parler de l'expérience au quotidien plutôt que de la nommer comme un trouble." },
+              { name: 'Système', status: 'communautaire', definition: "Désigne l'ensemble des alters d'une personne plurielle, vu comme un tout organisé plutôt qu'une simple addition d'éléments séparés." },
+              { name: 'Singulet', status: 'communautaire', definition: "Personne qui n'a qu'une seule identité, sans multiplicité. Terme utilisé par la communauté pour désigner, sans jugement, les personnes non-plurielles." },
+            ],
+          },
+          {
+            title: 'Membres du système',
+            terms: [
+              { name: 'Alter', status: 'clinique', definition: "Identité distincte au sein d'un système, avec ses propres traits, souvenirs et façon d'être. Reconnu par les classifications cliniques, mais aussi très largement utilisé en dehors de tout contexte médical." },
+              { name: 'Headmate', status: 'communautaire', definition: "Équivalent anglophone d'« alter », parfois préféré car perçu comme moins médicalisé." },
+              { name: 'Hôte', status: 'communautaire', definition: "Alter qui occupe le plus souvent le corps au quotidien. Un système peut avoir un hôte, plusieurs, ou aucun." },
+              { name: 'Protecteur', status: 'communautaire', definition: "Alter dont le rôle perçu est de défendre le système face à une menace, réelle ou passée." },
+              { name: 'Gatekeeper', status: 'communautaire', definition: "Alter dont le rôle perçu est de réguler qui fronte, ou l'accès à la mémoire et aux informations internes." },
+              { name: 'Introject / Factif', status: 'communautaire', definition: "Alter formé à partir de l'image d'une personne réelle ou d'un personnage fictif existant en dehors du système." },
+              { name: 'Littles / Petits', status: 'communautaire', definition: "Alters perçus comme ayant un âge mental jeune (enfant)." },
+              { name: 'Persécuteur', status: 'communautaire', definition: "Alter dont les actions ou intentions sont vécues comme hostiles par d'autres membres du système — souvent le résultat d'un rôle de protection mal compris ou d'un vécu traumatique complexe." },
+            ],
+          },
+          {
+            title: 'États & fonctionnement',
+            terms: [
+              { name: 'Front / Fronting', status: 'communautaire', definition: "Le fait, pour un alter, d'être aux commandes du corps à un instant donné." },
+              { name: 'Switch', status: 'communautaire', definition: "Changement de la personne aux commandes du corps : un alter en remplace un autre au front." },
+              { name: 'Co-conscience', status: 'communautaire', definition: "Situation où plusieurs alters ont conscience de ce qui se passe en même temps, qu'ils soient au front ou non." },
+              { name: 'Amnésie dissociative', status: 'clinique', definition: "Perte de mémoire, totale (« blackout ») ou partielle (« grey-out »), concernant une période où un autre alter était au front. C'est un critère reconnu du TDI." },
+              { name: 'Dissociation', status: 'clinique', definition: "Mécanisme psychique de déconnexion — de ses pensées, de son identité, de son environnement ou de ses souvenirs — souvent une réponse à un stress ou un trauma." },
+              { name: 'Dépersonnalisation / Déréalisation', status: 'clinique', definition: "Sentiment d'être détaché de soi-même (dépersonnalisation) ou de son environnement, qui semble alors irréel (déréalisation)." },
+            ],
+          },
+          {
+            title: 'Structure du système',
+            terms: [
+              { name: 'Sous-système', status: 'communautaire', definition: "Groupe d'alters organisés ensemble à l'intérieur du système principal, avec parfois leur propre dynamique interne." },
+              { name: 'Système parallèle', status: 'communautaire', definition: "Système distinct qui partage le même corps qu'un autre système, sans faire partie de la même structure interne." },
+              { name: 'Fusion / Intégration', status: 'debattu', definition: "Processus par lequel deux alters ou plus perdent leurs frontières distinctes pour devenir une seule identité. Parfois présenté comme un objectif thérapeutique, mais ni obligatoire ni souhaité par tous les systèmes — ce guide ne prend pas position là-dessus." },
+              { name: 'Polyfragmenté', status: 'communautaire', definition: "Se dit d'un système comportant un très grand nombre d'alters, parfois très spécialisés ou peu développés individuellement." },
+            ],
+          },
+          {
+            title: 'Diagnostic clinique',
+            terms: [
+              { name: 'TDI (Trouble Dissociatif de l\'Identité)', status: 'clinique', definition: "Diagnostic reconnu par le DSM-5-TR et la CIM-11, caractérisé par la présence de deux identités distinctes ou plus, accompagnée d'une amnésie dissociative significative." },
+              { name: 'TSDA / ATDS', status: 'clinique', definition: "Trouble Spécifié Autre — l'équivalent français de l'OSDD anglophone. Diagnostic proche du TDI mais qui n'en remplit pas tous les critères stricts (par exemple, une amnésie moins marquée)." },
+              { name: 'Trouble dissociatif', status: 'clinique', definition: "Catégorie clinique plus large regroupant plusieurs troubles liés à une perturbation de l'identité, de la mémoire, de la perception ou de la conscience." },
+            ],
+          },
+          {
+            title: 'Origines & débats',
+            terms: [
+              { name: 'Traumagénique', status: 'clinique', definition: "Se dit d'un système ou d'un alter dont l'origine est attribuée à un ou plusieurs traumatismes, généralement dans l'enfance. C'est l'origine reconnue par les classifications cliniques actuelles du TDI." },
+              { name: 'Endogénique', status: 'debattu', definition: "Désigne un système qui ne s'identifie pas comme découlant d'un trauma. Le débat existe des deux côtés : certain·es dans la communauté estiment que cela questionne la légitimité de la souffrance des systèmes traumagéniques ; d'autres soutiennent que la science n'a pas encore statué sur toutes les origines possibles de la multiplicité. Ce guide ne tranche pas ce débat." },
+              { name: 'Neurogénique', status: 'debattu', definition: "Terme parfois utilisé pour désigner une origine liée à une neuroatypie plutôt qu'à un trauma ou une origine spontanée." },
+            ],
+          },
+          {
+            title: 'Communauté & usages',
+            terms: [
+              { name: 'Median', status: 'communautaire', definition: "Personne qui se situe entre le vécu singulet et le vécu pluriel, sans se reconnaître pleinement dans l'un ou l'autre." },
+              { name: 'Système agnostique', status: 'debattu', definition: "Système qui choisit de ne pas se positionner sur sa propre origine (traumagénique, endogénique...), par choix ou par incertitude. L'usage même de ce terme est parfois discuté au sein de la communauté." },
+              { name: 'Quoigénique', status: 'communautaire', definition: "Désigne un système qui ne sait pas, ou ne veut pas, catégoriser l'origine de sa multiplicité." },
+            ],
+          },
+        ];
+
+        const statusLabel: Record<TermStatus, string> = {
+          clinique: 'Clinique',
+          communautaire: 'Communautaire',
+          debattu: 'Débattu',
+        };
+        const statusStyle: Record<TermStatus, string> = {
+          clinique: 'bg-blue-500/10 text-blue-500 border-blue-500/25',
+          communautaire: 'bg-app-accent/10 text-app-accent border-app-accent/25',
+          debattu: 'bg-amber-500/10 text-amber-600 border-amber-500/25',
+        };
+
+        const query = vocabSearch.trim().toLowerCase();
+        const filteredCategories = categories
+          .map(cat => ({
+            ...cat,
+            terms: query
+              ? cat.terms.filter(term => term.name.toLowerCase().includes(query) || term.definition.toLowerCase().includes(query))
+              : cat.terms,
+          }))
+          .filter(cat => cat.terms.length > 0);
+
+        return (
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <div className="text-[10px] uppercase font-black tracking-widest text-app-muted flex items-center gap-2">
+                <Languages size={14} className="text-app-accent" />
+                {currentT.vocabulary}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">Le vocabulaire de la multiplicité.</h1>
+              <p className="text-xs text-app-muted font-bold uppercase tracking-widest">Alter, front, switch, endogénique... un lexique étayé, sans jugement</p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {(Object.keys(statusLabel) as TermStatus[]).map(s => (
+                <span key={s} className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusStyle[s]}`}>
+                  {statusLabel[s]}
+                </span>
+              ))}
+            </div>
+
+            <p className="text-xs text-app-muted leading-relaxed bg-app-card border border-app-border/40 rounded-2xl p-4">
+              Ce lexique distingue les termes reconnus par les classifications cliniques (DSM-5-TR, CIM-11),
+              les termes d'usage communautaire sans statut clinique, et les termes ou sujets qui font débat au
+              sein de la communauté plurielle. Quand un débat existe, ce guide s'efforce de présenter les points
+              de vue sans trancher.
+            </p>
+
+            <div className="relative">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted" />
+              <input
+                type="text"
+                value={vocabSearch}
+                onChange={e => setVocabSearch(e.target.value)}
+                placeholder="Rechercher un terme..."
+                className="w-full bg-app-card border border-app-border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+              />
+            </div>
+
+            {filteredCategories.length === 0 && (
+              <p className="text-sm text-app-muted italic px-1">Aucun terme ne correspond à ta recherche.</p>
+            )}
+
+            <div className="space-y-10">
+              {filteredCategories.map(cat => (
+                <div key={cat.title} className="space-y-4">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-app-text/80 pb-2 border-b border-app-border/30">
+                    {cat.title}
+                  </h2>
+                  <div className="space-y-3">
+                    {cat.terms.map(term => (
+                      <div key={term.name} className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-black text-sm text-app-text">{term.name}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusStyle[term.status]}`}>
+                            {statusLabel[term.status]}
+                          </span>
+                        </div>
+                        <p className="text-xs text-app-muted leading-relaxed">{term.definition}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         );
       })()}

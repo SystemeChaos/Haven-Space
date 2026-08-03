@@ -12561,6 +12561,15 @@ export default function App() {
             </button>
             <button
               onClick={() => {
+                setActiveLegalPage('vocabulary');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
+            >
+              {lang === 'fr' ? 'Vocabulaire' : 'Vocabulary'}
+            </button>
+            <button
+              onClick={() => {
                 setActiveLegalPage('privacy');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
