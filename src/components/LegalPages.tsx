@@ -446,80 +446,97 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
 
       {currentPage === 'vocabulary' && (() => {
         type TermStatus = 'clinique' | 'communautaire' | 'debattu';
-        interface VocabTerm { name: string; status: TermStatus; definition: string; }
+        interface VocabTerm { name: string; status: TermStatus[]; definition: string; }
         interface VocabCategory { title: string; terms: VocabTerm[]; }
 
         const categories: VocabCategory[] = [
           {
             title: 'Le socle',
             terms: [
-              { name: 'Multiplicité / Pluralité', status: 'communautaire', definition: "Le fait, pour une personne, d'être composée de plusieurs identités distinctes partageant un même corps. Terme générique, non clinique, souvent préféré par la communauté pour parler de l'expérience au quotidien plutôt que de la nommer comme un trouble." },
-              { name: 'Système', status: 'communautaire', definition: "Désigne l'ensemble des alters d'une personne plurielle, vu comme un tout organisé plutôt qu'une simple addition d'éléments séparés." },
-              { name: 'Singulet', status: 'communautaire', definition: "Personne qui n'a qu'une seule identité, sans multiplicité. Terme utilisé par la communauté pour désigner, sans jugement, les personnes non-plurielles." },
+              { name: 'Multiplicité / Pluralité', status: ['communautaire'], definition: "Le fait, pour une personne, d'être composée de plusieurs identités distinctes partageant un même corps. Terme générique, non clinique, souvent préféré par la communauté pour parler de l'expérience au quotidien plutôt que de la nommer comme un trouble." },
+              { name: 'Système', status: ['communautaire'], definition: "Désigne l'ensemble des alters d'une personne plurielle, vu comme un tout organisé plutôt qu'une simple addition d'éléments séparés." },
+              { name: 'Singulet', status: ['communautaire'], definition: "Personne qui n'a qu'une seule identité, sans multiplicité. Terme utilisé par la communauté pour désigner, sans jugement, les personnes non-plurielles." },
             ],
           },
           {
-            title: 'Membres du système',
+            title: 'Membres du système & rôles',
             terms: [
-              { name: 'Alter', status: 'clinique', definition: "Identité distincte au sein d'un système, avec ses propres traits, souvenirs et façon d'être. Reconnu par les classifications cliniques, mais aussi très largement utilisé en dehors de tout contexte médical." },
-              { name: 'Headmate', status: 'communautaire', definition: "Équivalent anglophone d'« alter », parfois préféré car perçu comme moins médicalisé." },
-              { name: 'Hôte', status: 'communautaire', definition: "Alter qui occupe le plus souvent le corps au quotidien. Un système peut avoir un hôte, plusieurs, ou aucun." },
-              { name: 'Protecteur', status: 'communautaire', definition: "Alter dont le rôle perçu est de défendre le système face à une menace, réelle ou passée." },
-              { name: 'Gatekeeper', status: 'communautaire', definition: "Alter dont le rôle perçu est de réguler qui fronte, ou l'accès à la mémoire et aux informations internes." },
-              { name: 'Introject / Factif', status: 'communautaire', definition: "Alter formé à partir de l'image d'une personne réelle ou d'un personnage fictif existant en dehors du système." },
-              { name: 'Littles / Petits', status: 'communautaire', definition: "Alters perçus comme ayant un âge mental jeune (enfant)." },
-              { name: 'Persécuteur', status: 'communautaire', definition: "Alter dont les actions ou intentions sont vécues comme hostiles par d'autres membres du système — souvent le résultat d'un rôle de protection mal compris ou d'un vécu traumatique complexe." },
+              { name: 'Alter', status: ['clinique'], definition: "Identité distincte au sein d'un système, avec ses propres traits, souvenirs et façon d'être. Reconnu par les classifications cliniques, mais aussi très largement utilisé en dehors de tout contexte médical." },
+              { name: 'Headmate', status: ['communautaire'], definition: "Équivalent anglophone d'« alter », parfois préféré car perçu comme moins médicalisé." },
+              { name: 'Hôte', status: ['communautaire'], definition: "Alter qui occupe le plus souvent le corps au quotidien. Un système peut avoir un hôte, plusieurs, ou aucun." },
+              { name: 'Protecteur', status: ['communautaire'], definition: "Alter dont le rôle perçu est de défendre le système face à une menace, réelle ou passée." },
+              { name: 'Gatekeeper', status: ['communautaire'], definition: "Alter dont le rôle perçu est de réguler qui fronte, ou l'accès à la mémoire et aux informations internes." },
+              { name: 'Introject', status: ['communautaire'], definition: "Alter formé à partir de l'image d'une personne ou d'un personnage existant en dehors du système. Regroupe notamment les Factifs et les Fictifs (voir ces termes)." },
+              { name: 'Factif', status: ['communautaire'], definition: "Type d'introject fondé sur une personne réelle (proche, célébrité...). À associer ou différencier du Fictif." },
+              { name: 'Fictif (Fictive)', status: ['communautaire'], definition: "Type d'introject fondé sur un personnage de fiction (série, livre, jeu vidéo). À associer ou différencier du Factif." },
+              { name: 'Littles / Petits', status: ['communautaire'], definition: "Alters perçus comme ayant un âge mental jeune (enfant)." },
+              { name: 'Persécuteur', status: ['communautaire'], definition: "Alter dont les actions ou intentions sont vécues comme hostiles par d'autres membres du système — souvent le résultat d'un rôle de protection mal compris ou d'un vécu traumatique complexe." },
+              { name: 'Fragment', status: ['communautaire', 'clinique'], definition: "Alter très peu développé, créé pour une tâche précise ou portant une seule émotion ou un souvenir spécifique, sans personnalité complète." },
+              { name: 'Porteur de trauma (Trauma holder)', status: ['communautaire'], definition: "Alter dont le rôle principal est de contenir les souvenirs, émotions ou douleurs liés à un ou plusieurs traumatismes, pour préserver le reste du système." },
+              { name: 'Age slider', status: ['communautaire'], definition: "Alter dont l'âge perçu n'est pas fixe et varie au fil du temps ou selon les situations." },
+              { name: 'ISH (Internal Self Helper)', status: ['communautaire', 'clinique'], definition: "Alter possédant une grande compréhension du système, guidant l'organisation interne et le travail thérapeutique." },
+              { name: 'Non-humain / Creature', status: ['communautaire'], definition: "Alter perçu comme un animal, une créature mythologique, un robot ou une entité non humaine." },
             ],
           },
           {
             title: 'États & fonctionnement',
             terms: [
-              { name: 'Front / Fronting', status: 'communautaire', definition: "Le fait, pour un alter, d'être aux commandes du corps à un instant donné." },
-              { name: 'Switch', status: 'communautaire', definition: "Changement de la personne aux commandes du corps : un alter en remplace un autre au front." },
-              { name: 'Co-conscience', status: 'communautaire', definition: "Situation où plusieurs alters ont conscience de ce qui se passe en même temps, qu'ils soient au front ou non." },
-              { name: 'Amnésie dissociative', status: 'clinique', definition: "Perte de mémoire, totale (« blackout ») ou partielle (« grey-out »), concernant une période où un autre alter était au front. C'est un critère reconnu du TDI." },
-              { name: 'Dissociation', status: 'clinique', definition: "Mécanisme psychique de déconnexion — de ses pensées, de son identité, de son environnement ou de ses souvenirs — souvent une réponse à un stress ou un trauma." },
-              { name: 'Dépersonnalisation / Déréalisation', status: 'clinique', definition: "Sentiment d'être détaché de soi-même (dépersonnalisation) ou de son environnement, qui semble alors irréel (déréalisation)." },
+              { name: 'Front / Fronting', status: ['communautaire'], definition: "Le fait, pour un alter, d'être aux commandes du corps à un instant donné." },
+              { name: 'Switch', status: ['communautaire'], definition: "Changement de la personne aux commandes du corps : un alter en remplace un autre au front." },
+              { name: 'Co-conscience', status: ['communautaire'], definition: "Situation où plusieurs alters ont conscience de ce qui se passe en même temps, qu'ils soient au front ou non." },
+              { name: 'Amnésie dissociative', status: ['clinique'], definition: "Perte de mémoire, totale (« blackout ») ou partielle (« grey-out »), concernant une période où un autre alter était au front. C'est un critère reconnu du TDI." },
+              { name: 'Dissociation', status: ['clinique'], definition: "Mécanisme psychique de déconnexion — de ses pensées, de son identité, de son environnement ou de ses souvenirs — souvent une réponse à un stress ou un trauma." },
+              { name: 'Dépersonnalisation / Déréalisation', status: ['clinique'], definition: "Sentiment d'être détaché de soi-même (dépersonnalisation) ou de son environnement, qui semble alors irréel (déréalisation)." },
+              { name: 'Split / Scission', status: ['communautaire', 'clinique'], definition: "Séparation d'une identité ou apparition d'un nouvel alter, généralement en réponse à un stress intense, un traumatisme ou un besoin d'adaptation." },
+              { name: 'Monde intérieur / Headspace / Innerworld', status: ['communautaire'], definition: "Espace mental représenté où les alters peuvent interagir, se reposer ou communiquer lorsqu'ils ne sont pas au front." },
+              { name: 'Co-fronting', status: ['communautaire'], definition: "État où au moins deux alters partagent simultanément le contrôle du corps et des actions." },
+              { name: 'Influence passive', status: ['clinique'], definition: "Situation où la présence, les émotions ou les pensées d'un alter non-fronter influencent les actes ou le ressenti de celui qui est au front." },
+              { name: 'Blending / Flou identitaire', status: ['communautaire'], definition: "État temporaire où les limites entre deux ou plusieurs alters s'estompent, rendant difficile la distinction de « qui est qui »." },
+              { name: 'Frontstuck', status: ['communautaire'], definition: "Fait, pour un alter, d'être bloqué au front, incapable de passer le relais ou de retourner dans le monde intérieur." },
+              { name: 'Dormance', status: ['communautaire'], definition: "Période d'inactivité prolongée d'un alter, pendant laquelle il n'intervient plus au front ni dans la vie interne." },
+              { name: 'Trigger (Déclencheur)', status: ['communautaire', 'clinique'], definition: "Stimulus externe ou interne qui provoque une réaction (switch forcé, flashback, déstabilisation)." },
             ],
           },
           {
             title: 'Structure du système',
             terms: [
-              { name: 'Sous-système', status: 'communautaire', definition: "Groupe d'alters organisés ensemble à l'intérieur du système principal, avec parfois leur propre dynamique interne." },
-              { name: 'Système parallèle', status: 'communautaire', definition: "Système distinct qui partage le même corps qu'un autre système, sans faire partie de la même structure interne." },
-              { name: 'Fusion / Intégration', status: 'debattu', definition: "Processus par lequel deux alters ou plus perdent leurs frontières distinctes pour devenir une seule identité. Parfois présenté comme un objectif thérapeutique, mais ni obligatoire ni souhaité par tous les systèmes — ce guide ne prend pas position là-dessus." },
-              { name: 'Polyfragmenté', status: 'communautaire', definition: "Se dit d'un système comportant un très grand nombre d'alters, parfois très spécialisés ou peu développés individuellement." },
+              { name: 'Sous-système', status: ['communautaire'], definition: "Groupe d'alters organisés ensemble à l'intérieur du système principal, avec parfois leur propre dynamique interne." },
+              { name: 'Système parallèle', status: ['communautaire'], definition: "Système distinct qui partage le même corps qu'un autre système, sans faire partie de la même structure interne." },
+              { name: 'Fusion / Intégration', status: ['debattu'], definition: "Processus par lequel deux alters ou plus perdent leurs frontières distinctes pour devenir une seule identité. Parfois présenté comme un objectif thérapeutique, mais ni obligatoire ni souhaité par tous les systèmes — ce guide ne prend pas position là-dessus." },
+              { name: 'Multiplicité fonctionnelle', status: ['debattu', 'communautaire'], definition: "Alternative thérapeutique à la fusion totale, visant une collaboration fluide et pacifique entre les alters tout en conservant la pluralité." },
+              { name: 'Soustraction / Dé-fusion', status: ['communautaire'], definition: "Processus inverse de la fusion, où un alter ré-émerge ou se sépare à nouveau après avoir été fusionné." },
+              { name: 'Polyfragmenté', status: ['communautaire'], definition: "Se dit d'un système comportant un très grand nombre d'alters, parfois très spécialisés ou peu développés individuellement." },
             ],
           },
           {
             title: 'Diagnostic clinique',
             terms: [
-              { name: 'TDI (Trouble Dissociatif de l\'Identité)', status: 'clinique', definition: "Diagnostic reconnu par le DSM-5-TR et la CIM-11, caractérisé par la présence de deux identités distinctes ou plus, accompagnée d'une amnésie dissociative significative." },
-              { name: 'TSDA / ATDS', status: 'clinique', definition: "Trouble Spécifié Autre — l'équivalent français de l'OSDD anglophone. Diagnostic proche du TDI mais qui n'en remplit pas tous les critères stricts (par exemple, une amnésie moins marquée)." },
-              { name: 'Trouble dissociatif', status: 'clinique', definition: "Catégorie clinique plus large regroupant plusieurs troubles liés à une perturbation de l'identité, de la mémoire, de la perception ou de la conscience." },
+              { name: 'TDI (Trouble Dissociatif de l\'Identité)', status: ['clinique'], definition: "Diagnostic reconnu par le DSM-5-TR et la CIM-11, caractérisé par la présence de deux identités distinctes ou plus, accompagnée d'une amnésie dissociative significative." },
+              { name: 'TSDA / ATDS', status: ['clinique'], definition: "Trouble Spécifié Autre — l'équivalent français de l'OSDD anglophone. Diagnostic proche du TDI mais qui n'en remplit pas tous les critères stricts (par exemple, une amnésie moins marquée)." },
+              { name: 'Trouble dissociatif', status: ['clinique'], definition: "Catégorie clinique plus large regroupant plusieurs troubles liés à une perturbation de l'identité, de la mémoire, de la perception ou de la conscience." },
             ],
           },
           {
             title: 'Origines & débats',
             terms: [
-              { name: 'Traumagénique', status: 'clinique', definition: "Se dit d'un système ou d'un alter dont l'origine est attribuée à un ou plusieurs traumatismes, généralement dans l'enfance. C'est l'origine reconnue par les classifications cliniques actuelles du TDI." },
-              { name: 'Endogénique', status: 'debattu', definition: "Désigne un système qui ne s'identifie pas comme découlant d'un trauma. Le débat existe des deux côtés : certain·es dans la communauté estiment que cela questionne la légitimité de la souffrance des systèmes traumagéniques ; d'autres soutiennent que la science n'a pas encore statué sur toutes les origines possibles de la multiplicité. Ce guide ne tranche pas ce débat." },
-              { name: 'Neurogénique', status: 'debattu', definition: "Terme parfois utilisé pour désigner une origine liée à une neuroatypie plutôt qu'à un trauma ou une origine spontanée." },
+              { name: 'Traumagénique', status: ['clinique'], definition: "Se dit d'un système ou d'un alter dont l'origine est attribuée à un ou plusieurs traumatismes, généralement dans l'enfance. C'est l'origine reconnue par les classifications cliniques actuelles du TDI." },
+              { name: 'Endogénique', status: ['debattu'], definition: "Désigne un système qui ne s'identifie pas comme découlant d'un trauma. Le débat existe des deux côtés : certain·es dans la communauté estiment que cela questionne la légitimité de la souffrance des systèmes traumagéniques ; d'autres soutiennent que la science n'a pas encore statué sur toutes les origines possibles de la multiplicité. Ce guide ne tranche pas ce débat." },
+              { name: 'Neurogénique', status: ['debattu'], definition: "Terme parfois utilisé pour désigner une origine liée à une neuroatypie plutôt qu'à un trauma ou une origine spontanée." },
             ],
           },
           {
             title: 'Communauté & usages',
             terms: [
-              { name: 'Median', status: 'communautaire', definition: "Personne qui se situe entre le vécu singulet et le vécu pluriel, sans se reconnaître pleinement dans l'un ou l'autre." },
-              { name: 'Système agnostique', status: 'debattu', definition: "Système qui choisit de ne pas se positionner sur sa propre origine (traumagénique, endogénique...), par choix ou par incertitude. L'usage même de ce terme est parfois discuté au sein de la communauté." },
-              { name: 'Quoigénique', status: 'communautaire', definition: "Désigne un système qui ne sait pas, ou ne veut pas, catégoriser l'origine de sa multiplicité." },
+              { name: 'Median', status: ['communautaire'], definition: "Personne qui se situe entre le vécu singulet et le vécu pluriel, sans se reconnaître pleinement dans l'un ou l'autre." },
+              { name: 'Système agnostique', status: ['debattu'], definition: "Système qui choisit de ne pas se positionner sur sa propre origine (traumagénique, endogénique...), par choix ou par incertitude. L'usage même de ce terme est parfois discuté au sein de la communauté." },
+              { name: 'Quoigénique', status: ['communautaire'], definition: "Désigne un système qui ne sait pas, ou ne veut pas, catégoriser l'origine de sa multiplicité." },
             ],
           },
         ];
 
         const statusLabel: Record<TermStatus, string> = {
           clinique: 'Clinique',
-          communautaire: 'Communautaire',
+          communautaire: 'Communauté',
           debattu: 'Débattu',
         };
         const statusStyle: Record<TermStatus, string> = {
@@ -590,9 +607,11 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                       <div key={term.name} className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-black text-sm text-app-text">{term.name}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusStyle[term.status]}`}>
-                            {statusLabel[term.status]}
-                          </span>
+                          {term.status.map(s => (
+                            <span key={s} className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest border ${statusStyle[s]}`}>
+                              {statusLabel[s]}
+                            </span>
+                          ))}
                         </div>
                         <p className="text-xs text-app-muted leading-relaxed">{term.definition}</p>
                       </div>
