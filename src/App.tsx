@@ -2899,30 +2899,31 @@ export default function App() {
     return () => clearInterval(interval);
   }, [currentTab, activeRelaxTool]);
 
-  // Son de pop synthétisé (Web Audio) : la hauteur dépend de la taille de la bulle,
-  // + un grain de bruit filtré pour une texture "éclat d'eau" plutôt qu'un simple bip.
+  // Gamme de handpan à 9 notes (D Kurd — gamme mineure douce, très utilisée pour son côté onirique)
+  const HANDPAN_SCALE = [146.83, 220.00, 233.08, 261.63, 293.66, 329.63, 349.23, 392.00, 440.00]; // D3, A3, Bb3, C4, D4, E4, F4, G4, A4
+
+  // Son de pop synthétisé (Web Audio) façon handpan : fondamentale + octave + quinte composée,
+  // des harmoniques naturellement consonantes (comme un vrai handpan), attaque douce, longue résonance.
   const playBubblePop = (size: number) => {
     try {
       const ctx = getAudioCtx();
       const now = ctx.currentTime;
-      const baseFreq = 1100 - ((size - 16) / 104) * 780; // petite bulle = aigu doux, grosse bulle = grave doux
+      // Petite bulle = note aiguë de la gamme, grosse bulle = note grave
+      const idx = Math.max(0, Math.min(8, Math.round(8 - ((size - 16) / 104) * 8)));
+      const freq = HANDPAN_SCALE[idx];
 
-      // Carillon en verre : plusieurs partiels inharmoniques (ratios type cloche) en sinus,
-      // chacun avec sa propre durée de vie, pour un timbre cristallin plutôt qu'un "bip".
       const partials = [
-        { ratio: 1,  gain: 0.34, decay: 2.6 },
-        { ratio: 2,  gain: 0.14, decay: 2.1 },
-        { ratio: 3,  gain: 0.06, decay: 1.5 },
-        { ratio: 4,  gain: 0.03, decay: 1.0 },
+        { ratio: 1, gain: 0.34, decay: 2.6 },  // fondamentale — corps chaud de la note
+        { ratio: 2, gain: 0.15, decay: 1.9 },  // octave composée — le "shimmer" caractéristique du handpan
+        { ratio: 3, gain: 0.05, decay: 1.1 },  // quinte composée — légèreté aérienne, sans dureté
       ];
       partials.forEach(p => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
-        const freq = baseFreq * p.ratio;
-        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.setValueAtTime(freq * p.ratio, now);
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(p.gain, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(p.gain, now + 0.015);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -2930,8 +2931,8 @@ export default function App() {
         osc.stop(now + p.decay + 0.05);
       });
 
-      // Étincelle de bruit très douce (juste un souffle, pas un "tink")
-      const bufferSize = Math.floor(ctx.sampleRate * 0.02);
+      // Petit "tak" très doux du bout du doigt sur la peau, filtré grave pour rester feutré
+      const bufferSize = Math.floor(ctx.sampleRate * 0.015);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
@@ -2939,10 +2940,10 @@ export default function App() {
       noise.buffer = buffer;
       const noiseFilter = ctx.createBiquadFilter();
       noiseFilter.type = 'lowpass';
-      noiseFilter.frequency.value = baseFreq * 1.6;
+      noiseFilter.frequency.value = freq * 2.5;
       const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.025, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
+      noiseGain.gain.setValueAtTime(0.03, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(ctx.destination);
