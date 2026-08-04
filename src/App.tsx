@@ -2905,28 +2905,24 @@ export default function App() {
     try {
       const ctx = getAudioCtx();
       const now = ctx.currentTime;
-      const baseFreq = 1500 - ((size - 16) / 104) * 1150; // petite bulle = aigu cristallin, grosse bulle = grave
+      const baseFreq = 1100 - ((size - 16) / 104) * 780; // petite bulle = aigu doux, grosse bulle = grave doux
 
       // Carillon en verre : plusieurs partiels inharmoniques (ratios type cloche) en sinus,
       // chacun avec sa propre durée de vie, pour un timbre cristallin plutôt qu'un "bip".
       const partials = [
-        { ratio: 1,    gain: 0.38, decay: 2.6 },
-        { ratio: 2.0,  gain: 0.22, decay: 2.2 },
-        { ratio: 2.76, gain: 0.19, decay: 1.9 },
-        { ratio: 4.1,  gain: 0.13, decay: 1.5 },
-        { ratio: 5.4,  gain: 0.09, decay: 1.15 },
-        { ratio: 6.3,  gain: 0.06, decay: 0.85 },
-        { ratio: 8.2,  gain: 0.035, decay: 0.55 },
+        { ratio: 1,  gain: 0.34, decay: 2.6 },
+        { ratio: 2,  gain: 0.14, decay: 2.1 },
+        { ratio: 3,  gain: 0.06, decay: 1.5 },
+        { ratio: 4,  gain: 0.03, decay: 1.0 },
       ];
       partials.forEach(p => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
         const freq = baseFreq * p.ratio;
-        osc.frequency.setValueAtTime(freq * 1.015, now);
-        osc.frequency.exponentialRampToValueAtTime(freq, now + 0.03);
+        osc.frequency.setValueAtTime(freq, now);
         const gain = ctx.createGain();
         gain.gain.setValueAtTime(0.0001, now);
-        gain.gain.exponentialRampToValueAtTime(p.gain, now + 0.004);
+        gain.gain.exponentialRampToValueAtTime(p.gain, now + 0.02);
         gain.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
         osc.connect(gain);
         gain.connect(ctx.destination);
@@ -2934,19 +2930,19 @@ export default function App() {
         osc.stop(now + p.decay + 0.05);
       });
 
-      // Étincelle de bruit haute-fréquence (le "tink" du verre à l'impact, très bref)
-      const bufferSize = Math.floor(ctx.sampleRate * 0.025);
+      // Étincelle de bruit très douce (juste un souffle, pas un "tink")
+      const bufferSize = Math.floor(ctx.sampleRate * 0.02);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
       const noise = ctx.createBufferSource();
       noise.buffer = buffer;
       const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'highpass';
-      noiseFilter.frequency.value = baseFreq * 2.2;
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.value = baseFreq * 1.6;
       const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.09, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
+      noiseGain.gain.setValueAtTime(0.025, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(ctx.destination);
