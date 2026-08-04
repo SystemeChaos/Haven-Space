@@ -2884,12 +2884,12 @@ export default function App() {
   useEffect(() => {
     if (currentTab !== 'relax' || activeRelaxTool !== 'ephemeral') { setEphemeralBubbles([]); return; }
     const spawnBubble = () => {
-      const size = 22 + Math.random() * 60; // 22 à 82px
+      const size = 16 + Math.random() * 104; // 16 à 120px
       setEphemeralBubbles(prev => [...prev, {
         id: ephemeralBubbleIdRef.current++,
         x: 6 + Math.random() * 88,
         size,
-        duration: 8.5 - (size / 82) * 3.5 + Math.random() * 2.5, // les grosses bulles montent un peu plus lentement
+        duration: 9.5 - (size / 120) * 4 + Math.random() * 2.5, // les grosses bulles montent un peu plus lentement
         hue: Math.floor(Math.random() * 360),
         drift: Math.random() * 34 - 17,
       }]);
@@ -2905,33 +2905,45 @@ export default function App() {
     try {
       const ctx = getAudioCtx();
       const now = ctx.currentTime;
-      const baseFreq = 950 - ((size - 22) / 60) * 680; // petite bulle = aigu, grosse bulle = grave
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(baseFreq * 2.4, now);
-      osc.frequency.exponentialRampToValueAtTime(Math.max(60, baseFreq * 0.6), now + 0.09);
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.0001, now);
-      gain.gain.exponentialRampToValueAtTime(0.32, now + 0.006);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.18);
-      // Grain de bruit filtré (texture de la membrane qui éclate)
-      const bufferSize = Math.floor(ctx.sampleRate * 0.05);
+      const baseFreq = 1500 - ((size - 16) / 104) * 1150; // petite bulle = aigu cristallin, grosse bulle = grave
+
+      // Carillon en verre : plusieurs partiels inharmoniques (ratios type cloche) en sinus,
+      // chacun avec sa propre durée de vie, pour un timbre cristallin plutôt qu'un "bip".
+      const partials = [
+        { ratio: 1,    gain: 0.28, decay: 0.55 },
+        { ratio: 2.76, gain: 0.16, decay: 0.4 },
+        { ratio: 4.1,  gain: 0.1,  decay: 0.3 },
+        { ratio: 6.3,  gain: 0.06, decay: 0.22 },
+      ];
+      partials.forEach(p => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        const freq = baseFreq * p.ratio;
+        osc.frequency.setValueAtTime(freq * 1.015, now);
+        osc.frequency.exponentialRampToValueAtTime(freq, now + 0.03);
+        const gain = ctx.createGain();
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.exponentialRampToValueAtTime(p.gain, now + 0.004);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now);
+        osc.stop(now + p.decay + 0.05);
+      });
+
+      // Étincelle de bruit haute-fréquence (le "tink" du verre à l'impact, très bref)
+      const bufferSize = Math.floor(ctx.sampleRate * 0.025);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
       for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
       const noise = ctx.createBufferSource();
       noise.buffer = buffer;
       const noiseFilter = ctx.createBiquadFilter();
-      noiseFilter.type = 'bandpass';
-      noiseFilter.frequency.value = baseFreq * 1.4;
-      noiseFilter.Q.value = 1.1;
+      noiseFilter.type = 'highpass';
+      noiseFilter.frequency.value = baseFreq * 2.2;
       const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.14, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      noiseGain.gain.setValueAtTime(0.06, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
       noiseGain.connect(ctx.destination);
