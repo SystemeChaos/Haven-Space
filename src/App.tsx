@@ -2910,10 +2910,13 @@ export default function App() {
       // Carillon en verre : plusieurs partiels inharmoniques (ratios type cloche) en sinus,
       // chacun avec sa propre durée de vie, pour un timbre cristallin plutôt qu'un "bip".
       const partials = [
-        { ratio: 1,    gain: 0.28, decay: 0.55 },
-        { ratio: 2.76, gain: 0.16, decay: 0.4 },
-        { ratio: 4.1,  gain: 0.1,  decay: 0.3 },
-        { ratio: 6.3,  gain: 0.06, decay: 0.22 },
+        { ratio: 1,    gain: 0.38, decay: 2.6 },
+        { ratio: 2.0,  gain: 0.22, decay: 2.2 },
+        { ratio: 2.76, gain: 0.19, decay: 1.9 },
+        { ratio: 4.1,  gain: 0.13, decay: 1.5 },
+        { ratio: 5.4,  gain: 0.09, decay: 1.15 },
+        { ratio: 6.3,  gain: 0.06, decay: 0.85 },
+        { ratio: 8.2,  gain: 0.035, decay: 0.55 },
       ];
       partials.forEach(p => {
         const osc = ctx.createOscillator();
@@ -2942,7 +2945,7 @@ export default function App() {
       noiseFilter.type = 'highpass';
       noiseFilter.frequency.value = baseFreq * 2.2;
       const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.06, now);
+      noiseGain.gain.setValueAtTime(0.09, now);
       noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
       noise.connect(noiseFilter);
       noiseFilter.connect(noiseGain);
