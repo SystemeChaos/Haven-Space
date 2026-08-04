@@ -2870,72 +2870,87 @@ export default function App() {
     });
   };
 
-  // --- Éphémère : trait lumineux dont chaque point a sa propre durée de vie ---
-  type EphPoint = { x: number; y: number; t: number } | null; // null = coupure entre deux tracés
-  const ephemeralCanvasRef = useRef<HTMLCanvasElement>(null);
-  const ephemeralPointsRef = useRef<EphPoint[]>([]);
-  const ephemeralDrawingRef = useRef(false);
-  const ephemeralLastPointRef = useRef<{ x: number; y: number } | null>(null);
-  const EPHEMERAL_LIFESPAN = 2600; // ms avant qu'un point ait totalement disparu
+  // --- Éphémère : bulles qui montent à l'écran et qu'on éclate, chacune avec son propre pop ---
+  type EphBubble = { id: number; x: number; size: number; duration: number; hue: number; drift: number };
+  type EphPop = { id: number; x: number; y: number; size: number; hue: number };
+  const EPHEMERAL_CONTAINER_HEIGHT = 384; // doit correspondre à la classe h-96 du conteneur
+  const [ephemeralBubbles, setEphemeralBubbles] = useState<EphBubble[]>([]);
+  const [ephemeralPops, setEphemeralPops] = useState<EphPop[]>([]);
+  const ephemeralBubbleIdRef = useRef(0);
+  const ephemeralPopIdRef = useRef(0);
+  const ephemeralContainerRef = useRef<HTMLDivElement>(null);
 
-  const addEphemeralPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const canvas = ephemeralCanvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    const y = (e.clientY - rect.top) * (canvas.height / rect.height);
-    const now = performance.now();
-    const last = ephemeralLastPointRef.current;
-    if (last) {
-      const dist = Math.hypot(x - last.x, y - last.y);
-      const steps = Math.max(1, Math.ceil(dist / 4));
-      for (let i = 1; i <= steps; i++) {
-        const t = i / steps;
-        ephemeralPointsRef.current.push({ x: last.x + (x - last.x) * t, y: last.y + (y - last.y) * t, t: now });
-      }
-    } else {
-      ephemeralPointsRef.current.push({ x, y, t: now });
-    }
-    ephemeralLastPointRef.current = { x, y };
+  // Fait apparaître une nouvelle bulle régulièrement tant que l'outil est ouvert
+  useEffect(() => {
+    if (currentTab !== 'relax' || activeRelaxTool !== 'ephemeral') { setEphemeralBubbles([]); return; }
+    const spawnBubble = () => {
+      const size = 22 + Math.random() * 60; // 22 à 82px
+      setEphemeralBubbles(prev => [...prev, {
+        id: ephemeralBubbleIdRef.current++,
+        x: 6 + Math.random() * 88,
+        size,
+        duration: 8.5 - (size / 82) * 3.5 + Math.random() * 2.5, // les grosses bulles montent un peu plus lentement
+        hue: Math.floor(Math.random() * 360),
+        drift: Math.random() * 34 - 17,
+      }]);
+    };
+    spawnBubble();
+    const interval = setInterval(spawnBubble, 750);
+    return () => clearInterval(interval);
+  }, [currentTab, activeRelaxTool]);
+
+  // Son de pop synthétisé (Web Audio) : la hauteur dépend de la taille de la bulle,
+  // + un grain de bruit filtré pour une texture "éclat d'eau" plutôt qu'un simple bip.
+  const playBubblePop = (size: number) => {
+    try {
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+      const baseFreq = 950 - ((size - 22) / 60) * 680; // petite bulle = aigu, grosse bulle = grave
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(baseFreq * 2.4, now);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(60, baseFreq * 0.6), now + 0.09);
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.exponentialRampToValueAtTime(0.32, now + 0.006);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.16);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
+      // Grain de bruit filtré (texture de la membrane qui éclate)
+      const bufferSize = Math.floor(ctx.sampleRate * 0.05);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'bandpass';
+      noiseFilter.frequency.value = baseFreq * 1.4;
+      noiseFilter.Q.value = 1.1;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.14, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start(now);
+    } catch {}
   };
 
-  // Boucle d'animation : efface et redessine chaque point selon son âge, pour un fondu continu
-  // même pendant qu'on trace (effet "comète"), plutôt qu'un fondu global du canevas.
-  useEffect(() => {
-    if (currentTab !== 'relax' || activeRelaxTool !== 'ephemeral') return;
-    const canvas = ephemeralCanvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
-    let rafId: number;
-    const glowColor = getComputedStyle(document.documentElement).getPropertyValue('--color-app-accent').trim() || '#8B5CF6';
-    const tick = () => {
-      const now = performance.now();
-      ephemeralPointsRef.current = ephemeralPointsRef.current.filter(p => p === null || now - p.t < EPHEMERAL_LIFESPAN);
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
-      ctx.shadowColor = glowColor;
-      ctx.shadowBlur = 12;
-      ctx.strokeStyle = glowColor;
-      ctx.lineWidth = 3;
-      const pts = ephemeralPointsRef.current;
-      for (let i = 1; i < pts.length; i++) {
-        const prev = pts[i - 1];
-        const cur = pts[i];
-        if (!prev || !cur) continue;
-        const age = now - cur.t;
-        ctx.globalAlpha = Math.max(0, 1 - age / EPHEMERAL_LIFESPAN);
-        ctx.beginPath();
-        ctx.moveTo(prev.x, prev.y);
-        ctx.lineTo(cur.x, cur.y);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-      rafId = requestAnimationFrame(tick);
-    };
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, [currentTab, activeRelaxTool]);
+  const popEphemeralBubble = (bubble: EphBubble, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const rect = ephemeralContainerRef.current?.getBoundingClientRect();
+    const relX = rect ? e.clientX - rect.left : bubble.x;
+    const relY = rect ? e.clientY - rect.top : EPHEMERAL_CONTAINER_HEIGHT / 2;
+    setEphemeralBubbles(prev => prev.filter(b => b.id !== bubble.id));
+    playBubblePop(bubble.size);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
+    const popId = ephemeralPopIdRef.current++;
+    setEphemeralPops(prev => [...prev, { id: popId, x: relX, y: relY, size: bubble.size, hue: bubble.hue }]);
+    setTimeout(() => setEphemeralPops(prev => prev.filter(p => p.id !== popId)), 320);
+  };
 
   // --- Boîte à Souvenirs (partagée entre tous les alters du système) ---
   interface MemoryItem { id: string; text: string; elementType: 'bougie' | 'lanterne' | 'message' | 'papillon' | 'coffre'; authorAlterId?: string; timestamp: number; }
@@ -5421,6 +5436,19 @@ export default function App() {
         background-color: var(--color-app-accent);
         border-radius: 99px;
         opacity: 0.5;
+      }
+      @keyframes ephemeralBubbleRise {
+        0% { transform: translate(0, 0); opacity: 0; }
+        8% { opacity: 1; }
+        30% { transform: translate(var(--drift, 0px), calc(-0.3 * var(--rise-distance, 400px))); }
+        60% { transform: translate(calc(-1 * var(--drift, 0px)), calc(-0.62 * var(--rise-distance, 400px))); }
+        90% { opacity: 1; }
+        100% { transform: translate(0, calc(-1 * var(--rise-distance, 400px))); opacity: 0; }
+      }
+      .ephemeral-bubble-rise {
+        animation-name: ephemeralBubbleRise;
+        animation-timing-function: linear;
+        animation-fill-mode: forwards;
       }
     `}</style>
     <div className={`min-h-screen bg-app-bg text-app-text ${font} selection:bg-app-accent selection:text-app-bg transition-colors duration-300`}>
@@ -11801,24 +11829,52 @@ export default function App() {
                       <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
                         {lang === 'fr' ? 'Éphémère' : 'Ephemeral'}
                       </h3>
-                      <canvas
-                        ref={ephemeralCanvasRef}
-                        width={320}
-                        height={320}
-                        className="w-full max-w-sm aspect-square rounded-2xl border border-app-border/40 bg-app-bg touch-none cursor-crosshair"
-                        onPointerDown={e => { ephemeralDrawingRef.current = true; ephemeralLastPointRef.current = null; addEphemeralPoint(e); }}
-                        onPointerMove={e => { if (ephemeralDrawingRef.current) addEphemeralPoint(e); }}
-                        onPointerUp={() => { ephemeralDrawingRef.current = false; ephemeralLastPointRef.current = null; ephemeralPointsRef.current.push(null); }}
-                        onPointerLeave={() => { ephemeralDrawingRef.current = false; ephemeralLastPointRef.current = null; ephemeralPointsRef.current.push(null); }}
-                      />
-                      <button
-                        onClick={() => { ephemeralPointsRef.current = []; }}
-                        className="w-full max-w-sm py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
+                      <div
+                        ref={ephemeralContainerRef}
+                        className="relative w-full max-w-sm h-96 overflow-hidden rounded-2xl border border-app-border/40 bg-app-bg touch-none"
                       >
-                        {lang === 'fr' ? 'Effacer maintenant' : 'Clear now'}
-                      </button>
+                        {ephemeralBubbles.map(bubble => (
+                          <button
+                            key={bubble.id}
+                            onClick={e => popEphemeralBubble(bubble, e)}
+                            onAnimationEnd={() => setEphemeralBubbles(prev => prev.filter(b => b.id !== bubble.id))}
+                            aria-label={lang === 'fr' ? 'Éclater la bulle' : 'Pop the bubble'}
+                            className="absolute rounded-full ephemeral-bubble-rise cursor-pointer"
+                            style={{
+                              left: `${bubble.x}%`,
+                              bottom: -bubble.size,
+                              width: bubble.size,
+                              height: bubble.size,
+                              animationDuration: `${bubble.duration}s`,
+                              ['--rise-distance' as any]: `${EPHEMERAL_CONTAINER_HEIGHT + bubble.size + 40}px`,
+                              ['--drift' as any]: `${bubble.drift}px`,
+                              background: `radial-gradient(circle at 30% 28%, rgba(255,255,255,0.85), hsla(${bubble.hue}, 80%, 75%, 0.15) 45%, hsla(${bubble.hue + 40}, 80%, 65%, 0.25) 100%)`,
+                              border: `1px solid hsla(${bubble.hue}, 70%, 80%, 0.6)`,
+                              boxShadow: `0 0 8px hsla(${bubble.hue}, 70%, 70%, 0.35)`,
+                            }}
+                          />
+                        ))}
+                        {ephemeralPops.map(pop => (
+                          <span
+                            key={pop.id}
+                            className="absolute rounded-full animate-ping pointer-events-none"
+                            style={{
+                              left: pop.x - pop.size / 2,
+                              top: pop.y - pop.size / 2,
+                              width: pop.size,
+                              height: pop.size,
+                              backgroundColor: `hsla(${pop.hue}, 80%, 75%, 0.4)`,
+                            }}
+                          />
+                        ))}
+                        {ephemeralBubbles.length === 0 && ephemeralPops.length === 0 && (
+                          <p className="absolute inset-0 flex items-center justify-center text-[10px] text-app-muted italic px-8 text-center">
+                            {lang === 'fr' ? 'Les bulles arrivent...' : 'Bubbles incoming...'}
+                          </p>
+                        )}
+                      </div>
                       <p className="text-[10px] text-app-muted text-center italic max-w-xs">
-                        {lang === 'fr' ? 'Trace du bout du doigt — le trait brille puis s\'évanouit tout seul.' : 'Trace with your finger — the line glows then fades on its own.'}
+                        {lang === 'fr' ? 'Touche une bulle pour la faire éclater avant qu\'elle n\'atteigne le haut — chaque taille a son propre son.' : 'Tap a bubble to pop it before it reaches the top — each size has its own sound.'}
                       </p>
                     </div>
                   ) : activeRelaxTool === 'eco-system' ? (() => {
