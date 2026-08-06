@@ -184,9 +184,10 @@ interface PlanningPageProps {
   savedAlters: SavedAlter[];
   lang: 'fr' | 'en';
   activeSystemId?: string;
+  onRequestNotifPermission?: () => Promise<boolean>;
 }
 
-export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main' }: PlanningPageProps) {
+export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main', onRequestNotifPermission }: PlanningPageProps) {
   const [entries, setEntries] = useState<PlanningEntry[]>(() => loadPlanning(activeSystemId));
   const [eisenhowerTasks, setEisenhowerTasks] = useState<EisenhowerTask[]>(() => loadEisenhower(activeSystemId));
   const [showEisenhowerForm, setShowEisenhowerForm] = useState(false);
@@ -360,8 +361,10 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     e.preventDefault();
     if (!formText.trim() || !formDate) return;
     // Demande la permission de notification dès qu'un rappel est réellement choisi
+    // — passe par App.tsx pour que le toggle "Notifications navigateur" reste synchronisé.
     if (formReminderMinutes !== '' && formTime && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission();
+      if (onRequestNotifPermission) onRequestNotifPermission();
+      else Notification.requestPermission();
     }
     if (editingEntryId) {
       persist(entries.map(en => en.id === editingEntryId ? {
