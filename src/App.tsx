@@ -3580,7 +3580,7 @@ export default function App() {
     if (notifBrowser && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
       const isViewingConv = currentTab === 'messaging' && activeConvId === conv.id && !document.hidden;
       if (!isViewingConv) {
-        const senderName = allAlters.find(a => a.id === msgSenderId)?.name || (lang === 'fr' ? 'Un alter' : 'An alter');
+        const senderName = allAlters.find(a => a.id === msgSenderId)?.alterName || (lang === 'fr' ? 'Un alter' : 'An alter');
         new Notification(lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`, {
           body: msg.text.length > 120 ? msg.text.slice(0, 120) + '…' : msg.text,
           icon: '/icon-192.png',
