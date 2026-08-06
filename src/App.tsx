@@ -1567,10 +1567,15 @@ export default function App() {
         const target = new Date(`${en.date}T${en.time}:00`).getTime();
         const triggerAt = target - en.reminderMinutes * 60000;
         if (now >= triggerAt && now < target) {
-          new Notification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', {
+          const notif = new Notification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', {
             body: `${en.time} — ${en.text}`,
             icon: '/icon-192.png',
           });
+          notif.onclick = () => {
+            window.focus();
+            setCurrentTab('planning');
+            notif.close();
+          };
           remindedIds.push(en.id);
           changed = true;
         }
@@ -3067,10 +3072,15 @@ export default function App() {
           target.setHours(hh, mm, 0, 0);
           const diffMs = now.getTime() - target.getTime();
           if (diffMs >= 0 && diffMs < 60000) {
-            new Notification(lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder', {
+            const notif = new Notification(lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder', {
               body: med.dosage ? `${med.name} — ${med.dosage}` : med.name,
               icon: '/icon-192.png',
             });
+            notif.onclick = () => {
+              window.focus();
+              setCurrentTab('health');
+              notif.close();
+            };
             remindedKeys.push(key);
             changed = true;
           }
@@ -3095,13 +3105,22 @@ export default function App() {
       if (daysSinceExport < EXPORT_REMINDER_DAYS) return;
       const todayStr = new Date().toISOString().slice(0, 10);
       if (localStorage.getItem('hs-export-reminded-day') === todayStr) return;
-      new Notification(lang === 'fr' ? '✦ Pense à sauvegarder' : '✦ Backup reminder', {
+      const notif = new Notification(lang === 'fr' ? '✦ Pense à sauvegarder' : '✦ Backup reminder', {
         body: lang === 'fr'
           ? "Ça fait un moment que tu n'as pas exporté ton système en JSON — c'est ta seule sauvegarde."
           : "It's been a while since your last JSON export — it's your only backup.",
         icon: '/icon-192.png',
         tag: 'hs-export-reminder',
       });
+      // Clic sur la notif → ouvre l'app sur la section de sauvegarde JSON et y scrolle directement
+      notif.onclick = () => {
+        window.focus();
+        setCurrentTab('pluralkit');
+        setTimeout(() => {
+          document.getElementById('json-backup-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+        notif.close();
+      };
       localStorage.setItem('hs-export-reminded-day', todayStr);
     };
     check();
@@ -3581,11 +3600,17 @@ export default function App() {
       const isViewingConv = currentTab === 'messaging' && activeConvId === conv.id && !document.hidden;
       if (!isViewingConv) {
         const senderName = allAlters.find(a => a.id === msgSenderId)?.alterName || (lang === 'fr' ? 'Un alter' : 'An alter');
-        new Notification(lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`, {
+        const notif = new Notification(lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`, {
           body: msg.text.length > 120 ? msg.text.slice(0, 120) + '…' : msg.text,
           icon: '/icon-192.png',
           tag: `hs-dm-${conv.id}`,
         });
+        notif.onclick = () => {
+          window.focus();
+          setCurrentTab('messaging');
+          setActiveConvId(conv.id);
+          notif.close();
+        };
       }
     }
   };
@@ -12469,7 +12494,7 @@ export default function App() {
             )}
 
             {/* Divider or Header for Local JSON backup */}
-            <div className="border-t border-app-border/40 pt-10 space-y-6">
+            <div id="json-backup-section" className="border-t border-app-border/40 pt-10 space-y-6 scroll-mt-24">
               <div>
                 <h3 className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
                   <FileJson className="w-5 h-5 text-app-text" />
