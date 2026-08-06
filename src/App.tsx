@@ -1072,17 +1072,6 @@ export default function App() {
     return result === 'granted';
   };
 
-  // Utilisé par les sous-pages (ex : PlanningPage) qui demandent la permission en contexte —
-  // garde le toggle "Notifications navigateur" des Paramètres synchronisé avec la vraie permission.
-  const enableBrowserNotifFromChild = async () => {
-    const granted = await requestBrowserNotifPermission();
-    if (granted) {
-      setNotifBrowser(true);
-      localStorage.setItem('hs-notif-browser', 'true');
-    }
-    return granted;
-  };
-
   const toggleBrowserNotif = async () => {
     if (!notifBrowser) {
       const granted = await requestBrowserNotifPermission();
@@ -1556,7 +1545,7 @@ export default function App() {
   // pour continuer à fonctionner même quand on n'est pas sur l'onglet Planning.
   useEffect(() => {
     const check = () => {
-      if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
       const now = Date.now();
       const planningEntries = loadPlanning(activeSystemId);
       let remindedIds: string[] = [];
@@ -1580,7 +1569,7 @@ export default function App() {
     check();
     const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
-  }, [activeSystemId, lang, notifBrowser]);
+  }, [activeSystemId, lang]);
 
   useEffect(() => {
     localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
@@ -1904,7 +1893,6 @@ export default function App() {
 
       setJsonSuccess(lang === 'fr' ? "Fichier de sauvegarde exporté avec succès !" : "Backup file exported successfully!");
       setJsonError(null);
-      localStorage.setItem('hs-last-json-export', String(Date.now()));
     } catch (err: any) {
       setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
       setJsonSuccess(null);
@@ -3050,7 +3038,7 @@ export default function App() {
   const MED_REMINDED_STORAGE_KEY = 'hs-med-reminded';
   useEffect(() => {
     const check = () => {
-      if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
       let remindedKeys: string[] = [];
@@ -3081,33 +3069,7 @@ export default function App() {
     check();
     const medInterval = setInterval(check, 30000);
     return () => clearInterval(medInterval);
-  }, [medications, lang, notifBrowser]);
-
-  // Rappel de sauvegarde JSON : comme il n'y a ni compte ni cloud, l'export JSON est la seule
-  // sauvegarde. On rappelle au plus une fois par jour si ça fait trop longtemps (7 jours).
-  const EXPORT_REMINDER_DAYS = 7;
-  useEffect(() => {
-    const check = () => {
-      if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-      if (savedAlters.length === 0) return; // rien à sauvegarder pour l'instant
-      const lastExport = Number(localStorage.getItem('hs-last-json-export') || '0');
-      const daysSinceExport = (Date.now() - lastExport) / (1000 * 60 * 60 * 24);
-      if (daysSinceExport < EXPORT_REMINDER_DAYS) return;
-      const todayStr = new Date().toISOString().slice(0, 10);
-      if (localStorage.getItem('hs-export-reminded-day') === todayStr) return;
-      new Notification(lang === 'fr' ? '✦ Pense à sauvegarder' : '✦ Backup reminder', {
-        body: lang === 'fr'
-          ? "Ça fait un moment que tu n'as pas exporté ton système en JSON — c'est ta seule sauvegarde."
-          : "It's been a while since your last JSON export — it's your only backup.",
-        icon: '/icon-192.png',
-        tag: 'hs-export-reminder',
-      });
-      localStorage.setItem('hs-export-reminded-day', todayStr);
-    };
-    check();
-    const exportInterval = setInterval(check, 60 * 60 * 1000); // vérifie toutes les heures
-    return () => clearInterval(exportInterval);
-  }, [notifBrowser, savedAlters.length, lang]);
+  }, [medications, lang]);
 
   const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>(() => {
     try { return JSON.parse(localStorage.getItem('hs-health-history') || '[]'); } catch { return []; }
@@ -3574,20 +3536,6 @@ export default function App() {
     };
     setDirectMessages(prev => [...prev, msg]);
     setMsgText('');
-
-    // Notification native si on n'est pas déjà en train de regarder cette conversation
-    // (onglet caché, ou ailleurs dans l'app) — inutile de notifier ce qu'on a déjà sous les yeux.
-    if (notifBrowser && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-      const isViewingConv = currentTab === 'messaging' && activeConvId === conv.id && !document.hidden;
-      if (!isViewingConv) {
-        const senderName = allAlters.find(a => a.id === msgSenderId)?.alterName || (lang === 'fr' ? 'Un alter' : 'An alter');
-        new Notification(lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`, {
-          body: msg.text.length > 120 ? msg.text.slice(0, 120) + '…' : msg.text,
-          icon: '/icon-192.png',
-          tag: `hs-dm-${conv.id}`,
-        });
-      }
-    }
   };
 
   const activeConv = conversations.find(c => c.id === activeConvId) || null;
@@ -5905,9 +5853,6 @@ export default function App() {
                           <div className="flex flex-col items-start">
                             <span className="text-xs font-bold text-app-text">
                               {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
-                            </span>
-                            <span className="text-[10px] text-app-muted">
-                              {lang === 'fr' ? 'Messages, rappels de planning, traitements et sauvegarde' : 'Messages, planning, medication and backup reminders'}
                             </span>
                             {!('Notification' in window) && (
                               <span className="text-[10px] text-app-muted">{lang === 'fr' ? 'Non supporté' : 'Not supported'}</span>
@@ -9889,7 +9834,7 @@ export default function App() {
 
         {currentTab === 'planning' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
-            <PlanningPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} onRequestNotifPermission={enableBrowserNotifFromChild} />
+            <PlanningPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} />
           </div>
         )}
 
