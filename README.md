@@ -26,6 +26,32 @@
 - Entrées en markdown avec support des images (syntaxe `![alt](url)`)
 - Lightbox intégrée pour visualiser les images
 
+### 📅 Planning (Bullet Journal)
+- Planning façon Bullet Journal : vues journalière, hebdomadaire et mensuelle
+- **Matrice d'Eisenhower** pour prioriser les tâches
+- Rappels programmés par entrée, avec notification native au moment choisi
+
+### 🩺 Santé
+- Suivi des traitements, antécédents médicaux et contacts d'urgence
+- Rappels de prise de traitement avec notification native
+
+### 🧘 Détente
+Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
+- **Box Breathing** — respiration guidée
+- **Fidgets** — Bac à Sable, Bulles (bubble-wrap), Coloriage
+- **Kalimba** — instrument virtuel jouable
+- **Affirmations**, **Boîte à Souvenirs**, **Boîte à Choix**
+- **Éphémère** — bulles de tailles variées qui montent à l'écran, à éclater avant qu'elles n'atteignent le haut ; chaque taille correspond à une note d'un handpan (gamme D Kurd) pour un son doux et onirique
+- **Éco-Système** — élément visuel évolutif et apaisant
+
+### 🔔 Notifications push
+- Notifications navigateur natives (opt-in, avec demande de permission) pour : nouveaux messages privés, rappels de planning, rappels de traitement, rappel de sauvegarde JSON (si aucun export récent)
+- Cliquer sur une notification ouvre l'app directement sur la section concernée
+
+### 🔐 Sécurité locale
+- Verrouillage par code PIN (optionnel), avec verrouillage automatique quand l'app repasse en arrière-plan
+- Question de sécurité personnalisée pour la récupération du PIN
+
 ### 💬 Communication interne
 - **Chat interne** entre alters du système
 - **Messagerie directe** entre alters (conversations privées)
@@ -69,8 +95,8 @@ Toutes les données restent **localement sur votre appareil**. Aucune donnée n'
 **Prérequis :** Node.js
 
 ```bash
-git clone https://github.com/SystemeChaos/Heaven-Space.git
-cd Heaven-Space
+git clone https://github.com/SystemeChaos/Haven-Space.git
+cd Haven-Space
 npm install
 npm run dev
 ```
