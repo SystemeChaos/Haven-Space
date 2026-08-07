@@ -85,6 +85,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fU: '✦ Détente (outils anti-dissociation)',
       openSourceTitle: 'Transparence',
       openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
+      thanksTitle: 'Merci à nos alpha & bêta testeur·euses',
+      thanksText: 'Haven Space n\'existerait pas sous cette forme sans les personnes qui ont testé chaque fonctionnalité avant tout le monde, remonté des bugs, partagé leur vécu et donné des retours sincères — parfois en plein moment difficile, parce que c\'est aussi à ça que sert l\'outil. Ce projet leur doit énormément. Si vous vous reconnaissez : merci, du fond du cœur, pour votre temps, votre confiance et votre patience.',
 
       contactHeadline: 'On est là.',
       contactSubtitle: 'Une question, un bug, une suggestion ? Écris-nous.',
@@ -225,6 +227,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fU: '✦ Relax (anti-dissociation tools)',
       openSourceTitle: 'Transparency',
       openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
+      thanksTitle: 'Thank you to our alpha & beta testers',
+      thanksText: 'Haven Space wouldn\'t exist in its current form without the people who tested every feature before anyone else, reported bugs, shared their lived experience, and gave honest feedback — sometimes in the middle of a hard moment, because that\'s exactly what this tool is for. This project owes them a lot. If you recognize yourself here: thank you, sincerely, for your time, your trust, and your patience.',
 
       contactHeadline: 'We are here.',
       contactSubtitle: 'Have a question, feedback, or a bug to report? Email us.',
@@ -812,6 +816,16 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
             </div>
             <p className="text-xs leading-relaxed text-app-muted font-medium">
               {currentT.openSourceText}
+            </p>
+          </div>
+
+          <div className="p-6 bg-app-card border border-app-border rounded-2xl space-y-3 shadow-sm">
+            <div className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+              <Heart size={15} className="text-app-accent" />
+              <span>{currentT.thanksTitle}</span>
+            </div>
+            <p className="text-xs leading-relaxed text-app-muted font-medium">
+              {currentT.thanksText}
             </p>
           </div>
         </div>
