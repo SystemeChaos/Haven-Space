@@ -897,11 +897,34 @@ export default function App() {
   const [tagFilterSuggestions, setTagFilterSuggestions] = useState<string[]>([]);
   const t = translations[lang];
 
-  const sortedFrontStatusKeys = Object.keys(t.frontStatuses).sort((a, b) => {
-    const valA = t.frontStatuses[a as keyof typeof t.frontStatuses] || '';
-    const valB = t.frontStatuses[b as keyof typeof t.frontStatuses] || '';
-    return valA.localeCompare(valB, lang);
-  });
+  // Catégories de statuts de front, pour un affichage groupé plutôt qu'une grille plate.
+  // 'blend' n'y figure pas : c'est une action à part (log sans sélectionner d'alter précis).
+  const FRONT_STATUS_CATEGORIES: { key: string; labelFr: string; labelEn: string; statuses: string[] }[] = [
+    {
+      key: 'active',
+      labelFr: 'États courants',
+      labelEn: 'Common states',
+      statuses: ['primary', 'co_front', 'co_conscious', 'passive', 'dormant', 'none'],
+    },
+    {
+      key: 'blocked',
+      labelFr: 'Contrôle bloqué ou forcé',
+      labelEn: 'Blocked or forced control',
+      statuses: ['frontstuck', 'front_locked', 'front_held'],
+    },
+    {
+      key: 'partial',
+      labelFr: 'Présence partielle ou en coulisses',
+      labelEn: 'Partial presence / behind the scenes',
+      statuses: ['shadowing', 'blurry', 'triggered'],
+    },
+    {
+      key: 'transition',
+      labelFr: 'Transition ou retrait',
+      labelEn: 'Transition or withdrawal',
+      statuses: ['switching', 'fading'],
+    },
+  ];
 
   const toggleSection = (section: string) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -4304,6 +4327,14 @@ export default function App() {
                   alter.frontStatus === 'co_front' ? 'bg-sky-500' :
                   alter.frontStatus === 'co_conscious' ? 'bg-violet-500' :
                   alter.frontStatus === 'passive' ? 'bg-amber-500' :
+                  alter.frontStatus === 'frontstuck' ? 'bg-red-600' :
+                  alter.frontStatus === 'front_locked' ? 'bg-rose-600' :
+                  alter.frontStatus === 'front_held' ? 'bg-orange-600' :
+                  alter.frontStatus === 'shadowing' ? 'bg-slate-500' :
+                  alter.frontStatus === 'blurry' ? 'bg-purple-400' :
+                  alter.frontStatus === 'triggered' ? 'bg-pink-500' :
+                  alter.frontStatus === 'switching' ? 'bg-cyan-500' :
+                  alter.frontStatus === 'fading' ? 'bg-stone-400' :
                   alter.frontStatus === 'blend' ? '' : 'bg-zinc-500'
                 }`}
                 style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, #a855f7, #ec4899, #6366f1)' } : undefined}
@@ -4349,6 +4380,14 @@ export default function App() {
                     alter.frontStatus === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
                     alter.frontStatus === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
                     alter.frontStatus === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
+                    alter.frontStatus === 'frontstuck' ? 'bg-red-600/10 text-red-600 border-red-600/30' :
+                    alter.frontStatus === 'front_locked' ? 'bg-rose-600/10 text-rose-600 border-rose-600/30' :
+                    alter.frontStatus === 'front_held' ? 'bg-orange-600/10 text-orange-600 border-orange-600/30' :
+                    alter.frontStatus === 'shadowing' ? 'bg-slate-500/10 text-slate-500 border-slate-500/30' :
+                    alter.frontStatus === 'blurry' ? 'bg-purple-400/10 text-purple-400 border-purple-400/30' :
+                    alter.frontStatus === 'triggered' ? 'bg-pink-500/10 text-pink-500 border-pink-500/30' :
+                    alter.frontStatus === 'switching' ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30' :
+                    alter.frontStatus === 'fading' ? 'bg-stone-400/10 text-stone-400 border-stone-400/30' :
                     alter.frontStatus === 'blend' ? 'border-fuchsia-500/30 text-fuchsia-500' :
                     'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
                   }`}
@@ -9421,29 +9460,36 @@ export default function App() {
                   </div>
 
                   {/* Fronting & Presence Status Grid */}
-                  <div className="space-y-3">
+                  <div className="space-y-4">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-app-text" />
                       <span>{t.frontStatusLabel}</span>
                     </label>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      {sortedFrontStatusKeys.filter(k => k !== 'blend').map((statusKey) => (
-                        <button
-                          key={statusKey}
-                          type="button"
-                          onClick={() => {
-                            setSwitchSelectedStatus(statusKey);
-                          }}
-                          className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center select-none leading-normal ${
-                            switchSelectedStatus === statusKey
-                              ? 'bg-app-accent border-transparent text-white shadow-sm active:scale-95'
-                              : 'bg-app-bg border-app-border/45 text-app-text/75 hover:border-app-accent/30'
-                          }`}
-                        >
-                          {t.frontStatuses[statusKey as keyof typeof t.frontStatuses]}
-                        </button>
-                      ))}
-                    </div>
+                    {FRONT_STATUS_CATEGORIES.map(category => (
+                      <div key={category.key} className="space-y-1.5">
+                        <span className="text-[9px] font-black uppercase tracking-widest text-app-muted/70">
+                          {lang === 'fr' ? category.labelFr : category.labelEn}
+                        </span>
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {category.statuses.map((statusKey) => (
+                            <button
+                              key={statusKey}
+                              type="button"
+                              onClick={() => {
+                                setSwitchSelectedStatus(statusKey);
+                              }}
+                              className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center select-none leading-normal ${
+                                switchSelectedStatus === statusKey
+                                  ? 'bg-app-accent border-transparent text-white shadow-sm active:scale-95'
+                                  : 'bg-app-bg border-app-border/45 text-app-text/75 hover:border-app-accent/30'
+                              }`}
+                            >
+                              {t.frontStatuses[statusKey as keyof typeof t.frontStatuses]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                     <button
                       type="button"
                       onClick={handleLogBlendSwitch}
