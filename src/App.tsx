@@ -13,6 +13,7 @@ import {
   Sparkles, 
   Download, 
   Plus, 
+  Image as ImageIcon, 
   X,
   Info,
   Palette,
@@ -1000,6 +1001,7 @@ export default function App() {
   const [chatSpeakerSearch, setChatSpeakerSearch] = useState('');
   const [chatSpeakerOpen, setChatSpeakerOpen] = useState(false);
   const [chatText, setChatText] = useState('');
+  const [chatImageUrlInput, setChatImageUrlInput] = useState<string | null>(null); // null = fermé, string = panneau ouvert avec sa valeur
   
   // --- Chat Poll Creator States ---
   const [showPollCreator, setShowPollCreator] = useState(false);
@@ -1385,6 +1387,7 @@ export default function App() {
   const [convSearch, setConvSearch] = useState('');
   const [convSearchOpen, setConvSearchOpen] = useState(false);
   const [msgText, setMsgText] = useState('');
+  const [msgImageUrlInput, setMsgImageUrlInput] = useState<string | null>(null); // null = fermé, string = panneau ouvert avec sa valeur
   const [msgSenderId, setMsgSenderId] = useState<string>('');
   // Suivi des messages "lus" par conversation (dernier message vu depuis le point de vue du destinataire)
   const [lastSeenMsgIdByConv, setLastSeenMsgIdByConv] = useState<Record<string, string>>(() => {
@@ -9220,8 +9223,73 @@ export default function App() {
                   )}
                 </AnimatePresence>
 
+                {/* Panneau d'insertion d'image par URL */}
+                <AnimatePresence>
+                  {chatImageUrlInput !== null && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="px-4 pt-3 border-t border-app-border/30 bg-app-card/65 flex gap-2 items-center overflow-hidden"
+                    >
+                      <input
+                        type="url"
+                        autoFocus
+                        value={chatImageUrlInput}
+                        onChange={e => setChatImageUrlInput(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Colle le lien de l\'image ici…' : 'Paste the image link here…'}
+                        className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/25"
+                      />
+                      <button
+                        type="button"
+                        disabled={!chatImageUrlInput.trim()}
+                        onClick={() => {
+                          setChatText(prev => (prev ? prev + '\n' : '') + `![image](${chatImageUrlInput.trim()})`);
+                          setChatImageUrlInput(null);
+                        }}
+                        className="px-3 py-2 bg-app-text text-app-bg rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 shrink-0"
+                      >
+                        {lang === 'fr' ? 'Insérer' : 'Insert'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChatImageUrlInput(null)}
+                        className="p-2 text-app-muted hover:text-app-text transition-colors shrink-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* Chat Input form */}
                 <form onSubmit={handleSendChatMessage} className="p-4 border-t border-app-border/30 bg-app-card/65 flex gap-3 items-center">
+                  <label
+                    className="shrink-0 p-3.5 border border-app-border rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
+                    title={lang === 'fr' ? 'Importer une image' : 'Upload an image'}
+                  >
+                    <Upload className="w-4 h-4" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        handleCompressAndStoreFiles(e.target.files, (urls) => {
+                          setChatText(prev => (prev ? prev + '\n' : '') + urls.map(u => `![image](${u})`).join('\n'));
+                        });
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setChatImageUrlInput(chatImageUrlInput === null ? '' : null)}
+                    className={`shrink-0 p-3.5 border rounded-xl transition-colors ${chatImageUrlInput !== null ? 'text-app-accent border-app-accent/40 bg-app-accent/5' : 'text-app-muted border-app-border hover:text-app-accent hover:border-app-accent/40'}`}
+                    title={lang === 'fr' ? 'Insérer une image par URL' : 'Insert an image by URL'}
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                  </button>
                   <input
                     type="text"
                     value={chatText}
@@ -10486,7 +10554,72 @@ export default function App() {
                           })}
                         </select>
                       </div>
+                      {/* Panneau d'insertion d'image par URL */}
+                      <AnimatePresence>
+                        {msgImageUrlInput !== null && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="flex gap-2 items-center overflow-hidden"
+                          >
+                            <input
+                              type="url"
+                              autoFocus
+                              value={msgImageUrlInput}
+                              onChange={e => setMsgImageUrlInput(e.target.value)}
+                              placeholder={lang === 'fr' ? 'Colle le lien de l\'image ici…' : 'Paste the image link here…'}
+                              className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                            />
+                            <button
+                              type="button"
+                              disabled={!msgImageUrlInput.trim()}
+                              onClick={() => {
+                                setMsgText(prev => (prev ? prev + '\n' : '') + `![image](${msgImageUrlInput.trim()})`);
+                                setMsgImageUrlInput(null);
+                              }}
+                              className="px-3 py-2 bg-app-text text-app-bg rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 shrink-0"
+                            >
+                              {lang === 'fr' ? 'Insérer' : 'Insert'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setMsgImageUrlInput(null)}
+                              className="p-2 text-app-muted hover:text-app-text transition-colors shrink-0"
+                            >
+                              <X className="w-4 h-4" />
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
                       <form onSubmit={handleSendDirectMessage} className="flex gap-2">
+                        <label
+                          className="shrink-0 p-2.5 border border-app-border rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
+                          title={lang === 'fr' ? 'Importer une image' : 'Upload an image'}
+                        >
+                          <Upload className="w-4 h-4" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              handleCompressAndStoreFiles(e.target.files, (urls) => {
+                                setMsgText(prev => (prev ? prev + '\n' : '') + urls.map(u => `![image](${u})`).join('\n'));
+                              });
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setMsgImageUrlInput(msgImageUrlInput === null ? '' : null)}
+                          className={`shrink-0 p-2.5 border rounded-xl transition-colors ${msgImageUrlInput !== null ? 'text-app-accent border-app-accent/40 bg-app-accent/5' : 'text-app-muted border-app-border hover:text-app-accent hover:border-app-accent/40'}`}
+                          title={lang === 'fr' ? 'Insérer une image par URL' : 'Insert an image by URL'}
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                        </button>
                         <input
                           type="text"
                           value={msgText}
