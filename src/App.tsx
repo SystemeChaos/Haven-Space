@@ -8001,7 +8001,7 @@ export default function App() {
                     <button
                       key={item.value}
                       onClick={() => {
-                        if (item.value === 'creator') setCreatorReturnTab(null);
+                        if (item.value === 'creator') { handleResetCreator(); return; }
                         setCurrentTab(item.value as any);
                       }}
                       className="flex flex-col items-center gap-3 p-5 bg-app-card border border-app-border/40 rounded-2xl hover:border-app-accent/40 hover:bg-app-card/80 active:scale-95 transition-all text-left group"
