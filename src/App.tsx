@@ -3290,8 +3290,33 @@ export default function App() {
   const [ecoPulsingId, setEcoPulsingId] = useState<string | null>(null);
   interface EcoParticle { id: string; x: number; y: number; emoji: string; }
   const [ecoParticles, setEcoParticles] = useState<EcoParticle[]>([]);
-  const ecoSceneRef = useRef<HTMLDivElement>(null);
+  const ecoSceneRef = useRef<HTMLDivElement>(null); // la "scène" (monde) — reçoit le zoom/pan, sert de référence pour les %
+  const ecoViewportRef = useRef<HTMLDivElement>(null); // le cadre visible, taille fixe, capte la molette/pincement
   const ecoDragRef = useRef<{ id: string; moved: boolean; startX: number; startY: number } | null>(null);
+
+  // Zoom / déplacement de la scène (comme le Mapping) — molette, pincement à deux doigts, ou glisser le fond
+  const [ecoZoom, setEcoZoom] = useState(1);
+  const [ecoPan, setEcoPan] = useState({ x: 0, y: 0 });
+  const ecoPanDragRef = useRef<{ moved: boolean; startX: number; startY: number; originX: number; originY: number } | null>(null);
+  const ecoPinchRef = useRef<globalThis.Map<number, { x: number; y: number }>>(new globalThis.Map());
+  const ecoPinchStartRef = useRef<{ dist: number; zoom: number } | null>(null);
+  const clampEcoZoom = (z: number) => Math.min(2.5, Math.max(1, z));
+  const resetEcoView = () => { setEcoZoom(1); setEcoPan({ x: 0, y: 0 }); };
+
+  // Ambiance (teinte jour/crépuscule) et son d'ambiance — par thème
+  const [ecoAltMood, setEcoAltMood] = useState(false);
+  const [ecoSoundOn, setEcoSoundOn] = useState(false);
+  const ecoAudioRef = useRef<{ ctx: AudioContext; nodes: AudioNode[] } | null>(null);
+
+  // Éléments qui "respirent" doucement (lumineux) et poissons qui nagent légèrement — purement visuel
+  const ECO_GLOW_IDS = ['meduse', 'corail', 'lucioles', 'pleinelune', 'filante', 'comete', 'lumignon', 'aurore', 'constellation', 'champignon', 'guirlande'];
+  const ECO_SWIM_IDS = ['poisson', 'banc'];
+  // Petite empreinte déterministe par élément, pour varier délai/durée d'animation sans que ça saute à chaque rendu
+  const ecoAnimSeed = (id: string) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return h;
+  };
 
   const ECO_BACKGROUNDS: { id: 'aquarium' | 'greenhouse' | 'night'; label: string; labelEn: string; className: string }[] = [
     { id: 'aquarium', label: 'Aquarium', labelEn: 'Aquarium', className: 'from-sky-300/40 via-sky-500/25 to-cyan-700/25 border-sky-500/25' },
@@ -3323,6 +3348,8 @@ export default function App() {
         { id: 'bulles', emoji: '🫧', label: 'Colonne de bulles', labelEn: 'Bubble column', tab: 'ambiance' },
         { id: 'rayon', emoji: '✨', label: 'Rayon de lumière', labelEn: 'Light ray', tab: 'ambiance' },
         { id: 'tresor', emoji: '🏺', label: 'Trésor ancien', labelEn: 'Old treasure', tab: 'ambiance' },
+        { id: 'statue', emoji: '🗿', label: 'Statue engloutie', labelEn: 'Sunken statue', tab: 'ambiance' },
+        { id: 'anemone', emoji: '🌺', label: 'Anémone réactive', labelEn: 'Reactive anemone', tab: 'vivant' },
       ],
     },
     greenhouse: {
@@ -3342,9 +3369,11 @@ export default function App() {
         { id: 'papillon', emoji: '🦋', label: 'Papillon scintillant', labelEn: 'Sparkling butterfly', tab: 'vivant' },
         { id: 'coccinelle', emoji: '🐞', label: 'Coccinelle', labelEn: 'Ladybug', tab: 'vivant' },
         { id: 'escargot', emoji: '🐌', label: 'Escargot paisible', labelEn: 'Peaceful snail', tab: 'vivant' },
+        { id: 'grenouille', emoji: '🐸', label: 'Grenouille sur une feuille', labelEn: 'Frog on a leaf', tab: 'vivant' },
         { id: 'lucioles', emoji: '✨', label: 'Lucioles en bocal', labelEn: 'Fireflies in a jar', tab: 'ambiance' },
         { id: 'terrarium', emoji: '🫙', label: 'Terrarium', labelEn: 'Terrarium', tab: 'ambiance' },
         { id: 'guirlande', emoji: '🎐', label: 'Guirlande guinguette', labelEn: 'Fairy lights', tab: 'ambiance' },
+        { id: 'brumisateur', emoji: '💨', label: 'Brumisateur / vapeur douce', labelEn: 'Misty steam', tab: 'ambiance' },
       ],
     },
     night: {
@@ -3359,12 +3388,15 @@ export default function App() {
         { id: 'filante', emoji: '🌠', label: 'Étoile filante', labelEn: 'Shooting star', tab: 'astres' },
         { id: 'etoile', emoji: '⭐', label: 'Étoile', labelEn: 'Star', tab: 'astres' },
         { id: 'nuagedoux', emoji: '☁️', label: 'Nuage doux', labelEn: 'Soft cloud', tab: 'nuages' },
+        { id: 'nuagerose', emoji: '☁️', label: 'Nuage cotonneux rose/violet', labelEn: 'Cotton-candy cloud', tab: 'nuages' },
         { id: 'nuagepluie', emoji: '🌧️', label: 'Nuage de pluie poétique', labelEn: 'Poetic rain cloud', tab: 'nuages' },
         { id: 'nuageorage', emoji: '⛈️', label: "Nuage d'orage doux", labelEn: 'Gentle storm cloud', tab: 'nuages' },
+        { id: 'aurore', emoji: '🌌', label: 'Aurore boréale', labelEn: 'Aurora borealis', tab: 'nuages' },
         { id: 'lanterne', emoji: '🏮', label: 'Lanterne volante', labelEn: 'Flying lantern', tab: 'volants' },
         { id: 'montgolfiere', emoji: '🎈', label: 'Montgolfière miniature', labelEn: 'Mini hot air balloon', tab: 'volants' },
         { id: 'comete', emoji: '☄️', label: 'Comète lumineuse', labelEn: 'Glowing comet', tab: 'volants' },
         { id: 'lumignon', emoji: '💡', label: 'Lumignon céleste', labelEn: 'Celestial light', tab: 'volants' },
+        { id: 'constellation', emoji: '✨', label: 'Constellation personnalisée', labelEn: 'Custom constellation', tab: 'volants' },
       ],
     },
   };
@@ -3409,6 +3441,7 @@ export default function App() {
   // Déplacement à la souris/au doigt : on ne fait glisser que si le pointeur a réellement bougé,
   // sinon un simple tap déclenche la réaction douce (ou la suppression en mode Gérer).
   const handleEcoPointerDown = (e: React.PointerEvent<HTMLDivElement>, el: EcoElement) => {
+    e.stopPropagation(); // évite de déclencher aussi le glisser-déposer du fond de la scène
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     ecoDragRef.current = { id: el.id, moved: false, startX: e.clientX, startY: e.clientY };
   };
@@ -3433,6 +3466,84 @@ export default function App() {
       else tapEcoElement(el);
     }
   };
+
+  // --- Zoom & déplacement du cadre (comme le Mapping) ---
+  // Molette / trackpad : zoom autour du centre de la scène (reste simple, pas de calcul de point focal)
+  const handleEcoWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setEcoZoom(z => clampEcoZoom(z + (e.deltaY < 0 ? 0.12 : -0.12)));
+  };
+  // Glisser le fond (hors élément posé, qui bloque déjà la propagation) pour déplacer la vue
+  const handleEcoViewportPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    ecoPinchRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ecoPinchRef.current.size === 1) {
+      ecoPanDragRef.current = { moved: false, startX: e.clientX, startY: e.clientY, originX: ecoPan.x, originY: ecoPan.y };
+    } else if (ecoPinchRef.current.size === 2) {
+      const pts = Array.from(ecoPinchRef.current.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      ecoPinchStartRef.current = { dist, zoom: ecoZoom };
+      ecoPanDragRef.current = null; // deux doigts = pincement, pas de pan
+    }
+  };
+  const handleEcoViewportPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (ecoPinchRef.current.has(e.pointerId)) ecoPinchRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ecoPinchRef.current.size === 2 && ecoPinchStartRef.current) {
+      const pts = Array.from(ecoPinchRef.current.values());
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const ratio = dist / (ecoPinchStartRef.current.dist || 1);
+      setEcoZoom(clampEcoZoom(ecoPinchStartRef.current.zoom * ratio));
+      return;
+    }
+    const pan = ecoPanDragRef.current;
+    if (!pan) return;
+    const dx = e.clientX - pan.startX;
+    const dy = e.clientY - pan.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) pan.moved = true;
+    if (!pan.moved) return;
+    setEcoPan({ x: pan.originX + dx, y: pan.originY + dy });
+  };
+  const handleEcoViewportPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    ecoPinchRef.current.delete(e.pointerId);
+    if (ecoPinchRef.current.size < 2) ecoPinchStartRef.current = null;
+    ecoPanDragRef.current = null;
+  };
+
+  // Son d'ambiance très doux (bruit filtré en boucle) — se lance/coupe proprement au toggle ou au changement de thème
+  useEffect(() => {
+    if (!ecoSoundOn) return;
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    const ctx: AudioContext = new Ctx();
+    const bufferSize = ctx.sampleRate * 4;
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    let last = 0;
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      last = (last + 0.02 * white) / 1.02; // bruit brownien doux, texture "vent/eau"
+      data[i] = last * 3.2;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+    noise.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = ecoBackground === 'aquarium' ? 900 : ecoBackground === 'greenhouse' ? 1400 : 600;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 1.2);
+    noise.connect(filter);
+    filter.connect(gain);
+    gain.connect(ctx.destination);
+    noise.start();
+    ecoAudioRef.current = { ctx, nodes: [noise, filter, gain] };
+    return () => {
+      try {
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+        setTimeout(() => { noise.stop(); ctx.close(); }, 450);
+      } catch { /* déjà arrêté */ }
+      ecoAudioRef.current = null;
+    };
+  }, [ecoSoundOn, ecoBackground]);
 
   // --- Boîte à Choix ---
   const WHEEL_COLORS = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE', '#D9F3EF', '#F3E0D9'];
@@ -5581,6 +5692,39 @@ export default function App() {
         animation-timing-function: linear;
         animation-fill-mode: forwards;
       }
+      @keyframes ecoFloat {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-6px); }
+      }
+      .eco-float { animation-name: ecoFloat; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+      @keyframes ecoSwim {
+        0%, 100% { transform: translateX(0) rotate(0deg); }
+        25% { transform: translateX(5px) rotate(4deg); }
+        75% { transform: translateX(-5px) rotate(-4deg); }
+      }
+      .eco-swim { animation-name: ecoSwim; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+      @keyframes ecoGlow {
+        0%, 100% { filter: drop-shadow(0 0 2px currentColor) brightness(1); opacity: 0.85; }
+        50% { filter: drop-shadow(0 0 9px currentColor) brightness(1.4); opacity: 1; }
+      }
+      .eco-glow { animation-name: ecoGlow; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+      @keyframes ecoAmbientRise {
+        0% { transform: translateY(0); opacity: 0; }
+        15% { opacity: 0.55; }
+        100% { transform: translateY(-130px); opacity: 0; }
+      }
+      .eco-ambient-rise { animation-name: ecoAmbientRise; animation-timing-function: linear; animation-iteration-count: infinite; }
+      @keyframes ecoTwinkle {
+        0%, 100% { opacity: 0.25; }
+        50% { opacity: 1; }
+      }
+      .eco-twinkle { animation-name: ecoTwinkle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+      @keyframes ecoDust {
+        0% { transform: translate(0, 0); opacity: 0; }
+        12% { opacity: 0.5; }
+        100% { transform: translate(8px, -55px); opacity: 0; }
+      }
+      .eco-ambient-dust { animation-name: ecoDust; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
     `}</style>
     <div className={`min-h-screen bg-app-bg text-app-text ${font} selection:bg-app-accent selection:text-app-bg transition-colors duration-300`}>
 
@@ -12153,6 +12297,10 @@ export default function App() {
                     const catalog = ECO_CATALOG[ecoBackground];
                     const visibleElements = ecoElements.filter(el => el.theme === ecoBackground);
                     const itemsInTab = catalog.items.filter(it => it.tab === ecoDraftTab);
+                    const moodOverlay =
+                      ecoBackground === 'aquarium' ? 'linear-gradient(160deg, rgba(255,183,94,0.22), rgba(255,120,80,0.10) 55%, transparent)' :
+                      ecoBackground === 'greenhouse' ? 'linear-gradient(160deg, rgba(255,196,120,0.20), rgba(255,140,90,0.08) 55%, transparent)' :
+                      'linear-gradient(160deg, rgba(168,85,247,0.22), rgba(99,102,241,0.14) 55%, transparent)';
                     return (
                       <div className="flex flex-col items-center gap-5 py-6 w-full">
                         <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
@@ -12160,12 +12308,13 @@ export default function App() {
                         </h3>
 
                         {/* Choix du paysage */}
-                        <div className="flex gap-2 w-full max-w-lg">
+                        <div className="flex gap-2 w-full max-w-2xl">
                           {ECO_BACKGROUNDS.map(b => (
                             <button
                               key={b.id}
                               onClick={() => {
                                 setEcoBackground(b.id);
+                                resetEcoView();
                                 const firstTab = ECO_CATALOG[b.id].tabs[0].id;
                                 setEcoDraftTab(firstTab);
                                 setEcoDraftType(ECO_CATALOG[b.id].items.find(it => it.tab === firstTab)?.id || '');
@@ -12177,111 +12326,207 @@ export default function App() {
                           ))}
                         </div>
 
-                        {/* La scène — fond immersif propre à chaque thème */}
-                        <div
-                          ref={ecoSceneRef}
-                          className={`relative w-full max-w-lg h-64 rounded-3xl border bg-gradient-to-b ${bg.className} overflow-hidden touch-none select-none`}
-                        >
-                          {/* Décor d'arrière-plan, non-interactif */}
-                          <div className="absolute inset-0 pointer-events-none">
-                            {ecoBackground === 'aquarium' && (
-                              <>
-                                <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-amber-200/50 to-transparent" />
-                                <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[90%] h-3 rounded-full bg-amber-300/25 blur-sm" />
-                                <span className="absolute bottom-2 left-[8%] text-2xl opacity-50">🌿</span>
-                                <span className="absolute bottom-1 left-[28%] text-lg opacity-40">🌿</span>
-                                <span className="absolute bottom-2 right-[15%] text-2xl opacity-45">🌿</span>
-                                <span className="absolute bottom-1 right-[32%] text-lg opacity-35">🪨</span>
-                                <div className="absolute top-0 left-[20%] w-16 h-full bg-gradient-to-b from-white/15 to-transparent rotate-6" />
-                                <div className="absolute top-0 right-[25%] w-10 h-full bg-gradient-to-b from-white/10 to-transparent -rotate-3" />
-                              </>
-                            )}
-                            {ecoBackground === 'greenhouse' && (
-                              <>
-                                <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 32px), repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 32px)' }} />
-                                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-emerald-800/20 to-transparent" />
-                                <span className="absolute bottom-1 left-[10%] text-2xl opacity-50">🍃</span>
-                                <span className="absolute top-3 right-[10%] text-xl opacity-40">🍃</span>
-                                <span className="absolute bottom-2 right-[20%] text-lg opacity-35">🌾</span>
-                                <div className="absolute top-0 right-0 w-24 h-24 rounded-full" style={{ background: 'radial-gradient(circle, rgba(254,249,195,0.25), transparent 70%)' }} />
-                              </>
-                            )}
-                            {ecoBackground === 'night' && (
-                              <>
-                                {Array.from({ length: 22 }).map((_, i) => {
-                                  const seed = (i * 37) % 100;
-                                  const seed2 = (i * 61) % 100;
-                                  return (
-                                    <span
-                                      key={i}
-                                      className="absolute rounded-full bg-white"
-                                      style={{
-                                        left: `${seed}%`,
-                                        top: `${(seed2 * 0.85)}%`,
-                                        width: i % 4 === 0 ? 2.5 : 1.5,
-                                        height: i % 4 === 0 ? 2.5 : 1.5,
-                                        opacity: 0.3 + (seed % 5) * 0.12,
-                                      }}
-                                    />
-                                  );
-                                })}
-                                <div className="absolute top-4 right-6 w-10 h-10 rounded-full bg-yellow-50/25 blur-[2px]" />
-                              </>
-                            )}
+                        {/* Barre d'ambiance : teinte, son, zoom */}
+                        <div className="flex flex-wrap gap-2 w-full max-w-2xl justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setEcoAltMood(m => !m)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${ecoAltMood ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-card border-app-border text-app-muted'}`}
+                            title={lang === 'fr' ? 'Changer la teinte de lumière' : 'Shift the light tint'}
+                          >
+                            🌗 {lang === 'fr' ? 'Ambiance' : 'Mood'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEcoSoundOn(s => !s)}
+                            className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${ecoSoundOn ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-card border-app-border text-app-muted'}`}
+                            title={lang === 'fr' ? "Son d'ambiance doux" : 'Soft ambient sound'}
+                          >
+                            {ecoSoundOn ? '🔊' : '🔈'} {lang === 'fr' ? 'Son' : 'Sound'}
+                          </button>
+                          <div className="flex items-center gap-1 bg-app-card border border-app-border rounded-lg px-1">
+                            <button type="button" onClick={() => setEcoZoom(z => clampEcoZoom(z - 0.2))} className="px-2 py-1.5 text-app-muted hover:text-app-text text-xs font-black">−</button>
+                            <span className="text-[9px] font-bold text-app-muted w-9 text-center">{Math.round(ecoZoom * 100)}%</span>
+                            <button type="button" onClick={() => setEcoZoom(z => clampEcoZoom(z + 0.2))} className="px-2 py-1.5 text-app-muted hover:text-app-text text-xs font-black">+</button>
                           </div>
-
-                          {visibleElements.length === 0 && (
-                            <p className="absolute inset-0 flex items-center justify-center text-xs text-app-muted italic px-6 text-center pointer-events-none">
-                              {lang === 'fr' ? "Aucune présence posée pour le moment." : 'No presence placed yet.'}
-                            </p>
+                          {(ecoZoom !== 1 || ecoPan.x !== 0 || ecoPan.y !== 0) && (
+                            <button
+                              type="button"
+                              onClick={resetEcoView}
+                              className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-app-border bg-app-card text-app-muted hover:text-app-text transition-all"
+                            >
+                              {lang === 'fr' ? 'Recentrer' : 'Recenter'}
+                            </button>
                           )}
+                        </div>
 
-                          {visibleElements.map(el => {
-                            const meta = getEcoItemMeta(el.theme, el.type);
-                            const pulsing = ecoPulsingId === el.id;
-                            const author = el.authorAlterId ? savedAlters.find(a => a.id === el.authorAlterId) : null;
-                            return (
-                              <div
-                                key={el.id}
-                                onPointerDown={e => handleEcoPointerDown(e, el)}
-                                onPointerMove={handleEcoPointerMove}
-                                onPointerUp={e => handleEcoPointerUp(e, el)}
-                                style={{
-                                  left: `${el.x}%`,
-                                  top: `${el.y}%`,
-                                  transform: `translate(-50%, -50%) scale(${pulsing ? 1.3 : 1})`,
-                                }}
-                                className={`absolute flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing transition-transform duration-300 ${ecoEditMode ? 'opacity-90 hover:opacity-40' : ''}`}
-                              >
-                                <span className="text-2xl pointer-events-none drop-shadow">{meta.emoji}</span>
-                                <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
-                                  {lang === 'fr' ? meta.label : meta.labelEn}
-                                  {author ? ` · ${author.alterName}` : ` · ${lang === 'fr' ? 'Anonyme' : 'Anonymous'}`}
-                                </span>
-                              </div>
-                            );
-                          })}
+                        {/* Cadre visible — taille fixe, capte molette/pincement/glisser pour naviguer la scène */}
+                        <div
+                          ref={ecoViewportRef}
+                          onWheel={handleEcoWheel}
+                          onPointerDown={handleEcoViewportPointerDown}
+                          onPointerMove={handleEcoViewportPointerMove}
+                          onPointerUp={handleEcoViewportPointerUp}
+                          onPointerCancel={handleEcoViewportPointerUp}
+                          className="relative w-full max-w-2xl h-72 sm:h-[26rem] rounded-3xl border overflow-hidden touch-none select-none cursor-grab active:cursor-grabbing"
+                        >
+                          {/* La scène — fond immersif propre à chaque thème, reçoit le zoom/pan */}
+                          <div
+                            ref={ecoSceneRef}
+                            className={`absolute inset-0 bg-gradient-to-b ${bg.className}`}
+                            style={{ transform: `translate(${ecoPan.x}px, ${ecoPan.y}px) scale(${ecoZoom})`, transformOrigin: 'center center' }}
+                          >
+                            {/* Décor d'arrière-plan, non-interactif */}
+                            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                              {ecoBackground === 'aquarium' && (
+                                <>
+                                  <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-amber-200/50 to-transparent" />
+                                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-[90%] h-3 rounded-full bg-amber-300/25 blur-sm" />
+                                  <span className="absolute bottom-2 left-[8%] text-2xl opacity-50">🌿</span>
+                                  <span className="absolute bottom-1 left-[28%] text-lg opacity-40">🌿</span>
+                                  <span className="absolute bottom-2 right-[15%] text-2xl opacity-45">🌿</span>
+                                  <span className="absolute bottom-1 right-[32%] text-lg opacity-35">🪨</span>
+                                  <div className="absolute top-0 left-[20%] w-16 h-full bg-gradient-to-b from-white/15 to-transparent rotate-6" />
+                                  <div className="absolute top-0 right-[25%] w-10 h-full bg-gradient-to-b from-white/10 to-transparent -rotate-3" />
+                                  {/* Petites bulles ambiantes qui remontent doucement, purement décoratif */}
+                                  {Array.from({ length: 10 }).map((_, i) => {
+                                    const seed = (i * 53) % 100;
+                                    return (
+                                      <span
+                                        key={`bub-${i}`}
+                                        className="absolute rounded-full bg-white/40 eco-ambient-rise"
+                                        style={{
+                                          left: `${5 + seed * 0.9}%`,
+                                          bottom: `${(i % 4) * 4}%`,
+                                          width: 3 + (i % 3) * 2,
+                                          height: 3 + (i % 3) * 2,
+                                          animationDuration: `${5 + (i % 5)}s`,
+                                          animationDelay: `${(i * 0.7) % 6}s`,
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </>
+                              )}
+                              {ecoBackground === 'greenhouse' && (
+                                <>
+                                  <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'repeating-linear-gradient(90deg, currentColor 0 1px, transparent 1px 32px), repeating-linear-gradient(0deg, currentColor 0 1px, transparent 1px 32px)' }} />
+                                  <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-emerald-800/20 to-transparent" />
+                                  <span className="absolute bottom-1 left-[10%] text-2xl opacity-50">🍃</span>
+                                  <span className="absolute top-3 right-[10%] text-xl opacity-40">🍃</span>
+                                  <span className="absolute bottom-2 right-[20%] text-lg opacity-35">🌾</span>
+                                  <div className="absolute top-0 right-0 w-24 h-24 rounded-full" style={{ background: 'radial-gradient(circle, rgba(254,249,195,0.25), transparent 70%)' }} />
+                                  {/* Poussière de pollen qui flotte doucement */}
+                                  {Array.from({ length: 8 }).map((_, i) => {
+                                    const seed = (i * 41) % 100;
+                                    return (
+                                      <span
+                                        key={`dust-${i}`}
+                                        className="absolute rounded-full bg-yellow-100/60 eco-ambient-dust"
+                                        style={{
+                                          left: `${8 + seed * 0.85}%`,
+                                          bottom: `${5 + (i % 3) * 6}%`,
+                                          width: 2 + (i % 2) * 2,
+                                          height: 2 + (i % 2) * 2,
+                                          animationDuration: `${6 + (i % 4)}s`,
+                                          animationDelay: `${(i * 0.9) % 7}s`,
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                </>
+                              )}
+                              {ecoBackground === 'night' && (
+                                <>
+                                  {Array.from({ length: 26 }).map((_, i) => {
+                                    const seed = (i * 37) % 100;
+                                    const seed2 = (i * 61) % 100;
+                                    return (
+                                      <span
+                                        key={i}
+                                        className="absolute rounded-full bg-white eco-twinkle"
+                                        style={{
+                                          left: `${seed}%`,
+                                          top: `${(seed2 * 0.85)}%`,
+                                          width: i % 4 === 0 ? 2.5 : 1.5,
+                                          height: i % 4 === 0 ? 2.5 : 1.5,
+                                          animationDuration: `${2.5 + (i % 5) * 0.6}s`,
+                                          animationDelay: `${(i * 0.31) % 4}s`,
+                                        }}
+                                      />
+                                    );
+                                  })}
+                                  <div className="absolute top-4 right-6 w-10 h-10 rounded-full bg-yellow-50/25 blur-[2px]" />
+                                </>
+                              )}
+                            </div>
 
-                          <AnimatePresence>
-                            {ecoParticles.map(p => (
-                              <motion.span
-                                key={p.id}
-                                initial={{ opacity: 1, y: 0 }}
-                                animate={{ opacity: 0, y: -28 }}
-                                exit={{ opacity: 0 }}
-                                transition={{ duration: 0.9, ease: 'easeOut' }}
-                                style={{ left: `${p.x}%`, top: `${p.y}%` }}
-                                className="absolute text-sm pointer-events-none -translate-x-1/2 -translate-y-1/2"
-                              >
-                                {p.emoji}
-                              </motion.span>
-                            ))}
-                          </AnimatePresence>
+                            {/* Voile de teinte "Ambiance" — décale légèrement la lumière sans changer le décor */}
+                            <div
+                              className="absolute inset-0 pointer-events-none transition-opacity duration-700"
+                              style={{ background: moodOverlay, opacity: ecoAltMood ? 1 : 0 }}
+                            />
+
+                            {visibleElements.length === 0 && (
+                              <p className="absolute inset-0 flex items-center justify-center text-xs text-app-muted italic px-6 text-center pointer-events-none">
+                                {lang === 'fr' ? "Aucune présence posée pour le moment." : 'No presence placed yet.'}
+                              </p>
+                            )}
+
+                            {visibleElements.map(el => {
+                              const meta = getEcoItemMeta(el.theme, el.type);
+                              const pulsing = ecoPulsingId === el.id;
+                              const author = el.authorAlterId ? savedAlters.find(a => a.id === el.authorAlterId) : null;
+                              const seed = ecoAnimSeed(el.id);
+                              const animClass = ECO_GLOW_IDS.includes(el.type) ? 'eco-glow' : ECO_SWIM_IDS.includes(el.type) ? 'eco-swim' : 'eco-float';
+                              const animStyle: React.CSSProperties = {
+                                animationDuration: `${(ECO_SWIM_IDS.includes(el.type) ? 3.5 : ECO_GLOW_IDS.includes(el.type) ? 2.6 : 3.2) + (seed % 10) * 0.15}s`,
+                                animationDelay: `${(seed % 20) * 0.12}s`,
+                                filter: el.type === 'nuagerose' ? 'hue-rotate(-45deg) saturate(1.6) brightness(1.05)' : undefined,
+                              };
+                              return (
+                                <div
+                                  key={el.id}
+                                  onPointerDown={e => handleEcoPointerDown(e, el)}
+                                  onPointerMove={handleEcoPointerMove}
+                                  onPointerUp={e => handleEcoPointerUp(e, el)}
+                                  style={{
+                                    left: `${el.x}%`,
+                                    top: `${el.y}%`,
+                                    transform: `translate(-50%, -50%) scale(${pulsing ? 1.3 : 1})`,
+                                  }}
+                                  className={`absolute flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing transition-transform duration-300 ${ecoEditMode ? 'opacity-90 hover:opacity-40' : ''}`}
+                                >
+                                  <span className={`text-2xl pointer-events-none drop-shadow ${animClass}`} style={animStyle}>{meta.emoji}</span>
+                                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
+                                    {lang === 'fr' ? meta.label : meta.labelEn}
+                                    {author ? ` · ${author.alterName}` : ` · ${lang === 'fr' ? 'Anonyme' : 'Anonymous'}`}
+                                  </span>
+                                </div>
+                              );
+                            })}
+
+                            <AnimatePresence>
+                              {ecoParticles.map(p => (
+                                <motion.span
+                                  key={p.id}
+                                  initial={{ opacity: 1, y: 0 }}
+                                  animate={{ opacity: 0, y: -28 }}
+                                  exit={{ opacity: 0 }}
+                                  transition={{ duration: 0.9, ease: 'easeOut' }}
+                                  style={{ left: `${p.x}%`, top: `${p.y}%` }}
+                                  className="absolute text-sm pointer-events-none -translate-x-1/2 -translate-y-1/2"
+                                >
+                                  {p.emoji}
+                                </motion.span>
+                              ))}
+                            </AnimatePresence>
+                          </div>
                         </div>
 
                         {/* Dépôt d'une présence */}
                         {!ecoFormOpen ? (
-                          <div className="w-full max-w-lg flex gap-2">
+                          <div className="w-full max-w-2xl flex gap-2">
                             <button
                               onClick={() => setEcoFormOpen(true)}
                               className="flex-1 flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
@@ -12297,7 +12542,7 @@ export default function App() {
                             </button>
                           </div>
                         ) : (
-                          <div className="w-full max-w-lg bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-4">
+                          <div className="w-full max-w-2xl bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-4">
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
                                 {lang === 'fr' ? 'Quel élément ?' : 'Which element?'}
@@ -12424,7 +12669,7 @@ export default function App() {
                         <p className="text-[10px] text-app-muted text-center italic max-w-xs">
                           {ecoEditMode
                             ? (lang === 'fr' ? 'Clique sur un élément pour le retirer.' : 'Click an element to remove it.')
-                            : (lang === 'fr' ? 'Fais glisser un élément pour le repositionner, ou tapote-le pour le voir réagir.' : 'Drag an element to reposition it, or tap it to see it gently react.')}
+                            : (lang === 'fr' ? 'Fais glisser un élément pour le repositionner, ou tapote-le pour le voir réagir. Molette, pincement ou glisser le fond pour naviguer dans la scène.' : 'Drag an element to reposition it, or tap it to see it gently react. Scroll, pinch or drag the background to navigate the scene.')}
                         </p>
                       </div>
                     );
