@@ -12542,8 +12542,9 @@ export default function App() {
                               <button
                                 type="button"
                                 onClick={resetWaterToday}
-                                className="text-[9px] font-black uppercase tracking-wide text-app-muted hover:text-app-accent underline decoration-dotted transition-colors"
+                                className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2.5 py-1.5 rounded-lg border border-app-border bg-app-card text-app-muted hover:border-app-accent/50 hover:text-app-accent transition-all"
                               >
+                                <RotateCcw className="w-3 h-3" />
                                 {lang === 'fr' ? 'Réinitialiser' : 'Reset'}
                               </button>
                               <button
