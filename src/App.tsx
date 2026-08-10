@@ -1082,6 +1082,11 @@ export default function App() {
   // --- Notifications ---
   const [notifBrowser, setNotifBrowser] = useState<boolean>(() => localStorage.getItem('hs-notif-browser') === 'true');
   const [notifToast, setNotifToast] = useState<boolean>(() => localStorage.getItem('hs-notif-toast') !== 'false'); // activé par défaut
+  // Rappel d'hydratation façon Plant Nanny : opt-in séparé, s'appuie sur le Jardin de l'Éco-Système
+  const [hydroReminderOn, setHydroReminderOn] = useState<boolean>(() => localStorage.getItem('hs-hydro-reminder-on') === 'true');
+  const [hydroIntervalHours, setHydroIntervalHours] = useState<number>(() => Number(localStorage.getItem('hs-hydro-interval') || '2'));
+  useEffect(() => { localStorage.setItem('hs-hydro-reminder-on', String(hydroReminderOn)); }, [hydroReminderOn]);
+  useEffect(() => { localStorage.setItem('hs-hydro-interval', String(hydroIntervalHours)); }, [hydroIntervalHours]);
   const [toasts, setToasts] = useState<{ id: string; alterName: string; status: string; avatar?: string }[]>([]);
 
   const addToast = (alterName: string, status: string, avatar?: string) => {
@@ -3119,6 +3124,42 @@ export default function App() {
     return () => clearInterval(medInterval);
   }, [medications, lang, notifBrowser]);
 
+  // Rappel d'hydratation : pas de "planning" à respecter, juste un intervalle glissant depuis le dernier
+  // arrosage/verre d'eau. On évite la nuit (8h-22h) et on ne relance pas plus souvent que l'intervalle choisi.
+  const HYDRO_REMINDED_KEY = 'hs-hydro-last-reminded';
+  const HYDRO_WAKE_START_HOUR = 8;
+  const HYDRO_WAKE_END_HOUR = 22;
+  useEffect(() => {
+    const check = () => {
+      if (!notifBrowser || !hydroReminderOn || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const now = new Date();
+      if (now.getHours() < HYDRO_WAKE_START_HOUR || now.getHours() >= HYDRO_WAKE_END_HOUR) return;
+      const intervalMs = Math.max(1, hydroIntervalHours) * 60 * 60 * 1000;
+      const lastWater = Number(localStorage.getItem('hs-last-water-time') || '0');
+      const lastReminded = Number(localStorage.getItem(HYDRO_REMINDED_KEY) || '0');
+      if (now.getTime() - lastWater < intervalMs) return;
+      if (now.getTime() - lastReminded < intervalMs) return;
+      const notif = new Notification(lang === 'fr' ? '✦ Rappel d\'hydratation' : '✦ Hydration reminder', {
+        body: lang === 'fr'
+          ? "Ton jardin a soif — et toi, tu as bu récemment ? Va arroser une graine 💧"
+          : 'Your garden is thirsty — have you had water lately? Go water a seed 💧',
+        icon: '/icon-192.png',
+        tag: 'hs-hydro-reminder',
+      });
+      notif.onclick = () => {
+        window.focus();
+        setCurrentTab('relax');
+        setActiveRelaxTool('eco-system');
+        setEcoBackground('jardin');
+        notif.close();
+      };
+      localStorage.setItem(HYDRO_REMINDED_KEY, String(now.getTime()));
+    };
+    check();
+    const hydroInterval = setInterval(check, 30000);
+    return () => clearInterval(hydroInterval);
+  }, [notifBrowser, hydroReminderOn, hydroIntervalHours, lang]);
+
   // Rappel de sauvegarde JSON : comme il n'y a ni compte ni cloud, l'export JSON est la seule
   // sauvegarde. On rappelle au plus une fois par jour si ça fait trop longtemps (7 jours).
   const EXPORT_REMINDER_DAYS = 7;
@@ -3267,7 +3308,7 @@ export default function App() {
   };
 
   // --- Éco-Système (partagé entre tous les alters du système) ---
-  interface EcoElement { id: string; type: string; theme: 'aquarium' | 'greenhouse' | 'night'; x: number; y: number; authorAlterId?: string; timestamp: number; }
+  interface EcoElement { id: string; type: string; theme: 'aquarium' | 'greenhouse' | 'night' | 'jardin'; x: number; y: number; authorAlterId?: string; timestamp: number; growth?: number; lastWatered?: number; }
   const [ecoElements, setEcoElements] = useState<EcoElement[]>(() => {
     try {
       const raw = JSON.parse(localStorage.getItem('hs-eco-elements') || '[]');
@@ -3318,14 +3359,50 @@ export default function App() {
     return h;
   };
 
-  const ECO_BACKGROUNDS: { id: 'aquarium' | 'greenhouse' | 'night'; label: string; labelEn: string; className: string }[] = [
+  const ECO_BACKGROUNDS: { id: 'aquarium' | 'greenhouse' | 'night' | 'jardin'; label: string; labelEn: string; className: string }[] = [
     { id: 'aquarium', label: 'Aquarium', labelEn: 'Aquarium', className: 'from-sky-300/40 via-sky-500/25 to-cyan-700/25 border-sky-500/25' },
     { id: 'greenhouse', label: 'Serre', labelEn: 'Greenhouse', className: 'from-lime-200/35 via-emerald-400/20 to-emerald-700/20 border-emerald-500/25' },
     { id: 'night', label: 'Ciel nocturne', labelEn: 'Night sky', className: 'from-indigo-950/70 via-indigo-900/60 to-purple-950/70 border-indigo-500/25' },
+    { id: 'jardin', label: 'Jardin', labelEn: 'Garden', className: 'from-lime-100/40 via-amber-100/25 to-emerald-300/20 border-lime-600/25' },
   ];
 
+  // Jardin : les graines poussent par palier au fil des arrosages (chaque tap = 1 arrosage = 1 verre d'eau loggé)
+  const JARDIN_WATERS_PER_STAGE = 3;
+  const JARDIN_GROWTH_STAGES: Record<string, string[]> = {
+    'graine-fleur': ['🌱', '🌿', '🌷'],
+    'graine-arbre': ['🌱', '🌿', '🌳'],
+    'graine-legume': ['🌱', '🌿', '🍅'],
+  };
+  const JARDIN_WILT_MS = 48 * 60 * 60 * 1000; // pas arrosée depuis 48h → elle flétrit visuellement (rappel doux)
+  const getJardinEmoji = (el: EcoElement) => {
+    const stages = JARDIN_GROWTH_STAGES[el.type];
+    if (!stages) return getEcoItemMeta(el.theme, el.type).emoji;
+    const stageIndex = Math.min(stages.length - 1, Math.floor((el.growth || 0) / JARDIN_WATERS_PER_STAGE));
+    return stages[stageIndex];
+  };
+  const isJardinWilted = (el: EcoElement) =>
+    !!JARDIN_GROWTH_STAGES[el.type] && !!el.lastWatered && (Date.now() - el.lastWatered) > JARDIN_WILT_MS;
+
+  // Compteur de verres d'eau bus aujourd'hui — chaque arrosage d'une graine dans le Jardin en logge un
+  const WATER_LOG_KEY = 'hs-water-log';
+  const [waterCountToday, setWaterCountToday] = useState<number>(() => {
+    try {
+      const log = JSON.parse(localStorage.getItem(WATER_LOG_KEY) || '{}');
+      return log[new Date().toISOString().slice(0, 10)] || 0;
+    } catch { return 0; }
+  });
+  const logWaterDrink = () => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let log: Record<string, number> = {};
+    try { log = JSON.parse(localStorage.getItem(WATER_LOG_KEY) || '{}'); } catch { /* ignore */ }
+    log[todayStr] = (log[todayStr] || 0) + 1;
+    try { localStorage.setItem(WATER_LOG_KEY, JSON.stringify(log)); } catch { /* ignore */ }
+    localStorage.setItem('hs-last-water-time', String(Date.now()));
+    setWaterCountToday(log[todayStr]);
+  };
+
   // Catalogue d'éléments par thème, organisé en sous-onglets pour ne pas surcharger le menu.
-  const ECO_CATALOG: Record<'aquarium' | 'greenhouse' | 'night', {
+  const ECO_CATALOG: Record<'aquarium' | 'greenhouse' | 'night' | 'jardin', {
     tabs: { id: string; label: string; labelEn: string }[];
     items: { id: string; emoji: string; label: string; labelEn: string; tab: string }[];
   }> = {
@@ -3399,6 +3476,26 @@ export default function App() {
         { id: 'constellation', emoji: '✨', label: 'Constellation personnalisée', labelEn: 'Custom constellation', tab: 'volants' },
       ],
     },
+    jardin: {
+      tabs: [
+        { id: 'plantes', label: 'Graines', labelEn: 'Seeds' },
+        { id: 'faune', label: 'Petite faune', labelEn: 'Little creatures' },
+        { id: 'decor', label: 'Décor', labelEn: 'Decor' },
+      ],
+      items: [
+        { id: 'graine-fleur', emoji: '🌱', label: 'Graine de fleur', labelEn: 'Flower seed', tab: 'plantes' },
+        { id: 'graine-arbre', emoji: '🌱', label: "Graine d'arbre", labelEn: 'Tree seed', tab: 'plantes' },
+        { id: 'graine-legume', emoji: '🌱', label: 'Graine de potager', labelEn: 'Vegetable seed', tab: 'plantes' },
+        { id: 'papillon', emoji: '🦋', label: 'Papillon', labelEn: 'Butterfly', tab: 'faune' },
+        { id: 'coccinelle', emoji: '🐞', label: 'Coccinelle', labelEn: 'Ladybug', tab: 'faune' },
+        { id: 'abeille', emoji: '🐝', label: 'Abeille', labelEn: 'Bee', tab: 'faune' },
+        { id: 'oiseau', emoji: '🐦', label: 'Oiseau', labelEn: 'Bird', tab: 'faune' },
+        { id: 'arrosoir', emoji: '🪣', label: 'Arrosoir', labelEn: 'Watering can', tab: 'decor' },
+        { id: 'banc-jardin', emoji: '🪑', label: 'Banc de jardin', labelEn: 'Garden bench', tab: 'decor' },
+        { id: 'lanterne-jardin', emoji: '🏮', label: 'Lanterne', labelEn: 'Lantern', tab: 'decor' },
+        { id: 'ruche', emoji: '🍯', label: 'Ruche', labelEn: 'Beehive', tab: 'decor' },
+      ],
+    },
   };
   const getEcoItemMeta = (theme: EcoElement['theme'], type: string) => {
     return ECO_CATALOG[theme].items.find(it => it.id === type)
@@ -3425,7 +3522,16 @@ export default function App() {
   const tapEcoElement = (el: EcoElement) => {
     setEcoPulsingId(el.id);
     setTimeout(() => setEcoPulsingId(prev => prev === el.id ? null : prev), 700);
-    const particleEmoji = ecoBackground === 'aquarium' ? '🫧' : ecoBackground === 'night' ? '✨' : '🍃';
+    // Dans le Jardin, taper une graine = l'arroser : ça la fait pousser ET compte comme un verre d'eau du jour
+    const isWatering = el.theme === 'jardin' && !!JARDIN_GROWTH_STAGES[el.type];
+    if (isWatering) {
+      const maxGrowth = JARDIN_WATERS_PER_STAGE * (JARDIN_GROWTH_STAGES[el.type].length - 1);
+      setEcoElements(prev => prev.map(e => e.id === el.id
+        ? { ...e, growth: Math.min(maxGrowth, (e.growth || 0) + 1), lastWatered: Date.now() }
+        : e));
+      logWaterDrink();
+    }
+    const particleEmoji = isWatering ? '💧' : ecoBackground === 'aquarium' ? '🫧' : ecoBackground === 'night' ? '✨' : '🍃';
     const newParticles: EcoParticle[] = Array.from({ length: 2 }).map(() => ({
       id: Math.random().toString(36).substring(2, 9),
       x: el.x + (Math.random() * 8 - 4),
@@ -6118,7 +6224,7 @@ export default function App() {
                               {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
                             </span>
                             <span className="text-[10px] text-app-muted">
-                              {lang === 'fr' ? 'Messages, rappels de planning, traitements et sauvegarde' : 'Messages, planning, medication and backup reminders'}
+                              {lang === 'fr' ? 'Messages, rappels de planning, traitements, hydratation et sauvegarde' : 'Messages, planning, medication, hydration and backup reminders'}
                             </span>
                             {!('Notification' in window) && (
                               <span className="text-[10px] text-app-muted">{lang === 'fr' ? 'Non supporté' : 'Not supported'}</span>
@@ -6131,6 +6237,41 @@ export default function App() {
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifBrowser ? 'left-[18px]' : 'left-0.5'}`} />
                           </div>
                         </button>
+                        {/* Rappel d'hydratation — opt-in séparé, lié au Jardin de l'Éco-Système */}
+                        <button
+                          onClick={() => setHydroReminderOn(o => !o)}
+                          className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                        >
+                          <div className="flex flex-col items-start">
+                            <span className="text-xs font-bold text-app-text">
+                              💧 {lang === 'fr' ? "Rappel d'hydratation (Jardin)" : 'Hydration reminder (Garden)'}
+                            </span>
+                            <span className="text-[10px] text-app-muted">
+                              {lang === 'fr' ? 'Un rappel pour boire, entre 8h et 22h' : 'A reminder to drink water, between 8am and 10pm'}
+                            </span>
+                          </div>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative ${hydroReminderOn ? 'bg-app-accent' : 'bg-app-border'}`}>
+                            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${hydroReminderOn ? 'left-[18px]' : 'left-0.5'}`} />
+                          </div>
+                        </button>
+                        {hydroReminderOn && (
+                          <div className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 rounded-xl">
+                            <span className="text-[10px] font-bold text-app-muted uppercase tracking-wide">
+                              {lang === 'fr' ? 'Toutes les' : 'Every'}
+                            </span>
+                            <div className="flex gap-1">
+                              {[1, 2, 3, 4].map(h => (
+                                <button
+                                  key={h}
+                                  onClick={() => setHydroIntervalHours(h)}
+                                  className={`px-2.5 py-1 rounded-lg text-[10px] font-black border transition-all ${hydroIntervalHours === h ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                                >
+                                  {h}h
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
 
                       {/* Revoir la visite guidée */}
@@ -12300,12 +12441,20 @@ export default function App() {
                     const moodOverlay =
                       ecoBackground === 'aquarium' ? 'linear-gradient(160deg, rgba(255,183,94,0.22), rgba(255,120,80,0.10) 55%, transparent)' :
                       ecoBackground === 'greenhouse' ? 'linear-gradient(160deg, rgba(255,196,120,0.20), rgba(255,140,90,0.08) 55%, transparent)' :
+                      ecoBackground === 'jardin' ? 'linear-gradient(160deg, rgba(255,140,60,0.20), rgba(180,90,30,0.10) 55%, transparent)' :
                       'linear-gradient(160deg, rgba(168,85,247,0.22), rgba(99,102,241,0.14) 55%, transparent)';
                     return (
                       <div className="flex flex-col items-center gap-5 py-6 w-full">
                         <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
                           {lang === 'fr' ? 'Éco-Système' : 'Eco-System'}
                         </h3>
+                        {ecoBackground === 'jardin' && (
+                          <p className="text-[11px] font-bold text-app-muted -mt-3">
+                            💧 {waterCountToday} {lang === 'fr'
+                              ? (waterCountToday > 1 ? 'verres bus aujourd\'hui — arrose une graine pour en ajouter un' : 'verre bu aujourd\'hui — arrose une graine pour en ajouter un')
+                              : (waterCountToday === 1 ? 'glass today — water a seed to log another' : 'glasses today — water a seed to log another')}
+                          </p>
+                        )}
 
                         {/* Choix du paysage */}
                         <div className="flex gap-2 w-full max-w-2xl">
@@ -12459,6 +12608,31 @@ export default function App() {
                                   <div className="absolute top-4 right-6 w-10 h-10 rounded-full bg-yellow-50/25 blur-[2px]" />
                                 </>
                               )}
+                              {ecoBackground === 'jardin' && (
+                                <>
+                                  <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-amber-800/25 to-transparent" />
+                                  <div className="absolute top-0 left-[15%] w-20 h-full bg-gradient-to-b from-yellow-100/25 to-transparent rotate-6" />
+                                  <div className="absolute top-2 right-8 w-12 h-12 rounded-full bg-yellow-100/40 blur-[3px]" />
+                                  <span className="absolute bottom-2 left-[6%] text-xl opacity-40">🌾</span>
+                                  <span className="absolute bottom-3 right-[10%] text-lg opacity-35">🌾</span>
+                                  {/* Petites feuilles qui dérivent doucement, purement décoratif */}
+                                  {Array.from({ length: 6 }).map((_, i) => {
+                                    const seed = (i * 47) % 100;
+                                    return (
+                                      <span
+                                        key={`leaf-${i}`}
+                                        className="absolute text-xs opacity-30 eco-ambient-dust"
+                                        style={{
+                                          left: `${8 + seed * 0.85}%`,
+                                          top: `${5 + (i % 3) * 10}%`,
+                                          animationDuration: `${7 + (i % 4)}s`,
+                                          animationDelay: `${(i * 0.8) % 6}s`,
+                                        }}
+                                      >🍂</span>
+                                    );
+                                  })}
+                                </>
+                              )}
                             </div>
 
                             {/* Voile de teinte "Ambiance" — décale légèrement la lumière sans changer le décor */}
@@ -12475,6 +12649,9 @@ export default function App() {
 
                             {visibleElements.map(el => {
                               const meta = getEcoItemMeta(el.theme, el.type);
+                              const isSeed = el.theme === 'jardin' && !!JARDIN_GROWTH_STAGES[el.type];
+                              const displayEmoji = isSeed ? getJardinEmoji(el) : meta.emoji;
+                              const wilted = isSeed && isJardinWilted(el);
                               const pulsing = ecoPulsingId === el.id;
                               const author = el.authorAlterId ? savedAlters.find(a => a.id === el.authorAlterId) : null;
                               const seed = ecoAnimSeed(el.id);
@@ -12482,7 +12659,8 @@ export default function App() {
                               const animStyle: React.CSSProperties = {
                                 animationDuration: `${(ECO_SWIM_IDS.includes(el.type) ? 3.5 : ECO_GLOW_IDS.includes(el.type) ? 2.6 : 3.2) + (seed % 10) * 0.15}s`,
                                 animationDelay: `${(seed % 20) * 0.12}s`,
-                                filter: el.type === 'nuagerose' ? 'hue-rotate(-45deg) saturate(1.6) brightness(1.05)' : undefined,
+                                filter: el.type === 'nuagerose' ? 'hue-rotate(-45deg) saturate(1.6) brightness(1.05)' : wilted ? 'grayscale(0.6) brightness(0.85)' : undefined,
+                                opacity: wilted ? 0.6 : undefined,
                               };
                               return (
                                 <div
@@ -12497,9 +12675,11 @@ export default function App() {
                                   }}
                                   className={`absolute flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing transition-transform duration-300 ${ecoEditMode ? 'opacity-90 hover:opacity-40' : ''}`}
                                 >
-                                  <span className={`text-2xl pointer-events-none drop-shadow ${animClass}`} style={animStyle}>{meta.emoji}</span>
+                                  <span className={`text-2xl pointer-events-none drop-shadow ${animClass}`} style={animStyle}>{displayEmoji}</span>
                                   <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
-                                    {lang === 'fr' ? meta.label : meta.labelEn}
+                                    {isSeed
+                                      ? (wilted ? (lang === 'fr' ? '💧 A soif — arrose-la' : '💧 Thirsty — water it') : (lang === 'fr' ? meta.label : meta.labelEn))
+                                      : (lang === 'fr' ? meta.label : meta.labelEn)}
                                     {author ? ` · ${author.alterName}` : ` · ${lang === 'fr' ? 'Anonyme' : 'Anonymous'}`}
                                   </span>
                                 </div>
