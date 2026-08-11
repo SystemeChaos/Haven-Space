@@ -3392,13 +3392,19 @@ export default function App() {
   const isJardinWilted = (el: EcoElement) =>
     !!JARDIN_GROWTH_STAGES[el.type] && !!el.lastWatered && (Date.now() - el.lastWatered) > JARDIN_WILT_MS;
 
-  // Cycle jour/nuit du Jardin, basé sur l'heure réelle de l'appareil — se réévalue chaque minute
-  const [jardinClockTick, setJardinClockTick] = useState(0);
+  // Cycle jour/nuit de l'Éco-Système entier, basé sur l'heure réelle de l'appareil — se réévalue chaque minute
+  const [ecoClockTick, setEcoClockTick] = useState(0);
   useEffect(() => {
-    const iv = setInterval(() => setJardinClockTick(t => t + 1), 60000);
+    const iv = setInterval(() => setEcoClockTick(t => t + 1), 60000);
     return () => clearInterval(iv);
   }, []);
-  const isJardinNight = (() => { void jardinClockTick; const h = new Date().getHours(); return h >= 20 || h < 7; })();
+  const isNightTime = (() => { void ecoClockTick; const h = new Date().getHours(); return h >= 20 || h < 7; })();
+  // Variantes nocturnes par thème — Ciel nocturne est déjà sombre en permanence, pas besoin de variante
+  const ECO_NIGHT_VARIANTS: Partial<Record<'aquarium' | 'greenhouse' | 'night' | 'jardin', string>> = {
+    aquarium: 'from-slate-900/60 via-blue-950/50 to-cyan-950/50 border-blue-900/30',
+    greenhouse: 'from-emerald-950/55 via-slate-900/45 to-emerald-950/45 border-emerald-900/30',
+    jardin: 'from-indigo-950/50 via-emerald-950/40 to-slate-950/50 border-emerald-800/25',
+  };
 
   // Compteur de verres d'eau bus aujourd'hui — chaque arrosage d'une graine dans le Jardin en logge un
   const WATER_LOG_KEY = 'hs-water-log';
@@ -3567,6 +3573,7 @@ export default function App() {
         : e));
       logWaterDrink();
     }
+    if (isWatering || el.type === 'mare' || el.type === 'fontaine') playWaterSplash();
     const particleEmoji = (isWatering || el.type === 'mare' || el.type === 'fontaine') ? '💧'
       : ecoBackground === 'aquarium' ? '🫧'
       : ecoBackground === 'night' ? '✨'
@@ -3675,18 +3682,23 @@ export default function App() {
     ecoPanDragRef.current = null;
   };
 
-  // Son d'ambiance très doux (bruit filtré en boucle) — se lance/coupe proprement au toggle ou au changement de thème
+  // Son d'ambiance (100% synthétisé, aucun fichier à charger) — une couche de bruit de fond par thème/heure,
+  // + des couches d'évènements ponctuels (pluie, grillons, grenouilles, orage lointain au loin)
   useEffect(() => {
     if (!ecoSoundOn) return;
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     const ctx: AudioContext = new Ctx();
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const night = isNightTime;
+
+    // --- couche de fond : bruit brownien filtré, texture "eau/vent" qui change avec le thème et l'heure ---
     const bufferSize = ctx.sampleRate * 4;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     let last = 0;
     for (let i = 0; i < bufferSize; i++) {
       const white = Math.random() * 2 - 1;
-      last = (last + 0.02 * white) / 1.02; // bruit brownien doux, texture "vent/eau"
+      last = (last + 0.02 * white) / 1.02;
       data[i] = last * 3.2;
     }
     const noise = ctx.createBufferSource();
@@ -3694,23 +3706,109 @@ export default function App() {
     noise.loop = true;
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.value = ecoBackground === 'aquarium' ? 900 : ecoBackground === 'greenhouse' ? 1400 : 600;
+    filter.frequency.value = ecoBackground === 'aquarium' ? 900
+      : ecoBackground === 'greenhouse' ? 2200 // plus haut perché : pluie sur le toit vitré
+      : ecoBackground === 'jardin' ? (night ? 500 : 1100) // ruisseau/feuillage le jour, plus feutré la nuit
+      : 600; // ciel nocturne
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 1.2);
+    gain.gain.exponentialRampToValueAtTime(ecoBackground === 'greenhouse' ? 0.04 : 0.05, ctx.currentTime + 1.2);
     noise.connect(filter);
     filter.connect(gain);
     gain.connect(ctx.destination);
     noise.start();
+
+    // Petit "bip" enveloppé, utilisé pour les grillons/gouttes/grenouilles
+    const playBlip = (freq: number, dur: number, vol: number, type: OscillatorType = 'sine') => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + dur + 0.05);
+    };
+
+    // --- Grillons : Ciel nocturne toujours, Jardin seulement la nuit ---
+    if (ecoBackground === 'night' || (ecoBackground === 'jardin' && night)) {
+      const cricket = () => {
+        if (Math.random() < 0.7) playBlip(2600 + Math.random() * 800, 0.09, 0.02, 'square');
+        timers.push(setTimeout(cricket, 900 + Math.random() * 1800));
+      };
+      timers.push(setTimeout(cricket, 600));
+    }
+    // --- Grenouilles d'étang : Jardin la nuit seulement (ambiance crépusculaire autour de la mare) ---
+    if (ecoBackground === 'jardin' && night) {
+      const frog = () => {
+        if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
+        timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
+      };
+      timers.push(setTimeout(frog, 2000));
+    }
+    // --- Serre : pluie fine et régulière sur le toit vitré + orage lointain très occasionnel ---
+    if (ecoBackground === 'greenhouse') {
+      const drip = () => {
+        playBlip(1800 + Math.random() * 1200, 0.05, 0.014, 'triangle');
+        timers.push(setTimeout(drip, 220 + Math.random() * 380));
+      };
+      timers.push(setTimeout(drip, 300));
+      const thunder = () => {
+        if (Math.random() < 0.15) {
+          const osc = ctx.createOscillator();
+          const g = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = 55;
+          g.gain.setValueAtTime(0.0001, ctx.currentTime);
+          g.gain.exponentialRampToValueAtTime(0.03, ctx.currentTime + 0.5);
+          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.5);
+          osc.connect(g);
+          g.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 2.6);
+        }
+        timers.push(setTimeout(thunder, 25000 + Math.random() * 30000));
+      };
+      timers.push(setTimeout(thunder, 15000));
+    }
+
     ecoAudioRef.current = { ctx, nodes: [noise, filter, gain] };
     return () => {
+      timers.forEach(clearTimeout);
       try {
         gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-        setTimeout(() => { noise.stop(); ctx.close(); }, 450);
+        setTimeout(() => { try { noise.stop(); } catch { /* déjà arrêté */ } ctx.close(); }, 450);
       } catch { /* déjà arrêté */ }
       ecoAudioRef.current = null;
     };
-  }, [ecoSoundOn, ecoBackground]);
+  }, [ecoSoundOn, ecoBackground, isNightTime]);
+
+  // Petit clapotis synthétisé, joué au moment précis où on arrose une graine (feedback satisfaisant, façon Plant Nanny)
+  const playWaterSplash = () => {
+    const audio = ecoAudioRef.current;
+    if (!audio) return;
+    const { ctx } = audio;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.3), ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1200;
+    f.Q.value = 0.7;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
+    src.connect(f);
+    f.connect(g);
+    g.connect(ctx.destination);
+    src.start();
+  };
 
   // --- Boîte à Choix ---
   const WHEEL_COLORS = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE', '#D9F3EF', '#F3E0D9'];
@@ -12515,8 +12613,8 @@ export default function App() {
                   ) : activeRelaxTool === 'eco-system' ? (() => {
                     const bgDef = ECO_BACKGROUNDS.find(b => b.id === ecoBackground)!;
                     // Le Jardin a une variante nocturne, appliquée automatiquement selon l'heure de l'appareil
-                    const bg = (ecoBackground === 'jardin' && isJardinNight)
-                      ? { ...bgDef, className: 'from-indigo-950/50 via-emerald-950/40 to-slate-950/50 border-emerald-800/25' }
+                    const bg = (isNightTime && ECO_NIGHT_VARIANTS[ecoBackground])
+                      ? { ...bgDef, className: ECO_NIGHT_VARIANTS[ecoBackground]! }
                       : bgDef;
                     const catalog = ECO_CATALOG[ecoBackground];
                     const visibleElements = ecoElements.filter(el => el.theme === ecoBackground);
@@ -12661,10 +12759,12 @@ export default function App() {
                           onPointerCancel={handleEcoViewportPointerUp}
                           className="relative w-full max-w-2xl h-72 sm:h-[26rem] rounded-3xl border overflow-hidden touch-none select-none cursor-grab active:cursor-grabbing"
                         >
-                          {/* La scène — fond immersif propre à chaque thème, reçoit le zoom/pan */}
+                          {/* Fond — reste fixe et couvre tout le cadre, ne suit jamais le pan (sinon ça laisse un vide) */}
+                          <div className={`absolute inset-0 bg-gradient-to-b ${bg.className}`} />
+                          {/* La scène — contenu (décor, éléments posés), reçoit le zoom/pan */}
                           <div
                             ref={ecoSceneRef}
-                            className={`absolute inset-0 bg-gradient-to-b ${bg.className}`}
+                            className="absolute inset-0"
                             style={{ transform: `translate(${ecoPan.x}px, ${ecoPan.y}px) scale(${ecoZoom})`, transformOrigin: 'center center' }}
                           >
                             {/* Décor d'arrière-plan, non-interactif */}
@@ -12793,8 +12893,8 @@ export default function App() {
                               const meta = getEcoItemMeta(el.theme, el.type);
                               const isSeed = el.theme === 'jardin' && !!JARDIN_GROWTH_STAGES[el.type];
                               // La nuit, dans le Jardin : les papillons deviennent des lucioles, les lanternes s'allument
-                              const isNightButterfly = el.theme === 'jardin' && isJardinNight && el.type === 'papillon';
-                              const isNightLantern = el.theme === 'jardin' && isJardinNight && el.type === 'lanterne-jardin';
+                              const isNightButterfly = el.theme === 'jardin' && isNightTime && el.type === 'papillon';
+                              const isNightLantern = el.theme === 'jardin' && isNightTime && el.type === 'lanterne-jardin';
                               const displayEmoji = isSeed ? getJardinEmoji(el) : isNightButterfly ? '✨' : meta.emoji;
                               const wilted = isSeed && isJardinWilted(el);
                               const pulsing = ecoPulsingId === el.id;
