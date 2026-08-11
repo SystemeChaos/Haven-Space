@@ -3696,7 +3696,10 @@ export default function App() {
   const [ecoSoundChoice, setEcoSoundChoice] = useState<string>(() => localStorage.getItem('hs-eco-sound-choice') || 'auto');
   useEffect(() => { localStorage.setItem('hs-eco-sound-choice', ecoSoundChoice); }, [ecoSoundChoice]);
 
-  // Son d'ambiance (100% synthétisé, aucun fichier à charger) — ne joue QUE le son choisi, plus de couches forcées.
+  // Son d'ambiance (100% synthétisé, aucun fichier à charger) — ne joue QUE le son choisi.
+  // Important : chaque son a sa PROPRE texture (vent = bruit brownien grave, eau = bruit blanc filtré modulé,
+  // pluie/orage/grillons = impacts ponctuels sur un fond quasi silencieux) — avant, tout partageait la même
+  // nappe de bruit filtré, donc tout "sonnait vent" peu importe le préréglage choisi.
   useEffect(() => {
     if (!ecoSoundOn) return;
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
@@ -3705,8 +3708,8 @@ export default function App() {
     const night = isNightTime;
     const choice = ecoSoundChoice;
 
-    // Nappe de fond : bruit brownien filtré, réutilisée par tous les choix avec une couleur différente
-    const makeNoiseBed = (freq: number, vol: number, filterType: BiquadFilterType = 'lowpass') => {
+    // --- Nappe "vent" : bruit brownien (intégré, donc grave et soufflé) — la SEULE texture censée sonner vent ---
+    const makeWindBed = (freq: number, vol: number) => {
       const bufferSize = ctx.sampleRate * 4;
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
@@ -3720,7 +3723,7 @@ export default function App() {
       noise.buffer = buffer;
       noise.loop = true;
       const filter = ctx.createBiquadFilter();
-      filter.type = filterType;
+      filter.type = 'lowpass';
       filter.frequency.value = freq;
       const gain = ctx.createGain();
       gain.gain.setValueAtTime(0.0001, ctx.currentTime);
@@ -3729,9 +3732,113 @@ export default function App() {
       filter.connect(gain);
       gain.connect(ctx.destination);
       noise.start();
+      // rafales : le volume varie doucement au lieu de rester plat, plus crédible qu'un souffle constant
+      const gust = () => {
+        gain.gain.linearRampToValueAtTime(vol * (0.55 + Math.random() * 0.9), ctx.currentTime + 3 + Math.random() * 3);
+        timers.push(setTimeout(gust, 3000 + Math.random() * 4000));
+      };
+      timers.push(setTimeout(gust, 3000));
       return { noise, filter, gain };
     };
-    // Petit "bip" enveloppé, utilisé pour les grillons/gouttes/grenouilles
+    // --- Nappe "eau" : bruit BLANC (pas intégré, donc plus clair/net que le vent) passe-bande modulé = ruisseau ---
+    const makeWaterBed = (freq: number, vol: number) => {
+      const bufferSize = ctx.sampleRate * 2;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = freq;
+      filter.Q.value = 1.4;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 1.2);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start();
+      // scintillement : la fréquence du filtre bouge sans arrêt = effet "bouillonnant", pas un souffle plat
+      const flicker = () => {
+        filter.frequency.linearRampToValueAtTime(freq * (0.7 + Math.random() * 0.7), ctx.currentTime + 0.15 + Math.random() * 0.25);
+        timers.push(setTimeout(flicker, 150 + Math.random() * 300));
+      };
+      timers.push(setTimeout(flicker, 150));
+      return { noise, filter, gain };
+    };
+    // --- Fond quasi silencieux : juste une présence de pièce/extérieur, pour ne jamais avoir un vrai silence total ---
+    const makeQuietFloor = (vol: number) => makeWindBed(280, vol);
+
+    // Impact bref de bruit filtré = une vraie goutte de pluie ("tink"), pas un blip tonal
+    const playRainDrop = () => {
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.04), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 3500 + Math.random() * 3000;
+      f.Q.value = 3;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.045 + Math.random() * 0.025, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.05);
+      src.connect(f);
+      f.connect(g);
+      g.connect(ctx.destination);
+      src.start();
+    };
+    // Petit "plink" plus grave et plus long = goutte qui tombe dans l'eau (mare/ruisseau)
+    const playWaterPlink = () => {
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.15), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass';
+      f.frequency.value = 900 + Math.random() * 600;
+      f.Q.value = 4;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.05, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+      src.connect(f);
+      f.connect(g);
+      g.connect(ctx.destination);
+      src.start();
+    };
+    // Craquement d'orage : un vrai "crac" (impact bruité) suivi d'un grondement grave qui traîne
+    const playThunderCrack = (vol: number) => {
+      const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.15), ctx.sampleRate);
+      const d = buf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / d.length);
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 700;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(vol * 1.4, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.2);
+      src.connect(f);
+      f.connect(g);
+      g.connect(ctx.destination);
+      src.start();
+      const osc = ctx.createOscillator();
+      const g2 = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 48 + Math.random() * 20;
+      g2.gain.setValueAtTime(0.0001, ctx.currentTime + 0.1);
+      g2.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.6);
+      g2.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 3);
+      osc.connect(g2);
+      g2.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 3.1);
+    };
+    // Un seul "cri" enveloppé (grillon, grenouille...)
     const playBlip = (freq: number, dur: number, vol: number, type: OscillatorType = 'sine') => {
       const osc = ctx.createOscillator();
       const g = ctx.createGain();
@@ -3745,87 +3852,96 @@ export default function App() {
       osc.start();
       osc.stop(ctx.currentTime + dur + 0.05);
     };
-    const playThunder = (vol: number) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = 55;
-      g.gain.setValueAtTime(0.0001, ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.5);
-      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.5);
-      osc.connect(g);
-      g.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 2.6);
+    // Un grillon fait plusieurs cris rapprochés (un "trille"), pas un seul bip isolé
+    const playCricketTrill = () => {
+      const pulses = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < pulses; i++) {
+        timers.push(setTimeout(() => playBlip(2600 + Math.random() * 800, 0.06, 0.02, 'square'), i * 70));
+      }
     };
 
     let bed: { noise: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode };
 
     if (choice === 'vent-feuilles') {
-      bed = makeNoiseBed(1100, 0.05);
+      bed = makeWindBed(1100, 0.05);
     } else if (choice === 'ruisseau') {
-      bed = makeNoiseBed(2000, 0.045, 'bandpass');
-      bed.filter.Q.value = 0.6; // caractère "eau qui coule" plus défini qu'un simple filtre passe-bas
+      bed = makeWaterBed(1800, 0.05);
+      const plink = () => {
+        if (Math.random() < 0.4) playWaterPlink();
+        timers.push(setTimeout(plink, 2500 + Math.random() * 3500));
+      };
+      timers.push(setTimeout(plink, 1500));
     } else if (choice === 'pluie-serre') {
-      bed = makeNoiseBed(2400, 0.035);
+      bed = makeQuietFloor(0.008);
       const drip = () => {
-        playBlip(1800 + Math.random() * 1200, 0.05, 0.014, 'triangle');
-        timers.push(setTimeout(drip, 220 + Math.random() * 380));
+        playRainDrop();
+        timers.push(setTimeout(drip, 70 + Math.random() * 160)); // dense = vraie pluie, pas des gouttes isolées
       };
       timers.push(setTimeout(drip, 300));
     } else if (choice === 'orage') {
-      bed = makeNoiseBed(700, 0.03);
+      bed = makeQuietFloor(0.012);
       const thunder = () => {
-        playThunder(0.03 + Math.random() * 0.02);
+        playThunderCrack(0.035 + Math.random() * 0.025);
         timers.push(setTimeout(thunder, 12000 + Math.random() * 15000));
       };
       timers.push(setTimeout(thunder, 4000));
     } else if (choice === 'grillons') {
-      bed = makeNoiseBed(500, 0.025);
+      bed = makeQuietFloor(0.006);
       const cricket = () => {
-        if (Math.random() < 0.7) playBlip(2600 + Math.random() * 800, 0.09, 0.02, 'square');
-        timers.push(setTimeout(cricket, 900 + Math.random() * 1800));
+        if (Math.random() < 0.75) playCricketTrill();
+        timers.push(setTimeout(cricket, 1000 + Math.random() * 1800));
       };
       timers.push(setTimeout(cricket, 500));
     } else if (choice === 'grenouilles') {
-      bed = makeNoiseBed(500, 0.03);
+      bed = makeQuietFloor(0.007);
       const frog = () => {
-        if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
-        timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
+        if (Math.random() < 0.55) playBlip(180 + Math.random() * 40, 0.22, 0.035, 'sawtooth');
+        timers.push(setTimeout(frog, 3200 + Math.random() * 4500));
       };
       timers.push(setTimeout(frog, 1500));
+      const plink = () => {
+        if (Math.random() < 0.3) playWaterPlink();
+        timers.push(setTimeout(plink, 4000 + Math.random() * 5000));
+      };
+      timers.push(setTimeout(plink, 2500));
     } else {
-      // 'auto' : reproduit l'ancien comportement contextuel, varie selon le thème et l'heure
-      const freq = ecoBackground === 'aquarium' ? 900
-        : ecoBackground === 'greenhouse' ? 2200
-        : ecoBackground === 'jardin' ? (night ? 500 : 1100)
-        : 600;
-      bed = makeNoiseBed(freq, ecoBackground === 'greenhouse' ? 0.04 : 0.05);
-      if (ecoBackground === 'night' || (ecoBackground === 'jardin' && night)) {
-        const cricket = () => {
-          if (Math.random() < 0.7) playBlip(2600 + Math.random() * 800, 0.09, 0.02, 'square');
-          timers.push(setTimeout(cricket, 900 + Math.random() * 1800));
-        };
-        timers.push(setTimeout(cricket, 600));
-      }
-      if (ecoBackground === 'jardin' && night) {
-        const frog = () => {
-          if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
-          timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
-        };
-        timers.push(setTimeout(frog, 2000));
-      }
-      if (ecoBackground === 'greenhouse') {
+      // 'auto' : varie selon le thème et l'heure, avec les mêmes textures différenciées que les choix manuels
+      if (ecoBackground === 'aquarium') {
+        bed = makeWaterBed(1400, 0.045);
+      } else if (ecoBackground === 'greenhouse') {
+        bed = makeQuietFloor(0.008);
         const drip = () => {
-          playBlip(1800 + Math.random() * 1200, 0.05, 0.014, 'triangle');
-          timers.push(setTimeout(drip, 220 + Math.random() * 380));
+          playRainDrop();
+          timers.push(setTimeout(drip, 70 + Math.random() * 160));
         };
         timers.push(setTimeout(drip, 300));
         const thunder = () => {
-          if (Math.random() < 0.15) playThunder(0.03);
+          if (Math.random() < 0.2) playThunderCrack(0.03);
           timers.push(setTimeout(thunder, 25000 + Math.random() * 30000));
         };
         timers.push(setTimeout(thunder, 15000));
+      } else if (ecoBackground === 'jardin') {
+        bed = night ? makeQuietFloor(0.007) : makeWindBed(1100, 0.04);
+        if (night) {
+          const cricket = () => {
+            if (Math.random() < 0.75) playCricketTrill();
+            timers.push(setTimeout(cricket, 1000 + Math.random() * 1800));
+          };
+          timers.push(setTimeout(cricket, 600));
+          const frog = () => {
+            if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
+            timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
+          };
+          timers.push(setTimeout(frog, 2000));
+        }
+      } else {
+        // Ciel nocturne
+        bed = makeQuietFloor(0.006);
+        const cricket = () => {
+          if (Math.random() < 0.75) playCricketTrill();
+          timers.push(setTimeout(cricket, 1000 + Math.random() * 1800));
+        };
+        timers.push(setTimeout(cricket, 600));
       }
     }
 
