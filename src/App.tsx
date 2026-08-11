@@ -3682,42 +3682,55 @@ export default function App() {
     ecoPanDragRef.current = null;
   };
 
-  // Son d'ambiance (100% synthétisé, aucun fichier à charger) — une couche de bruit de fond par thème/heure,
-  // + des couches d'évènements ponctuels (pluie, grillons, grenouilles, orage lointain au loin)
+  // Banque de sons d'ambiance — choix manuel parmi une liste, plus de mix automatique forcé.
+  // "Automatique" reproduit l'ancien comportement (varie selon le thème/l'heure) pour qui préfère ne pas choisir.
+  const ECO_SOUND_CHOICES: { id: string; emoji: string; label: string; labelEn: string }[] = [
+    { id: 'auto', emoji: '🎧', label: 'Automatique', labelEn: 'Automatic' },
+    { id: 'vent-feuilles', emoji: '🍃', label: 'Feuilles au vent', labelEn: 'Wind in leaves' },
+    { id: 'ruisseau', emoji: '💧', label: 'Ruisseau', labelEn: 'Stream' },
+    { id: 'pluie-serre', emoji: '🌧️', label: 'Pluie sur la serre', labelEn: 'Rain on glass' },
+    { id: 'orage', emoji: '⛈️', label: 'Orage lointain', labelEn: 'Distant storm' },
+    { id: 'grillons', emoji: '🦗', label: 'Grillons', labelEn: 'Crickets' },
+    { id: 'grenouilles', emoji: '🐸', label: 'Grenouilles', labelEn: 'Frogs' },
+  ];
+  const [ecoSoundChoice, setEcoSoundChoice] = useState<string>(() => localStorage.getItem('hs-eco-sound-choice') || 'auto');
+  useEffect(() => { localStorage.setItem('hs-eco-sound-choice', ecoSoundChoice); }, [ecoSoundChoice]);
+
+  // Son d'ambiance (100% synthétisé, aucun fichier à charger) — ne joue QUE le son choisi, plus de couches forcées.
   useEffect(() => {
     if (!ecoSoundOn) return;
     const Ctx = window.AudioContext || (window as any).webkitAudioContext;
     const ctx: AudioContext = new Ctx();
     const timers: ReturnType<typeof setTimeout>[] = [];
     const night = isNightTime;
+    const choice = ecoSoundChoice;
 
-    // --- couche de fond : bruit brownien filtré, texture "eau/vent" qui change avec le thème et l'heure ---
-    const bufferSize = ctx.sampleRate * 4;
-    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-    const data = buffer.getChannelData(0);
-    let last = 0;
-    for (let i = 0; i < bufferSize; i++) {
-      const white = Math.random() * 2 - 1;
-      last = (last + 0.02 * white) / 1.02;
-      data[i] = last * 3.2;
-    }
-    const noise = ctx.createBufferSource();
-    noise.buffer = buffer;
-    noise.loop = true;
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.value = ecoBackground === 'aquarium' ? 900
-      : ecoBackground === 'greenhouse' ? 2200 // plus haut perché : pluie sur le toit vitré
-      : ecoBackground === 'jardin' ? (night ? 500 : 1100) // ruisseau/feuillage le jour, plus feutré la nuit
-      : 600; // ciel nocturne
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(ecoBackground === 'greenhouse' ? 0.04 : 0.05, ctx.currentTime + 1.2);
-    noise.connect(filter);
-    filter.connect(gain);
-    gain.connect(ctx.destination);
-    noise.start();
-
+    // Nappe de fond : bruit brownien filtré, réutilisée par tous les choix avec une couleur différente
+    const makeNoiseBed = (freq: number, vol: number, filterType: BiquadFilterType = 'lowpass') => {
+      const bufferSize = ctx.sampleRate * 4;
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let last = 0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        last = (last + 0.02 * white) / 1.02;
+        data[i] = last * 3.2;
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      noise.loop = true;
+      const filter = ctx.createBiquadFilter();
+      filter.type = filterType;
+      filter.frequency.value = freq;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 1.2);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+      noise.start();
+      return { noise, filter, gain };
+    };
     // Petit "bip" enveloppé, utilisé pour les grillons/gouttes/grenouilles
     const playBlip = (freq: number, dur: number, vol: number, type: OscillatorType = 'sine') => {
       const osc = ctx.createOscillator();
@@ -3732,59 +3745,100 @@ export default function App() {
       osc.start();
       osc.stop(ctx.currentTime + dur + 0.05);
     };
+    const playThunder = (vol: number) => {
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 55;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + 0.5);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.5);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 2.6);
+    };
 
-    // --- Grillons : Ciel nocturne toujours, Jardin seulement la nuit ---
-    if (ecoBackground === 'night' || (ecoBackground === 'jardin' && night)) {
-      const cricket = () => {
-        if (Math.random() < 0.7) playBlip(2600 + Math.random() * 800, 0.09, 0.02, 'square');
-        timers.push(setTimeout(cricket, 900 + Math.random() * 1800));
-      };
-      timers.push(setTimeout(cricket, 600));
-    }
-    // --- Grenouilles d'étang : Jardin la nuit seulement (ambiance crépusculaire autour de la mare) ---
-    if (ecoBackground === 'jardin' && night) {
-      const frog = () => {
-        if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
-        timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
-      };
-      timers.push(setTimeout(frog, 2000));
-    }
-    // --- Serre : pluie fine et régulière sur le toit vitré + orage lointain très occasionnel ---
-    if (ecoBackground === 'greenhouse') {
+    let bed: { noise: AudioBufferSourceNode; filter: BiquadFilterNode; gain: GainNode };
+
+    if (choice === 'vent-feuilles') {
+      bed = makeNoiseBed(1100, 0.05);
+    } else if (choice === 'ruisseau') {
+      bed = makeNoiseBed(2000, 0.045, 'bandpass');
+      bed.filter.Q.value = 0.6; // caractère "eau qui coule" plus défini qu'un simple filtre passe-bas
+    } else if (choice === 'pluie-serre') {
+      bed = makeNoiseBed(2400, 0.035);
       const drip = () => {
         playBlip(1800 + Math.random() * 1200, 0.05, 0.014, 'triangle');
         timers.push(setTimeout(drip, 220 + Math.random() * 380));
       };
       timers.push(setTimeout(drip, 300));
+    } else if (choice === 'orage') {
+      bed = makeNoiseBed(700, 0.03);
       const thunder = () => {
-        if (Math.random() < 0.15) {
-          const osc = ctx.createOscillator();
-          const g = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.value = 55;
-          g.gain.setValueAtTime(0.0001, ctx.currentTime);
-          g.gain.exponentialRampToValueAtTime(0.03, ctx.currentTime + 0.5);
-          g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 2.5);
-          osc.connect(g);
-          g.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 2.6);
-        }
-        timers.push(setTimeout(thunder, 25000 + Math.random() * 30000));
+        playThunder(0.03 + Math.random() * 0.02);
+        timers.push(setTimeout(thunder, 12000 + Math.random() * 15000));
       };
-      timers.push(setTimeout(thunder, 15000));
+      timers.push(setTimeout(thunder, 4000));
+    } else if (choice === 'grillons') {
+      bed = makeNoiseBed(500, 0.025);
+      const cricket = () => {
+        if (Math.random() < 0.7) playBlip(2600 + Math.random() * 800, 0.09, 0.02, 'square');
+        timers.push(setTimeout(cricket, 900 + Math.random() * 1800));
+      };
+      timers.push(setTimeout(cricket, 500));
+    } else if (choice === 'grenouilles') {
+      bed = makeNoiseBed(500, 0.03);
+      const frog = () => {
+        if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
+        timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
+      };
+      timers.push(setTimeout(frog, 1500));
+    } else {
+      // 'auto' : reproduit l'ancien comportement contextuel, varie selon le thème et l'heure
+      const freq = ecoBackground === 'aquarium' ? 900
+        : ecoBackground === 'greenhouse' ? 2200
+        : ecoBackground === 'jardin' ? (night ? 500 : 1100)
+        : 600;
+      bed = makeNoiseBed(freq, ecoBackground === 'greenhouse' ? 0.04 : 0.05);
+      if (ecoBackground === 'night' || (ecoBackground === 'jardin' && night)) {
+        const cricket = () => {
+          if (Math.random() < 0.7) playBlip(2600 + Math.random() * 800, 0.09, 0.02, 'square');
+          timers.push(setTimeout(cricket, 900 + Math.random() * 1800));
+        };
+        timers.push(setTimeout(cricket, 600));
+      }
+      if (ecoBackground === 'jardin' && night) {
+        const frog = () => {
+          if (Math.random() < 0.5) playBlip(180 + Math.random() * 40, 0.22, 0.03, 'sawtooth');
+          timers.push(setTimeout(frog, 3500 + Math.random() * 5000));
+        };
+        timers.push(setTimeout(frog, 2000));
+      }
+      if (ecoBackground === 'greenhouse') {
+        const drip = () => {
+          playBlip(1800 + Math.random() * 1200, 0.05, 0.014, 'triangle');
+          timers.push(setTimeout(drip, 220 + Math.random() * 380));
+        };
+        timers.push(setTimeout(drip, 300));
+        const thunder = () => {
+          if (Math.random() < 0.15) playThunder(0.03);
+          timers.push(setTimeout(thunder, 25000 + Math.random() * 30000));
+        };
+        timers.push(setTimeout(thunder, 15000));
+      }
     }
 
-    ecoAudioRef.current = { ctx, nodes: [noise, filter, gain] };
+    ecoAudioRef.current = { ctx, nodes: [bed.noise, bed.filter, bed.gain] };
     return () => {
       timers.forEach(clearTimeout);
       try {
-        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-        setTimeout(() => { try { noise.stop(); } catch { /* déjà arrêté */ } ctx.close(); }, 450);
+        bed.gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+        setTimeout(() => { try { bed.noise.stop(); } catch { /* déjà arrêté */ } ctx.close(); }, 450);
       } catch { /* déjà arrêté */ }
       ecoAudioRef.current = null;
     };
-  }, [ecoSoundOn, ecoBackground, isNightTime]);
+  }, [ecoSoundOn, ecoBackground, isNightTime, ecoSoundChoice]);
 
   // Petit clapotis synthétisé, joué au moment précis où on arrose une graine (feedback satisfaisant, façon Plant Nanny)
   const playWaterSplash = () => {
@@ -12749,6 +12803,21 @@ export default function App() {
                           )}
                         </div>
 
+                        {ecoSoundOn && (
+                          <div className="flex flex-wrap gap-1.5 justify-center w-full max-w-2xl -mt-2">
+                            {ECO_SOUND_CHOICES.map(s => (
+                              <button
+                                key={s.id}
+                                type="button"
+                                onClick={() => setEcoSoundChoice(s.id)}
+                                className={`px-2.5 py-1 rounded-lg text-[9px] font-black border transition-all ${ecoSoundChoice === s.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                              >
+                                {s.emoji} {lang === 'fr' ? s.label : s.labelEn}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
                         {/* Cadre visible — taille fixe, capte molette/pincement/glisser pour naviguer la scène */}
                         <div
                           ref={ecoViewportRef}
@@ -12761,14 +12830,9 @@ export default function App() {
                         >
                           {/* Fond — reste fixe et couvre tout le cadre, ne suit jamais le pan (sinon ça laisse un vide) */}
                           <div className={`absolute inset-0 bg-gradient-to-b ${bg.className}`} />
-                          {/* La scène — contenu (décor, éléments posés), reçoit le zoom/pan */}
-                          <div
-                            ref={ecoSceneRef}
-                            className="absolute inset-0"
-                            style={{ transform: `translate(${ecoPan.x}px, ${ecoPan.y}px) scale(${ecoZoom})`, transformOrigin: 'center center' }}
-                          >
-                            {/* Décor d'arrière-plan, non-interactif */}
-                            <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                          {/* Décor d'arrière-plan, non-interactif — reste fixe lui aussi (sol, rayons, étoiles) :
+                              s'il suivait le pan, il se décollerait des bords du cadre et ça créerait un décalage visible. */}
+                          <div className="absolute inset-0 pointer-events-none overflow-hidden">
                               {ecoBackground === 'aquarium' && (
                                 <>
                                   <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-amber-200/50 to-transparent" />
@@ -12876,6 +12940,13 @@ export default function App() {
                                 </>
                               )}
                             </div>
+
+                            {/* La scène — contenu qui reçoit le zoom/pan : le voile d'ambiance et les éléments posés */}
+                            <div
+                              ref={ecoSceneRef}
+                              className="absolute inset-0"
+                              style={{ transform: `translate(${ecoPan.x}px, ${ecoPan.y}px) scale(${ecoZoom})`, transformOrigin: 'center center' }}
+                            >
 
                             {/* Voile de teinte "Ambiance" — décale légèrement la lumière sans changer le décor */}
                             <div
