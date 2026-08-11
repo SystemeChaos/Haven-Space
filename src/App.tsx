@@ -6284,25 +6284,25 @@ export default function App() {
                         {/* Toast toggle */}
                         <button
                           onClick={toggleToastNotif}
-                          className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                          className="flex items-center justify-between gap-3 px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                         >
-                          <span className="text-xs font-bold text-app-text">
+                          <span className="text-xs font-bold text-app-text flex-1 min-w-0 text-left">
                             {lang === 'fr' ? "Notifications dans l'app" : 'In-app notifications'}
                           </span>
-                          <div className={`w-8 h-4 rounded-full transition-colors relative ${notifToast ? 'bg-app-accent' : 'bg-app-border'}`}>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${notifToast ? 'bg-app-accent' : 'bg-app-border'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifToast ? 'left-[18px]' : 'left-0.5'}`} />
                           </div>
                         </button>
                         {/* Browser notif toggle */}
                         <button
                           onClick={toggleBrowserNotif}
-                          className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                          className="flex items-center justify-between gap-3 px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                         >
-                          <div className="flex flex-col items-start">
-                            <span className="text-xs font-bold text-app-text">
+                          <div className="flex flex-col items-start flex-1 min-w-0">
+                            <span className="text-xs font-bold text-app-text text-left">
                               {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
                             </span>
-                            <span className="text-[10px] text-app-muted">
+                            <span className="text-[10px] text-app-muted text-left">
                               {lang === 'fr' ? 'Messages, rappels de planning, traitements, hydratation et sauvegarde' : 'Messages, planning, medication, hydration and backup reminders'}
                             </span>
                             {!('Notification' in window) && (
@@ -6312,24 +6312,24 @@ export default function App() {
                               <span className="text-[10px] text-red-400">{lang === 'fr' ? 'Bloqué — à autoriser dans le navigateur' : 'Blocked — allow in browser settings'}</span>
                             )}
                           </div>
-                          <div className={`w-8 h-4 rounded-full transition-colors relative ${notifBrowser ? 'bg-app-accent' : 'bg-app-border'}`}>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${notifBrowser ? 'bg-app-accent' : 'bg-app-border'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifBrowser ? 'left-[18px]' : 'left-0.5'}`} />
                           </div>
                         </button>
                         {/* Rappel d'hydratation — opt-in séparé, lié au Jardin de l'Éco-Système */}
                         <button
                           onClick={() => setHydroReminderOn(o => !o)}
-                          className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                          className="flex items-center justify-between gap-3 px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                         >
-                          <div className="flex flex-col items-start">
-                            <span className="text-xs font-bold text-app-text">
+                          <div className="flex flex-col items-start flex-1 min-w-0">
+                            <span className="text-xs font-bold text-app-text text-left">
                               💧 {lang === 'fr' ? "Rappel d'hydratation (Jardin)" : 'Hydration reminder (Garden)'}
                             </span>
-                            <span className="text-[10px] text-app-muted">
+                            <span className="text-[10px] text-app-muted text-left">
                               {lang === 'fr' ? 'Un rappel pour boire, entre 8h et 22h' : 'A reminder to drink water, between 8am and 10pm'}
                             </span>
                           </div>
-                          <div className={`w-8 h-4 rounded-full transition-colors relative ${hydroReminderOn ? 'bg-app-accent' : 'bg-app-border'}`}>
+                          <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${hydroReminderOn ? 'bg-app-accent' : 'bg-app-border'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${hydroReminderOn ? 'left-[18px]' : 'left-0.5'}`} />
                           </div>
                         </button>
