@@ -3244,11 +3244,21 @@ export default function App() {
     timestamp: number;
   }
   const WALLET_CATEGORIES: { id: string; emoji: string; label: string; labelEn: string }[] = [
-    { id: 'alimentation', emoji: '🍽️', label: 'Alimentation', labelEn: 'Food' },
+    { id: 'alimentation', emoji: '🍽️', label: 'Alimentation', labelEn: 'Groceries' },
+    { id: 'restaurant', emoji: '🍕', label: 'Sorties & restaurants', labelEn: 'Dining out' },
     { id: 'sante', emoji: '💊', label: 'Santé', labelEn: 'Health' },
+    { id: 'therapie', emoji: '🧠', label: 'Thérapie / suivi psy', labelEn: 'Therapy' },
+    { id: 'hygiene', emoji: '🧴', label: 'Hygiène & soins', labelEn: 'Personal care' },
+    { id: 'vetements', emoji: '👕', label: 'Vêtements', labelEn: 'Clothing' },
     { id: 'loisirs', emoji: '🎮', label: 'Loisirs', labelEn: 'Leisure' },
+    { id: 'abonnements', emoji: '📱', label: 'Abonnements', labelEn: 'Subscriptions' },
     { id: 'transport', emoji: '🚌', label: 'Transport', labelEn: 'Transport' },
     { id: 'logement', emoji: '🏠', label: 'Logement', labelEn: 'Housing' },
+    { id: 'factures', emoji: '💡', label: 'Factures', labelEn: 'Bills' },
+    { id: 'animaux', emoji: '🐾', label: 'Animaux', labelEn: 'Pets' },
+    { id: 'cadeaux', emoji: '🎁', label: 'Cadeaux', labelEn: 'Gifts' },
+    { id: 'education', emoji: '📚', label: 'Éducation', labelEn: 'Education' },
+    { id: 'epargne', emoji: '🐷', label: 'Épargne', labelEn: 'Savings' },
     { id: 'autre', emoji: '📦', label: 'Autre', labelEn: 'Other' },
   ];
   const [walletEntries, setWalletEntries] = useState<WalletEntry[]>(() => {
@@ -3263,6 +3273,7 @@ export default function App() {
   const [walletDraftLabel, setWalletDraftLabel] = useState('');
   const [walletDraftCategory, setWalletDraftCategory] = useState('autre');
   const [walletDraftAlterId, setWalletDraftAlterId] = useState<string | null>(null);
+  const [walletWhoSearch, setWalletWhoSearch] = useState('');
   const [walletDraftDate, setWalletDraftDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [deleteWalletId, setDeleteWalletId] = useState<string | null>(null);
 
@@ -3275,6 +3286,7 @@ export default function App() {
       setWalletDraftCategory(entry.category);
       setWalletDraftAlterId(entry.alterId);
       setWalletDraftDate(entry.date);
+      setWalletWhoSearch('');
     } else {
       setEditingWalletId(null);
       setWalletDraftAmount('');
@@ -3283,6 +3295,7 @@ export default function App() {
       setWalletDraftCategory('autre');
       setWalletDraftAlterId(null);
       setWalletDraftDate(new Date().toISOString().slice(0, 10));
+      setWalletWhoSearch('');
     }
     setWalletFormOpen(true);
   };
@@ -12232,23 +12245,48 @@ export default function App() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Qui ?' : 'Who?'}</label>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <button
-                        onClick={() => setWalletDraftAlterId(null)}
+                        onClick={() => { setWalletDraftAlterId(null); setWalletWhoSearch(''); }}
                         className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftAlterId === null ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
                       >
                         🤝 {lang === 'fr' ? 'Commun' : 'Shared'}
                       </button>
-                      {savedAlters.map(a => (
-                        <button
-                          key={a.id}
-                          onClick={() => setWalletDraftAlterId(a.id)}
-                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftAlterId === a.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
-                        >
-                          {a.alterName}
-                        </button>
-                      ))}
+                      {walletDraftAlterId && (
+                        <span className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-lg text-[10px] font-bold bg-app-accent text-white">
+                          {savedAlters.find(a => a.id === walletDraftAlterId)?.alterName || walletDraftAlterId}
+                          <button onClick={() => setWalletDraftAlterId(null)} className="hover:opacity-70 transition-opacity">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      )}
                     </div>
+                    <input
+                      type="text"
+                      value={walletWhoSearch}
+                      onChange={e => setWalletWhoSearch(e.target.value)}
+                      placeholder={lang === 'fr' ? 'Rechercher un alter par nom...' : 'Search for an alter by name...'}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    />
+                    {walletWhoSearch.trim() && (() => {
+                      const q = walletWhoSearch.trim().toLowerCase();
+                      const matches = savedAlters.filter(a => a.alterName.toLowerCase().includes(q)).slice(0, 8);
+                      return matches.length === 0 ? (
+                        <p className="text-[10px] text-app-muted italic px-1">{lang === 'fr' ? 'Aucun alter trouvé.' : 'No alter found.'}</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {matches.map(a => (
+                            <button
+                              key={a.id}
+                              onClick={() => { setWalletDraftAlterId(a.id); setWalletWhoSearch(''); }}
+                              className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftAlterId === a.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted hover:border-app-accent/50 hover:text-app-accent'}`}
+                            >
+                              {a.alterName}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Date' : 'Date'}</label>
