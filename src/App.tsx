@@ -6775,6 +6775,15 @@ export default function App() {
                             <span>Epsytera</span>
                             <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                           </a>
+                          <a 
+                            href="https://medgpt.fr/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent hover:text-app-accent transition-colors text-xs font-bold text-app-text rounded-xl"
+                          >
+                            <span>MedGPT</span>
+                            <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                          </a>
                         </div>
                       </div>
                     </motion.div>
