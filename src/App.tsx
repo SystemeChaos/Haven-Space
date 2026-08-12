@@ -141,6 +141,7 @@ import {
   Lamp,
   Package,
   ChevronRight,
+  Wallet,
 } from 'lucide-react';
 import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
@@ -1295,7 +1296,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'pluralkit' | 'planning'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
@@ -3230,6 +3231,77 @@ export default function App() {
   const [histDraftDate, setHistDraftDate] = useState('');
   const [histDraftNote, setHistDraftNote] = useState('');
   const [deleteHistId, setDeleteHistId] = useState<string | null>(null);
+
+  // --- Portefeuille : dépenses/revenus par alter + budget commun du système ---
+  interface WalletEntry {
+    id: string;
+    amount: number;
+    type: 'depense' | 'revenu';
+    label: string;
+    category: string;
+    alterId: string | null; // null = dépense/revenu commun(e), sinon l'alter concerné
+    date: string; // YYYY-MM-DD
+    timestamp: number;
+  }
+  const WALLET_CATEGORIES: { id: string; emoji: string; label: string; labelEn: string }[] = [
+    { id: 'alimentation', emoji: '🍽️', label: 'Alimentation', labelEn: 'Food' },
+    { id: 'sante', emoji: '💊', label: 'Santé', labelEn: 'Health' },
+    { id: 'loisirs', emoji: '🎮', label: 'Loisirs', labelEn: 'Leisure' },
+    { id: 'transport', emoji: '🚌', label: 'Transport', labelEn: 'Transport' },
+    { id: 'logement', emoji: '🏠', label: 'Logement', labelEn: 'Housing' },
+    { id: 'autre', emoji: '📦', label: 'Autre', labelEn: 'Other' },
+  ];
+  const [walletEntries, setWalletEntries] = useState<WalletEntry[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-wallet-entries') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-wallet-entries', JSON.stringify(walletEntries)); }, [walletEntries]);
+  const [walletSubTab, setWalletSubTab] = useState<'apercu' | 'historique'>('apercu');
+  const [walletFormOpen, setWalletFormOpen] = useState(false);
+  const [editingWalletId, setEditingWalletId] = useState<string | null>(null);
+  const [walletDraftAmount, setWalletDraftAmount] = useState('');
+  const [walletDraftType, setWalletDraftType] = useState<'depense' | 'revenu'>('depense');
+  const [walletDraftLabel, setWalletDraftLabel] = useState('');
+  const [walletDraftCategory, setWalletDraftCategory] = useState('autre');
+  const [walletDraftAlterId, setWalletDraftAlterId] = useState<string | null>(null);
+  const [walletDraftDate, setWalletDraftDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [deleteWalletId, setDeleteWalletId] = useState<string | null>(null);
+
+  const openWalletForm = (entry?: WalletEntry) => {
+    if (entry) {
+      setEditingWalletId(entry.id);
+      setWalletDraftAmount(String(entry.amount));
+      setWalletDraftType(entry.type);
+      setWalletDraftLabel(entry.label);
+      setWalletDraftCategory(entry.category);
+      setWalletDraftAlterId(entry.alterId);
+      setWalletDraftDate(entry.date);
+    } else {
+      setEditingWalletId(null);
+      setWalletDraftAmount('');
+      setWalletDraftType('depense');
+      setWalletDraftLabel('');
+      setWalletDraftCategory('autre');
+      setWalletDraftAlterId(null);
+      setWalletDraftDate(new Date().toISOString().slice(0, 10));
+    }
+    setWalletFormOpen(true);
+  };
+  const saveWalletEntry = () => {
+    const amount = parseFloat(walletDraftAmount.replace(',', '.'));
+    if (!amount || amount <= 0 || !walletDraftLabel.trim()) return;
+    const entry: WalletEntry = {
+      id: editingWalletId || Math.random().toString(36).substring(2, 10),
+      amount,
+      type: walletDraftType,
+      label: walletDraftLabel.trim(),
+      category: walletDraftCategory,
+      alterId: walletDraftAlterId,
+      date: walletDraftDate,
+      timestamp: editingWalletId ? (walletEntries.find(e => e.id === editingWalletId)?.timestamp || Date.now()) : Date.now(),
+    };
+    setWalletEntries(prev => editingWalletId ? prev.map(e => e.id === editingWalletId ? entry : e) : [entry, ...prev]);
+    setWalletFormOpen(false);
+  };
 
   const [emergencyDraft, setEmergencyDraft] = useState<EmergencyInfo>(emergencyInfo);
   useEffect(() => {
@@ -8636,6 +8708,7 @@ export default function App() {
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
             { value: 'planning',  label: t.menuPlanning,  icon: CalendarDays, desc: lang === 'fr' ? 'Planning façon Bullet Journal' : 'Bullet Journal style planning' },
             { value: 'health',    label: lang === 'fr' ? 'Santé' : 'Health', icon: HeartPulse, desc: lang === 'fr' ? 'Traitements, antécédents, urgence' : 'Treatments, history, emergency' },
+            { value: 'wallet',    label: lang === 'fr' ? 'Portefeuille' : 'Wallet', icon: Wallet, desc: lang === 'fr' ? 'Dépenses par alter et budget commun' : 'Per-alter expenses and shared budget' },
             { value: 'relax',     label: lang === 'fr' ? 'Détente' : 'Relax', icon: Wind, desc: lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools' },
             { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
           ];
@@ -12047,6 +12120,261 @@ export default function App() {
                         {lang === 'fr' ? 'Supprimer' : 'Delete'}
                       </button>
                       <button onClick={() => setDeleteHistId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
+                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {currentTab === 'wallet' && (() => {
+          const now = new Date();
+          const monthKey = now.toISOString().slice(0, 7);
+          const monthLabel = now.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' });
+          const monthEntries = walletEntries.filter(e => e.date.startsWith(monthKey));
+          const totalDepenses = monthEntries.filter(e => e.type === 'depense').reduce((s, e) => s + e.amount, 0);
+          const totalRevenus = monthEntries.filter(e => e.type === 'revenu').reduce((s, e) => s + e.amount, 0);
+          const totalCommun = monthEntries.filter(e => e.type === 'depense' && !e.alterId).reduce((s, e) => s + e.amount, 0);
+          const byAlter: Record<string, number> = {};
+          monthEntries.filter(e => e.type === 'depense' && e.alterId).forEach(e => {
+            byAlter[e.alterId as string] = (byAlter[e.alterId as string] || 0) + e.amount;
+          });
+          const byAlterSorted = Object.entries(byAlter).sort((a, b) => b[1] - a[1]);
+          const maxAmount = Math.max(totalCommun, ...byAlterSorted.map(([, v]) => v), 1);
+          const sortedHistory = [...walletEntries].sort((a, b) => (b.date + b.timestamp).localeCompare(a.date + a.timestamp));
+
+          return (
+            <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
+              <div className="pb-4 border-b border-app-border/30 space-y-1">
+                <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Portefeuille' : 'Wallet'}</h2>
+                <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
+                  {lang === 'fr' ? 'Dépenses par alter et budget commun du système' : "Per-alter expenses and the system's shared budget"}
+                </p>
+              </div>
+
+              {/* Sous-onglets */}
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { id: 'apercu', label: lang === 'fr' ? 'Aperçu' : 'Overview' },
+                  { id: 'historique', label: lang === 'fr' ? 'Historique' : 'History' },
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setWalletSubTab(tab.id as any)}
+                    className={`px-3 py-2 sm:px-4 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-widest border transition-all whitespace-nowrap ${walletSubTab === tab.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {!walletFormOpen ? (
+                <button
+                  onClick={() => openWalletForm()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  {lang === 'fr' ? 'Ajouter une opération' : 'Add an entry'}
+                </button>
+              ) : (
+                <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setWalletDraftType('depense')}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${walletDraftType === 'depense' ? 'bg-red-500/15 border-red-500/40 text-red-500' : 'bg-app-bg border-app-border text-app-muted'}`}
+                    >
+                      {lang === 'fr' ? '➖ Dépense' : '➖ Expense'}
+                    </button>
+                    <button
+                      onClick={() => setWalletDraftType('revenu')}
+                      className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${walletDraftType === 'revenu' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-500' : 'bg-app-bg border-app-border text-app-muted'}`}
+                    >
+                      {lang === 'fr' ? '➕ Revenu' : '➕ Income'}
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Montant (€) *' : 'Amount (€) *'}</label>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={walletDraftAmount}
+                      onChange={e => setWalletDraftAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Description *' : 'Description *'}</label>
+                    <input
+                      type="text"
+                      value={walletDraftLabel}
+                      onChange={e => setWalletDraftLabel(e.target.value)}
+                      placeholder={lang === 'fr' ? 'ex. Courses de la semaine' : 'e.g. Weekly groceries'}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Catégorie' : 'Category'}</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {WALLET_CATEGORIES.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => setWalletDraftCategory(c.id)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftCategory === c.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                        >
+                          {c.emoji} {lang === 'fr' ? c.label : c.labelEn}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Qui ?' : 'Who?'}</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        onClick={() => setWalletDraftAlterId(null)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftAlterId === null ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                      >
+                        🤝 {lang === 'fr' ? 'Commun' : 'Shared'}
+                      </button>
+                      {savedAlters.map(a => (
+                        <button
+                          key={a.id}
+                          onClick={() => setWalletDraftAlterId(a.id)}
+                          className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftAlterId === a.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                        >
+                          {a.alterName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Date' : 'Date'}</label>
+                    <input
+                      type="date"
+                      value={walletDraftDate}
+                      onChange={e => setWalletDraftDate(e.target.value)}
+                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-2">
+                    <button onClick={saveWalletEntry} className="flex-1 px-4 py-2.5 bg-app-accent text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                      {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                    </button>
+                    <button onClick={() => setWalletFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border text-app-muted font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {walletSubTab === 'apercu' && (
+                <div className="space-y-5">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-app-muted capitalize">{monthLabel}</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dépensé ce mois' : 'Spent this month'}</p>
+                      <p className="text-xl font-black text-red-500 mt-1">{totalDepenses.toFixed(2)} €</p>
+                    </div>
+                    <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Reçu ce mois' : 'Received this month'}</p>
+                      <p className="text-xl font-black text-emerald-500 mt-1">{totalRevenus.toFixed(2)} €</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Répartition des dépenses' : 'Expense breakdown'}</p>
+                    <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
+                      {(totalCommun > 0 || byAlterSorted.length > 0) ? (
+                        <>
+                          {totalCommun > 0 && (
+                            <div>
+                              <div className="flex justify-between text-xs font-bold mb-1">
+                                <span>🤝 {lang === 'fr' ? 'Commun' : 'Shared'}</span>
+                                <span>{totalCommun.toFixed(2)} €</span>
+                              </div>
+                              <div className="h-2 rounded-full bg-app-bg overflow-hidden">
+                                <div className="h-full bg-app-accent rounded-full" style={{ width: `${(totalCommun / maxAmount) * 100}%` }} />
+                              </div>
+                            </div>
+                          )}
+                          {byAlterSorted.map(([alterId, amount]) => {
+                            const alter = savedAlters.find(a => a.id === alterId);
+                            return (
+                              <div key={alterId}>
+                                <div className="flex justify-between text-xs font-bold mb-1">
+                                  <span>{alter?.alterName || (lang === 'fr' ? 'Alter supprimé' : 'Deleted alter')}</span>
+                                  <span>{amount.toFixed(2)} €</span>
+                                </div>
+                                <div className="h-2 rounded-full bg-app-bg overflow-hidden">
+                                  <div className="h-full bg-app-accent/60 rounded-full" style={{ width: `${(amount / maxAmount) * 100}%` }} />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </>
+                      ) : (
+                        <p className="text-xs text-app-muted italic">{lang === 'fr' ? 'Aucune dépense ce mois-ci.' : 'No expenses this month.'}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {walletSubTab === 'historique' && (
+                <div className="space-y-2">
+                  {sortedHistory.length === 0 && (
+                    <p className="text-xs text-app-muted italic text-center py-6">{lang === 'fr' ? 'Aucune opération pour le moment.' : 'No entries yet.'}</p>
+                  )}
+                  {sortedHistory.map(entry => {
+                    const cat = WALLET_CATEGORIES.find(c => c.id === entry.category);
+                    const alter = entry.alterId ? savedAlters.find(a => a.id === entry.alterId) : null;
+                    return (
+                      <div key={entry.id} className="flex items-center gap-3 p-3 bg-app-card border border-app-border/40 rounded-xl">
+                        <span className="text-xl shrink-0">{cat?.emoji || '📦'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold text-app-text truncate">{entry.label}</p>
+                          <p className="text-[10px] text-app-muted">
+                            {entry.date} · {alter ? alter.alterName : (lang === 'fr' ? 'Commun' : 'Shared')}
+                          </p>
+                        </div>
+                        <p className={`text-sm font-black shrink-0 ${entry.type === 'depense' ? 'text-red-500' : 'text-emerald-500'}`}>
+                          {entry.type === 'depense' ? '-' : '+'}{entry.amount.toFixed(2)} €
+                        </p>
+                        <button onClick={() => openWalletForm(entry)} className="text-app-muted hover:text-app-accent transition-colors shrink-0">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setDeleteWalletId(entry.id)} className="text-app-muted hover:text-red-500 transition-colors shrink-0">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Confirmation suppression opération */}
+              {deleteWalletId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                  <div className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 mx-auto">
+                      <Trash2 className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                        {lang === 'fr' ? 'Supprimer cette opération ?' : 'Delete this entry?'}
+                      </h3>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <button
+                        onClick={() => { setWalletEntries(prev => prev.filter(e => e.id !== deleteWalletId)); setDeleteWalletId(null); }}
+                        className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                      >
+                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                      </button>
+                      <button onClick={() => setDeleteWalletId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
                         {lang === 'fr' ? 'Annuler' : 'Cancel'}
                       </button>
                     </div>
