@@ -4,7 +4,7 @@ import {
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
   LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
-  HeartPulse, Languages,
+  HeartPulse, Languages, Wallet,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary';
@@ -83,6 +83,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fS: '✦ Rôles personnalisés',
       fT: '✦ Export / import JSON',
       fU: '✦ Détente (outils anti-dissociation)',
+      fV: '✦ Portefeuille (dépenses par alter)',
       openSourceTitle: 'Transparence',
       openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
       thanksTitle: 'Merci à nos alpha & bêta testeur·euses',
@@ -154,6 +155,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g23Text: 'En plus des rôles fixes (Hôte, Protecteur...), crée tes propres rôles avec leur nom, leur couleur et leur définition. Ils s\'affichent partout où les rôles fixes apparaissent : sur la fiche, dans le résumé, et dans la recherche par rôle.',
       g24Title: 'Détente',
       g24Text: 'Une section d\'outils anti-dissociation partagés par tout le système : respiration guidée, fidgets sensoriels, kalimba jouable, affirmations, boîte à souvenirs, boîte à choix, canevas éphémère et éco-système. Accessible depuis le tableau de bord.',
+      g28Title: 'Portefeuille',
+      g28Text: 'Un suivi des dépenses et revenus du système, catégorisé (alimentation, santé, thérapie, loisirs...) et réparti par alter ou en commun. Un aperçu affiche le total du mois et la répartition par alter, et un historique complet permet de revenir sur chaque opération, de la modifier ou de la supprimer. Accessible depuis le tableau de bord.',
       g25Title: 'Santé',
       g25Text: 'Un carnet de santé partagé par le système : traitements en cours, antécédents médicaux et informations d\'urgence, le tout accessible d\'un coup d\'œil depuis le tableau de bord.',
       g26Title: 'Verrouillage par code',
@@ -225,6 +228,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fS: '✦ Custom Roles',
       fT: '✦ JSON Export / Import',
       fU: '✦ Relax (anti-dissociation tools)',
+      fV: '✦ Wallet (per-alter expenses)',
       openSourceTitle: 'Transparency',
       openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
       thanksTitle: 'Thank you to our alpha & beta testers',
@@ -296,6 +300,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g23Text: 'Beyond the fixed roles (Host, Protector...), create your own roles with a name, color and definition. They show up everywhere fixed roles do: on the card, in the summary, and in role search.',
       g24Title: 'Relax',
       g24Text: 'A section of anti-dissociation tools shared by the whole system: guided breathing, sensory fidgets, a playable kalimba, affirmations, a memory box, a choice box, an ephemeral canvas, and an eco-system. Accessible from the dashboard.',
+      g28Title: 'Wallet',
+      g28Text: "A record of the system's expenses and income, sorted by category (groceries, health, therapy, leisure...) and split between individual alters or shared. An overview shows the monthly total and the per-alter breakdown, and a full history lets you revisit, edit or delete any entry. Accessible from the dashboard.",
       g25Title: 'Health',
       g25Text: 'A health record shared by the system: current treatments, medical history and emergency information, all viewable at a glance from the dashboard.',
       g26Title: 'Code lock',
@@ -374,6 +380,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g25', icon: HeartPulse, title: currentT.g25Title, text: currentT.g25Text },
           { id: 'g26', icon: Lock, title: currentT.g26Title, text: currentT.g26Text },
           { id: 'g27', icon: Languages, title: currentT.g27Title, text: currentT.g27Text },
+          { id: 'g28', icon: Wallet, title: currentT.g28Title, text: currentT.g28Text },
           { id: 'g24', icon: Wind, title: currentT.g24Title, text: currentT.g24Text },
           { id: 'g23', icon: Sparkles, title: currentT.g23Title, text: currentT.g23Text },
           { id: 'g10', icon: LifeBuoy, title: currentT.g10Title, text: currentT.g10Text },
@@ -694,29 +701,6 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               ))}
             </div>
           </div>
-
-          <div className="p-6 bg-app-card border border-app-border rounded-2xl space-y-4 shadow-sm">
-            <div className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
-              <Mail size={15} className="text-app-accent" />
-              <span>Contact</span>
-            </div>
-            <p className="text-xs leading-relaxed text-app-muted font-medium">{currentT.contactText}</p>
-            <div 
-              onClick={handleCopy}
-              className="flex items-center gap-3.5 p-4 border border-app-border/80 rounded-2xl hover:bg-app-accent/5 cursor-pointer transition-colors"
-            >
-              <div className="w-10 h-10 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-accent">
-                <Mail size={18} />
-              </div>
-              <div>
-                <div className="text-[9px] font-black uppercase tracking-widest text-app-muted">EMAIL</div>
-                <div className="text-sm font-bold text-app-text select-all">systeme.chaos@outlook.fr</div>
-              </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-app-muted ml-auto bg-app-bg px-2.5 py-1 rounded-lg">
-                {copied ? currentT.copied : currentT.clickToCopy}
-              </span>
-            </div>
-          </div>
         </div>
       )}
 
@@ -801,6 +785,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 currentT.fS,
                 currentT.fT,
                 currentT.fU,
+                currentT.fV,
               ].map(item => (
                 <div key={item} className="p-2.5 bg-app-bg/50 border border-app-border/40 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-text/90">
                   {item}
