@@ -3261,6 +3261,30 @@ export default function App() {
     { id: 'epargne', emoji: '🐷', label: 'Épargne', labelEn: 'Savings' },
     { id: 'autre', emoji: '📦', label: 'Autre', labelEn: 'Other' },
   ];
+  // Catégories personnalisées ajoutées par le système, en plus de la liste ci-dessus — persistées à part
+  // pour ne jamais entrer en conflit avec les catégories intégrées si la liste par défaut évolue plus tard.
+  const [walletCustomCategories, setWalletCustomCategories] = useState<{ id: string; emoji: string; label: string; labelEn: string }[]>(() => {
+    try { return JSON.parse(localStorage.getItem('hs-wallet-custom-categories') || '[]'); } catch { return []; }
+  });
+  useEffect(() => { localStorage.setItem('hs-wallet-custom-categories', JSON.stringify(walletCustomCategories)); }, [walletCustomCategories]);
+  const WALLET_ALL_CATEGORIES = [...WALLET_CATEGORIES, ...walletCustomCategories];
+  const [walletNewCatOpen, setWalletNewCatOpen] = useState(false);
+  const [walletNewCatLabel, setWalletNewCatLabel] = useState('');
+  const [walletNewCatEmoji, setWalletNewCatEmoji] = useState('🏷️');
+  const addWalletCategory = () => {
+    const label = walletNewCatLabel.trim();
+    if (!label) return;
+    const id = 'custom-' + label.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Math.random().toString(36).substring(2, 6);
+    setWalletCustomCategories(prev => [...prev, { id, emoji: walletNewCatEmoji || '🏷️', label, labelEn: label }]);
+    setWalletDraftCategory(id);
+    setWalletNewCatLabel('');
+    setWalletNewCatEmoji('🏷️');
+    setWalletNewCatOpen(false);
+  };
+  const removeWalletCategory = (id: string) => {
+    setWalletCustomCategories(prev => prev.filter(c => c.id !== id));
+    if (walletDraftCategory === id) setWalletDraftCategory('autre');
+  };
   const [walletEntries, setWalletEntries] = useState<WalletEntry[]>(() => {
     try { return JSON.parse(localStorage.getItem('hs-wallet-entries') || '[]'); } catch { return []; }
   });
@@ -12241,7 +12265,49 @@ export default function App() {
                           {c.emoji} {lang === 'fr' ? c.label : c.labelEn}
                         </button>
                       ))}
+                      {walletCustomCategories.map(c => (
+                        <span
+                          key={c.id}
+                          className={`flex items-center gap-1 pl-2.5 pr-1.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftCategory === c.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                        >
+                          <button onClick={() => setWalletDraftCategory(c.id)}>{c.emoji} {c.label}</button>
+                          <button onClick={() => removeWalletCategory(c.id)} className="hover:opacity-70 transition-opacity">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                      <button
+                        onClick={() => setWalletNewCatOpen(o => !o)}
+                        className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-dashed transition-all ${walletNewCatOpen ? 'bg-app-accent/10 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
+                      >
+                        + {lang === 'fr' ? 'Nouvelle' : 'New'}
+                      </button>
                     </div>
+                    {walletNewCatOpen && (
+                      <div className="flex gap-1.5 items-center pt-1">
+                        <input
+                          type="text"
+                          value={walletNewCatEmoji}
+                          onChange={e => setWalletNewCatEmoji(e.target.value.slice(0, 2))}
+                          className="w-11 shrink-0 bg-app-bg border border-app-border rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                        <input
+                          type="text"
+                          value={walletNewCatLabel}
+                          onChange={e => setWalletNewCatLabel(e.target.value)}
+                          placeholder={lang === 'fr' ? 'ex. Matériel créatif' : 'e.g. Art supplies'}
+                          onKeyDown={e => { if (e.key === 'Enter') addWalletCategory(); }}
+                          className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                        <button
+                          onClick={addWalletCategory}
+                          disabled={!walletNewCatLabel.trim()}
+                          className="shrink-0 px-3 py-2 bg-app-accent text-white font-extrabold uppercase text-[9px] tracking-widest rounded-xl transition-all disabled:opacity-40"
+                        >
+                          {lang === 'fr' ? 'Ajouter' : 'Add'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Qui ?' : 'Who?'}</label>
@@ -12311,14 +12377,20 @@ export default function App() {
               {walletSubTab === 'apercu' && (
                 <div className="space-y-5">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-app-muted capitalize">{monthLabel}</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dépensé ce mois' : 'Spent this month'}</p>
-                      <p className="text-xl font-black text-red-500 mt-1">{totalDepenses.toFixed(2)} €</p>
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="p-3 sm:p-4 bg-app-card border border-app-border/40 rounded-2xl">
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dépensé' : 'Spent'}</p>
+                      <p className="text-base sm:text-xl font-black text-red-500 mt-1">-{totalDepenses.toFixed(2)} €</p>
                     </div>
-                    <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Reçu ce mois' : 'Received this month'}</p>
-                      <p className="text-xl font-black text-emerald-500 mt-1">{totalRevenus.toFixed(2)} €</p>
+                    <div className="p-3 sm:p-4 bg-app-card border border-app-border/40 rounded-2xl">
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Reçu' : 'Received'}</p>
+                      <p className="text-base sm:text-xl font-black text-emerald-500 mt-1">+{totalRevenus.toFixed(2)} €</p>
+                    </div>
+                    <div className={`p-3 sm:p-4 border rounded-2xl ${(totalRevenus - totalDepenses) >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Total' : 'Total'}</p>
+                      <p className={`text-base sm:text-xl font-black mt-1 ${(totalRevenus - totalDepenses) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {(totalRevenus - totalDepenses) >= 0 ? '+' : ''}{(totalRevenus - totalDepenses).toFixed(2)} €
+                      </p>
                     </div>
                   </div>
 
@@ -12367,7 +12439,7 @@ export default function App() {
                     <p className="text-xs text-app-muted italic text-center py-6">{lang === 'fr' ? 'Aucune opération pour le moment.' : 'No entries yet.'}</p>
                   )}
                   {sortedHistory.map(entry => {
-                    const cat = WALLET_CATEGORIES.find(c => c.id === entry.category);
+                    const cat = WALLET_ALL_CATEGORIES.find(c => c.id === entry.category);
                     const alter = entry.alterId ? savedAlters.find(a => a.id === entry.alterId) : null;
                     return (
                       <div key={entry.id} className="flex items-center gap-3 p-3 bg-app-card border border-app-border/40 rounded-xl">
