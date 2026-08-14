@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Home, Plus, X, Trash2, Tag, Image as ImageIcon, Type as TypeIcon,
-  Images, Music, ExternalLink, Sparkles, Layers, Users, Upload,
+  Images, Music, ExternalLink, Sparkles, Layers, Users, Upload, Search,
 } from 'lucide-react';
 import { SavedAlter } from './types';
 
@@ -128,6 +128,10 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
   const [addBlockMenuOpen, setAddBlockMenuOpen] = useState(false);
   const [sourceDraft, setSourceDraft] = useState('');
   const [visitorPickerOpen, setVisitorPickerOpen] = useState(false);
+  const [alterSearch, setAlterSearch] = useState('');
+  const [alterSuggestOpen, setAlterSuggestOpen] = useState(false);
+  const [sourceSearch, setSourceSearch] = useState('');
+  const [sourceSuggestOpen, setSourceSuggestOpen] = useState(false);
 
   const t = {
     title: lang === 'fr' ? 'Innerworld' : 'Innerworld',
@@ -155,6 +159,9 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     open: lang === 'fr' ? 'Ouvrir' : 'Open',
     uploadFromDevice: lang === 'fr' ? 'Depuis l\u2019appareil' : 'From device',
     or: lang === 'fr' ? 'ou' : 'or',
+    searchAlterPlaceholder: lang === 'fr' ? 'Rechercher un alter…' : 'Search an alter…',
+    searchSourcePlaceholder: lang === 'fr' ? 'Rechercher une source…' : 'Search a source…',
+    noResults: lang === 'fr' ? 'Aucun résultat' : 'No results',
   };
 
   useEffect(() => {
@@ -225,6 +232,14 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
 
   const alters = [...savedAlters].filter(a => !a.archived).sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
 
+  const filteredAlters = alterSearch.trim()
+    ? alters.filter(a => (a.alterName || '').toLowerCase().includes(alterSearch.trim().toLowerCase()))
+    : alters;
+
+  const alterSuggestions = alterSearch.trim()
+    ? alters.filter(a => (a.alterName || '').toLowerCase().includes(alterSearch.trim().toLowerCase())).slice(0, 6)
+    : [];
+
   // ─── Regroupement par source (vue "Sources") ─────────────────────────────
   const sourceGroups = (() => {
     const groups: Record<string, SavedAlter[]> = {};
@@ -237,6 +252,14 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, lang));
   })();
+
+  const filteredSourceGroups = sourceSearch.trim()
+    ? sourceGroups.filter(([source]) => source.toLowerCase().includes(sourceSearch.trim().toLowerCase()))
+    : sourceGroups;
+
+  const sourceSuggestions = sourceSearch.trim()
+    ? sourceGroups.filter(([source]) => source.toLowerCase().includes(sourceSearch.trim().toLowerCase())).map(([source]) => source).slice(0, 6)
+    : [];
 
   // ─── Rendu : HUB ──────────────────────────────────────────────────────────
   if (view === 'hub') {
@@ -268,6 +291,47 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
 
         {hubMode === 'alters' ? (
           <div className="space-y-6">
+            {/* Recherche par alter */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted" />
+                <input
+                  type="text"
+                  value={alterSearch}
+                  onChange={e => { setAlterSearch(e.target.value); setAlterSuggestOpen(true); }}
+                  onFocus={() => setAlterSuggestOpen(true)}
+                  onBlur={() => setTimeout(() => setAlterSuggestOpen(false), 150)}
+                  placeholder={t.searchAlterPlaceholder}
+                  className="w-full bg-app-card/65 border border-app-border/30 rounded-2xl pl-10 pr-9 py-3 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40"
+                />
+                {alterSearch && (
+                  <button onClick={() => setAlterSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-app-muted hover:text-app-text transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {alterSuggestOpen && alterSearch.trim() && (
+                <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+                  {alterSuggestions.length > 0 ? alterSuggestions.map(a => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => { openPlace(a.id); setAlterSearch(''); setAlterSuggestOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                    >
+                      {a.profileImage
+                        ? <img src={a.profileImage} className="w-6 h-6 rounded-full object-cover flex-shrink-0" alt="" referrerPolicy="no-referrer" />
+                        : <div className="w-6 h-6 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(a.alterName || '?').charAt(0)}</div>
+                      }
+                      {a.alterName}
+                    </button>
+                  )) : (
+                    <p className="px-4 py-3 text-xs text-app-muted">{t.noResults}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Front Room — tuile épinglée */}
             <button
               onClick={() => openPlace(FRONT_ROOM_ID)}
@@ -286,9 +350,11 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
             {/* Grille de tuiles alters */}
             {alters.length === 0 ? (
               <p className="text-xs text-app-muted text-center py-10">{t.noAlters}</p>
+            ) : filteredAlters.length === 0 ? (
+              <p className="text-xs text-app-muted text-center py-10">{t.noResults}</p>
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                {alters.map(a => (
+                {filteredAlters.map(a => (
                   <button
                     key={a.id}
                     onClick={() => openPlace(a.id)}
@@ -309,10 +375,50 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
           </div>
         ) : (
           <div className="space-y-5">
+            {/* Recherche par source */}
+            <div className="relative">
+              <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted" />
+                <input
+                  type="text"
+                  value={sourceSearch}
+                  onChange={e => { setSourceSearch(e.target.value); setSourceSuggestOpen(true); }}
+                  onFocus={() => setSourceSuggestOpen(true)}
+                  onBlur={() => setTimeout(() => setSourceSuggestOpen(false), 150)}
+                  placeholder={t.searchSourcePlaceholder}
+                  className="w-full bg-app-card/65 border border-app-border/30 rounded-2xl pl-10 pr-9 py-3 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40"
+                />
+                {sourceSearch && (
+                  <button onClick={() => setSourceSearch('')} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-app-muted hover:text-app-text transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {sourceSuggestOpen && sourceSearch.trim() && (
+                <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-64 overflow-y-auto">
+                  {sourceSuggestions.length > 0 ? sourceSuggestions.map(source => (
+                    <button
+                      key={source}
+                      type="button"
+                      onClick={() => { setSourceSearch(source); setSourceSuggestOpen(false); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
+                    >
+                      <Tag className="w-3.5 h-3.5 text-app-accent flex-shrink-0" />
+                      {source}
+                    </button>
+                  )) : (
+                    <p className="px-4 py-3 text-xs text-app-muted">{t.noResults}</p>
+                  )}
+                </div>
+              )}
+            </div>
+
             {sourceGroups.length === 0 ? (
               <p className="text-xs text-app-muted text-center py-10">{t.sourcesHint}</p>
+            ) : filteredSourceGroups.length === 0 ? (
+              <p className="text-xs text-app-muted text-center py-10">{t.noResults}</p>
             ) : (
-              sourceGroups.map(([source, members]) => (
+              filteredSourceGroups.map(([source, members]) => (
                 <div key={source} className="p-4 rounded-2xl bg-app-card/65 border border-app-border/30 space-y-3">
                   <p className="text-[11px] font-black uppercase tracking-widest text-app-accent flex items-center gap-1.5">
                     <Tag className="w-3.5 h-3.5" /> {source}
