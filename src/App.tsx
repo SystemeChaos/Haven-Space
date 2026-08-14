@@ -1,4 +1,5 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
+import InnerworldPage from './InnerworldPage';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1296,7 +1297,8 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'innerworld' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
+  const [innerworldTargetAlterId, setInnerworldTargetAlterId] = useState<string | null>(null);
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
   const [creatorReturnTab, setCreatorReturnTab] = useState<typeof currentTab | null>(null);
@@ -4998,6 +5000,13 @@ export default function App() {
             <button onClick={() => handleLoadAlter(alter)} className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
               {lang === 'fr' ? 'Charger' : 'Load'}
             </button>
+            <button
+              onClick={() => { setInnerworldTargetAlterId(alter.id); setCurrentTab('innerworld'); }}
+              className="p-1 text-app-muted hover:text-app-accent transition-colors shrink-0"
+              title={lang === 'fr' ? 'Voir son Innerworld' : 'View Innerworld'}
+            >
+              <TreePine className="w-3.5 h-3.5" />
+            </button>
             <button onClick={() => setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a))}
               className="p-1 text-app-muted hover:text-amber-500 transition-colors shrink-0"
               title={alter.archived ? (lang === 'fr' ? 'Desarchiver' : 'Unarchive') : (lang === 'fr' ? 'Archiver' : 'Archive')}>
@@ -5081,6 +5090,13 @@ export default function App() {
               className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest bg-app-bg hover:bg-app-accent hover:text-white border border-app-border/40 hover:border-transparent rounded-lg transition-all"
             >
               {lang === 'fr' ? 'Charger' : 'Load'}
+            </button>
+            <button
+              onClick={() => { setInnerworldTargetAlterId(alter.id); setCurrentTab('innerworld'); }}
+              className="p-1 text-app-muted hover:text-app-accent rounded-lg transition-colors"
+              title={lang === 'fr' ? 'Voir son Innerworld' : 'View Innerworld'}
+            >
+              <TreePine className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a))}
@@ -8740,6 +8756,7 @@ export default function App() {
             { value: 'creator',   label: t.menuCreator,    icon: Hammer,             desc: lang === 'fr' ? 'Créer ou modifier une fiche' : 'Create or edit a profile' },
             { value: 'switch',    label: t.menuSwitches,   icon: ArrowLeftRight,     desc: lang === 'fr' ? 'Registre des fronts et émotions' : 'Front log and emotions' },
             { value: 'mapping',   label: t.menuMapping,    icon: GitBranch,          desc: lang === 'fr' ? 'Visualiser le système' : 'Visualise the system' },
+            { value: 'innerworld', label: lang === 'fr' ? 'Innerworld' : 'Innerworld', icon: TreePine, desc: lang === 'fr' ? 'Le monde intérieur, lieu par lieu' : "The inner world, place by place" },
             { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: lang === 'fr' ? 'Discussion interne' : 'Internal discussion' },
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
@@ -8795,6 +8812,7 @@ export default function App() {
                       key={item.value}
                       onClick={() => {
                         if (item.value === 'creator') { handleResetCreator(); return; }
+                        if (item.value === 'innerworld') { setInnerworldTargetAlterId(null); }
                         setCurrentTab(item.value as any);
                       }}
                       className="flex flex-col items-center gap-3 p-5 bg-app-card border border-app-border/40 rounded-2xl hover:border-app-accent/40 hover:bg-app-card/80 active:scale-95 transition-all text-left group"
@@ -10774,6 +10792,22 @@ export default function App() {
         {currentTab === 'mapping' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
             <MappingPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} />
+          </div>
+        )}
+
+        {currentTab === 'innerworld' && (
+          <div className="animate-fade-in duration-300">
+            <InnerworldPage
+              savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)}
+              lang={lang}
+              activeSystemId={activeSystemId}
+              initialAlterId={innerworldTargetAlterId}
+              onOpenAlterFiche={(alterId) => {
+                const target = savedAlters.find(a => a.id === alterId);
+                if (target) handleLoadAlter(target);
+                setInnerworldTargetAlterId(null);
+              }}
+            />
           </div>
         )}
 
