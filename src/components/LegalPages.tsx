@@ -4,7 +4,7 @@ import {
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
   LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
-  HeartPulse, Languages, Wallet,
+  HeartPulse, Languages, Wallet, TreePine,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary';
@@ -84,6 +84,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fT: '✦ Export / import JSON',
       fU: '✦ Détente (outils anti-dissociation)',
       fV: '✦ Portefeuille (dépenses par alter)',
+      fW: '✦ Innerworld (monde intérieur)',
       openSourceTitle: 'Transparence',
       openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
       thanksTitle: 'Merci à nos alpha & bêta testeur·euses',
@@ -113,6 +114,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g2Text: 'Regroupe tes alters en dossiers (par exemple par âge, par fonction, ou par petit groupe interne). Les sous-systèmes peuvent être imbriqués les uns dans les autres. En cas de suppression, tu choisis fiche par fiche où chacune doit aller (système principal ou un autre sous-système), avec possibilité de tout sélectionner d\'un coup — ou de tout supprimer d\'un bloc si tu préfères repartir de zéro.',
       g3Title: 'Cartographie des relations',
       g3Text: 'Visualise les liens entre tes alters sous forme de carte : partenaires, protecteur/protégé, fratrie, parent/enfant, ami·e, soignant, indifférence, tension, conflit, persécuteur, ou distance. Chaque relation ajoutée apparaît aussi automatiquement en bas de la fiche complète des deux alters concernés, mise à jour en temps réel.',
+      g29Title: 'Innerworld',
+      g29Text: "Le monde intérieur du système, lieu par lieu : une tuile par alter (photo + nom) donne accès à sa page personnelle façon moodboard, avec des blocs modulables (bannière, texte libre, galerie photo, audio/playlist) et une source d'origine optionnelle. Un Front Room commun, épinglé en haut, sert d'espace partagé pour les transits ou l'inner commun. Une recherche avec autosuggestion permet de retrouver un alter ou de regrouper les pages par source. Accessible depuis le tableau de bord, avec un lien direct vers et depuis la fiche de chaque alter.",
       g4Title: 'Tags personnalisés',
       g4Text: 'En plus des rôles fixes, ajoute tes propres mots-clés libres à une fiche (dans « Informations de l\'alter »). Un filtre dédié apparaît alors dans « Mon système », à côté du filtre par rôle, pour retrouver rapidement tous les alters partageant un même tag.',
       g5Title: 'Statut de front / présence',
@@ -229,6 +232,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fT: '✦ JSON Export / Import',
       fU: '✦ Relax (anti-dissociation tools)',
       fV: '✦ Wallet (per-alter expenses)',
+      fW: '✦ Innerworld (inner world)',
       openSourceTitle: 'Transparency',
       openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
       thanksTitle: 'Thank you to our alpha & beta testers',
@@ -258,6 +262,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g2Text: 'Group your alters into folders (by age, function, or small internal group, for example). Subsystems can be nested inside one another. When deleting one, you choose per profile where each one should go (main system or another subsystem), with an option to select them all at once — or delete everything in one go if you\'d rather start fresh.',
       g3Title: 'Relationship Mapping',
       g3Text: 'Visualize the links between your alters as a map: partners, protector/protected, siblings, parent/child, friend, caretaker, indifference, tension, conflict, persecutor, or distance. Every relationship you add also automatically appears at the bottom of both alters\' full profiles, updated in real time.',
+      g29Title: 'Innerworld',
+      g29Text: "The system's inner world, place by place: a tile per alter (photo + name) opens their personal moodboard-style page, with modular blocks (banner, free text, photo gallery, audio/playlist) and an optional origin source. A shared Front Room, pinned at the top, serves as a common space for transits or shared inner spaces. Search with autosuggest helps find an alter or group pages by source. Accessible from the dashboard, with a direct link to and from each alter's profile.",
       g4Title: 'Custom Tags',
       g4Text: 'Beyond the fixed roles, add your own free-form keywords to a profile (in "Alter Information"). A dedicated filter then appears in "My System," next to the role filter, to quickly find every alter sharing a given tag.',
       g5Title: 'Fronting Status',
@@ -372,6 +378,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g4', icon: Tag, title: currentT.g4Title, text: currentT.g4Text },
           { id: 'g6', icon: History, title: currentT.g6Title, text: currentT.g6Text },
           { id: 'g5', icon: Radio, title: currentT.g5Title, text: currentT.g5Text },
+          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
+          { id: 'g29', icon: TreePine, title: currentT.g29Title, text: currentT.g29Text },
           { id: 'g8', icon: MessageCircle, title: currentT.g8Title, text: currentT.g8Text },
           { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
           { id: 'g7', icon: NotebookPen, title: currentT.g7Title, text: currentT.g7Text },
@@ -391,7 +399,6 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g16', icon: Smartphone, title: currentT.g16Title, text: currentT.g16Text },
           { id: 'g17', icon: Lock, title: currentT.g17Title, text: currentT.g17Text },
           // Non listées explicitement par l'utilisateur, conservées en fin de guide
-          { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
           { id: 'g15', icon: Globe, title: currentT.g15Title, text: currentT.g15Text },
         ];
         const query = guideSearch.trim().toLowerCase();
@@ -501,6 +508,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Dissociation', status: ['clinique'], definition: "Mécanisme psychique de déconnexion — de ses pensées, de son identité, de son environnement ou de ses souvenirs — souvent une réponse à un stress ou un trauma." },
               { name: 'Dormance', status: ['communautaire'], definition: "Période d'inactivité prolongée d'un alter, pendant laquelle il n'intervient plus au front ni dans la vie interne." },
               { name: 'Front / Fronting', status: ['communautaire'], definition: "Le fait, pour un alter, d'être aux commandes du corps à un instant donné." },
+              { name: 'Front Room', status: ['communautaire'], definition: "Zone du monde intérieur perçue comme un espace commun ou de transit, où les alters peuvent se croiser en dehors de leur lieu personnel — par opposition aux espaces individuels de chacun·e." },
               { name: 'Frontstuck', status: ['communautaire'], definition: "Fait, pour un alter, d'être bloqué au front, incapable de passer le relais ou de retourner dans le monde intérieur." },
               { name: 'Influence passive', status: ['clinique'], definition: "Situation où la présence, les émotions ou les pensées d'un alter non-fronter influencent les actes ou le ressenti de celui qui est au front." },
               { name: 'Monde intérieur / Headspace / Innerworld', status: ['communautaire'], definition: "Espace mental représenté où les alters peuvent interagir, se reposer ou communiquer lorsqu'ils ne sont pas au front." },
@@ -786,6 +794,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 currentT.fT,
                 currentT.fU,
                 currentT.fV,
+                currentT.fW,
               ].map(item => (
                 <div key={item} className="p-2.5 bg-app-bg/50 border border-app-border/40 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-text/90">
                   {item}
