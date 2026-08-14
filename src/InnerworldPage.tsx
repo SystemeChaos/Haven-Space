@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Home, Plus, X, Trash2, Tag, Image as ImageIcon, Type as TypeIcon,
-  Images, Music, ExternalLink, Sparkles, Layers, Users,
+  Images, Music, ExternalLink, Sparkles, Layers, Users, Upload,
 } from 'lucide-react';
 import { SavedAlter } from './types';
 
@@ -67,6 +67,39 @@ export function savePlace(systemId: string, place: InnerworldPlace) {
   addToIndex(systemId, place.ownerId);
 }
 
+// ─── Upload depuis l'appareil (compression + base64, même logique que le reste de l'app) ─
+
+function compressImageFiles(files: FileList | null): Promise<string[]> {
+  if (!files || files.length === 0) return Promise.resolve([]);
+  const promises = Array.from(files).map(file => {
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 800;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > max_size) { height *= max_size / width; width = max_size; }
+          } else {
+            if (height > max_size) { width *= max_size / height; height = max_size; }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  });
+  return Promise.all(promises);
+}
+
 // ─── Props ──────────────────────────────────────────────────────────────────
 
 interface InnerworldPageProps {
@@ -120,6 +153,8 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     audioPlaceholder: lang === 'fr' ? 'Lien (playlist, morceau…)' : 'Link (playlist, track…)',
     blockTitlePlaceholder: lang === 'fr' ? 'Titre du bloc (optionnel)' : 'Block title (optional)',
     open: lang === 'fr' ? 'Ouvrir' : 'Open',
+    uploadFromDevice: lang === 'fr' ? 'Depuis l\u2019appareil' : 'From device',
+    or: lang === 'fr' ? 'ou' : 'or',
   };
 
   useEffect(() => {
@@ -428,13 +463,33 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
 
               {block.type === 'banner' && (
                 <>
-                  <input
-                    type="text"
-                    value={block.content}
-                    onChange={e => updateBlock(block.id, { content: e.target.value })}
-                    placeholder={t.imgUrl}
-                    className="w-full bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={block.content}
+                      onChange={e => updateBlock(block.id, { content: e.target.value })}
+                      placeholder={t.imgUrl}
+                      className="flex-1 bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
+                    />
+                    <span className="text-[10px] text-app-muted shrink-0">{t.or}</span>
+                    <label
+                      className="shrink-0 p-2 border border-app-border/30 rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
+                      title={t.uploadFromDevice}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          compressImageFiles(e.target.files).then(urls => {
+                            if (urls[0]) updateBlock(block.id, { content: urls[0] });
+                          });
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
                   {block.content && (
                     <img src={block.content} alt="" className="w-full max-h-56 object-cover rounded-xl border border-app-border/20" referrerPolicy="no-referrer" />
                   )}
@@ -460,6 +515,26 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
                     rows={3}
                     className="w-full bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40 resize-y"
                   />
+                  <label
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-app-border/40 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {t.uploadFromDevice}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => {
+                        compressImageFiles(e.target.files).then(urls => {
+                          if (urls.length === 0) return;
+                          const existing = block.content.split('\n').map(s => s.trim()).filter(Boolean);
+                          updateBlock(block.id, { content: [...existing, ...urls].join('\n') });
+                        });
+                        e.target.value = '';
+                      }}
+                    />
+                  </label>
                   {block.content.trim() && (
                     <div className="grid grid-cols-3 gap-2">
                       {block.content.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 9).map((url, i) => (
