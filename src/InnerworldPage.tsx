@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ArrowLeft, Home, Plus, X, Trash2, Tag, Image as ImageIcon, Type as TypeIcon,
-  Images, Music, ExternalLink, Sparkles, Layers, Users, Upload, Search,
+  Images, Music, ExternalLink, Sparkles, Layers, Users, Upload, Search, Link2,
 } from 'lucide-react';
 import { SavedAlter } from './types';
 
@@ -132,6 +132,9 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
   const [alterSuggestOpen, setAlterSuggestOpen] = useState(false);
   const [sourceSearch, setSourceSearch] = useState('');
   const [sourceSuggestOpen, setSourceSuggestOpen] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [urlInputOpenFor, setUrlInputOpenFor] = useState<string | null>(null);
+  const [urlDraft, setUrlDraft] = useState('');
 
   const t = {
     title: lang === 'fr' ? 'Innerworld' : 'Innerworld',
@@ -162,6 +165,14 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     searchAlterPlaceholder: lang === 'fr' ? 'Rechercher un alter…' : 'Search an alter…',
     searchSourcePlaceholder: lang === 'fr' ? 'Rechercher une source…' : 'Search a source…',
     noResults: lang === 'fr' ? 'Aucun résultat' : 'No results',
+    addPhotos: lang === 'fr' ? 'Ajouter des photos' : 'Add photos',
+    addPhoto: lang === 'fr' ? 'Ajouter une photo' : 'Add a photo',
+    addByUrl: lang === 'fr' ? 'Ajouter par URL' : 'Add by URL',
+    replace: lang === 'fr' ? 'Remplacer' : 'Replace',
+    urlInputPlaceholder: lang === 'fr' ? 'Coller un lien d\u2019image…' : 'Paste an image link…',
+    add: lang === 'fr' ? 'Ajouter' : 'Add',
+    cancel: lang === 'fr' ? 'Annuler' : 'Cancel',
+    noPhotosYet: lang === 'fr' ? 'Aucune photo pour l\u2019instant.' : 'No photos yet.',
   };
 
   useEffect(() => {
@@ -569,35 +580,86 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
 
               {block.type === 'banner' && (
                 <>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={block.content}
-                      onChange={e => updateBlock(block.id, { content: e.target.value })}
-                      placeholder={t.imgUrl}
-                      className="flex-1 bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
-                    />
-                    <span className="text-[10px] text-app-muted shrink-0">{t.or}</span>
-                    <label
-                      className="shrink-0 p-2 border border-app-border/30 rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
-                      title={t.uploadFromDevice}
-                    >
-                      <Upload className="w-3.5 h-3.5" />
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => {
-                          compressImageFiles(e.target.files).then(urls => {
-                            if (urls[0]) updateBlock(block.id, { content: urls[0] });
-                          });
-                          e.target.value = '';
-                        }}
+                  {block.content ? (
+                    <div className="relative group">
+                      <img
+                        src={block.content}
+                        alt=""
+                        onClick={() => setLightboxUrl(block.content)}
+                        className="w-full max-h-56 object-cover rounded-xl border border-app-border/20 cursor-zoom-in"
+                        referrerPolicy="no-referrer"
                       />
-                    </label>
-                  </div>
-                  {block.content && (
-                    <img src={block.content} alt="" className="w-full max-h-56 object-cover rounded-xl border border-app-border/20" referrerPolicy="no-referrer" />
+                      <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <label className="p-1.5 rounded-lg bg-app-bg/90 border border-app-border/40 text-app-muted hover:text-app-accent cursor-pointer transition-colors" title={t.replace}>
+                          <Upload className="w-3.5 h-3.5" />
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              compressImageFiles(e.target.files).then(urls => {
+                                if (urls[0]) updateBlock(block.id, { content: urls[0] });
+                              });
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                        <button
+                          onClick={() => updateBlock(block.id, { content: '' })}
+                          className="p-1.5 rounded-lg bg-app-bg/90 border border-app-border/40 text-app-muted hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : urlInputOpenFor === block.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={urlDraft}
+                        onChange={e => setUrlDraft(e.target.value)}
+                        placeholder={t.urlInputPlaceholder}
+                        className="flex-1 bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
+                      />
+                      <button
+                        onClick={() => { if (urlDraft.trim()) updateBlock(block.id, { content: urlDraft.trim() }); setUrlDraft(''); setUrlInputOpenFor(null); }}
+                        className="px-3 py-2 rounded-xl bg-app-accent text-app-accent-text text-[10px] font-black uppercase tracking-widest shrink-0"
+                      >
+                        {t.add}
+                      </button>
+                      <button
+                        onClick={() => { setUrlDraft(''); setUrlInputOpenFor(null); }}
+                        className="p-2 rounded-xl border border-app-border/30 text-app-muted hover:text-app-text transition-colors shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-dashed border-app-border/40 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors">
+                        <Upload className="w-3.5 h-3.5" />
+                        {t.addPhoto}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            compressImageFiles(e.target.files).then(urls => {
+                              if (urls[0]) updateBlock(block.id, { content: urls[0] });
+                            });
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <button
+                        onClick={() => setUrlInputOpenFor(block.id)}
+                        className="p-3 rounded-xl border border-app-border/30 text-app-muted hover:text-app-accent hover:border-app-accent/40 transition-colors shrink-0"
+                        title={t.addByUrl}
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </>
               )}
@@ -612,44 +674,93 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
                 />
               )}
 
-              {block.type === 'gallery' && (
-                <>
-                  <textarea
-                    value={block.content}
-                    onChange={e => updateBlock(block.id, { content: e.target.value })}
-                    placeholder={t.galleryPlaceholder}
-                    rows={3}
-                    className="w-full bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40 resize-y"
-                  />
-                  <label
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-app-border/40 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    {t.uploadFromDevice}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      className="hidden"
-                      onChange={(e) => {
-                        compressImageFiles(e.target.files).then(urls => {
-                          if (urls.length === 0) return;
-                          const existing = block.content.split('\n').map(s => s.trim()).filter(Boolean);
-                          updateBlock(block.id, { content: [...existing, ...urls].join('\n') });
-                        });
-                        e.target.value = '';
-                      }}
-                    />
-                  </label>
-                  {block.content.trim() && (
-                    <div className="grid grid-cols-3 gap-2">
-                      {block.content.split('\n').map(s => s.trim()).filter(Boolean).slice(0, 9).map((url, i) => (
-                        <img key={i} src={url} alt="" className="w-full h-20 object-cover rounded-lg border border-app-border/20" referrerPolicy="no-referrer" />
-                      ))}
-                    </div>
-                  )}
-                </>
-              )}
+              {block.type === 'gallery' && (() => {
+                const photos = block.content.split('\n').map(s => s.trim()).filter(Boolean);
+                const removePhoto = (url: string) => {
+                  updateBlock(block.id, { content: photos.filter(p => p !== url).join('\n') });
+                };
+                const addUrl = () => {
+                  if (urlDraft.trim()) updateBlock(block.id, { content: [...photos, urlDraft.trim()].join('\n') });
+                  setUrlDraft('');
+                  setUrlInputOpenFor(null);
+                };
+                return (
+                  <>
+                    {photos.length > 0 ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        {photos.map((url, i) => (
+                          <div key={i} className="relative group">
+                            <img
+                              src={url}
+                              alt=""
+                              onClick={() => setLightboxUrl(url)}
+                              className="w-full h-20 object-cover rounded-lg border border-app-border/20 cursor-zoom-in"
+                              referrerPolicy="no-referrer"
+                            />
+                            <button
+                              onClick={() => removePhoto(url)}
+                              className="absolute top-1 right-1 p-1 rounded-md bg-app-bg/90 border border-app-border/40 text-app-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-app-muted text-center py-3">{t.noPhotosYet}</p>
+                    )}
+
+                    {urlInputOpenFor === block.id ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          autoFocus
+                          value={urlDraft}
+                          onChange={e => setUrlDraft(e.target.value)}
+                          placeholder={t.urlInputPlaceholder}
+                          className="flex-1 bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
+                        />
+                        <button onClick={addUrl} className="px-3 py-2 rounded-xl bg-app-accent text-app-accent-text text-[10px] font-black uppercase tracking-widest shrink-0">
+                          {t.add}
+                        </button>
+                        <button
+                          onClick={() => { setUrlDraft(''); setUrlInputOpenFor(null); }}
+                          className="p-2 rounded-xl border border-app-border/30 text-app-muted hover:text-app-text transition-colors shrink-0"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <label className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border-2 border-dashed border-app-border/40 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors">
+                          <Upload className="w-3.5 h-3.5" />
+                          {t.addPhotos}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                              compressImageFiles(e.target.files).then(urls => {
+                                if (urls.length === 0) return;
+                                updateBlock(block.id, { content: [...photos, ...urls].join('\n') });
+                              });
+                              e.target.value = '';
+                            }}
+                          />
+                        </label>
+                        <button
+                          onClick={() => setUrlInputOpenFor(block.id)}
+                          className="p-2 rounded-xl border border-app-border/30 text-app-muted hover:text-app-accent hover:border-app-accent/40 transition-colors shrink-0"
+                          title={t.addByUrl}
+                        >
+                          <Link2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
 
               {block.type === 'audio' && (
                 <div className="flex items-center gap-2">
@@ -698,6 +809,21 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
           )}
         </div>
       </div>
+
+      {lightboxUrl && (
+        <div
+          onClick={() => setLightboxUrl(null)}
+          className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-6 cursor-zoom-out"
+        >
+          <button
+            onClick={() => setLightboxUrl(null)}
+            className="absolute top-4 right-4 p-2 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+          <img src={lightboxUrl} alt="" className="max-w-full max-h-full object-contain rounded-xl" referrerPolicy="no-referrer" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
     </div>
   );
 }
