@@ -67,6 +67,44 @@ export function savePlace(systemId: string, place: InnerworldPlace) {
   addToIndex(systemId, place.ownerId);
 }
 
+// ─── Détection de plateforme audio (pour un rendu plus soigné que l'URL brute) ─
+
+interface AudioPlatform {
+  name: string;
+  color: string;
+  embedUrl?: string;
+  embedHeight?: number;
+}
+
+function detectAudioPlatform(url: string): AudioPlatform {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+
+    if (host.includes('spotify.com')) {
+      const m = url.match(/open\.spotify\.com\/(track|album|playlist|episode|artist|show)\/([a-zA-Z0-9]+)/);
+      return { name: 'Spotify', color: '#1DB954', embedUrl: m ? `https://open.spotify.com/embed/${m[1]}/${m[2]}` : undefined, embedHeight: 152 };
+    }
+    if (host.includes('youtube.com') || host.includes('youtu.be')) {
+      let id: string | null = null;
+      const short = url.match(/youtu\.be\/([a-zA-Z0-9_-]+)/);
+      const long = url.match(/[?&]v=([a-zA-Z0-9_-]+)/);
+      const embed = url.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/);
+      id = short?.[1] || long?.[1] || embed?.[1] || null;
+      return { name: 'YouTube', color: '#FF0000', embedUrl: id ? `https://www.youtube.com/embed/${id}` : undefined, embedHeight: 200 };
+    }
+    if (host.includes('soundcloud.com')) {
+      return { name: 'SoundCloud', color: '#FF5500', embedUrl: `https://w.soundcloud.com/player/?url=${encodeURIComponent(url)}&color=%23ff5500&auto_play=false&show_comments=false&visual=false`, embedHeight: 166 };
+    }
+    if (host.includes('suno.com')) return { name: 'Suno', color: '#9333EA' };
+    if (host.includes('music.apple.com')) return { name: 'Apple Music', color: '#FA243C' };
+    if (host.includes('deezer.com')) return { name: 'Deezer', color: '#A238FF' };
+    if (host.includes('bandcamp.com')) return { name: 'Bandcamp', color: '#1DA0C3' };
+    return { name: host, color: '#8A8578' };
+  } catch {
+    return { name: 'Lien', color: '#8A8578' };
+  }
+}
+
 // ─── Upload depuis l'appareil (compression + base64, même logique que le reste de l'app) ─
 
 function compressImageFiles(files: FileList | null): Promise<string[]> {
@@ -173,6 +211,9 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     add: lang === 'fr' ? 'Ajouter' : 'Add',
     cancel: lang === 'fr' ? 'Annuler' : 'Cancel',
     noPhotosYet: lang === 'fr' ? 'Aucune photo pour l\u2019instant.' : 'No photos yet.',
+    audioEmptyPlaceholder: lang === 'fr' ? 'Colle un lien Spotify, YouTube, SoundCloud, Suno…' : 'Paste a Spotify, YouTube, SoundCloud, Suno link…',
+    edit: lang === 'fr' ? 'Modifier' : 'Edit',
+    remove: lang === 'fr' ? 'Retirer' : 'Remove',
   };
 
   useEffect(() => {
@@ -762,22 +803,65 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
                 );
               })()}
 
-              {block.type === 'audio' && (
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={block.content}
-                    onChange={e => updateBlock(block.id, { content: e.target.value })}
-                    placeholder={t.audioPlaceholder}
-                    className="flex-1 bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
-                  />
-                  {block.content && (
-                    <a href={block.content} target="_blank" rel="noreferrer" className="p-2 rounded-xl border border-app-border/30 text-app-accent hover:border-app-accent/50 transition-all shrink-0">
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                </div>
-              )}
+              {block.type === 'audio' && (() => {
+                const platform = block.content ? detectAudioPlatform(block.content) : null;
+                const editing = urlInputOpenFor === block.id || !block.content;
+                return (
+                  <>
+                    {editing ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          autoFocus={urlInputOpenFor === block.id}
+                          defaultValue={block.content}
+                          onBlur={e => { updateBlock(block.id, { content: e.target.value.trim() }); setUrlInputOpenFor(null); }}
+                          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                          placeholder={t.audioEmptyPlaceholder}
+                          className="flex-1 bg-app-bg border border-app-border/30 rounded-xl px-3 py-2 text-xs text-app-text focus:outline-none placeholder:text-app-muted/40"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {platform?.embedUrl ? (
+                          <iframe
+                            src={platform.embedUrl}
+                            width="100%"
+                            height={platform.embedHeight || 166}
+                            style={{ border: 0, borderRadius: '0.75rem' }}
+                            allow="autoplay; encrypted-media; clipboard-write; picture-in-picture"
+                            loading="lazy"
+                            title={platform.name}
+                          />
+                        ) : (
+                          <a
+                            href={block.content}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-3 p-3 rounded-xl border border-app-border/30 hover:border-app-accent/40 transition-colors group"
+                          >
+                            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: `${platform?.color}22`, color: platform?.color }}>
+                              <Music className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-black uppercase tracking-widest text-app-text">{platform?.name}</p>
+                              <p className="text-[10px] text-app-muted truncate">{block.content}</p>
+                            </div>
+                            <ExternalLink className="w-4 h-4 text-app-muted group-hover:text-app-accent transition-colors shrink-0" />
+                          </a>
+                        )}
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setUrlInputOpenFor(block.id)} className="text-[10px] font-bold uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors">
+                            {t.edit}
+                          </button>
+                          <button onClick={() => updateBlock(block.id, { content: '' })} className="text-[10px] font-bold uppercase tracking-widest text-app-muted hover:text-red-400 transition-colors">
+                            {t.remove}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           );
         })}
