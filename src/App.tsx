@@ -1914,6 +1914,18 @@ export default function App() {
   }, []);
 
   // --- JSON Backup Synchronisation Logical Handlers ---
+  const collectInnerworldData = (): Record<string, string> => {
+    const data: Record<string, string> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('haven_innerworld_')) {
+        const value = localStorage.getItem(key);
+        if (value !== null) data[key] = value;
+      }
+    }
+    return data;
+  };
+
   const handleExportJSON = () => {
     try {
       const dataToExport = {
@@ -1936,7 +1948,10 @@ export default function App() {
         medications,
         healthHistory,
         emergencyInfo,
-        mappingData: loadMapping()
+        mappingData: loadMapping(),
+        walletEntries,
+        walletCustomCategories,
+        innerworldData: collectInnerworldData()
       };
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
@@ -1989,9 +2004,13 @@ export default function App() {
         const parallelSystemsCount = Array.isArray(parsed.parallelSystems) ? parsed.parallelSystems.length : 0;
         const directMessagesCount = Array.isArray(parsed.directMessages) ? parsed.directMessages.length : 0;
         const healthCount = (Array.isArray(parsed.medications) ? parsed.medications.length : 0) + (Array.isArray(parsed.healthHistory) ? parsed.healthHistory.length : 0);
+        const walletCount = Array.isArray(parsed.walletEntries) ? parsed.walletEntries.length : 0;
+        const innerworldCount = parsed.innerworldData && typeof parsed.innerworldData === 'object'
+          ? Object.keys(parsed.innerworldData).filter(k => k.startsWith('haven_innerworld_place_')).length
+          : 0;
 
         if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0
-          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0) {
+          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0 && walletCount === 0 && innerworldCount === 0) {
           throw new Error(lang === 'fr' 
             ? "Le fichier ne contient aucune donnée compatible ou aucune donnée de système." 
             : "The file contains no compatible system data."
@@ -2006,6 +2025,8 @@ export default function App() {
           chatsCount,
           switchesCount,
           journalsCount,
+          walletCount,
+          innerworldCount,
           systemName: parsed.mainSystemName || (lang === 'fr' ? 'Système Importé' : 'Imported System')
         });
       } catch (err: any) {
@@ -2119,6 +2140,25 @@ export default function App() {
 
       if (data.mappingData && typeof data.mappingData === 'object') {
         saveMapping(data.mappingData);
+      }
+
+      const importedWalletEntries = Array.isArray(data.walletEntries) ? data.walletEntries : [];
+      setWalletEntries(importedWalletEntries);
+      localStorage.setItem('hs-wallet-entries', JSON.stringify(importedWalletEntries));
+
+      const importedWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
+      setWalletCustomCategories(importedWalletCategories);
+      localStorage.setItem('hs-wallet-custom-categories', JSON.stringify(importedWalletCategories));
+
+      if (data.innerworldData && typeof data.innerworldData === 'object') {
+        // On repart d'une base propre pour l'Innerworld avant de restaurer la sauvegarde
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('haven_innerworld_')) localStorage.removeItem(key);
+        }
+        Object.entries(data.innerworldData).forEach(([key, value]) => {
+          if (typeof value === 'string') localStorage.setItem(key, value);
+        });
       }
 
       setJsonSuccess(lang === 'fr' 
@@ -2340,6 +2380,42 @@ export default function App() {
           }
         });
         saveMapping({ nodes: mergedNodes, relations: mergedRelations });
+      }
+
+      // 12. Portefeuille : fusion des entrées et catégories personnalisées, uniques par id
+      const currentWalletEntries = [...walletEntries];
+      const incomingWalletEntries = Array.isArray(data.walletEntries) ? data.walletEntries : [];
+      incomingWalletEntries.forEach((incoming: WalletEntry) => {
+        if (!currentWalletEntries.some(w => w.id === incoming.id)) currentWalletEntries.push(incoming);
+      });
+      setWalletEntries(currentWalletEntries);
+      localStorage.setItem('hs-wallet-entries', JSON.stringify(currentWalletEntries));
+
+      const currentWalletCategories = [...walletCustomCategories];
+      const incomingWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
+      incomingWalletCategories.forEach((incoming: any) => {
+        if (!currentWalletCategories.some(c => c.id === incoming.id)) currentWalletCategories.push(incoming);
+      });
+      setWalletCustomCategories(currentWalletCategories);
+      localStorage.setItem('hs-wallet-custom-categories', JSON.stringify(currentWalletCategories));
+
+      // 13. Innerworld : ajoute les pages absentes localement, ne remplace jamais une page déjà personnalisée ; fusionne les index par système
+      if (data.innerworldData && typeof data.innerworldData === 'object') {
+        Object.entries(data.innerworldData).forEach(([key, value]) => {
+          if (typeof value !== 'string') return;
+          if (key.startsWith('haven_innerworld_index_')) {
+            try {
+              const currentIdx: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+              const incomingIdx: string[] = JSON.parse(value);
+              const merged = Array.from(new Set([...currentIdx, ...incomingIdx]));
+              localStorage.setItem(key, JSON.stringify(merged));
+            } catch {
+              localStorage.setItem(key, value);
+            }
+          } else if (key.startsWith('haven_innerworld_place_')) {
+            if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+          }
+        });
       }
 
       setJsonSuccess(lang === 'fr' 
@@ -14061,8 +14137,8 @@ export default function App() {
                     </div>
                     <p className="text-xs text-app-muted leading-relaxed">
                       {lang === 'fr'
-                        ? 'Téléchargez une sauvegarde en local de toutes vos fiches d\'alters, systèmes parallèles, historique de front, chat interne, messagerie, journal de bord, planning et santé.'
-                        : 'Download a total offline backup containing your alter cards, parallel systems, front history, inner chat, messaging, journal, planning, and health data.'}
+                        ? 'Téléchargez une sauvegarde en local de toutes vos fiches d\'alters, systèmes parallèles, historique de front, chat interne, messagerie, journal de bord, planning, santé, portefeuille et Innerworld.'
+                        : 'Download a total offline backup containing your alter cards, parallel systems, front history, inner chat, messaging, journal, planning, health, wallet, and Innerworld data.'}
                     </p>
                     
                     {/* Quick Stats of local database */}
@@ -14078,6 +14154,8 @@ export default function App() {
                       <div><strong className="text-app-text">{loadPlanning(activeSystemId).length}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
                       <div><strong className="text-app-text">{loadEisenhower(activeSystemId).length}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
                       <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
+                      <div><strong className="text-app-text">{walletEntries.length}</strong> {lang === 'fr' ? 'entrées de portefeuille' : 'wallet entries'}</div>
+                      <div><strong className="text-app-text">{Object.keys(collectInnerworldData()).filter(k => k.startsWith('haven_innerworld_place_')).length}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>
                     </div>
                   </div>
 
@@ -14157,7 +14235,7 @@ export default function App() {
 
                   <div className="space-y-3">
                     <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Contenu compatible détecté :' : 'Detected compatible content :'}</h5>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
                       <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
                         <div className="text-sm font-black text-app-text">{importPreview.altersCount}</div>
                         <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Alters' : 'Alters'}</div>
@@ -14174,9 +14252,17 @@ export default function App() {
                         <div className="text-sm font-black text-app-text">{importPreview.switchesCount}</div>
                         <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Switchs' : 'Switches'}</div>
                       </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm col-span-2 sm:col-span-1">
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
                         <div className="text-sm font-black text-app-text">{importPreview.journalsCount}</div>
                         <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Notes Journal' : 'Journal'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.walletCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Portefeuille' : 'Wallet'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.innerworldCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Innerworld' : 'Innerworld'}</div>
                       </div>
                     </div>
                   </div>
