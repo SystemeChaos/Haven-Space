@@ -4,7 +4,7 @@ import {
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
   LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
-  HeartPulse, Languages, Wallet, TreePine,
+  HeartPulse, Languages, Wallet, TreePine, Bug, Upload, X, CheckCircle2, AlertCircle, Loader2,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary';
@@ -332,6 +332,98 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
     navigator.clipboard.writeText('systeme.chaos@outlook.fr');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // ─── Rapport de bug ───────────────────────────────────────────────────────
+  const [bugTitle, setBugTitle] = useState('');
+  const [bugDescription, setBugDescription] = useState('');
+  const [bugEmail, setBugEmail] = useState('');
+  const [bugPhotos, setBugPhotos] = useState<string[]>([]);
+  const [bugSubmitting, setBugSubmitting] = useState(false);
+  const [bugStatus, setBugStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [bugErrorMsg, setBugErrorMsg] = useState<string | null>(null);
+
+  const compressBugPhotos = (files: FileList | null): Promise<string[]> => {
+    if (!files || files.length === 0) return Promise.resolve([]);
+    const promises = Array.from(files).map(file => new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 1280;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > max_size) { height *= max_size / width; width = max_size; }
+          } else if (height > max_size) {
+            width *= max_size / height; height = max_size;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext('2d')?.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.src = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }));
+    return Promise.all(promises);
+  };
+
+  const dataUrlToBlob = (dataUrl: string): Blob => {
+    const [meta, b64] = dataUrl.split(',');
+    const mime = meta.match(/:(.*?);/)?.[1] || 'image/jpeg';
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  };
+
+  const handleBugSubmit = async () => {
+    if (!bugTitle.trim() || !bugDescription.trim()) {
+      setBugErrorMsg(lang === 'fr' ? 'Merci de renseigner un titre et une description.' : 'Please fill in a title and a description.');
+      setBugStatus('error');
+      return;
+    }
+    setBugSubmitting(true);
+    setBugStatus('idle');
+    setBugErrorMsg(null);
+    try {
+      const formData = new FormData();
+      formData.append('_subject', `[Haven Space] Rapport de bug : ${bugTitle.trim()}`);
+      formData.append('_template', 'table');
+      formData.append('_captcha', 'false');
+      formData.append(lang === 'fr' ? 'Titre du bug' : 'Bug title', bugTitle.trim());
+      formData.append(lang === 'fr' ? 'Description' : 'Description', bugDescription.trim());
+      formData.append(
+        lang === 'fr' ? 'Email de réponse' : 'Reply email',
+        bugEmail.trim() || (lang === 'fr' ? 'Non renseigné (anonyme)' : 'Not provided (anonymous)')
+      );
+      bugPhotos.forEach((dataUrl, i) => {
+        formData.append(`${lang === 'fr' ? 'Capture' : 'Screenshot'} ${i + 1}`, dataUrlToBlob(dataUrl), `capture-${i + 1}.jpg`);
+      });
+
+      const res = await fetch('https://formsubmit.co/ajax/systeme.chaos@outlook.fr', {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: formData,
+      });
+      if (!res.ok) throw new Error('request failed');
+
+      setBugStatus('success');
+      setBugTitle('');
+      setBugDescription('');
+      setBugEmail('');
+      setBugPhotos([]);
+    } catch {
+      setBugStatus('error');
+      setBugErrorMsg(lang === 'fr'
+        ? "L'envoi a échoué. Tu peux réessayer ou nous écrire directement par email."
+        : 'Sending failed. You can try again or email us directly.');
+    } finally {
+      setBugSubmitting(false);
+    }
   };
 
   return (
@@ -859,6 +951,115 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 {copied ? currentT.copied : currentT.clickToCopy}
               </span>
             </div>
+          </div>
+
+          <div className="p-6 bg-app-card border border-app-border rounded-2xl space-y-4 shadow-sm">
+            <div className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
+              <Bug size={15} className="text-app-accent" />
+              <span>{lang === 'fr' ? 'Rapport de bug' : 'Bug report'}</span>
+            </div>
+            <p className="text-xs leading-relaxed text-app-muted font-medium">
+              {lang === 'fr'
+                ? "Un truc qui plante ou qui fait n'importe quoi ? Décris-le ici, captures d'écran bienvenues. Pas besoin de laisser ton email si tu préfères rester anonyme."
+                : "Something crashing or acting weird? Describe it here, screenshots welcome. No need to leave your email if you'd rather stay anonymous."}
+            </p>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                {lang === 'fr' ? 'Titre du bug' : 'Bug title'}
+              </label>
+              <input
+                type="text"
+                value={bugTitle}
+                onChange={e => setBugTitle(e.target.value)}
+                placeholder={lang === 'fr' ? "Ex : Le bouton Sauvegarder ne répond pas" : "E.g. The Save button doesn't respond"}
+                className="w-full bg-app-bg border border-app-border/50 rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                {lang === 'fr' ? 'Explique le bug' : 'Explain the bug'}
+              </label>
+              <textarea
+                value={bugDescription}
+                onChange={e => setBugDescription(e.target.value)}
+                placeholder={lang === 'fr' ? 'Que se passe-t-il ? Que faisais-tu juste avant ?' : 'What happens? What were you doing right before?'}
+                rows={4}
+                className="w-full bg-app-bg border border-app-border/50 rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40 resize-y"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                {lang === 'fr' ? 'Ton email (optionnel, pour qu\u2019on puisse te répondre)' : 'Your email (optional, so we can reply)'}
+              </label>
+              <input
+                type="email"
+                value={bugEmail}
+                onChange={e => setBugEmail(e.target.value)}
+                placeholder={lang === 'fr' ? 'Laisse vide pour rester anonyme' : 'Leave empty to stay anonymous'}
+                className="w-full bg-app-bg border border-app-border/50 rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
+                {lang === 'fr' ? 'Captures d\u2019écran (optionnel)' : 'Screenshots (optional)'}
+              </label>
+              {bugPhotos.length > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {bugPhotos.map((url, i) => (
+                    <div key={i} className="relative group">
+                      <img src={url} alt="" className="w-full h-20 object-cover rounded-lg border border-app-border/40" />
+                      <button
+                        onClick={() => setBugPhotos(prev => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-1 right-1 p-1 rounded-md bg-app-bg/90 border border-app-border/40 text-app-muted hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-dashed border-app-border/50 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors">
+                <Upload className="w-3.5 h-3.5" />
+                {lang === 'fr' ? 'Ajouter des photos' : 'Add photos'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    compressBugPhotos(e.target.files).then(urls => setBugPhotos(prev => [...prev, ...urls]));
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            </div>
+
+            {bugStatus === 'success' && (
+              <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{lang === 'fr' ? 'Rapport envoyé, merci !' : 'Report sent, thank you!'}</span>
+              </div>
+            )}
+            {bugStatus === 'error' && bugErrorMsg && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 text-red-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                <AlertCircle className="w-4 h-4" />
+                <span>{bugErrorMsg}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleBugSubmit}
+              disabled={bugSubmitting}
+              className="w-full px-5 py-3 bg-app-accent hover:opacity-90 disabled:opacity-50 font-extrabold uppercase text-xs tracking-widest text-white rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
+            >
+              {bugSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bug className="w-4 h-4" />}
+              <span>{bugSubmitting ? (lang === 'fr' ? 'Envoi en cours…' : 'Sending…') : (lang === 'fr' ? 'Envoyer le rapport' : 'Send report')}</span>
+            </button>
           </div>
 
           <div className="p-6 bg-app-card border border-app-border rounded-2xl space-y-4 shadow-sm">
