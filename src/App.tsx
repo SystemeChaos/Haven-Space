@@ -1616,13 +1616,25 @@ export default function App() {
   });
 
   const [editingJournalId, setEditingJournalId] = useState<string | null>(null);
-  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('journalEntries') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [journalDataLoaded, setJournalDataLoaded] = useState(false);
+
+  // Chargement (et migration douce) du Journal via le coffre chiffré — même logique que Santé :
+  // redéclenché à chaque changement de dek, vide tant que le coffre est verrouillé.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const entries = await readMaybeEncrypted<JournalEntry[]>('journalEntries', dek, []);
+      if (cancelled) return;
+      setJournalEntries(entries);
+      setJournalDataLoaded(true);
+      if (dek) {
+        const raw = localStorage.getItem('journalEntries');
+        if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('journalEntries', entries, dek, true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
 
   // LocalStorage Sync Effects
   useEffect(() => {
@@ -1792,7 +1804,7 @@ export default function App() {
   }, [trustedContacts]);
 
   useEffect(() => {
-    localStorage.setItem('journalEntries', JSON.stringify(journalEntries));
+    if (journalDataLoaded) writeMaybeEncrypted('journalEntries', journalEntries, dek, !!vaultMeta);
   }, [journalEntries]);
 
   // --- PluralKit Sync & Export Logic ---
@@ -2242,9 +2254,9 @@ export default function App() {
       setSwitchLogs(importedSwitches);
       localStorage.setItem('switchLogs', JSON.stringify(importedSwitches));
 
+      // Journal : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
       const importedJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
       setJournalEntries(importedJournals);
-      localStorage.setItem('journalEntries', JSON.stringify(importedJournals));
 
       const importedParallelSystems = Array.isArray(data.parallelSystems) ? data.parallelSystems : [];
       setParallelSystems(importedParallelSystems);
@@ -2388,7 +2400,8 @@ export default function App() {
       setSwitchLogs(currentSwitches);
       localStorage.setItem('switchLogs', JSON.stringify(currentSwitches));
 
-      // 6. Journal Entries: merge unique by id or identical title & date
+      // 6. Journal Entries: merge unique by id or identical title & date. Pas d'écriture directe
+      // ici, l'effet de sauvegarde du coffre s'en charge.
       const currentJournals = [...journalEntries];
       const incomingJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
       incomingJournals.forEach((incoming: JournalEntry) => {
@@ -2398,7 +2411,6 @@ export default function App() {
       });
       currentJournals.sort((a, b) => b.timestamp - a.timestamp);
       setJournalEntries(currentJournals);
-      localStorage.setItem('journalEntries', JSON.stringify(currentJournals));
 
       // 7. Systèmes parallèles : écrase les doublons par id ou nom, ajoute les nouveaux
       const currentParallelSystems = [...parallelSystems];
