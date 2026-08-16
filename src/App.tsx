@@ -1457,19 +1457,34 @@ export default function App() {
   const [editingAlterId, setEditingAlterId] = useState<string | null>(null);
   const [saveConflictAlter, setSaveConflictAlter] = useState<SavedAlter | null>(null);
   
-  const [savedAlters, setSavedAlters] = useState<SavedAlter[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('savedAlters') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [savedAlters, setSavedAlters] = useState<SavedAlter[]>([]);
+  const [systemDataLoaded, setSystemDataLoaded] = useState(false);
+
+  // Chargement (et migration douce) du profil système (alters, triggers compris) via le coffre
+  // chiffré — même logique que Santé/Journal : vide tant que le coffre est verrouillé, donc
+  // TOUTE l'app (mapping, chat, planning...) reste sans données d'alter tant qu'on n'a pas
+  // déverrouillé. C'est le choix assumé pour ce niveau de sensibilité.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const alters = await readMaybeEncrypted<SavedAlter[]>('savedAlters', dek, []);
+      if (cancelled) return;
+      setSavedAlters(alters);
+      setSystemDataLoaded(true);
+      if (dek) {
+        const raw = localStorage.getItem('savedAlters');
+        if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('savedAlters', alters, dek, true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
 
   // --- Onboarding (carrousel de bienvenue) ---
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     if (localStorage.getItem('hs-onboarding-seen') === 'true') return false;
     try {
       const existing = JSON.parse(localStorage.getItem('savedAlters') || '[]');
+      if (existing && typeof existing === 'object' && (existing as any).__hsEncrypted) return false; // déjà des alters chiffrés = pas un premier lancement
       return existing.length === 0;
     } catch {
       return true;
@@ -1638,7 +1653,7 @@ export default function App() {
 
   // LocalStorage Sync Effects
   useEffect(() => {
-    localStorage.setItem('savedAlters', JSON.stringify(savedAlters));
+    if (systemDataLoaded) writeMaybeEncrypted('savedAlters', savedAlters, dek, !!vaultMeta);
   }, [savedAlters]);
 
   useEffect(() => {
@@ -2238,9 +2253,9 @@ export default function App() {
         localStorage.setItem('mainSystemName', data.mainSystemName);
       }
       
+      // Système (alters) : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
       const importedAlters = Array.isArray(data.savedAlters) ? data.savedAlters : [];
       setSavedAlters(importedAlters);
-      localStorage.setItem('savedAlters', JSON.stringify(importedAlters));
 
       const importedSubsystems = Array.isArray(data.subsystems) ? data.subsystems : [];
       setSubsystems(importedSubsystems);
@@ -2348,7 +2363,8 @@ export default function App() {
         localStorage.setItem('mainSystemName', data.mainSystemName);
       }
 
-      // 2. savedAlters: overwrite duplicates by ID or name, add new
+      // 2. savedAlters: overwrite duplicates by ID or name, add new. Pas d'écriture directe ici,
+      // l'effet de sauvegarde du coffre s'en charge.
       const currentAlters = [...savedAlters];
       const incomingAlters = Array.isArray(data.savedAlters) ? data.savedAlters : [];
       incomingAlters.forEach((incoming: SavedAlter) => {
@@ -2360,7 +2376,6 @@ export default function App() {
         }
       });
       setSavedAlters(currentAlters);
-      localStorage.setItem('savedAlters', JSON.stringify(currentAlters));
 
       // 3. Subsystems
       const currentSubsystems = [...subsystems];
