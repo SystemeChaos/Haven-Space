@@ -1,6 +1,6 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
-import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
+import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, encryptData, decryptData, VaultMetadata, EncryptedPayload } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -839,6 +839,50 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
   const clean = (roles || []).filter((role): role is AlterRole => ACTIVE_ALTER_ROLES.has(role));
   return clean.length > 0 ? clean : [AlterRole.HOST];
 };
+
+// ─── Stockage santé chiffré (coffre) ───────────────────────────────────────
+// Marqueur qui distingue une valeur chiffrée (nouveau format) d'une valeur en
+// clair (ancien format, données d'avant le chiffrement). Permet de lire les
+// deux sans casser les utilisateurs déjà en place.
+const HS_ENCRYPTED_MARKER = '__hsEncrypted';
+
+interface HsEncryptedRecord { __hsEncrypted: true; payload: EncryptedPayload; }
+
+// Lit une clé localStorage potentiellement chiffrée : si elle porte le marqueur
+// et que le coffre est déverrouillé (dek fourni), on déchiffre. Si elle porte le
+// marqueur mais que le coffre est verrouillé (dek = null), on NE PEUT PAS lire —
+// on renvoie le fallback, sans jamais rien perdre sur le disque. Si elle ne porte
+// pas le marqueur, c'est de l'ancien format en clair : on la lit telle quelle.
+async function readMaybeEncrypted<T>(key: string, dek: CryptoKey | null, fallback: T): Promise<T> {
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && parsed[HS_ENCRYPTED_MARKER]) {
+      if (!dek) return fallback; // coffre verrouillé : illisible pour l'instant, données intactes sur le disque
+      const plaintext = await decryptData(dek, (parsed as HsEncryptedRecord).payload);
+      return JSON.parse(plaintext) as T;
+    }
+    return parsed as T; // ancien format en clair (avant chiffrement, ou coffre jamais activé)
+  } catch {
+    return fallback;
+  }
+}
+
+// Écrit une valeur : chiffrée si le coffre est déverrouillé, en clair si aucun coffre
+// n'a jamais été activé (comportement historique inchangé pour ces utilisateurs). Si
+// le coffre existe mais est verrouillé (dek = null alors qu'un coffre est actif), on
+// n'écrit RIEN — sinon on écraserait des données chiffrées valides par du vide.
+async function writeMaybeEncrypted<T>(key: string, value: T, dek: CryptoKey | null, hasVaultActive: boolean): Promise<void> {
+  if (dek) {
+    const payload = await encryptData(dek, JSON.stringify(value));
+    const record: HsEncryptedRecord = { __hsEncrypted: true, payload };
+    localStorage.setItem(key, JSON.stringify(record));
+  } else if (!hasVaultActive) {
+    localStorage.setItem(key, JSON.stringify(value));
+  }
+  // sinon : coffre actif mais verrouillé → écriture ignorée volontairement
+}
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
@@ -3269,10 +3313,40 @@ export default function App() {
   interface HealthHistoryEntry { id: string; title: string; date: string; note: string; }
   interface EmergencyInfo { conditions: string; allergies: string; bloodType: string; note: string; showQuickAccess: boolean; }
 
-  const [medications, setMedications] = useState<Medication[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-health-meds') || '[]'); } catch { return []; }
-  });
-  useEffect(() => { localStorage.setItem('hs-health-meds', JSON.stringify(medications)); }, [medications]);
+  const [medications, setMedications] = useState<Medication[]>([]);
+  const [healthDataLoaded, setHealthDataLoaded] = useState(false);
+
+  // Chargement (et migration douce) des données Santé : redéclenché à chaque changement
+  // de dek, donc à chaque déverrouillage/verrouillage. Tant que le coffre est verrouillé
+  // (dek = null) et actif, les états restent vides — les données ne sont pas perdues,
+  // juste illisibles depuis l'UI tant qu'on n'a pas rentré le bon PIN/réponse.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const meds = await readMaybeEncrypted<Medication[]>('hs-health-meds', dek, []);
+      const hist = await readMaybeEncrypted<HealthHistoryEntry[]>('hs-health-history', dek, []);
+      const emerg = await readMaybeEncrypted<EmergencyInfo>('hs-health-emergency', dek, { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false });
+      if (cancelled) return;
+      setMedications(meds);
+      setHealthHistory(hist);
+      setEmergencyInfo(emerg);
+      setHealthDataLoaded(true);
+      // Migration : si le coffre vient d'être déverrouillé et que ce qu'on a lu était encore
+      // en clair (utilisateur d'avant le chiffrement), on le re-sauvegarde chiffré tout de
+      // suite, sans attendre une modification de l'utilisateur pour ne pas le laisser en clair.
+      if (dek) {
+        const rawMeds = localStorage.getItem('hs-health-meds');
+        if (rawMeds && !rawMeds.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-meds', meds, dek, true);
+        const rawHist = localStorage.getItem('hs-health-history');
+        if (rawHist && !rawHist.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-history', hist, dek, true);
+        const rawEmerg = localStorage.getItem('hs-health-emergency');
+        if (rawEmerg && !rawEmerg.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-emergency', emerg, dek, true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
+
+  useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-meds', medications, dek, !!vaultMeta); }, [medications]);
 
   // Vérifie toutes les 30s si un rappel de traitement doit se déclencher — même logique que le
   // rappel de planning : réguliers (chaque jour) ou ponctuels (une seule date, une seule fois).
@@ -3388,15 +3462,11 @@ export default function App() {
     return () => clearInterval(exportInterval);
   }, [notifBrowser, savedAlters.length, lang]);
 
-  const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-health-history') || '[]'); } catch { return []; }
-  });
-  useEffect(() => { localStorage.setItem('hs-health-history', JSON.stringify(healthHistory)); }, [healthHistory]);
+  const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>([]);
+  useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-history', healthHistory, dek, !!vaultMeta); }, [healthHistory]);
 
-  const [emergencyInfo, setEmergencyInfo] = useState<EmergencyInfo>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-health-emergency') || 'null') || { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false }; } catch { return { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false }; }
-  });
-  useEffect(() => { localStorage.setItem('hs-health-emergency', JSON.stringify(emergencyInfo)); }, [emergencyInfo]);
+  const [emergencyInfo, setEmergencyInfo] = useState<EmergencyInfo>({ conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false });
+  useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-emergency', emergencyInfo, dek, !!vaultMeta); }, [emergencyInfo]);
 
   const [healthSubTab, setHealthSubTab] = useState<'traitements' | 'antecedents' | 'urgence'>('traitements');
   const [medFormOpen, setMedFormOpen] = useState(false);
