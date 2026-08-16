@@ -2270,17 +2270,18 @@ export default function App() {
       setDirectMessages(importedDirectMessages);
       localStorage.setItem('hs-direct-messages', JSON.stringify(importedDirectMessages));
 
+      // Santé : pas d'écriture directe dans localStorage ici — le coffre chiffré s'en charge
+      // via son propre effet de sauvegarde (déclenché par setMedications/setHealthHistory/
+      // setEmergencyInfo ci-dessous), pour ne jamais écrire ces données en clair par-dessus
+      // une version chiffrée.
       const importedMedications = Array.isArray(data.medications) ? data.medications : [];
       setMedications(importedMedications);
-      localStorage.setItem('hs-health-meds', JSON.stringify(importedMedications));
 
       const importedHealthHistory = Array.isArray(data.healthHistory) ? data.healthHistory : [];
       setHealthHistory(importedHealthHistory);
-      localStorage.setItem('hs-health-history', JSON.stringify(importedHealthHistory));
 
       if (data.emergencyInfo && typeof data.emergencyInfo === 'object') {
         setEmergencyInfo(data.emergencyInfo);
-        localStorage.setItem('hs-health-emergency', JSON.stringify(data.emergencyInfo));
       }
 
       if (Array.isArray(data.planningEntries)) {
@@ -2459,7 +2460,10 @@ export default function App() {
       setDirectMessages(currentDirectMessages);
       localStorage.setItem('hs-direct-messages', JSON.stringify(currentDirectMessages));
 
-      // 9. Santé : médicaments et antécédents fusionnés par id, infos d'urgence complétées si vides
+      // 9. Santé : médicaments et antécédents fusionnés par id, infos d'urgence complétées si vides.
+      // Pas d'écriture directe dans localStorage ici — le coffre chiffré s'en charge via son propre
+      // effet de sauvegarde (déclenché par les setState ci-dessous), pour ne jamais écrire ces
+      // données en clair par-dessus une version chiffrée.
       const currentMedications = [...medications];
       const incomingMedications = Array.isArray(data.medications) ? data.medications : [];
       incomingMedications.forEach((incoming: Medication) => {
@@ -2468,7 +2472,6 @@ export default function App() {
         else currentMedications.push(incoming);
       });
       setMedications(currentMedications);
-      localStorage.setItem('hs-health-meds', JSON.stringify(currentMedications));
 
       const currentHealthHistory = [...healthHistory];
       const incomingHealthHistory = Array.isArray(data.healthHistory) ? data.healthHistory : [];
@@ -2478,7 +2481,6 @@ export default function App() {
         else currentHealthHistory.push(incoming);
       });
       setHealthHistory(currentHealthHistory);
-      localStorage.setItem('hs-health-history', JSON.stringify(currentHealthHistory));
 
       if (data.emergencyInfo && typeof data.emergencyInfo === 'object') {
         const mergedEmergency: EmergencyInfo = { ...emergencyInfo };
@@ -2489,7 +2491,6 @@ export default function App() {
           }
         });
         setEmergencyInfo(mergedEmergency);
-        localStorage.setItem('hs-health-emergency', JSON.stringify(mergedEmergency));
       }
 
       // 10. Planning : fusion des entrées uniques par id
