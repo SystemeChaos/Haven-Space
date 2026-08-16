@@ -1,5 +1,6 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
+import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1238,12 +1239,61 @@ export default function App() {
     setPinHash(hash);
     setPinQuestion(pinSetupQuestion.trim());
     setPinAnswerHash(answerHash);
+
+    // Coffre : si on venait de récupérer la DEK via la question de sécurité (reset de PIN),
+    // on la ré-enveloppe avec le nouveau PIN/réponse SANS en générer une nouvelle — sinon les
+    // données déjà chiffrées avec l'ancienne DEK deviendraient illisibles. Sinon (premier PIN,
+    // ou coffre jamais créé), on en génère une toute nouvelle.
+    const pinValue = pinSetupValue;
+    const answerValue = pinSetupAnswer.trim();
+    (async () => {
+      try {
+        if (pendingVaultRecoveryDek && vaultMeta) {
+          const rewrappedPin = await changePin(vaultMeta, pendingVaultRecoveryDek, pinValue);
+          const rewrappedFull = await changeSecurityAnswer(rewrappedPin, pendingVaultRecoveryDek, answerValue);
+          saveVaultMeta(rewrappedFull);
+          setDek(pendingVaultRecoveryDek);
+          setPendingVaultRecoveryDek(null);
+        } else if (!vaultMeta) {
+          const { metadata, dek: newDek } = await createVault(pinValue, answerValue);
+          saveVaultMeta(metadata);
+          setDek(newDek);
+        }
+      } catch {
+        // Le coffre n'a pas pu être (re)créé : le PIN reste actif normalement,
+        // on retentera à la prochaine ouverture de session.
+      }
+    })();
+
     setPinSetupStep('idle');
     setPinSetupValue('');
     setPinSetupConfirm('');
     setPinSetupQuestion('');
     setPinSetupAnswer('');
     setPinSetupError('');
+  };
+
+  // --- Coffre chiffré (chiffrement en enveloppe, cf. cryptoEngine.ts) ---
+  // Rien de sensible n'est encore lu/écrit à travers ce coffre : cette étape met en
+  // place le coffre lui-même (création, déverrouillage, récupération), branché sur
+  // le PIN et la question de sécurité déjà existants. Le basculement des données
+  // (Santé, Journal...) vers un stockage réellement chiffré viendra dans une étape suivante.
+  const [vaultMeta, setVaultMetaState] = useState<VaultMetadata | null>(() => {
+    try {
+      const raw = localStorage.getItem('hs-vault-meta');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+  const [dek, setDek] = useState<CryptoKey | null>(null); // La clé réelle : jamais stockée, en mémoire le temps de la session
+  const [pendingVaultRecoveryDek, setPendingVaultRecoveryDek] = useState<CryptoKey | null>(null); // Utilisée uniquement pendant un reset via question de sécurité
+  const [vaultMigrationPrompt, setVaultMigrationPrompt] = useState(false); // Ancien utilisateur avec PIN mais sans coffre pas encore créé
+  const [vaultMigrationAnswer, setVaultMigrationAnswer] = useState('');
+  const [vaultMigrationError, setVaultMigrationError] = useState('');
+  const [lastVerifiedPin, setLastVerifiedPin] = useState('');
+
+  const saveVaultMeta = (meta: VaultMetadata) => {
+    localStorage.setItem('hs-vault-meta', JSON.stringify(meta));
+    setVaultMetaState(meta);
   };
 
   const disablePin = () => {
@@ -1266,21 +1316,79 @@ export default function App() {
 
   const attemptUnlock = () => {
     if (simpleHash(lockPinInput) === pinHash) {
+      const pinValue = lockPinInput;
       setIsLocked(false);
       setLockPinInput('');
       setLockError('');
       setForgotPinMode(false);
       setForgotPinAnswer('');
+      setLastVerifiedPin(pinValue);
+
+      (async () => {
+        if (vaultMeta) {
+          try {
+            const unlockedDek = await unlockWithPin(vaultMeta, pinValue);
+            setDek(unlockedDek);
+          } catch {
+            // Ne devrait pas arriver puisque le PIN vient d'être validé, mais on ne bloque pas l'accès à l'app pour autant
+            setDek(null);
+          }
+        } else {
+          // Coffre pas encore créé (PIN existant d'avant l'arrivée du chiffrement) : on propose de le sécuriser maintenant
+          setVaultMigrationPrompt(true);
+        }
+      })();
     } else {
       setLockError(lang === 'fr' ? 'Code incorrect.' : 'Incorrect code.');
       setLockPinInput('');
     }
   };
 
+  const confirmVaultMigration = () => {
+    if (simpleHash(vaultMigrationAnswer.trim().toLowerCase()) !== pinAnswerHash) {
+      setVaultMigrationError(lang === 'fr' ? 'Réponse incorrecte.' : 'Incorrect answer.');
+      return;
+    }
+    const answerValue = vaultMigrationAnswer.trim();
+    (async () => {
+      try {
+        const { metadata, dek: newDek } = await createVault(lastVerifiedPin, answerValue);
+        saveVaultMeta(metadata);
+        setDek(newDek);
+        setVaultMigrationPrompt(false);
+        setVaultMigrationAnswer('');
+        setVaultMigrationError('');
+      } catch {
+        setVaultMigrationError(lang === 'fr' ? "Une erreur est survenue, réessaie." : 'Something went wrong, try again.');
+      }
+    })();
+  };
+
+  const skipVaultMigration = () => {
+    setVaultMigrationPrompt(false);
+    setVaultMigrationAnswer('');
+    setVaultMigrationError('');
+  };
+
   const attemptForgotPinUnlock = () => {
     if (simpleHash(forgotPinAnswer.trim().toLowerCase()) === pinAnswerHash) {
-      // Réponse correcte : on retire le verrou pour que la personne puisse en redéfinir un nouveau depuis les paramètres
-      disablePin();
+      const answerValue = forgotPinAnswer.trim();
+      (async () => {
+        if (vaultMeta) {
+          try {
+            // On récupère la DEK maintenant, pendant qu'on a la bonne réponse sous la main :
+            // elle sera ré-enveloppée avec le nouveau PIN dès qu'il sera redéfini, sans jamais
+            // être régénérée — sinon les données déjà chiffrées deviendraient illisibles.
+            const recoveredDek = await unlockWithSecurityAnswer(vaultMeta, answerValue);
+            setPendingVaultRecoveryDek(recoveredDek);
+          } catch {
+            // La réponse correspondait au hash existant mais pas à l'enveloppe du coffre (cas très rare) :
+            // on continue quand même le reset du PIN, sans pouvoir préserver le coffre chiffré.
+          }
+        }
+        // Réponse correcte : on retire le verrou pour que la personne puisse en redéfinir un nouveau depuis les paramètres
+        disablePin();
+      })();
     } else {
       setLockError(lang === 'fr' ? 'Réponse incorrecte.' : 'Incorrect answer.');
       setForgotPinAnswer('');
@@ -6136,6 +6244,50 @@ export default function App() {
         </div>
       )}
 
+      {/* Coffre chiffré : proposé une seule fois aux personnes qui avaient déjà un PIN avant l'arrivée du chiffrement */}
+      {vaultMigrationPrompt && (
+        <div className="fixed inset-0 z-[10000] bg-app-bg flex items-center justify-center p-6">
+          <div className="w-full max-w-xs space-y-5 text-center">
+            <div className="w-14 h-14 mx-auto rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent">
+              <Lock className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black uppercase tracking-wider text-app-text">
+                {lang === 'fr' ? 'Sécuriser tes données ?' : 'Secure your data?'}
+              </h2>
+              <p className="text-xs text-app-muted leading-relaxed mt-2">
+                {lang === 'fr'
+                  ? "Ton code protège déjà l'accès à l'app. On peut aussi t'en servir pour chiffrer réellement tes données sensibles. Confirme ta réponse de sécurité pour l'activer."
+                  : "Your code already protects access to the app. We can also use it to actually encrypt your sensitive data. Confirm your security answer to enable it."}
+              </p>
+            </div>
+            <p className="text-xs text-app-text font-semibold">{pinQuestion}</p>
+            <input
+              type="text"
+              autoFocus
+              value={vaultMigrationAnswer}
+              onChange={e => { setVaultMigrationAnswer(e.target.value); setVaultMigrationError(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') confirmVaultMigration(); }}
+              className="w-full text-center bg-app-card border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-app-accent transition-colors"
+              placeholder={lang === 'fr' ? 'Ta réponse' : 'Your answer'}
+            />
+            {vaultMigrationError && <p className="text-xs text-red-500 font-bold">{vaultMigrationError}</p>}
+            <button
+              onClick={confirmVaultMigration}
+              className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+            >
+              {lang === 'fr' ? 'Activer le chiffrement' : 'Enable encryption'}
+            </button>
+            <button
+              onClick={skipVaultMigration}
+              className="text-[11px] text-app-muted hover:text-app-text underline underline-offset-2 transition-colors"
+            >
+              {lang === 'fr' ? 'Plus tard' : 'Later'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Onboarding — carrousel de bienvenue (premier lancement) */}
       {showOnboarding && !isLocked && (() => {
         const slides = [
@@ -6865,6 +7017,22 @@ export default function App() {
                               <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all left-[18px]" />
                             </div>
                           </button>
+                        )}
+
+                        {pinEnabled && pinSetupStep === 'idle' && (
+                          <p className="text-[10px] text-app-muted flex items-center gap-1.5 px-1">
+                            {vaultMeta ? (
+                              <>
+                                <Lock className="w-3 h-3 text-app-accent" />
+                                {lang === 'fr' ? 'Coffre chiffré actif' : 'Encrypted vault active'}
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3 h-3 opacity-40" />
+                                {lang === 'fr' ? "Coffre pas encore activé (proposé au prochain déverrouillage)" : 'Vault not enabled yet (offered at next unlock)'}
+                              </>
+                            )}
+                          </p>
                         )}
 
                         {pinSetupStep === 'enter' && (
