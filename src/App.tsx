@@ -1298,6 +1298,15 @@ export default function App() {
           saveVaultMeta(rewrappedFull);
           setDek(pendingVaultRecoveryDek);
           setPendingVaultRecoveryDek(null);
+        } else if (vaultMeta && dek) {
+          // Changement de PIN "normal" (coffre déjà actif, pas une récupération) : on ré-enveloppe
+          // la DEK EN MÉMOIRE (celle du coffre déjà déverrouillé) avec le nouveau PIN/réponse.
+          // Sans ce cas, le coffre restait enveloppé avec l'ancien PIN pour toujours : l'écran se
+          // déverrouillait bien (le PIN simple est mis à jour juste au-dessus), mais le vrai
+          // déverrouillage du coffre échouait en silence à chaque session suivante.
+          const rewrappedPin = await changePin(vaultMeta, dek, pinValue);
+          const rewrappedFull = await changeSecurityAnswer(rewrappedPin, dek, answerValue);
+          saveVaultMeta(rewrappedFull);
         } else if (!vaultMeta) {
           const { metadata, dek: newDek } = await createVault(pinValue, answerValue);
           saveVaultMeta(metadata);
