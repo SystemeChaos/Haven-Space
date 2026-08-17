@@ -896,11 +896,16 @@ async function readMaybeEncrypted<T>(key: string, dek: CryptoKey | null, fallbac
     const idbRecord = await idbGet(key);
     if (idbRecord && idbRecord[HS_ENCRYPTED_MARKER]) {
       if (!dek) return fallback;
-      const plaintext = await decryptData(dek, idbRecord.payload);
-      return JSON.parse(plaintext) as T;
+      try {
+        const plaintext = await decryptData(dek, idbRecord.payload);
+        return JSON.parse(plaintext) as T;
+      } catch (e) {
+        console.warn(`[Haven Space] "${key}" trouvé chiffré dans IndexedDB mais impossible à déchiffrer avec la clé actuelle du coffre :`, e);
+        return fallback;
+      }
     }
-  } catch {
-    // IndexedDB indisponible ou vide pour cette clé : on retombe sur localStorage ci-dessous
+  } catch (e) {
+    console.warn(`[Haven Space] Lecture IndexedDB impossible pour "${key}", repli sur localStorage :`, e);
   }
   const raw = localStorage.getItem(key);
   if (!raw) return fallback;
@@ -908,11 +913,17 @@ async function readMaybeEncrypted<T>(key: string, dek: CryptoKey | null, fallbac
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && parsed[HS_ENCRYPTED_MARKER]) {
       if (!dek) return fallback;
-      const plaintext = await decryptData(dek, (parsed as HsEncryptedRecord).payload);
-      return JSON.parse(plaintext) as T;
+      try {
+        const plaintext = await decryptData(dek, (parsed as HsEncryptedRecord).payload);
+        return JSON.parse(plaintext) as T;
+      } catch (e) {
+        console.warn(`[Haven Space] "${key}" trouvé chiffré dans localStorage mais impossible à déchiffrer avec la clé actuelle du coffre :`, e);
+        return fallback;
+      }
     }
     return parsed as T; // ancien format en clair (avant chiffrement, ou coffre jamais activé)
-  } catch {
+  } catch (e) {
+    console.warn(`[Haven Space] Lecture localStorage impossible pour "${key}" :`, e);
     return fallback;
   }
 }
