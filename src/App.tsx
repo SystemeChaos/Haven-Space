@@ -1541,9 +1541,10 @@ export default function App() {
   // --- Onboarding (carrousel de bienvenue) ---
   const [showOnboarding, setShowOnboarding] = useState<boolean>(() => {
     if (localStorage.getItem('hs-onboarding-seen') === 'true') return false;
+    if (localStorage.getItem('hs-vault-meta')) return false; // un coffre existe déjà = pas un premier lancement (les alters chiffrés vivent dans IndexedDB, illisibles ici de façon synchrone)
     try {
       const existing = JSON.parse(localStorage.getItem('savedAlters') || '[]');
-      if (existing && typeof existing === 'object' && (existing as any).__hsEncrypted) return false; // déjà des alters chiffrés = pas un premier lancement
+      if (existing && typeof existing === 'object' && (existing as any).__hsEncrypted) return false; // résiduel : ancien format chiffré encore en localStorage
       return existing.length === 0;
     } catch {
       return true;
