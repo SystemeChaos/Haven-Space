@@ -1443,12 +1443,15 @@ export default function App() {
           try {
             const unlockedDek = await unlockWithPin(vaultMeta, pinValue);
             setDek(unlockedDek);
-          } catch {
+            console.warn('[Haven Space] Coffre déverrouillé avec succès.');
+          } catch (e) {
             // Ne devrait pas arriver puisque le PIN vient d'être validé, mais on ne bloque pas l'accès à l'app pour autant
+            console.warn('[Haven Space] Échec du déverrouillage du coffre (unlockWithPin) :', e);
             setDek(null);
           }
         } else {
           // Coffre pas encore créé (PIN existant d'avant l'arrivée du chiffrement) : on propose de le sécuriser maintenant
+          console.warn('[Haven Space] Pas de coffre (vaultMeta absent) au moment du déverrouillage : proposition de le créer.');
           setVaultMigrationPrompt(true);
         }
       })();
