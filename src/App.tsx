@@ -1647,6 +1647,15 @@ export default function App() {
     return () => { cancelled = true; };
   }, [dek, currentTab]);
 
+  const [planningCounts, setPlanningCounts] = useState({ planning: 0, eisenhower: 0 });
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([loadPlanning(activeSystemId, dek), loadEisenhower(activeSystemId, dek)]).then(([p, e]) => {
+      if (!cancelled) setPlanningCounts({ planning: p.length, eisenhower: e.length });
+    });
+    return () => { cancelled = true; };
+  }, [dek, currentTab, activeSystemId]);
+
   // Recharge les relations du mapping : au changement de système, et à chaque retour
   // sur un onglet affichant des fiches, pour refléter les modifs faites depuis l'onglet Mapping.
   useEffect(() => {
@@ -1718,10 +1727,10 @@ export default function App() {
   // Vérifie toutes les 30s si un rappel de planning doit se déclencher — au niveau racine de l'app,
   // pour continuer à fonctionner même quand on n'est pas sur l'onglet Planning.
   useEffect(() => {
-    const check = () => {
+    const check = async () => {
       if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
       const now = Date.now();
-      const planningEntries = loadPlanning(activeSystemId);
+      const planningEntries = await loadPlanning(activeSystemId, dek);
       let remindedIds: string[] = [];
       try { remindedIds = JSON.parse(localStorage.getItem(REMINDED_STORAGE_KEY) || '[]'); } catch { /* ignore */ }
       let changed = false;
@@ -1748,7 +1757,7 @@ export default function App() {
     check();
     const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
-  }, [activeSystemId, lang, notifBrowser]);
+  }, [activeSystemId, lang, notifBrowser, dek]);
 
   useEffect(() => {
     if (journalDataLoaded) writeMaybeEncrypted('journalEntries', journalEntries, dek, !!vaultMeta);
@@ -2050,8 +2059,8 @@ export default function App() {
         directMessages,
         switchLogs,
         journalEntries,
-        planningEntries: loadPlanning(activeSystemId),
-        eisenhowerTasks: loadEisenhower(activeSystemId),
+        planningEntries: await loadPlanning(activeSystemId, dek),
+        eisenhowerTasks: await loadEisenhower(activeSystemId, dek),
         medications,
         healthHistory,
         emergencyInfo,
@@ -2230,10 +2239,10 @@ export default function App() {
       }
 
       if (Array.isArray(data.planningEntries)) {
-        savePlanning(data.planningEntries, activeSystemId);
+        await savePlanning(data.planningEntries, activeSystemId, dek, !!vaultMeta);
       }
       if (Array.isArray(data.eisenhowerTasks)) {
-        saveEisenhower(data.eisenhowerTasks, activeSystemId);
+        await saveEisenhower(data.eisenhowerTasks, activeSystemId, dek, !!vaultMeta);
       }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
@@ -2432,23 +2441,23 @@ export default function App() {
       // 10. Planning : fusion des entrées uniques par id
       const incomingPlanningEntries = Array.isArray(data.planningEntries) ? data.planningEntries : [];
       if (incomingPlanningEntries.length > 0) {
-        const currentPlanningEntries = loadPlanning(activeSystemId);
+        const currentPlanningEntries = await loadPlanning(activeSystemId, dek);
         const mergedPlanningEntries = [...currentPlanningEntries];
         incomingPlanningEntries.forEach((incoming: PlanningEntry) => {
           if (!mergedPlanningEntries.some(p => p.id === incoming.id)) mergedPlanningEntries.push(incoming);
         });
-        savePlanning(mergedPlanningEntries, activeSystemId);
+        await savePlanning(mergedPlanningEntries, activeSystemId, dek, !!vaultMeta);
       }
 
       // 11. Matrice d'Eisenhower : fusion des tâches uniques par id
       const incomingEisenhowerTasks = Array.isArray(data.eisenhowerTasks) ? data.eisenhowerTasks : [];
       if (incomingEisenhowerTasks.length > 0) {
-        const currentEisenhowerTasks = loadEisenhower(activeSystemId);
+        const currentEisenhowerTasks = await loadEisenhower(activeSystemId, dek);
         const mergedEisenhowerTasks = [...currentEisenhowerTasks];
         incomingEisenhowerTasks.forEach((incoming: EisenhowerTask) => {
           if (!mergedEisenhowerTasks.some(t => t.id === incoming.id)) mergedEisenhowerTasks.push(incoming);
         });
-        saveEisenhower(mergedEisenhowerTasks, activeSystemId);
+        await saveEisenhower(mergedEisenhowerTasks, activeSystemId, dek, !!vaultMeta);
       }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
@@ -11063,7 +11072,7 @@ export default function App() {
 
         {currentTab === 'planning' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
-            <PlanningPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} onRequestNotifPermission={enableBrowserNotifFromChild} />
+            <PlanningPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} onRequestNotifPermission={enableBrowserNotifFromChild} dek={dek} vaultActive={!!vaultMeta} />
           </div>
         )}
 
@@ -14325,8 +14334,8 @@ export default function App() {
                       <div><strong className="text-app-text">{chatMessages.length}</strong> {lang === 'fr' ? 'messages de chat interne' : 'inner chat messages'}</div>
                       <div><strong className="text-app-text">{directMessages.length}</strong> {lang === 'fr' ? 'messages de messagerie' : 'direct messages'}</div>
                       <div><strong className="text-app-text">{journalEntries.length}</strong> {lang === 'fr' ? 'notes de journal' : 'journals'}</div>
-                      <div><strong className="text-app-text">{loadPlanning(activeSystemId).length}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
-                      <div><strong className="text-app-text">{loadEisenhower(activeSystemId).length}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
+                      <div><strong className="text-app-text">{planningCounts.planning}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
+                      <div><strong className="text-app-text">{planningCounts.eisenhower}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
                       <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
                       <div><strong className="text-app-text">{walletEntries.length}</strong> {lang === 'fr' ? 'entrées de portefeuille' : 'wallet entries'}</div>
                       <div><strong className="text-app-text">{innerworldPageCount}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>

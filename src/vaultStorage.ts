@@ -141,6 +141,23 @@ export async function readMaybeEncrypted<T>(key: string, dek: CryptoKey | null, 
   }
 }
 
+// Force la migration d'une clé du clair vers le chiffré, même si rien ne l'a jamais
+// relue/réécrite depuis le déverrouillage. Nécessaire pour les données qui ne se
+// sauvegardent que sur édition explicite (Planning, Eisenhower, Innerworld) — sans ça,
+// une clé jamais modifiée après le passage au chiffrement resterait en clair pour toujours.
+export async function migrateKeyIfNeeded(key: string, dek: CryptoKey | null): Promise<void> {
+  if (!dek) return;
+  const raw = localStorage.getItem(key);
+  if (!raw || raw.includes(HS_ENCRYPTED_MARKER)) return;
+  try {
+    const value = JSON.parse(raw);
+    await writeMaybeEncrypted(key, value, dek, true);
+  } catch {
+    // valeur illisible : on laisse telle quelle plutôt que de risquer de la perdre
+  }
+}
+
+
 // Écrit une valeur : chiffrée dans IndexedDB si le coffre est déverrouillé (et on
 // nettoie l'éventuel clair résiduel dans localStorage, pour libérer sa place) ; en
 // clair dans localStorage si aucun coffre n'a jamais été activé (comportement

@@ -6,12 +6,13 @@
  * assignation d'alters. Adapté aux thèmes (y compris le thème personnalisé).
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Plus, X, ChevronLeft, ChevronRight, Trash2, Pencil, Check, Users,
   Lightbulb, Cake, ArrowDown, ArrowLeftRight, Info, Calendar as CalendarIcon, Bell,
 } from 'lucide-react';
 import { SavedAlter } from './types';
+import { readMaybeEncrypted, writeMaybeEncrypted, migrateKeyIfNeeded } from './vaultStorage';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -49,18 +50,14 @@ export interface EisenhowerTask {
 
 const EISENHOWER_STORAGE_KEY = 'heaven_space_eisenhower';
 
-export function loadEisenhower(systemId: string = 'main'): EisenhowerTask[] {
-  try {
-    const key = systemId === 'main' ? EISENHOWER_STORAGE_KEY : `${EISENHOWER_STORAGE_KEY}_${systemId}`;
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return [];
+export async function loadEisenhower(systemId: string = 'main', dek: CryptoKey | null = null): Promise<EisenhowerTask[]> {
+  const key = systemId === 'main' ? EISENHOWER_STORAGE_KEY : `${EISENHOWER_STORAGE_KEY}_${systemId}`;
+  return readMaybeEncrypted<EisenhowerTask[]>(key, dek, []);
 }
 
-export function saveEisenhower(data: EisenhowerTask[], systemId: string = 'main') {
+export async function saveEisenhower(data: EisenhowerTask[], systemId: string = 'main', dek: CryptoKey | null = null, hasVaultActive: boolean = false): Promise<void> {
   const key = systemId === 'main' ? EISENHOWER_STORAGE_KEY : `${EISENHOWER_STORAGE_KEY}_${systemId}`;
-  localStorage.setItem(key, JSON.stringify(data));
+  await writeMaybeEncrypted(key, data, dek, hasVaultActive);
 }
 
 const EISENHOWER_CONFIG: Record<EisenhowerQuadrant, { label: string; labelEn: string; subLabel: string; subLabelEn: string; color: string }> = {
@@ -74,18 +71,14 @@ const EISENHOWER_ORDER: EisenhowerQuadrant[] = ['do', 'plan', 'delegate', 'elimi
 
 const STORAGE_KEY = 'heaven_space_planning';
 
-export function loadPlanning(systemId: string = 'main'): PlanningEntry[] {
-  try {
-    const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return [];
+export async function loadPlanning(systemId: string = 'main', dek: CryptoKey | null = null): Promise<PlanningEntry[]> {
+  const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
+  return readMaybeEncrypted<PlanningEntry[]>(key, dek, []);
 }
 
-export function savePlanning(data: PlanningEntry[], systemId: string = 'main') {
+export async function savePlanning(data: PlanningEntry[], systemId: string = 'main', dek: CryptoKey | null = null, hasVaultActive: boolean = false): Promise<void> {
   const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
-  localStorage.setItem(key, JSON.stringify(data));
+  await writeMaybeEncrypted(key, data, dek, hasVaultActive);
 }
 
 // ─── Config des clés BuJo ───────────────────────────────────────────────────
@@ -185,11 +178,34 @@ interface PlanningPageProps {
   lang: 'fr' | 'en';
   activeSystemId?: string;
   onRequestNotifPermission?: () => Promise<boolean>;
+  dek?: CryptoKey | null;
+  vaultActive?: boolean;
 }
 
-export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main', onRequestNotifPermission }: PlanningPageProps) {
-  const [entries, setEntries] = useState<PlanningEntry[]>(() => loadPlanning(activeSystemId));
-  const [eisenhowerTasks, setEisenhowerTasks] = useState<EisenhowerTask[]>(() => loadEisenhower(activeSystemId));
+export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main', onRequestNotifPermission, dek = null, vaultActive = false }: PlanningPageProps) {
+  const [entries, setEntries] = useState<PlanningEntry[]>([]);
+  const [eisenhowerTasks, setEisenhowerTasks] = useState<EisenhowerTask[]>([]);
+
+  // Chargement (et migration douce du clair vers le chiffré, au cas où rien n'a jamais
+  // été réédité depuis le passage au coffre) — au montage, au changement de système, et
+  // à chaque déverrouillage/verrouillage.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const planningKey = activeSystemId === 'main' ? 'heaven_space_planning' : `heaven_space_planning_${activeSystemId}`;
+      const eisenhowerKey = activeSystemId === 'main' ? 'heaven_space_eisenhower' : `heaven_space_eisenhower_${activeSystemId}`;
+      await migrateKeyIfNeeded(planningKey, dek);
+      await migrateKeyIfNeeded(eisenhowerKey, dek);
+      const [planningData, eisenhowerData] = await Promise.all([
+        loadPlanning(activeSystemId, dek),
+        loadEisenhower(activeSystemId, dek),
+      ]);
+      if (cancelled) return;
+      setEntries(planningData);
+      setEisenhowerTasks(eisenhowerData);
+    })();
+    return () => { cancelled = true; };
+  }, [activeSystemId, dek]);
   const [showEisenhowerForm, setShowEisenhowerForm] = useState(false);
   const [editingEisenhowerId, setEditingEisenhowerId] = useState<string | null>(null);
   const [eisenhowerText, setEisenhowerText] = useState('');
@@ -222,7 +238,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
 
   const persist = (next: PlanningEntry[]) => {
     setEntries(next);
-    savePlanning(next, activeSystemId);
+    savePlanning(next, activeSystemId, dek, vaultActive);
   };
 
   // Anniversaires des alters : générés automatiquement chaque année à partir de la date renseignée
@@ -256,7 +272,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
 
   const persistEisenhower = (next: EisenhowerTask[]) => {
     setEisenhowerTasks(next);
-    saveEisenhower(next, activeSystemId);
+    saveEisenhower(next, activeSystemId, dek, vaultActive);
   };
 
   const openNewEisenhowerTask = (presetQuadrant?: EisenhowerQuadrant) => {
