@@ -11,7 +11,7 @@ import {
   Images, Music, ExternalLink, Sparkles, Layers, Users, Upload, Search, Link2,
 } from 'lucide-react';
 import { SavedAlter } from './types';
-import { readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
+import { readMaybeEncrypted, writeMaybeEncrypted, HS_ENCRYPTED_MARKER } from './vaultStorage';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -58,6 +58,22 @@ export async function loadPlace(systemId: string, ownerId: string, dek: CryptoKe
 export async function savePlace(systemId: string, place: InnerworldPlace, dek: CryptoKey | null, hasVaultActive: boolean): Promise<void> {
   await writeMaybeEncrypted(placeKey(systemId, place.ownerId), { ...place, updatedAt: Date.now() }, dek, hasVaultActive);
   await addToIndex(systemId, place.ownerId, dek, hasVaultActive);
+}
+
+// Migration explicite : contrairement à Santé/Journal/Système/Mapping, Innerworld ne se
+// re-sauvegarde jamais tout seul après une simple lecture (on ne sauvegarde que sur
+// édition réelle) — donc rien ne migrerait automatiquement le clair vers le chiffré tant
+// que la personne n'a pas modifié une page. On force la migration explicitement ici.
+async function migrateKeyIfNeeded(key: string, dek: CryptoKey | null): Promise<void> {
+  if (!dek) return;
+  const raw = localStorage.getItem(key);
+  if (!raw || raw.includes(HS_ENCRYPTED_MARKER)) return;
+  try {
+    const value = JSON.parse(raw);
+    await writeMaybeEncrypted(key, value, dek, true);
+  } catch {
+    // valeur illisible : on laisse telle quelle plutôt que de risquer de la perdre
+  }
 }
 
 // ─── Détection de plateforme audio (pour un rendu plus soigné que l'URL brute) ─
@@ -213,7 +229,9 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
 
   useEffect(() => {
     let cancelled = false;
-    loadIndex(activeSystemId, dek).then(idx => { if (!cancelled) setPlaceIndex(idx); });
+    migrateKeyIfNeeded(indexKey(activeSystemId), dek).then(() => {
+      loadIndex(activeSystemId, dek).then(idx => { if (!cancelled) setPlaceIndex(idx); });
+    });
     return () => { cancelled = true; };
   }, [activeSystemId, dek]);
 
@@ -227,10 +245,12 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
   useEffect(() => {
     if (view === 'place' && activeOwnerId) {
       let cancelled = false;
-      loadPlace(activeSystemId, activeOwnerId, dek).then(p => {
-        if (cancelled) return;
-        setPlace(p);
-        setSourceDraft(p.source || '');
+      migrateKeyIfNeeded(placeKey(activeSystemId, activeOwnerId), dek).then(() => {
+        loadPlace(activeSystemId, activeOwnerId, dek).then(p => {
+          if (cancelled) return;
+          setPlace(p);
+          setSourceDraft(p.source || '');
+        });
       });
       return () => { cancelled = true; };
     }
@@ -246,6 +266,7 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     (async () => {
       const entries = await Promise.all(
         placeIndex.map(async ownerId => {
+          await migrateKeyIfNeeded(placeKey(activeSystemId, ownerId), dek);
           const p = await loadPlace(activeSystemId, ownerId, dek);
           return [ownerId, p.source || ''] as const;
         })
