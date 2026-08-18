@@ -842,7 +842,7 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
 
 // Stockage chiffré (coffre) : voir vaultStorage.ts — extrait pour être partagé avec
 // les pages annexes (Mapping, Planning, Innerworld) qui ont aussi besoin d'y accéder.
-import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
+import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted, listVaultKeys, deleteVaultKey } from './vaultStorage';
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
@@ -1640,6 +1640,13 @@ export default function App() {
     localStorage.setItem('hs-system-blend', String(systemInBlend));
   }, [systemInBlend]);
 
+  const [innerworldPageCount, setInnerworldPageCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    listVaultKeys('haven_innerworld_place_').then(keys => { if (!cancelled) setInnerworldPageCount(keys.length); });
+    return () => { cancelled = true; };
+  }, [dek, currentTab]);
+
   // Recharge les relations du mapping : au changement de système, et à chaque retour
   // sur un onglet affichant des fiches, pour refléter les modifs faites depuis l'onglet Mapping.
   useEffect(() => {
@@ -2016,14 +2023,12 @@ export default function App() {
   }, []);
 
   // --- JSON Backup Synchronisation Logical Handlers ---
-  const collectInnerworldData = (): Record<string, string> => {
+  const collectInnerworldData = async (): Promise<Record<string, string>> => {
+    const keys = await listVaultKeys('haven_innerworld_');
     const data: Record<string, string> = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith('haven_innerworld_')) {
-        const value = localStorage.getItem(key);
-        if (value !== null) data[key] = value;
-      }
+    for (const key of keys) {
+      const value = await readMaybeEncrypted<unknown>(key, dek, null);
+      if (value !== null) data[key] = JSON.stringify(value);
     }
     return data;
   };
@@ -2053,7 +2058,7 @@ export default function App() {
         mappingData: await loadMapping('main', dek),
         walletEntries,
         walletCustomCategories,
-        innerworldData: collectInnerworldData()
+        innerworldData: await collectInnerworldData()
       };
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
@@ -2243,13 +2248,16 @@ export default function App() {
 
       if (data.innerworldData && typeof data.innerworldData === 'object') {
         // On repart d'une base propre pour l'Innerworld avant de restaurer la sauvegarde
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('haven_innerworld_')) localStorage.removeItem(key);
+        const existingKeys = await listVaultKeys('haven_innerworld_');
+        for (const key of existingKeys) await deleteVaultKey(key);
+        for (const [key, value] of Object.entries(data.innerworldData)) {
+          if (typeof value !== 'string') continue;
+          try {
+            await writeMaybeEncrypted(key, JSON.parse(value), dek, !!vaultMeta);
+          } catch {
+            // valeur non-JSON inattendue dans la sauvegarde : ignorée plutôt que de planter l'import
+          }
         }
-        Object.entries(data.innerworldData).forEach(([key, value]) => {
-          if (typeof value === 'string') localStorage.setItem(key, value);
-        });
       }
 
       setJsonSuccess(lang === 'fr' 
@@ -2480,21 +2488,28 @@ export default function App() {
 
       // 13. Innerworld : ajoute les pages absentes localement, ne remplace jamais une page déjà personnalisée ; fusionne les index par système
       if (data.innerworldData && typeof data.innerworldData === 'object') {
-        Object.entries(data.innerworldData).forEach(([key, value]) => {
-          if (typeof value !== 'string') return;
+        for (const [key, value] of Object.entries(data.innerworldData)) {
+          if (typeof value !== 'string') continue;
           if (key.startsWith('haven_innerworld_index_')) {
             try {
-              const currentIdx: string[] = JSON.parse(localStorage.getItem(key) || '[]');
+              const currentIdx = await readMaybeEncrypted<string[]>(key, dek, []);
               const incomingIdx: string[] = JSON.parse(value);
               const merged = Array.from(new Set([...currentIdx, ...incomingIdx]));
-              localStorage.setItem(key, JSON.stringify(merged));
+              await writeMaybeEncrypted(key, merged, dek, !!vaultMeta);
             } catch {
-              localStorage.setItem(key, value);
+              // ignoré : entrée d'index illisible dans la sauvegarde
             }
           } else if (key.startsWith('haven_innerworld_place_')) {
-            if (localStorage.getItem(key) === null) localStorage.setItem(key, value);
+            const existing = await readMaybeEncrypted<unknown>(key, dek, null);
+            if (existing === null) {
+              try {
+                await writeMaybeEncrypted(key, JSON.parse(value), dek, !!vaultMeta);
+              } catch {
+                // ignoré : page illisible dans la sauvegarde
+              }
+            }
           }
-        });
+        }
       }
 
       setJsonSuccess(lang === 'fr' 
@@ -11035,6 +11050,8 @@ export default function App() {
               lang={lang}
               activeSystemId={activeSystemId}
               initialAlterId={innerworldTargetAlterId}
+              dek={dek}
+              vaultActive={!!vaultMeta}
               onOpenAlterFiche={(alterId) => {
                 const target = savedAlters.find(a => a.id === alterId);
                 if (target) handleLoadAlter(target);
@@ -14312,7 +14329,7 @@ export default function App() {
                       <div><strong className="text-app-text">{loadEisenhower(activeSystemId).length}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
                       <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
                       <div><strong className="text-app-text">{walletEntries.length}</strong> {lang === 'fr' ? 'entrées de portefeuille' : 'wallet entries'}</div>
-                      <div><strong className="text-app-text">{Object.keys(collectInnerworldData()).filter(k => k.startsWith('haven_innerworld_place_')).length}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>
+                      <div><strong className="text-app-text">{innerworldPageCount}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>
                     </div>
                   </div>
 

@@ -53,6 +53,52 @@ async function idbSet(key: string, value: HsEncryptedRecord): Promise<void> {
   });
 }
 
+async function idbGetAllKeys(): Promise<string[]> {
+  const db = await openVaultDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(HS_IDB_STORE, 'readonly');
+    const req = tx.objectStore(HS_IDB_STORE).getAllKeys();
+    req.onsuccess = () => resolve((req.result as string[]) || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbDelete(key: string): Promise<void> {
+  const db = await openVaultDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(HS_IDB_STORE, 'readwrite');
+    tx.objectStore(HS_IDB_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// Liste toutes les clés commençant par un préfixe donné — combine IndexedDB (chiffré,
+// nouveau format) et localStorage (résiduel, clés pas encore migrées). Utile pour les
+// données à clé dynamique (une entrée par page Innerworld, par exemple), qu'on ne peut
+// pas connaître à l'avance comme pour une clé fixe.
+export async function listVaultKeys(prefix: string): Promise<string[]> {
+  const keys = new Set<string>();
+  try {
+    const idbKeys = await idbGetAllKeys();
+    for (const k of idbKeys) if (k.startsWith(prefix)) keys.add(k);
+  } catch (e) {
+    console.warn('[Haven Space] Lecture des clés IndexedDB impossible :', e);
+  }
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(prefix)) keys.add(k);
+  }
+  return Array.from(keys);
+}
+
+// Supprime une clé partout où elle pourrait exister (IndexedDB et localStorage).
+export async function deleteVaultKey(key: string): Promise<void> {
+  try { await idbDelete(key); } catch (e) { console.warn(`[Haven Space] Suppression IndexedDB impossible pour "${key}" :`, e); }
+  if (localStorage.getItem(key)) localStorage.removeItem(key);
+}
+
+
 // Lit une clé potentiellement chiffrée : regarde d'abord dans IndexedDB (nouveau
 // format). Si rien là-bas, retombe sur localStorage — soit de l'ancien clair pas
 // encore migré, soit (résiduel) une ancienne version chiffrée d'avant le passage à

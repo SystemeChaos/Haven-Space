@@ -11,6 +11,7 @@ import {
   Images, Music, ExternalLink, Sparkles, Layers, Users, Upload, Search, Link2,
 } from 'lucide-react';
 import { SavedAlter } from './types';
+import { readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -38,33 +39,25 @@ export interface InnerworldPlace {
 const indexKey = (systemId: string) => `haven_innerworld_index_${systemId}`;
 const placeKey = (systemId: string, ownerId: string) => `haven_innerworld_place_${systemId}_${ownerId}`;
 
-function loadIndex(systemId: string): string[] {
-  try {
-    const raw = localStorage.getItem(indexKey(systemId));
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return [];
+async function loadIndex(systemId: string, dek: CryptoKey | null): Promise<string[]> {
+  return readMaybeEncrypted<string[]>(indexKey(systemId), dek, []);
 }
 
-function addToIndex(systemId: string, ownerId: string) {
-  const idx = loadIndex(systemId);
+async function addToIndex(systemId: string, ownerId: string, dek: CryptoKey | null, hasVaultActive: boolean): Promise<void> {
+  const idx = await loadIndex(systemId, dek);
   if (!idx.includes(ownerId)) {
     idx.push(ownerId);
-    localStorage.setItem(indexKey(systemId), JSON.stringify(idx));
+    await writeMaybeEncrypted(indexKey(systemId), idx, dek, hasVaultActive);
   }
 }
 
-export function loadPlace(systemId: string, ownerId: string): InnerworldPlace {
-  try {
-    const raw = localStorage.getItem(placeKey(systemId, ownerId));
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { ownerId, blocks: [], updatedAt: Date.now() };
+export async function loadPlace(systemId: string, ownerId: string, dek: CryptoKey | null): Promise<InnerworldPlace> {
+  return readMaybeEncrypted<InnerworldPlace>(placeKey(systemId, ownerId), dek, { ownerId, blocks: [], updatedAt: Date.now() });
 }
 
-export function savePlace(systemId: string, place: InnerworldPlace) {
-  localStorage.setItem(placeKey(systemId, place.ownerId), JSON.stringify({ ...place, updatedAt: Date.now() }));
-  addToIndex(systemId, place.ownerId);
+export async function savePlace(systemId: string, place: InnerworldPlace, dek: CryptoKey | null, hasVaultActive: boolean): Promise<void> {
+  await writeMaybeEncrypted(placeKey(systemId, place.ownerId), { ...place, updatedAt: Date.now() }, dek, hasVaultActive);
+  await addToIndex(systemId, place.ownerId, dek, hasVaultActive);
 }
 
 // ─── Détection de plateforme audio (pour un rendu plus soigné que l'URL brute) ─
@@ -148,6 +141,8 @@ interface InnerworldPageProps {
   initialAlterId?: string | null;
   /** Callback pour rebondir vers la fiche d'un alter depuis sa page Innerworld. */
   onOpenAlterFiche?: (alterId: string) => void;
+  dek?: CryptoKey | null;
+  vaultActive?: boolean;
 }
 
 const BLOCK_TYPES: { type: InnerworldBlockType; icon: React.ComponentType<any>; label: string; labelEn: string }[] = [
@@ -157,7 +152,7 @@ const BLOCK_TYPES: { type: InnerworldBlockType; icon: React.ComponentType<any>; 
   { type: 'audio', icon: Music, label: 'Audio / Playlist', labelEn: 'Audio / Playlist' },
 ];
 
-export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'main', initialAlterId = null, onOpenAlterFiche }: InnerworldPageProps) {
+export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'main', initialAlterId = null, onOpenAlterFiche, dek = null, vaultActive = false }: InnerworldPageProps) {
   const [view, setView] = useState<'hub' | 'place'>(initialAlterId ? 'place' : 'hub');
   const [hubMode, setHubMode] = useState<'alters' | 'sources'>('alters');
   const [activeOwnerId, setActiveOwnerId] = useState<string | null>(initialAlterId || null);
@@ -217,8 +212,10 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
   };
 
   useEffect(() => {
-    setPlaceIndex(loadIndex(activeSystemId));
-  }, [activeSystemId]);
+    let cancelled = false;
+    loadIndex(activeSystemId, dek).then(idx => { if (!cancelled) setPlaceIndex(idx); });
+    return () => { cancelled = true; };
+  }, [activeSystemId, dek]);
 
   useEffect(() => {
     if (initialAlterId) {
@@ -229,17 +226,44 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
 
   useEffect(() => {
     if (view === 'place' && activeOwnerId) {
-      const p = loadPlace(activeSystemId, activeOwnerId);
-      setPlace(p);
-      setSourceDraft(p.source || '');
+      let cancelled = false;
+      loadPlace(activeSystemId, activeOwnerId, dek).then(p => {
+        if (cancelled) return;
+        setPlace(p);
+        setSourceDraft(p.source || '');
+      });
+      return () => { cancelled = true; };
     }
-  }, [view, activeOwnerId, activeSystemId]);
+  }, [view, activeOwnerId, activeSystemId, dek]);
+
+  const [sourceByOwnerId, setSourceByOwnerId] = useState<Record<string, string>>({});
+
+  // Précalcule la source de chaque page (pour le regroupement "Sources") — remplace
+  // l'ancien appel synchrone à loadPlace() pendant le rendu, impossible maintenant que
+  // la lecture passe par le coffre chiffré (asynchrone).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const entries = await Promise.all(
+        placeIndex.map(async ownerId => {
+          const p = await loadPlace(activeSystemId, ownerId, dek);
+          return [ownerId, p.source || ''] as const;
+        })
+      );
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const [ownerId, source] of entries) if (source) map[ownerId] = source;
+      setSourceByOwnerId(map);
+    })();
+    return () => { cancelled = true; };
+  }, [placeIndex, activeSystemId, dek]);
 
   const persist = useCallback((next: InnerworldPlace) => {
     setPlace(next);
-    savePlace(activeSystemId, next);
-    setPlaceIndex(loadIndex(activeSystemId));
-  }, [activeSystemId]);
+    savePlace(activeSystemId, next, dek, vaultActive).then(() => {
+      loadIndex(activeSystemId, dek).then(setPlaceIndex);
+    });
+  }, [activeSystemId, dek, vaultActive]);
 
   const openPlace = (ownerId: string) => {
     setActiveOwnerId(ownerId);
@@ -297,10 +321,10 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     const groups: Record<string, SavedAlter[]> = {};
     for (const a of alters) {
       if (!placeIndex.includes(a.id)) continue;
-      const p = loadPlace(activeSystemId, a.id);
-      if (!p.source) continue;
-      if (!groups[p.source]) groups[p.source] = [];
-      groups[p.source].push(a);
+      const source = sourceByOwnerId[a.id];
+      if (!source) continue;
+      if (!groups[source]) groups[source] = [];
+      groups[source].push(a);
     }
     return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b, lang));
   })();
