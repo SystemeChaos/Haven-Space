@@ -1107,9 +1107,7 @@ export default function App() {
   const [customDisorderDraftColor, setCustomDisorderDraftColor] = useState('#8B5CF6');
   const [editingCustomDisorderId, setEditingCustomDisorderId] = useState<string | null>(null);
   const [customDisorderDeleteConfirmId, setCustomDisorderDeleteConfirmId] = useState<string | null>(null);
-  const [mainSystemName, setMainSystemName] = useState<string>(() => {
-    return localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System');
-  });
+  const [mainSystemName, setMainSystemName] = useState<string>('');
 
   // Custom dialogue boxes to bypass sandboxed iframe restrictions
   const [deleteConfirmAlterId, setDeleteConfirmAlterId] = useState<string | null>(null);
@@ -1254,7 +1252,7 @@ export default function App() {
       new Notification('✦ Haven Space — Switch', { body, icon: avatar || '/icon-192.png', badge: '/icon-192.png' });
     }
   };
-  const [pkToken, setPkToken] = useState<string>(() => localStorage.getItem('pk_token') || '');
+  const [pkToken, setPkToken] = useState<string>('');
   const [pkSystem, setPkSystem] = useState<any | null>(null);
   const [pkMembers, setPkMembers] = useState<any[]>([]);
   const [pkLoading, setPkLoading] = useState<boolean>(false);
@@ -1624,9 +1622,7 @@ export default function App() {
   const [msgImageUrlInput, setMsgImageUrlInput] = useState<string | null>(null); // null = fermé, string = panneau ouvert avec sa valeur
   const [msgSenderId, setMsgSenderId] = useState<string>('');
   // Suivi des messages "lus" par conversation (dernier message vu depuis le point de vue du destinataire)
-  const [lastSeenMsgIdByConv, setLastSeenMsgIdByConv] = useState<Record<string, string>>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-dm-last-seen') || '{}'); } catch { return {}; }
-  });
+  const [lastSeenMsgIdByConv, setLastSeenMsgIdByConv] = useState<Record<string, string>>({});
   const [dmToast, setDmToast] = useState<{ id: string; convId: string; recipientId: string; recipientName: string; recipientAvatar?: string; senderName: string } | null>(null);
   const [showNewConvPanel, setShowNewConvPanel] = useState(false);
   const [newConvAlter1, setNewConvAlter1] = useState<string>('');
@@ -1671,11 +1667,11 @@ export default function App() {
   // Chargement (et migration douce) du deuxième lot de données sensibles via le coffre chiffré —
   // même logique que Santé/Journal/Système, regroupée ici pour éviter 15 effets quasi-identiques.
   const [batch2Loaded, setBatch2Loaded] = useState(false);
-  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory'] as const;
+  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'] as const;
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [subs, roles, traits, disorders, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel] = await Promise.all([
+      const [subs, roles, traits, disorders, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel, sysName, token, lastSeen] = await Promise.all([
         readMaybeEncrypted<Subsystem[]>('subsystems', dek, []),
         readMaybeEncrypted<CustomRole[]>('customRoles', dek, []),
         readMaybeEncrypted<CustomTrait[]>('customTraits', dek, []),
@@ -1691,15 +1687,19 @@ export default function App() {
         readMaybeEncrypted<SwitchLog[]>('switchLogs', dek, []),
         readMaybeEncrypted<typeof trustedContacts>('trustedContacts', dek, []),
         readMaybeEncrypted<typeof wheelHistory>('wheelHistory', dek, []),
+        readMaybeEncrypted<string>('mainSystemName', dek, lang === 'fr' ? 'Système Principal' : 'Primary System'),
+        readMaybeEncrypted<string>('pk_token', dek, ''),
+        readMaybeEncrypted<Record<string, string>>('hs-dm-last-seen', dek, {}),
       ]);
       if (cancelled) return;
       setSubsystems(subs); setCustomRoles(roles); setCustomTraits(traits); setCustomDisorders(disorders);
       setParallelSystems(parallel); setChatMessages(chat); setChatSalons(salons); setConversations(convs);
       setDirectMessages(dms); setMemories(mems); setWalletCustomCategories(walletCats); setWalletEntries(walletEnt);
       setSwitchLogs(switches); setTrustedContacts(contacts); setWheelHistory(wheel);
+      setMainSystemName(sysName); setPkToken(token); setLastSeenMsgIdByConv(lastSeen);
       setBatch2Loaded(true);
       if (dek) {
-        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel };
+        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel, mainSystemName: sysName, pk_token: token, 'hs-dm-last-seen': lastSeen };
         for (const key of BATCH2_KEYS) {
           const raw = localStorage.getItem(key);
           if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted(key, values[key], dek, true);
@@ -1718,6 +1718,9 @@ export default function App() {
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatSalons', chatSalons, dek, !!vaultMeta); }, [chatSalons]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-conversations', conversations, dek, !!vaultMeta); }, [conversations]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-direct-messages', directMessages, dek, !!vaultMeta); }, [directMessages]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('mainSystemName', mainSystemName, dek, !!vaultMeta); }, [mainSystemName]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('pk_token', pkToken, dek, !!vaultMeta); }, [pkToken]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-dm-last-seen', lastSeenMsgIdByConv, dek, !!vaultMeta); }, [lastSeenMsgIdByConv]);
   // hs-memories / hs-wallet-custom-categories / hs-wallet-entries : leurs effets d'écriture sont
   // placés plus bas dans le fichier, juste après leurs useState respectifs (déclarés plus tard) —
   // sinon TypeScript/JS lève une erreur de portée (utilisé avant déclaration).
@@ -1729,10 +1732,6 @@ export default function App() {
   useEffect(() => {
     if (systemDataLoaded) writeMaybeEncrypted('savedAlters', savedAlters, dek, !!vaultMeta);
   }, [savedAlters]);
-
-  useEffect(() => {
-    localStorage.setItem('mainSystemName', mainSystemName);
-  }, [mainSystemName]);
 
   useEffect(() => {
     localStorage.setItem('activeSystemId', activeSystemId);
@@ -1757,10 +1756,6 @@ export default function App() {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, [activeSystemId]);
-
-  useEffect(() => {
-    localStorage.setItem('hs-dm-last-seen', JSON.stringify(lastSeenMsgIdByConv));
-  }, [lastSeenMsgIdByConv]);
 
   // Marque le dernier message d'une conversation comme "lu" uniquement quand l'alter sélectionné
   // comme "Qui écrit" est le destinataire de ce message (donc pas l'expéditeur) — comme si on
@@ -1877,7 +1872,6 @@ export default function App() {
       const memData = await memResponse.json();
       setPkMembers(memData);
       
-      localStorage.setItem('pk_token', tokenValue);
       setPkToken(tokenValue);
     } catch (err: any) {
       setPkError(err.message || 'Error connecting to PluralKit');
@@ -1889,7 +1883,6 @@ export default function App() {
   };
 
   const handleDisconnectPk = () => {
-    localStorage.removeItem('pk_token');
     setPkToken('');
     setPkSystem(null);
     setPkMembers([]);
@@ -2136,7 +2129,7 @@ export default function App() {
       const dataToExport = {
         version: 1,
         exportedAt: Date.now(),
-        mainSystemName: localStorage.getItem('mainSystemName') || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
+        mainSystemName: mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
         savedAlters,
         subsystems,
         parallelSystems,
@@ -2276,7 +2269,6 @@ export default function App() {
     try {
       if (data.mainSystemName) {
         setMainSystemName(data.mainSystemName);
-        localStorage.setItem('mainSystemName', data.mainSystemName);
       }
       
       // Système (alters) : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
@@ -2375,7 +2367,6 @@ export default function App() {
       // 1. System Name: only replace if empty/unset
       if (data.mainSystemName && (!mainSystemName || mainSystemName === 'Système Principal' || mainSystemName === 'Primary System')) {
         setMainSystemName(data.mainSystemName);
-        localStorage.setItem('mainSystemName', data.mainSystemName);
       }
 
       // 2. savedAlters: overwrite duplicates by ID or name, add new. Pas d'écriture directe ici,
