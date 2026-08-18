@@ -1,6 +1,6 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
-import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, encryptData, decryptData, VaultMetadata, EncryptedPayload } from './cryptoEngine';
+import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -840,110 +840,9 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
   return clean.length > 0 ? clean : [AlterRole.HOST];
 };
 
-// ─── Stockage santé chiffré (coffre) ───────────────────────────────────────
-// Marqueur qui distingue une valeur chiffrée (nouveau format) d'une valeur en
-// clair (ancien format, données d'avant le chiffrement). Permet de lire les
-// deux sans casser les utilisateurs déjà en place.
-const HS_ENCRYPTED_MARKER = '__hsEncrypted';
-
-interface HsEncryptedRecord { __hsEncrypted: true; payload: EncryptedPayload; }
-
-// Le chiffré vit dans IndexedDB, pas localStorage : localStorage plafonne à 5-10 Mo
-// selon le navigateur, et entre plusieurs alters avec avatars et le surcoût du
-// chiffrement (~30% avec l'encodage base64), ce plafond saute vite. IndexedDB a des
-// quotas bien plus larges (des centaines de Mo).
-const HS_IDB_NAME = 'haven-space-vault';
-const HS_IDB_STORE = 'encrypted';
-
-function openVaultDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(HS_IDB_NAME, 1);
-    req.onupgradeneeded = () => {
-      if (!req.result.objectStoreNames.contains(HS_IDB_STORE)) req.result.createObjectStore(HS_IDB_STORE);
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function idbGet(key: string): Promise<HsEncryptedRecord | null> {
-  const db = await openVaultDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(HS_IDB_STORE, 'readonly');
-    const req = tx.objectStore(HS_IDB_STORE).get(key);
-    req.onsuccess = () => resolve(req.result ?? null);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-async function idbSet(key: string, value: HsEncryptedRecord): Promise<void> {
-  const db = await openVaultDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(HS_IDB_STORE, 'readwrite');
-    tx.objectStore(HS_IDB_STORE).put(value, key);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
-
-// Lit une clé potentiellement chiffrée : regarde d'abord dans IndexedDB (nouveau
-// format). Si rien là-bas, retombe sur localStorage — soit de l'ancien clair pas
-// encore migré, soit (résiduel) une ancienne version chiffrée d'avant le passage à
-// IndexedDB. Si le coffre est verrouillé (dek = null) et que la donnée trouvée est
-// chiffrée, on NE PEUT PAS lire — on renvoie le fallback, rien n'est perdu.
-async function readMaybeEncrypted<T>(key: string, dek: CryptoKey | null, fallback: T): Promise<T> {
-  try {
-    const idbRecord = await idbGet(key);
-    if (idbRecord && idbRecord[HS_ENCRYPTED_MARKER]) {
-      if (!dek) return fallback;
-      try {
-        const plaintext = await decryptData(dek, idbRecord.payload);
-        return JSON.parse(plaintext) as T;
-      } catch (e) {
-        console.warn(`[Haven Space] "${key}" trouvé chiffré dans IndexedDB mais impossible à déchiffrer avec la clé actuelle du coffre :`, e);
-        return fallback;
-      }
-    }
-  } catch (e) {
-    console.warn(`[Haven Space] Lecture IndexedDB impossible pour "${key}", repli sur localStorage :`, e);
-  }
-  const raw = localStorage.getItem(key);
-  if (!raw) return fallback;
-  try {
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object' && parsed[HS_ENCRYPTED_MARKER]) {
-      if (!dek) return fallback;
-      try {
-        const plaintext = await decryptData(dek, (parsed as HsEncryptedRecord).payload);
-        return JSON.parse(plaintext) as T;
-      } catch (e) {
-        console.warn(`[Haven Space] "${key}" trouvé chiffré dans localStorage mais impossible à déchiffrer avec la clé actuelle du coffre :`, e);
-        return fallback;
-      }
-    }
-    return parsed as T; // ancien format en clair (avant chiffrement, ou coffre jamais activé)
-  } catch (e) {
-    console.warn(`[Haven Space] Lecture localStorage impossible pour "${key}" :`, e);
-    return fallback;
-  }
-}
-
-// Écrit une valeur : chiffrée dans IndexedDB si le coffre est déverrouillé (et on
-// nettoie l'éventuel clair résiduel dans localStorage, pour libérer sa place) ; en
-// clair dans localStorage si aucun coffre n'a jamais été activé (comportement
-// historique inchangé). Si le coffre existe mais est verrouillé, on n'écrit RIEN —
-// sinon on écraserait des données chiffrées valides par du vide.
-async function writeMaybeEncrypted<T>(key: string, value: T, dek: CryptoKey | null, hasVaultActive: boolean): Promise<void> {
-  if (dek) {
-    const payload = await encryptData(dek, JSON.stringify(value));
-    const record: HsEncryptedRecord = { __hsEncrypted: true, payload };
-    await idbSet(key, record);
-    if (localStorage.getItem(key)) localStorage.removeItem(key);
-  } else if (!hasVaultActive) {
-    localStorage.setItem(key, JSON.stringify(value));
-  }
-  // sinon : coffre actif mais verrouillé → écriture ignorée volontairement
-}
+// Stockage chiffré (coffre) : voir vaultStorage.ts — extrait pour être partagé avec
+// les pages annexes (Mapping, Planning, Innerworld) qui ont aussi besoin d'y accéder.
+import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
@@ -1586,7 +1485,7 @@ export default function App() {
     localStorage.getItem('activeSystemId') || 'main'
   );
   // Relations du mapping — pour affichage en temps réel sur les fiches
-  const [mappingData, setMappingData] = useState<MappingData>(() => loadMapping(activeSystemId));
+  const [mappingData, setMappingData] = useState<MappingData>({ nodes: [], relations: [] });
   // Grande liste de ~32 000 noms de couleurs (chargée à la demande, une seule fois)
   const [bigColorNames, setBigColorNames] = useState<{ name: string; hex: string }[] | null>(null);
   useEffect(() => {
@@ -1744,18 +1643,23 @@ export default function App() {
   // Recharge les relations du mapping : au changement de système, et à chaque retour
   // sur un onglet affichant des fiches, pour refléter les modifs faites depuis l'onglet Mapping.
   useEffect(() => {
-    setMappingData(loadMapping(activeSystemId));
-  }, [activeSystemId, currentTab]);
+    let cancelled = false;
+    (async () => {
+      const data = await loadMapping(activeSystemId, dek);
+      if (!cancelled) setMappingData(data);
+    })();
+    return () => { cancelled = true; };
+  }, [activeSystemId, currentTab, dek]);
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {
       if (e.key && e.key.startsWith('heaven_space_mapping')) {
-        setMappingData(loadMapping(activeSystemId));
+        loadMapping(activeSystemId, dek).then(setMappingData);
       }
     };
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
-  }, [activeSystemId]);
+  }, [activeSystemId, dek]);
 
   // Marque le dernier message d'une conversation comme "lu" uniquement quand l'alter sélectionné
   // comme "Qui écrit" est le destinataire de ce message (donc pas l'expéditeur) — comme si on
@@ -2124,7 +2028,7 @@ export default function App() {
     return data;
   };
 
-  const handleExportJSON = () => {
+  const handleExportJSON = async () => {
     try {
       const dataToExport = {
         version: 1,
@@ -2146,7 +2050,7 @@ export default function App() {
         medications,
         healthHistory,
         emergencyInfo,
-        mappingData: loadMapping(),
+        mappingData: await loadMapping('main', dek),
         walletEntries,
         walletCustomCategories,
         innerworldData: collectInnerworldData()
@@ -2262,7 +2166,7 @@ export default function App() {
     }
   };
 
-  const handleApplyImportOverwrite = () => {
+  const handleApplyImportOverwrite = async () => {
     if (!importPreview) return;
     const { data } = importPreview;
 
@@ -2328,7 +2232,7 @@ export default function App() {
       }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
-        saveMapping(data.mappingData);
+        await saveMapping(data.mappingData, 'main', dek, !!vaultMeta);
       }
 
       const importedWalletEntries = Array.isArray(data.walletEntries) ? data.walletEntries : [];
@@ -2359,7 +2263,7 @@ export default function App() {
     }
   };
 
-  const handleApplyImportMerge = () => {
+  const handleApplyImportMerge = async () => {
     if (!importPreview) return;
     const { data } = importPreview;
 
@@ -2540,7 +2444,7 @@ export default function App() {
       }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
-        const current = loadMapping();
+        const current = await loadMapping('main', dek);
         const incoming = data.mappingData;
         // Merge nodes (positions) — priorité à l'import
         const mergedNodes = [...current.nodes];
@@ -2556,7 +2460,7 @@ export default function App() {
             mergedRelations.push(r);
           }
         });
-        saveMapping({ nodes: mergedNodes, relations: mergedRelations });
+        await saveMapping({ nodes: mergedNodes, relations: mergedRelations }, 'main', dek, !!vaultMeta);
       }
 
       // 12. Portefeuille : fusion des entrées et catégories personnalisées, uniques par id
@@ -11120,7 +11024,7 @@ export default function App() {
         {/* --- MAPPING VIEW --- */}
         {currentTab === 'mapping' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
-            <MappingPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} />
+            <MappingPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} dek={dek} vaultActive={!!vaultMeta} />
           </div>
         )}
 

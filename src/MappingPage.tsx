@@ -7,6 +7,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, X, Save, GitBranch } from 'lucide-react';
 import { SavedAlter } from './types';
+import { readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -65,18 +66,14 @@ export const RELATION_CONFIG: Record<RelationType, {
 
 const STORAGE_KEY = 'heaven_space_mapping';
 
-export function loadMapping(systemId: string = 'main'): MappingData {
-  try {
-    const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
-    const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return { nodes: [], relations: [] };
+export async function loadMapping(systemId: string = 'main', dek: CryptoKey | null = null): Promise<MappingData> {
+  const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
+  return readMaybeEncrypted<MappingData>(key, dek, { nodes: [], relations: [] });
 }
 
-export function saveMapping(data: MappingData, systemId: string = 'main') {
+export async function saveMapping(data: MappingData, systemId: string = 'main', dek: CryptoKey | null = null, hasVaultActive: boolean = false): Promise<void> {
   const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
-  localStorage.setItem(key, JSON.stringify(data));
+  await writeMaybeEncrypted(key, data, dek, hasVaultActive);
 }
 
 function getAlterColor(alter: SavedAlter): string {
@@ -95,20 +92,33 @@ interface MappingPageProps {
   savedAlters: SavedAlter[];
   lang: 'fr' | 'en';
   activeSystemId?: string;
+  dek?: CryptoKey | null;
+  vaultActive?: boolean;
 }
 
-export default function MappingPage({ savedAlters, lang, activeSystemId = 'main' }: MappingPageProps) {
+export default function MappingPage({ savedAlters, lang, activeSystemId = 'main', dek = null, vaultActive = false }: MappingPageProps) {
   const canvasRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ id: string; offsetX: number; offsetY: number } | null>(null);
   const panning = useRef<{ startX: number; startY: number; originX: number; originY: number } | null>(null);
 
-  const [mapping, setMapping] = useState<MappingData>(() => loadMapping(activeSystemId));
+  const [mapping, setMapping] = useState<MappingData>({ nodes: [], relations: [] });
+  const [mappingLoaded, setMappingLoaded] = useState(false);
 
-  // Recharger le mapping quand on change de système
+  // Charge (ou recharge) le mapping — au montage, au changement de système, et à
+  // chaque déverrouillage/verrouillage du coffre (dek). mappingLoaded évite que l'effet
+  // de réconciliation ci-dessous n'écrase les positions réelles avant la fin du chargement.
   useEffect(() => {
-    setMapping(loadMapping(activeSystemId));
-  }, [activeSystemId]);
+    let cancelled = false;
+    setMappingLoaded(false);
+    (async () => {
+      const data = await loadMapping(activeSystemId, dek);
+      if (cancelled) return;
+      setMapping(data);
+      setMappingLoaded(true);
+    })();
+    return () => { cancelled = true; };
+  }, [activeSystemId, dek]);
   const [canvasSize, setCanvasSize] = useState({ w: 800, h: 600 });
   const [zoom, setZoom] = useState(0.6);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -141,6 +151,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   };
 
   useEffect(() => {
+    if (!mappingLoaded) return;
     setMapping(prev => {
       const existingIds = new Set(prev.nodes.map(n => n.id));
       const newNodes = savedAlters
@@ -155,10 +166,10 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
         nodes: [...prev.nodes.filter(n => validIds.has(n.id)), ...newNodes],
         relations: prev.relations.filter(r => validIds.has(r.sourceId) && validIds.has(r.targetId)),
       };
-      saveMapping(updated, activeSystemId);
+      saveMapping(updated, activeSystemId, dek, vaultActive);
       return updated;
     });
-  }, [savedAlters]);
+  }, [savedAlters, mappingLoaded]);
 
   useEffect(() => {
     const update = () => {
@@ -292,7 +303,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const onMouseUp = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     if (dragging.current) {
-      setMapping(prev => { saveMapping(prev, activeSystemId); return prev; });
+      setMapping(prev => { saveMapping(prev, activeSystemId, dek, vaultActive); return prev; });
     }
     dragging.current = null;
     panning.current = null;
@@ -317,7 +328,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     };
     setMapping(prev => {
       const updated = { ...prev, relations: [...prev.relations, rel] };
-      saveMapping(updated, activeSystemId);
+      saveMapping(updated, activeSystemId, dek, vaultActive);
       return updated;
     });
     setShowAddRelation(false);
@@ -329,7 +340,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const handleDeleteRelation = (id: string) => {
     setMapping(prev => {
       const updated = { ...prev, relations: prev.relations.filter(r => r.id !== id) };
-      saveMapping(updated, activeSystemId);
+      saveMapping(updated, activeSystemId, dek, vaultActive);
       return updated;
     });
     setSelectedRelId(null);
