@@ -1718,9 +1718,9 @@ export default function App() {
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatSalons', chatSalons, dek, !!vaultMeta); }, [chatSalons]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-conversations', conversations, dek, !!vaultMeta); }, [conversations]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-direct-messages', directMessages, dek, !!vaultMeta); }, [directMessages]);
-  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-memories', memories, dek, !!vaultMeta); }, [memories]);
-  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-wallet-custom-categories', walletCustomCategories, dek, !!vaultMeta); }, [walletCustomCategories]);
-  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-wallet-entries', walletEntries, dek, !!vaultMeta); }, [walletEntries]);
+  // hs-memories / hs-wallet-custom-categories / hs-wallet-entries : leurs effets d'écriture sont
+  // placés plus bas dans le fichier, juste après leurs useState respectifs (déclarés plus tard) —
+  // sinon TypeScript/JS lève une erreur de portée (utilisé avant déclaration).
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('switchLogs', switchLogs, dek, !!vaultMeta); }, [switchLogs]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('trustedContacts', trustedContacts, dek, !!vaultMeta); }, [trustedContacts]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('wheelHistory', wheelHistory, dek, !!vaultMeta); }, [wheelHistory]);
@@ -3284,6 +3284,7 @@ export default function App() {
   // --- Boîte à Souvenirs (partagée entre tous les alters du système) ---
   interface MemoryItem { id: string; text: string; elementType: 'bougie' | 'lanterne' | 'message' | 'papillon' | 'coffre'; authorAlterId?: string; timestamp: number; }
   const [memories, setMemories] = useState<MemoryItem[]>([]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-memories', memories, dek, !!vaultMeta); }, [memories]);
   const [memoryFormOpen, setMemoryFormOpen] = useState(false);
   const [memoryDraftText, setMemoryDraftText] = useState('');
   const [memoryDraftElement, setMemoryDraftElement] = useState<MemoryItem['elementType']>('bougie');
@@ -3547,6 +3548,7 @@ export default function App() {
   // Catégories personnalisées ajoutées par le système, en plus de la liste ci-dessus — persistées à part
   // pour ne jamais entrer en conflit avec les catégories intégrées si la liste par défaut évolue plus tard.
   const [walletCustomCategories, setWalletCustomCategories] = useState<{ id: string; emoji: string; label: string; labelEn: string }[]>([]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-wallet-custom-categories', walletCustomCategories, dek, !!vaultMeta); }, [walletCustomCategories]);
   const WALLET_ALL_CATEGORIES = [...WALLET_CATEGORIES, ...walletCustomCategories];
   const [walletNewCatOpen, setWalletNewCatOpen] = useState(false);
   const [walletNewCatLabel, setWalletNewCatLabel] = useState('');
@@ -3566,6 +3568,7 @@ export default function App() {
     if (walletDraftCategory === id) setWalletDraftCategory('autre');
   };
   const [walletEntries, setWalletEntries] = useState<WalletEntry[]>([]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-wallet-entries', walletEntries, dek, !!vaultMeta); }, [walletEntries]);
   const [walletSubTab, setWalletSubTab] = useState<'apercu' | 'historique'>('apercu');
   const [walletFormOpen, setWalletFormOpen] = useState(false);
   const [editingWalletId, setEditingWalletId] = useState<string | null>(null);
