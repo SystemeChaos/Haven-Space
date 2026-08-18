@@ -1152,9 +1152,7 @@ export default function App() {
   const [switchSpoons, setSwitchSpoons] = useState<number>(12);
   const [switchMoods, setSwitchMoods] = useState<string[]>([]);
   const [wheelEmotion, setWheelEmotion] = useState<{name: string; color: string; desc: string; intensity: number} | null>(null);
-  const [wheelHistory, setWheelHistory] = useState<{name: string; color: string; intensity: number; time: string; alter: string; date: string}[]>(() => {
-    try { return JSON.parse(localStorage.getItem('wheelHistory') || '[]'); } catch { return []; }
-  });
+  const [wheelHistory, setWheelHistory] = useState<{name: string; color: string; intensity: number; time: string; alter: string; date: string}[]>([]);
   const [wheelDotPos, setWheelDotPos] = useState<{x: number; y: number} | null>(null);
   const [wheelIntensity, setWheelIntensity] = useState<number>(3);
 
@@ -1167,9 +1165,7 @@ export default function App() {
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [sosMode, setSosMode] = useState(false);
-  const [trustedContacts, setTrustedContacts] = useState<{id: string; name: string; phone: string}[]>(() => {
-    try { return JSON.parse(localStorage.getItem('trustedContacts') || '[]'); } catch { return []; }
-  });
+  const [trustedContacts, setTrustedContacts] = useState<{id: string; name: string; phone: string}[]>([]);
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
@@ -1575,49 +1571,19 @@ export default function App() {
     setShowOnboarding(true);
   };
 
-  const [subsystems, setSubsystems] = useState<Subsystem[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('subsystems') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [subsystems, setSubsystems] = useState<Subsystem[]>([]);
 
   // --- Rôles personnalisés (définis par l'utilisateur, en plus des rôles fixes) ---
-  const [customRoles, setCustomRoles] = useState<CustomRole[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('customRoles') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [customRoles, setCustomRoles] = useState<CustomRole[]>([]);
 
   // --- Traits personnalisés (définis par l'utilisateur, en plus des traits fixes) ---
-  const [customTraits, setCustomTraits] = useState<CustomTrait[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('customTraits') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [customTraits, setCustomTraits] = useState<CustomTrait[]>([]);
 
   // --- Troubles personnalisés (définis par l'utilisateur, en plus des troubles fixes) ---
-  const [customDisorders, setCustomDisorders] = useState<CustomDisorder[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('customDisorders') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [customDisorders, setCustomDisorders] = useState<CustomDisorder[]>([]);
 
   // --- Systèmes parallèles ---
-  const [parallelSystems, setParallelSystems] = useState<ParallelSystem[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('parallelSystems') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [parallelSystems, setParallelSystems] = useState<ParallelSystem[]>([]);
   const [activeSystemId, setActiveSystemId] = useState<string>(() =>
     localStorage.getItem('activeSystemId') || 'main'
   );
@@ -1644,23 +1610,13 @@ export default function App() {
   const [parallelSystemFormName, setParallelSystemFormName] = useState('');
   const [editingParallelSystemId, setEditingParallelSystemId] = useState<string | null>(null);
 
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('chatMessages') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   // --- Salons (canaux internes) ---
   const DEFAULT_SALON_ID = 'salon-general';
   // --- Messagerie inter-alters ---
-  const [conversations, setConversations] = useState<DirectConversation[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-conversations') || '[]'); } catch { return []; }
-  });
-  const [directMessages, setDirectMessages] = useState<DirectMessage[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-direct-messages') || '[]'); } catch { return []; }
-  });
+  const [conversations, setConversations] = useState<DirectConversation[]>([]);
+  const [directMessages, setDirectMessages] = useState<DirectMessage[]>([]);
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [convSearch, setConvSearch] = useState('');
   const [convSearchOpen, setConvSearchOpen] = useState(false);
@@ -1680,15 +1636,8 @@ export default function App() {
   const [newConvAlter2Open, setNewConvAlter2Open] = useState(false);
   const [newConvAlter2Search, setNewConvAlter2Search] = useState('');
 
-  const [chatSalons, setChatSalons] = useState<{ id: string; name: string; emoji: string; createdAt: number; accessMode: 'blacklist' | 'whitelist'; blockedOrAllowedIds: string[] }[]>(() => {
-    try {
-      const stored = localStorage.getItem('chatSalons');
-      if (stored) return JSON.parse(stored);
-      return [{ id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now(), accessMode: 'blacklist' as const, blockedOrAllowedIds: [] }];
-    } catch {
-      return [{ id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now(), accessMode: 'blacklist' as const, blockedOrAllowedIds: [] }];
-    }
-  });
+  const DEFAULT_SALON = { id: DEFAULT_SALON_ID, name: 'Général', emoji: '💬', createdAt: Date.now(), accessMode: 'blacklist' as const, blockedOrAllowedIds: [] as string[] };
+  const [chatSalons, setChatSalons] = useState<{ id: string; name: string; emoji: string; createdAt: number; accessMode: 'blacklist' | 'whitelist'; blockedOrAllowedIds: string[] }[]>([DEFAULT_SALON]);
   const [activeSalonId, setActiveSalonId] = useState<string>(DEFAULT_SALON_ID);
   const [showSalonForm, setShowSalonForm] = useState(false);
   const [salonFormName, setSalonFormName] = useState('');
@@ -1696,13 +1645,7 @@ export default function App() {
   const [editingSalonId, setEditingSalonId] = useState<string | null>(null);
   const [rightsOpenSalonId, setRightsOpenSalonId] = useState<string | null>(null); // salon dont le panneau droits est ouvert
 
-  const [switchLogs, setSwitchLogs] = useState<SwitchLog[]>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('switchLogs') || '[]');
-    } catch {
-      return [];
-    }
-  });
+  const [switchLogs, setSwitchLogs] = useState<SwitchLog[]>([]);
 
   const [editingJournalId, setEditingJournalId] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
@@ -1725,6 +1668,63 @@ export default function App() {
     return () => { cancelled = true; };
   }, [dek]);
 
+  // Chargement (et migration douce) du deuxième lot de données sensibles via le coffre chiffré —
+  // même logique que Santé/Journal/Système, regroupée ici pour éviter 15 effets quasi-identiques.
+  const [batch2Loaded, setBatch2Loaded] = useState(false);
+  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory'] as const;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [subs, roles, traits, disorders, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel] = await Promise.all([
+        readMaybeEncrypted<Subsystem[]>('subsystems', dek, []),
+        readMaybeEncrypted<CustomRole[]>('customRoles', dek, []),
+        readMaybeEncrypted<CustomTrait[]>('customTraits', dek, []),
+        readMaybeEncrypted<CustomDisorder[]>('customDisorders', dek, []),
+        readMaybeEncrypted<ParallelSystem[]>('parallelSystems', dek, []),
+        readMaybeEncrypted<ChatMessage[]>('chatMessages', dek, []),
+        readMaybeEncrypted<typeof chatSalons>('chatSalons', dek, [DEFAULT_SALON]),
+        readMaybeEncrypted<DirectConversation[]>('hs-conversations', dek, []),
+        readMaybeEncrypted<DirectMessage[]>('hs-direct-messages', dek, []),
+        readMaybeEncrypted<MemoryItem[]>('hs-memories', dek, []),
+        readMaybeEncrypted<typeof walletCustomCategories>('hs-wallet-custom-categories', dek, []),
+        readMaybeEncrypted<WalletEntry[]>('hs-wallet-entries', dek, []),
+        readMaybeEncrypted<SwitchLog[]>('switchLogs', dek, []),
+        readMaybeEncrypted<typeof trustedContacts>('trustedContacts', dek, []),
+        readMaybeEncrypted<typeof wheelHistory>('wheelHistory', dek, []),
+      ]);
+      if (cancelled) return;
+      setSubsystems(subs); setCustomRoles(roles); setCustomTraits(traits); setCustomDisorders(disorders);
+      setParallelSystems(parallel); setChatMessages(chat); setChatSalons(salons); setConversations(convs);
+      setDirectMessages(dms); setMemories(mems); setWalletCustomCategories(walletCats); setWalletEntries(walletEnt);
+      setSwitchLogs(switches); setTrustedContacts(contacts); setWheelHistory(wheel);
+      setBatch2Loaded(true);
+      if (dek) {
+        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel };
+        for (const key of BATCH2_KEYS) {
+          const raw = localStorage.getItem(key);
+          if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted(key, values[key], dek, true);
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
+
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('subsystems', subsystems, dek, !!vaultMeta); }, [subsystems]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customRoles', customRoles, dek, !!vaultMeta); }, [customRoles]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customTraits', customTraits, dek, !!vaultMeta); }, [customTraits]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customDisorders', customDisorders, dek, !!vaultMeta); }, [customDisorders]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('parallelSystems', parallelSystems, dek, !!vaultMeta); }, [parallelSystems]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatMessages', chatMessages, dek, !!vaultMeta); }, [chatMessages]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatSalons', chatSalons, dek, !!vaultMeta); }, [chatSalons]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-conversations', conversations, dek, !!vaultMeta); }, [conversations]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-direct-messages', directMessages, dek, !!vaultMeta); }, [directMessages]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-memories', memories, dek, !!vaultMeta); }, [memories]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-wallet-custom-categories', walletCustomCategories, dek, !!vaultMeta); }, [walletCustomCategories]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('hs-wallet-entries', walletEntries, dek, !!vaultMeta); }, [walletEntries]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('switchLogs', switchLogs, dek, !!vaultMeta); }, [switchLogs]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('trustedContacts', trustedContacts, dek, !!vaultMeta); }, [trustedContacts]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('wheelHistory', wheelHistory, dek, !!vaultMeta); }, [wheelHistory]);
+
   // LocalStorage Sync Effects
   useEffect(() => {
     if (systemDataLoaded) writeMaybeEncrypted('savedAlters', savedAlters, dek, !!vaultMeta);
@@ -1733,26 +1733,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('mainSystemName', mainSystemName);
   }, [mainSystemName]);
-
-  useEffect(() => {
-    localStorage.setItem('subsystems', JSON.stringify(subsystems));
-  }, [subsystems]);
-
-  useEffect(() => {
-    localStorage.setItem('customRoles', JSON.stringify(customRoles));
-  }, [customRoles]);
-
-  useEffect(() => {
-    localStorage.setItem('customTraits', JSON.stringify(customTraits));
-  }, [customTraits]);
-
-  useEffect(() => {
-    localStorage.setItem('customDisorders', JSON.stringify(customDisorders));
-  }, [customDisorders]);
-
-  useEffect(() => {
-    localStorage.setItem('parallelSystems', JSON.stringify(parallelSystems));
-  }, [parallelSystems]);
 
   useEffect(() => {
     localStorage.setItem('activeSystemId', activeSystemId);
@@ -1777,22 +1757,6 @@ export default function App() {
     window.addEventListener('storage', onStorage);
     return () => window.removeEventListener('storage', onStorage);
   }, [activeSystemId]);
-
-  useEffect(() => {
-    localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-  }, [chatMessages]);
-
-  useEffect(() => {
-    localStorage.setItem('chatSalons', JSON.stringify(chatSalons));
-  }, [chatSalons]);
-
-  useEffect(() => {
-    localStorage.setItem('hs-conversations', JSON.stringify(conversations));
-  }, [conversations]);
-
-  useEffect(() => {
-    localStorage.setItem('hs-direct-messages', JSON.stringify(directMessages));
-  }, [directMessages]);
 
   useEffect(() => {
     localStorage.setItem('hs-dm-last-seen', JSON.stringify(lastSeenMsgIdByConv));
@@ -1879,18 +1843,6 @@ export default function App() {
     const interval = setInterval(check, 30000);
     return () => clearInterval(interval);
   }, [activeSystemId, lang, notifBrowser]);
-
-  useEffect(() => {
-    localStorage.setItem('switchLogs', JSON.stringify(switchLogs));
-  }, [switchLogs]);
-
-  useEffect(() => {
-    localStorage.setItem('wheelHistory', JSON.stringify(wheelHistory));
-  }, [wheelHistory]);
-
-  useEffect(() => {
-    localStorage.setItem('trustedContacts', JSON.stringify(trustedContacts));
-  }, [trustedContacts]);
 
   useEffect(() => {
     if (journalDataLoaded) writeMaybeEncrypted('journalEntries', journalEntries, dek, !!vaultMeta);
@@ -2333,15 +2285,12 @@ export default function App() {
 
       const importedSubsystems = Array.isArray(data.subsystems) ? data.subsystems : [];
       setSubsystems(importedSubsystems);
-      localStorage.setItem('subsystems', JSON.stringify(importedSubsystems));
 
       const importedChat = Array.isArray(data.chatMessages) ? data.chatMessages : [];
       setChatMessages(importedChat);
-      localStorage.setItem('chatMessages', JSON.stringify(importedChat));
 
       const importedSwitches = Array.isArray(data.switchLogs) ? data.switchLogs : [];
       setSwitchLogs(importedSwitches);
-      localStorage.setItem('switchLogs', JSON.stringify(importedSwitches));
 
       // Journal : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
       const importedJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
@@ -2349,27 +2298,21 @@ export default function App() {
 
       const importedParallelSystems = Array.isArray(data.parallelSystems) ? data.parallelSystems : [];
       setParallelSystems(importedParallelSystems);
-      localStorage.setItem('parallelSystems', JSON.stringify(importedParallelSystems));
 
       const importedCustomRoles = Array.isArray(data.customRoles) ? data.customRoles : [];
       setCustomRoles(importedCustomRoles);
-      localStorage.setItem('customRoles', JSON.stringify(importedCustomRoles));
 
       const importedCustomTraits = Array.isArray(data.customTraits) ? data.customTraits : [];
       setCustomTraits(importedCustomTraits);
-      localStorage.setItem('customTraits', JSON.stringify(importedCustomTraits));
 
       const importedCustomDisorders = Array.isArray(data.customDisorders) ? data.customDisorders : [];
       setCustomDisorders(importedCustomDisorders);
-      localStorage.setItem('customDisorders', JSON.stringify(importedCustomDisorders));
 
       const importedConversations = Array.isArray(data.conversations) ? data.conversations : [];
       setConversations(importedConversations);
-      localStorage.setItem('hs-conversations', JSON.stringify(importedConversations));
 
       const importedDirectMessages = Array.isArray(data.directMessages) ? data.directMessages : [];
       setDirectMessages(importedDirectMessages);
-      localStorage.setItem('hs-direct-messages', JSON.stringify(importedDirectMessages));
 
       // Santé : pas d'écriture directe dans localStorage ici — le coffre chiffré s'en charge
       // via son propre effet de sauvegarde (déclenché par setMedications/setHealthHistory/
@@ -2398,11 +2341,9 @@ export default function App() {
 
       const importedWalletEntries = Array.isArray(data.walletEntries) ? data.walletEntries : [];
       setWalletEntries(importedWalletEntries);
-      localStorage.setItem('hs-wallet-entries', JSON.stringify(importedWalletEntries));
 
       const importedWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
       setWalletCustomCategories(importedWalletCategories);
-      localStorage.setItem('hs-wallet-custom-categories', JSON.stringify(importedWalletCategories));
 
       if (data.innerworldData && typeof data.innerworldData === 'object') {
         // On repart d'une base propre pour l'Innerworld avant de restaurer la sauvegarde
@@ -2463,7 +2404,6 @@ export default function App() {
         }
       });
       setSubsystems(currentSubsystems);
-      localStorage.setItem('subsystems', JSON.stringify(currentSubsystems));
 
       // 4. Chat Messages: merge unique by id
       const currentChat = [...chatMessages];
@@ -2475,7 +2415,6 @@ export default function App() {
       });
       currentChat.sort((a, b) => a.timestamp - b.timestamp);
       setChatMessages(currentChat);
-      localStorage.setItem('chatMessages', JSON.stringify(currentChat));
 
       // 5. Switch Logs: merge unique by id or timestamp
       const currentSwitches = [...switchLogs];
@@ -2487,7 +2426,6 @@ export default function App() {
       });
       currentSwitches.sort((a, b) => b.timestamp - a.timestamp);
       setSwitchLogs(currentSwitches);
-      localStorage.setItem('switchLogs', JSON.stringify(currentSwitches));
 
       // 6. Journal Entries: merge unique by id or identical title & date. Pas d'écriture directe
       // ici, l'effet de sauvegarde du coffre s'en charge.
@@ -2510,7 +2448,6 @@ export default function App() {
         else currentParallelSystems.push(incoming);
       });
       setParallelSystems(currentParallelSystems);
-      localStorage.setItem('parallelSystems', JSON.stringify(currentParallelSystems));
 
       // 7b. Rôles / traits / troubles personnalisés : écrase les doublons par id ou nom, ajoute les nouveaux
       const currentCustomRoles = [...customRoles];
@@ -2521,7 +2458,6 @@ export default function App() {
         else currentCustomRoles.push(incoming);
       });
       setCustomRoles(currentCustomRoles);
-      localStorage.setItem('customRoles', JSON.stringify(currentCustomRoles));
 
       const currentCustomTraits = [...customTraits];
       const incomingCustomTraits = Array.isArray(data.customTraits) ? data.customTraits : [];
@@ -2531,7 +2467,6 @@ export default function App() {
         else currentCustomTraits.push(incoming);
       });
       setCustomTraits(currentCustomTraits);
-      localStorage.setItem('customTraits', JSON.stringify(currentCustomTraits));
 
       const currentCustomDisorders = [...customDisorders];
       const incomingCustomDisorders = Array.isArray(data.customDisorders) ? data.customDisorders : [];
@@ -2541,7 +2476,6 @@ export default function App() {
         else currentCustomDisorders.push(incoming);
       });
       setCustomDisorders(currentCustomDisorders);
-      localStorage.setItem('customDisorders', JSON.stringify(currentCustomDisorders));
 
       // 8. Messagerie : fusion des conversations et des messages, uniques par id
       const currentConversations = [...conversations];
@@ -2550,7 +2484,6 @@ export default function App() {
         if (!currentConversations.some((c: any) => c.id === (incoming as any).id)) currentConversations.push(incoming);
       });
       setConversations(currentConversations);
-      localStorage.setItem('hs-conversations', JSON.stringify(currentConversations));
 
       const currentDirectMessages = [...directMessages];
       const incomingDirectMessages = Array.isArray(data.directMessages) ? data.directMessages : [];
@@ -2559,7 +2492,6 @@ export default function App() {
       });
       currentDirectMessages.sort((a: any, b: any) => a.timestamp - b.timestamp);
       setDirectMessages(currentDirectMessages);
-      localStorage.setItem('hs-direct-messages', JSON.stringify(currentDirectMessages));
 
       // 9. Santé : médicaments et antécédents fusionnés par id, infos d'urgence complétées si vides.
       // Pas d'écriture directe dans localStorage ici — le coffre chiffré s'en charge via son propre
@@ -2643,7 +2575,6 @@ export default function App() {
         if (!currentWalletEntries.some(w => w.id === incoming.id)) currentWalletEntries.push(incoming);
       });
       setWalletEntries(currentWalletEntries);
-      localStorage.setItem('hs-wallet-entries', JSON.stringify(currentWalletEntries));
 
       const currentWalletCategories = [...walletCustomCategories];
       const incomingWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
@@ -2651,7 +2582,6 @@ export default function App() {
         if (!currentWalletCategories.some(c => c.id === incoming.id)) currentWalletCategories.push(incoming);
       });
       setWalletCustomCategories(currentWalletCategories);
-      localStorage.setItem('hs-wallet-custom-categories', JSON.stringify(currentWalletCategories));
 
       // 13. Innerworld : ajoute les pages absentes localement, ne remplace jamais une page déjà personnalisée ; fusionne les index par système
       if (data.innerworldData && typeof data.innerworldData === 'object') {
@@ -3353,12 +3283,7 @@ export default function App() {
 
   // --- Boîte à Souvenirs (partagée entre tous les alters du système) ---
   interface MemoryItem { id: string; text: string; elementType: 'bougie' | 'lanterne' | 'message' | 'papillon' | 'coffre'; authorAlterId?: string; timestamp: number; }
-  const [memories, setMemories] = useState<MemoryItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-memories') || '[]'); } catch { return []; }
-  });
-  useEffect(() => {
-    localStorage.setItem('hs-memories', JSON.stringify(memories));
-  }, [memories]);
+  const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [memoryFormOpen, setMemoryFormOpen] = useState(false);
   const [memoryDraftText, setMemoryDraftText] = useState('');
   const [memoryDraftElement, setMemoryDraftElement] = useState<MemoryItem['elementType']>('bougie');
@@ -3621,10 +3546,7 @@ export default function App() {
   ];
   // Catégories personnalisées ajoutées par le système, en plus de la liste ci-dessus — persistées à part
   // pour ne jamais entrer en conflit avec les catégories intégrées si la liste par défaut évolue plus tard.
-  const [walletCustomCategories, setWalletCustomCategories] = useState<{ id: string; emoji: string; label: string; labelEn: string }[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-wallet-custom-categories') || '[]'); } catch { return []; }
-  });
-  useEffect(() => { localStorage.setItem('hs-wallet-custom-categories', JSON.stringify(walletCustomCategories)); }, [walletCustomCategories]);
+  const [walletCustomCategories, setWalletCustomCategories] = useState<{ id: string; emoji: string; label: string; labelEn: string }[]>([]);
   const WALLET_ALL_CATEGORIES = [...WALLET_CATEGORIES, ...walletCustomCategories];
   const [walletNewCatOpen, setWalletNewCatOpen] = useState(false);
   const [walletNewCatLabel, setWalletNewCatLabel] = useState('');
@@ -3643,10 +3565,7 @@ export default function App() {
     setWalletCustomCategories(prev => prev.filter(c => c.id !== id));
     if (walletDraftCategory === id) setWalletDraftCategory('autre');
   };
-  const [walletEntries, setWalletEntries] = useState<WalletEntry[]>(() => {
-    try { return JSON.parse(localStorage.getItem('hs-wallet-entries') || '[]'); } catch { return []; }
-  });
-  useEffect(() => { localStorage.setItem('hs-wallet-entries', JSON.stringify(walletEntries)); }, [walletEntries]);
+  const [walletEntries, setWalletEntries] = useState<WalletEntry[]>([]);
   const [walletSubTab, setWalletSubTab] = useState<'apercu' | 'historique'>('apercu');
   const [walletFormOpen, setWalletFormOpen] = useState(false);
   const [editingWalletId, setEditingWalletId] = useState<string | null>(null);
