@@ -846,6 +846,17 @@ import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted, listVault
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
+
+  // Demande un stockage "persistant" au navigateur — ça n'empêche pas une suppression
+  // manuelle (via les réglages du navigateur), mais réduit fortement le risque que le
+  // navigateur vide IndexedDB/localStorage tout seul en cas de pression sur l'espace disque.
+  // Sans effet dans les navigateurs qui ne supportent pas l'API (l'appel est simplement ignoré).
+  useEffect(() => {
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persist().catch(() => { /* pas grave si refusé ou non supporté */ });
+    }
+  }, []);
+
   const [font, setFont] = useState<string>(() => localStorage.getItem('hs-font') || 'font-sans');
   const [fontScale, setFontScale] = useState<'small' | 'normal' | 'large' | 'xlarge'>(() => (localStorage.getItem('hs-font-scale') as any) || 'normal');
   useEffect(() => {
@@ -1303,6 +1314,28 @@ export default function App() {
     setVaultMetaState(meta);
   };
 
+  // Toutes les clés protégées par le coffre — fixes et à préfixe dynamique (une entrée par
+  // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
+  // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
+  // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'];
+  const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
+
+  const decryptVaultToPlain = async (currentDek: CryptoKey) => {
+    const flatten = async (key: string) => {
+      const value = await readMaybeEncrypted<unknown>(key, currentDek, undefined);
+      if (value !== undefined) {
+        await deleteVaultKey(key); // enlève la copie chiffrée (IndexedDB) et tout résidu localStorage
+        localStorage.setItem(key, JSON.stringify(value)); // ré-écrit en clair, pour rester accessible sans coffre
+      }
+    };
+    for (const key of FIXED_VAULT_KEYS) await flatten(key);
+    for (const prefix of DYNAMIC_VAULT_PREFIXES) {
+      const keys = await listVaultKeys(prefix);
+      for (const key of keys) await flatten(key);
+    }
+  };
+
   const disablePin = () => {
     localStorage.removeItem('hs-pin-enabled');
     localStorage.removeItem('hs-pin-hash');
@@ -1313,6 +1346,29 @@ export default function App() {
     setPinQuestion('');
     setPinAnswerHash('');
     setIsLocked(false);
+  };
+
+  // Désactivation VOLONTAIRE du code depuis les Paramètres (bouton "Désactiver le code") :
+  // contrairement au flux "PIN oublié" (qui préserve la clé pour la ré-envelopper avec le
+  // nouveau PIN), ici l'intention est d'abandonner la protection — donc on déchiffre tout et
+  // on supprime le coffre, pour que les données restent lisibles plutôt que de devenir
+  // illisibles pour toujours au prochain rechargement (plus aucun écran de PIN pour redonner
+  // la clé à l'app).
+  const [pinDisableConfirming, setPinDisableConfirming] = useState(false);
+  const [pinDisableInProgress, setPinDisableInProgress] = useState(false);
+  const handleConfirmDisablePin = async () => {
+    setPinDisableInProgress(true);
+    try {
+      if (vaultMeta && dek) {
+        await decryptVaultToPlain(dek);
+        localStorage.removeItem('hs-vault-meta');
+        setVaultMetaState(null);
+      }
+      disablePin();
+    } finally {
+      setPinDisableInProgress(false);
+      setPinDisableConfirming(false);
+    }
   };
 
   // Écran de verrouillage (saisie du code / question de secours)
@@ -7025,9 +7081,9 @@ export default function App() {
                           </button>
                         )}
 
-                        {pinEnabled && pinSetupStep === 'idle' && (
+                        {pinEnabled && pinSetupStep === 'idle' && !pinDisableConfirming && (
                           <button
-                            onClick={disablePin}
+                            onClick={() => setPinDisableConfirming(true)}
                             className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-red-500/30 transition-colors rounded-xl"
                           >
                             <span className="text-xs font-bold text-app-text">
@@ -7037,6 +7093,34 @@ export default function App() {
                               <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all left-[18px]" />
                             </div>
                           </button>
+                        )}
+
+                        {pinEnabled && pinSetupStep === 'idle' && pinDisableConfirming && (
+                          <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl space-y-2">
+                            <p className="text-[11px] text-app-text leading-relaxed">
+                              {lang === 'fr'
+                                ? "Ça va déchiffrer toutes tes données pour qu'elles restent accessibles sans code. Pense à avoir un export JSON récent au cas où."
+                                : "This will decrypt all your data so it stays accessible without a code. Make sure you have a recent JSON export just in case."}
+                            </p>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => setPinDisableConfirming(false)}
+                                disabled={pinDisableInProgress}
+                                className="flex-1 py-2 bg-app-bg border border-app-border/20 rounded-lg text-[10px] font-black uppercase tracking-widest text-app-text disabled:opacity-50"
+                              >
+                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                              </button>
+                              <button
+                                onClick={handleConfirmDisablePin}
+                                disabled={pinDisableInProgress}
+                                className="flex-1 py-2 bg-red-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
+                              >
+                                {pinDisableInProgress
+                                  ? (lang === 'fr' ? 'Déchiffrement…' : 'Decrypting…')
+                                  : (lang === 'fr' ? 'Confirmer' : 'Confirm')}
+                              </button>
+                            </div>
+                          </div>
                         )}
 
                         {pinEnabled && pinSetupStep === 'idle' && (
