@@ -1,4 +1,3 @@
-
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
@@ -7172,6 +7171,15 @@ export default function App() {
                             className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent hover:text-app-accent transition-colors text-xs font-bold text-app-text rounded-xl"
                           >
                             <span>MedGPT</span>
+                            <ExternalLink className="w-3.5 h-3.5 opacity-60" />
+                          </a>
+                          <a 
+                            href="https://powertotheplurals.com/" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent hover:text-app-accent transition-colors text-xs font-bold text-app-text rounded-xl"
+                          >
+                            <span>Power to the Plurals</span>
                             <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                           </a>
                         </div>
