@@ -1,3 +1,4 @@
+
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
@@ -842,7 +843,7 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
 
 // Stockage chiffré (coffre) : voir vaultStorage.ts — extrait pour être partagé avec
 // les pages annexes (Mapping, Planning, Innerworld) qui ont aussi besoin d'y accéder.
-import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted, listVaultKeys, deleteVaultKey } from './vaultStorage';
+import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted, listVaultKeys, deleteVaultKey, migrateKeyIfNeeded } from './vaultStorage';
 
 export default function App() {
   const [lang, setLang] = useState<'fr' | 'en'>('fr');
@@ -1650,9 +1651,16 @@ export default function App() {
   const [planningCounts, setPlanningCounts] = useState({ planning: 0, eisenhower: 0 });
   useEffect(() => {
     let cancelled = false;
-    Promise.all([loadPlanning(activeSystemId, dek), loadEisenhower(activeSystemId, dek)]).then(([p, e]) => {
+    (async () => {
+      if (dek) {
+        const planningKey = activeSystemId === 'main' ? 'heaven_space_planning' : `heaven_space_planning_${activeSystemId}`;
+        const eisenhowerKey = activeSystemId === 'main' ? 'heaven_space_eisenhower' : `heaven_space_eisenhower_${activeSystemId}`;
+        await migrateKeyIfNeeded(planningKey, dek);
+        await migrateKeyIfNeeded(eisenhowerKey, dek);
+      }
+      const [p, e] = await Promise.all([loadPlanning(activeSystemId, dek), loadEisenhower(activeSystemId, dek)]);
       if (!cancelled) setPlanningCounts({ planning: p.length, eisenhower: e.length });
-    });
+    })();
     return () => { cancelled = true; };
   }, [dek, currentTab, activeSystemId]);
 
