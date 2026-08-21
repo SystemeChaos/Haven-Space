@@ -145,7 +145,7 @@ import {
   ChevronRight,
   Wallet,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
+import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, CustomGender, CustomSexuality, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
@@ -1017,6 +1017,20 @@ export default function App() {
   const [customDisorderDraftColor, setCustomDisorderDraftColor] = useState('#8B5CF6');
   const [editingCustomDisorderId, setEditingCustomDisorderId] = useState<string | null>(null);
   const [customDisorderDeleteConfirmId, setCustomDisorderDeleteConfirmId] = useState<string | null>(null);
+  // Genres personnalisés attribués à l'alter en cours d'édition
+  const [selectedCustomGenderIds, setSelectedCustomGenderIds] = useState<string[]>([]);
+  const [customGenderDraftName, setCustomGenderDraftName] = useState('');
+  const [customGenderDraftDefinition, setCustomGenderDraftDefinition] = useState('');
+  const [customGenderDraftColor, setCustomGenderDraftColor] = useState('#8B5CF6');
+  const [editingCustomGenderId, setEditingCustomGenderId] = useState<string | null>(null);
+  const [customGenderDeleteConfirmId, setCustomGenderDeleteConfirmId] = useState<string | null>(null);
+  // Sexualités personnalisées attribuées à l'alter en cours d'édition
+  const [selectedCustomSexualityIds, setSelectedCustomSexualityIds] = useState<string[]>([]);
+  const [customSexualityDraftName, setCustomSexualityDraftName] = useState('');
+  const [customSexualityDraftDefinition, setCustomSexualityDraftDefinition] = useState('');
+  const [customSexualityDraftColor, setCustomSexualityDraftColor] = useState('#8B5CF6');
+  const [editingCustomSexualityId, setEditingCustomSexualityId] = useState<string | null>(null);
+  const [customSexualityDeleteConfirmId, setCustomSexualityDeleteConfirmId] = useState<string | null>(null);
   const [mainSystemName, setMainSystemName] = useState<string>('');
 
   // Custom dialogue boxes to bypass sandboxed iframe restrictions
@@ -1318,7 +1332,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -1535,6 +1549,12 @@ export default function App() {
   // --- Troubles personnalisés (définis par l'utilisateur, en plus des troubles fixes) ---
   const [customDisorders, setCustomDisorders] = useState<CustomDisorder[]>([]);
 
+  // --- Genres personnalisés (définis par l'utilisateur, en plus des genres fixes) ---
+  const [customGenders, setCustomGenders] = useState<CustomGender[]>([]);
+
+  // --- Sexualités personnalisées (définies par l'utilisateur, en plus des sexualités fixes) ---
+  const [customSexualities, setCustomSexualities] = useState<CustomSexuality[]>([]);
+
   // --- Systèmes parallèles ---
   const [parallelSystems, setParallelSystems] = useState<ParallelSystem[]>([]);
   const [activeSystemId, setActiveSystemId] = useState<string>(() =>
@@ -1622,15 +1642,17 @@ export default function App() {
   // Chargement (et migration douce) du deuxième lot de données sensibles via le coffre chiffré —
   // même logique que Santé/Journal/Système, regroupée ici pour éviter 15 effets quasi-identiques.
   const [batch2Loaded, setBatch2Loaded] = useState(false);
-  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'] as const;
+  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'] as const;
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [subs, roles, traits, disorders, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel, sysName, token, lastSeen] = await Promise.all([
+      const [subs, roles, traits, disorders, genders, sexualities, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel, sysName, token, lastSeen] = await Promise.all([
         readMaybeEncrypted<Subsystem[]>('subsystems', dek, []),
         readMaybeEncrypted<CustomRole[]>('customRoles', dek, []),
         readMaybeEncrypted<CustomTrait[]>('customTraits', dek, []),
         readMaybeEncrypted<CustomDisorder[]>('customDisorders', dek, []),
+        readMaybeEncrypted<CustomGender[]>('customGenders', dek, []),
+        readMaybeEncrypted<CustomSexuality[]>('customSexualities', dek, []),
         readMaybeEncrypted<ParallelSystem[]>('parallelSystems', dek, []),
         readMaybeEncrypted<ChatMessage[]>('chatMessages', dek, []),
         readMaybeEncrypted<typeof chatSalons>('chatSalons', dek, [DEFAULT_SALON]),
@@ -1648,13 +1670,14 @@ export default function App() {
       ]);
       if (cancelled) return;
       setSubsystems(subs); setCustomRoles(roles); setCustomTraits(traits); setCustomDisorders(disorders);
+      setCustomGenders(genders); setCustomSexualities(sexualities);
       setParallelSystems(parallel); setChatMessages(chat); setChatSalons(salons); setConversations(convs);
       setDirectMessages(dms); setMemories(mems); setWalletCustomCategories(walletCats); setWalletEntries(walletEnt);
       setSwitchLogs(switches); setTrustedContacts(contacts); setWheelHistory(wheel);
       setMainSystemName(sysName); setPkToken(token); setLastSeenMsgIdByConv(lastSeen);
       setBatch2Loaded(true);
       if (dek) {
-        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel, mainSystemName: sysName, pk_token: token, 'hs-dm-last-seen': lastSeen };
+        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, customGenders: genders, customSexualities: sexualities, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel, mainSystemName: sysName, pk_token: token, 'hs-dm-last-seen': lastSeen };
         for (const key of BATCH2_KEYS) {
           const raw = localStorage.getItem(key);
           if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted(key, values[key], dek, true);
@@ -1668,6 +1691,8 @@ export default function App() {
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customRoles', customRoles, dek, !!vaultMeta); }, [customRoles]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customTraits', customTraits, dek, !!vaultMeta); }, [customTraits]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customDisorders', customDisorders, dek, !!vaultMeta); }, [customDisorders]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customGenders', customGenders, dek, !!vaultMeta); }, [customGenders]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customSexualities', customSexualities, dek, !!vaultMeta); }, [customSexualities]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('parallelSystems', parallelSystems, dek, !!vaultMeta); }, [parallelSystems]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatMessages', chatMessages, dek, !!vaultMeta); }, [chatMessages]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatSalons', chatSalons, dek, !!vaultMeta); }, [chatSalons]);
@@ -2117,6 +2142,8 @@ export default function App() {
         customRoles,
         customTraits,
         customDisorders,
+        customGenders,
+        customSexualities,
         chatMessages,
         conversations,
         directMessages,
@@ -2280,6 +2307,12 @@ export default function App() {
 
       const importedCustomDisorders = Array.isArray(data.customDisorders) ? data.customDisorders : [];
       setCustomDisorders(importedCustomDisorders);
+
+      const importedCustomGenders = Array.isArray(data.customGenders) ? data.customGenders : [];
+      setCustomGenders(importedCustomGenders);
+
+      const importedCustomSexualities = Array.isArray(data.customSexualities) ? data.customSexualities : [];
+      setCustomSexualities(importedCustomSexualities);
 
       const importedConversations = Array.isArray(data.conversations) ? data.conversations : [];
       setConversations(importedConversations);
@@ -2451,6 +2484,24 @@ export default function App() {
         else currentCustomDisorders.push(incoming);
       });
       setCustomDisorders(currentCustomDisorders);
+
+      const currentCustomGenders = [...customGenders];
+      const incomingCustomGenders = Array.isArray(data.customGenders) ? data.customGenders : [];
+      incomingCustomGenders.forEach((incoming: CustomGender) => {
+        const existingIndex = currentCustomGenders.findIndex(g => g.id === incoming.id || g.name.toLowerCase() === incoming.name?.toLowerCase());
+        if (existingIndex > -1) currentCustomGenders[existingIndex] = { ...currentCustomGenders[existingIndex], ...incoming };
+        else currentCustomGenders.push(incoming);
+      });
+      setCustomGenders(currentCustomGenders);
+
+      const currentCustomSexualities = [...customSexualities];
+      const incomingCustomSexualities = Array.isArray(data.customSexualities) ? data.customSexualities : [];
+      incomingCustomSexualities.forEach((incoming: CustomSexuality) => {
+        const existingIndex = currentCustomSexualities.findIndex(s => s.id === incoming.id || s.name.toLowerCase() === incoming.name?.toLowerCase());
+        if (existingIndex > -1) currentCustomSexualities[existingIndex] = { ...currentCustomSexualities[existingIndex], ...incoming };
+        else currentCustomSexualities.push(incoming);
+      });
+      setCustomSexualities(currentCustomSexualities);
 
       // 8. Messagerie : fusion des conversations et des messages, uniques par id
       const currentConversations = [...conversations];
@@ -2863,7 +2914,15 @@ export default function App() {
     });
     
     content += `\nGender: ${selectedGenders.map(g => `${t.genders[g as keyof typeof t.genders]} (${t.genderData[g as keyof typeof t.genderData] || ''})`).join(', ')}\n`;
+    selectedCustomGenderIds.forEach(genderId => {
+      const gender = customGenders.find(g => g.id === genderId);
+      if (gender) content += `- ${gender.name}${gender.definition ? `: ${gender.definition}` : ''}\n`;
+    });
     content += `Sexuality: ${selectedSexualities.map(s => `${t.sexualityNames[s as keyof typeof t.sexualityNames]} (${t.sexualityData[s as keyof typeof t.sexualityData] || ''})`).join(', ')}\n`;
+    selectedCustomSexualityIds.forEach(sexualityId => {
+      const sexuality = customSexualities.find(s => s.id === sexualityId);
+      if (sexuality) content += `- ${sexuality.name}${sexuality.definition ? `: ${sexuality.definition}` : ''}\n`;
+    });
     
     if (traitDecorations.length > 0 || selectedCustomTraitIds.length > 0 || selectedCustomDisorderIds.length > 0) {
       content += `\nTraits & Conditions:\n`;
@@ -4661,6 +4720,8 @@ export default function App() {
       customRoleIds: selectedCustomRoleIds.length > 0 ? selectedCustomRoleIds : undefined,
       customTraitIds: selectedCustomTraitIds.length > 0 ? selectedCustomTraitIds : undefined,
       customDisorderIds: selectedCustomDisorderIds.length > 0 ? selectedCustomDisorderIds : undefined,
+      customGenderIds: selectedCustomGenderIds.length > 0 ? selectedCustomGenderIds : undefined,
+      customSexualityIds: selectedCustomSexualityIds.length > 0 ? selectedCustomSexualityIds : undefined,
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
     };
@@ -4707,6 +4768,8 @@ export default function App() {
     setSelectedCustomRoleIds(alter.customRoleIds || []);
     setSelectedCustomTraitIds(alter.customTraitIds || []);
     setSelectedCustomDisorderIds(alter.customDisorderIds || []);
+    setSelectedCustomGenderIds(alter.customGenderIds || []);
+    setSelectedCustomSexualityIds(alter.customSexualityIds || []);
     setFrontStatus(alter.frontStatus || 'none');
     setEditingAlterId(alter.id);
     setCreatorReturnTab(currentTab !== 'creator' ? currentTab : creatorReturnTab);
@@ -4754,6 +4817,8 @@ export default function App() {
     setSelectedCustomRoleIds([]);
     setSelectedCustomTraitIds([]);
     setSelectedCustomDisorderIds([]);
+    setSelectedCustomGenderIds([]);
+    setSelectedCustomSexualityIds([]);
     resetCustomRoleDraft();
     setFrontStatus('none');
     setEditingAlterId(null);
@@ -5827,6 +5892,114 @@ export default function App() {
       : a));
     if (editingCustomDisorderId === disorderId) resetCustomDisorderDraft();
     setCustomDisorderDeleteConfirmId(null);
+  };
+
+  // Attribue / retire un genre personnalisé sur l'alter en cours d'édition
+  const toggleCustomGenderSelection = (genderId: string) => {
+    setSelectedCustomGenderIds(prev =>
+      prev.includes(genderId) ? prev.filter(id => id !== genderId) : [...prev, genderId]
+    );
+    setTimeout(saveToHistory, 0);
+  };
+
+  const resetCustomGenderDraft = () => {
+    setEditingCustomGenderId(null);
+    setCustomGenderDraftName('');
+    setCustomGenderDraftDefinition('');
+    setCustomGenderDraftColor('#8B5CF6');
+  };
+
+  // Crée un nouveau genre personnalisé, ou enregistre les modifications si on est en mode édition
+  const saveCustomGenderDraft = () => {
+    const name = customGenderDraftName.trim();
+    if (!name) return;
+    if (editingCustomGenderId) {
+      setCustomGenders(prev => prev.map(g => g.id === editingCustomGenderId
+        ? { ...g, name, definition: customGenderDraftDefinition.trim(), color: customGenderDraftColor }
+        : g));
+    } else {
+      const newGender: CustomGender = {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        definition: customGenderDraftDefinition.trim(),
+        color: customGenderDraftColor,
+      };
+      setCustomGenders(prev => [...prev, newGender]);
+      setSelectedCustomGenderIds(prev => [...prev, newGender.id]);
+    }
+    resetCustomGenderDraft();
+  };
+
+  const startEditCustomGender = (gender: CustomGender) => {
+    setEditingCustomGenderId(gender.id);
+    setCustomGenderDraftName(gender.name);
+    setCustomGenderDraftDefinition(gender.definition);
+    setCustomGenderDraftColor(gender.color || '#8B5CF6');
+  };
+
+  // Supprime un genre personnalisé de la liste globale et le détache de tous les alters qui l'utilisaient
+  const deleteCustomGenderDefinition = (genderId: string) => {
+    setCustomGenders(prev => prev.filter(g => g.id !== genderId));
+    setSelectedCustomGenderIds(prev => prev.filter(id => id !== genderId));
+    setSavedAlters(prev => prev.map(a => a.customGenderIds?.includes(genderId)
+      ? { ...a, customGenderIds: a.customGenderIds.filter(id => id !== genderId) }
+      : a));
+    if (editingCustomGenderId === genderId) resetCustomGenderDraft();
+    setCustomGenderDeleteConfirmId(null);
+  };
+
+  // Attribue / retire une sexualité personnalisée sur l'alter en cours d'édition
+  const toggleCustomSexualitySelection = (sexualityId: string) => {
+    setSelectedCustomSexualityIds(prev =>
+      prev.includes(sexualityId) ? prev.filter(id => id !== sexualityId) : [...prev, sexualityId]
+    );
+    setTimeout(saveToHistory, 0);
+  };
+
+  const resetCustomSexualityDraft = () => {
+    setEditingCustomSexualityId(null);
+    setCustomSexualityDraftName('');
+    setCustomSexualityDraftDefinition('');
+    setCustomSexualityDraftColor('#8B5CF6');
+  };
+
+  // Crée une nouvelle sexualité personnalisée, ou enregistre les modifications si on est en mode édition
+  const saveCustomSexualityDraft = () => {
+    const name = customSexualityDraftName.trim();
+    if (!name) return;
+    if (editingCustomSexualityId) {
+      setCustomSexualities(prev => prev.map(s => s.id === editingCustomSexualityId
+        ? { ...s, name, definition: customSexualityDraftDefinition.trim(), color: customSexualityDraftColor }
+        : s));
+    } else {
+      const newSexuality: CustomSexuality = {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        definition: customSexualityDraftDefinition.trim(),
+        color: customSexualityDraftColor,
+      };
+      setCustomSexualities(prev => [...prev, newSexuality]);
+      setSelectedCustomSexualityIds(prev => [...prev, newSexuality.id]);
+    }
+    resetCustomSexualityDraft();
+  };
+
+  const startEditCustomSexuality = (sexuality: CustomSexuality) => {
+    setEditingCustomSexualityId(sexuality.id);
+    setCustomSexualityDraftName(sexuality.name);
+    setCustomSexualityDraftDefinition(sexuality.definition);
+    setCustomSexualityDraftColor(sexuality.color || '#8B5CF6');
+  };
+
+  // Supprime une sexualité personnalisée de la liste globale et la détache de tous les alters qui l'utilisaient
+  const deleteCustomSexualityDefinition = (sexualityId: string) => {
+    setCustomSexualities(prev => prev.filter(s => s.id !== sexualityId));
+    setSelectedCustomSexualityIds(prev => prev.filter(id => id !== sexualityId));
+    setSavedAlters(prev => prev.map(a => a.customSexualityIds?.includes(sexualityId)
+      ? { ...a, customSexualityIds: a.customSexualityIds.filter(id => id !== sexualityId) }
+      : a));
+    if (editingCustomSexualityId === sexualityId) resetCustomSexualityDraft();
+    setCustomSexualityDeleteConfirmId(null);
   };
 
   const toggleTrait = (trait: Trait) => {
@@ -7934,6 +8107,127 @@ export default function App() {
                     </div>
                   )}
 
+                  {/* Genres personnalisés */}
+                  <div className="pt-4 border-t border-app-border/25 space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                      {lang === 'fr' ? 'Genres personnalisés' : 'Custom genders'}
+                    </div>
+
+                    {customGenders.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {[...customGenders].sort((a, b) => a.name.localeCompare(b.name, lang)).map((gender) => {
+                          const isSelected = selectedCustomGenderIds.includes(gender.id);
+                          return (
+                            <div
+                              key={gender.id}
+                              className={`relative group flex items-center gap-2 pl-3 pr-1.5 py-2 rounded-xl border text-sm transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                              onClick={() => toggleCustomGenderSelection(gender.id)}
+                              title={gender.definition || undefined}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: gender.color || '#8B5CF6' }}
+                              />
+                              <span className="font-medium truncate">{gender.name}</span>
+                              <span className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); startEditCustomGender(gender); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-app-accent/10 text-app-muted hover:text-app-text'}`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCustomGenderDeleteConfirmId(gender.id); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-red-500/10 text-app-muted hover:text-red-500'}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {customGenderDeleteConfirmId && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                        <span className="text-xs text-app-text">
+                          {lang === 'fr'
+                            ? `Supprimer « ${customGenders.find(g => g.id === customGenderDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
+                            : `Delete "${customGenders.find(g => g.id === customGenderDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomGenderDefinition(customGenderDeleteConfirmId)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomGenderDeleteConfirmId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 p-3 rounded-xl border border-dashed border-app-border">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={customGenderDraftColor}
+                          onChange={(e) => setCustomGenderDraftColor(e.target.value)}
+                          className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={customGenderDraftName}
+                          onChange={(e) => setCustomGenderDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom du genre...' : 'Gender name...'}
+                          className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
+                        />
+                      </div>
+                      <textarea
+                        value={customGenderDraftDefinition}
+                        onChange={(e) => setCustomGenderDraftDefinition(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Définition de ce genre...' : 'Definition of this gender...'}
+                        rows={2}
+                        className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={saveCustomGenderDraft}
+                          disabled={!customGenderDraftName.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                        >
+                          {editingCustomGenderId
+                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
+                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un genre' : 'Add a gender'}</>}
+                        </button>
+                        {editingCustomGenderId && (
+                          <button
+                            type="button"
+                            onClick={resetCustomGenderDraft}
+                            className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                 </motion.div>
               )}
             </AnimatePresence>
@@ -8019,6 +8313,127 @@ export default function App() {
                       </div>
                     </div>
                   )}
+
+                  {/* Sexualités personnalisées */}
+                  <div className="pt-4 border-t border-app-border/25 space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                      {lang === 'fr' ? 'Sexualités personnalisées' : 'Custom sexualities'}
+                    </div>
+
+                    {customSexualities.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {[...customSexualities].sort((a, b) => a.name.localeCompare(b.name, lang)).map((sexuality) => {
+                          const isSelected = selectedCustomSexualityIds.includes(sexuality.id);
+                          return (
+                            <div
+                              key={sexuality.id}
+                              className={`relative group flex items-center gap-2 pl-3 pr-1.5 py-2 rounded-xl border text-sm transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                              onClick={() => toggleCustomSexualitySelection(sexuality.id)}
+                              title={sexuality.definition || undefined}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: sexuality.color || '#8B5CF6' }}
+                              />
+                              <span className="font-medium truncate">{sexuality.name}</span>
+                              <span className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); startEditCustomSexuality(sexuality); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-app-accent/10 text-app-muted hover:text-app-text'}`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCustomSexualityDeleteConfirmId(sexuality.id); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-red-500/10 text-app-muted hover:text-red-500'}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {customSexualityDeleteConfirmId && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                        <span className="text-xs text-app-text">
+                          {lang === 'fr'
+                            ? `Supprimer « ${customSexualities.find(s => s.id === customSexualityDeleteConfirmId)?.name || ''} » ? Elle sera retirée de tous les alters concernés.`
+                            : `Delete "${customSexualities.find(s => s.id === customSexualityDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomSexualityDefinition(customSexualityDeleteConfirmId)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomSexualityDeleteConfirmId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 p-3 rounded-xl border border-dashed border-app-border">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={customSexualityDraftColor}
+                          onChange={(e) => setCustomSexualityDraftColor(e.target.value)}
+                          className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={customSexualityDraftName}
+                          onChange={(e) => setCustomSexualityDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom de la sexualité...' : 'Sexuality name...'}
+                          className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
+                        />
+                      </div>
+                      <textarea
+                        value={customSexualityDraftDefinition}
+                        onChange={(e) => setCustomSexualityDraftDefinition(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Définition de cette sexualité...' : 'Definition of this sexuality...'}
+                        rows={2}
+                        className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={saveCustomSexualityDraft}
+                          disabled={!customSexualityDraftName.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                        >
+                          {editingCustomSexualityId
+                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
+                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter une sexualité' : 'Add a sexuality'}</>}
+                        </button>
+                        {editingCustomSexualityId && (
+                          <button
+                            type="button"
+                            onClick={resetCustomSexualityDraft}
+                            className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
 
                 </motion.div>
               )}
@@ -8445,10 +8860,10 @@ export default function App() {
                       )}
 
                       {/* Identity Row - Gender & Sexuality Row stacked vertically or wrapped inside the left-hand section */}
-                      {(selectedGenders.length > 0 || selectedSexualities.length > 0) && (
+                      {(selectedGenders.length > 0 || selectedSexualities.length > 0 || selectedCustomGenderIds.length > 0 || selectedCustomSexualityIds.length > 0) && (
                         <div className="flex flex-col gap-2 pt-0.5">
                           {/* Genders Row */}
-                          {selectedGenders.length > 0 && (
+                          {(selectedGenders.length > 0 || selectedCustomGenderIds.length > 0) && (
                             <div className="flex flex-col gap-1">
                               <span className="text-[8px] font-black uppercase tracking-widest opacity-50 px-0.5">
                                 {lang === 'fr' ? 'Genres' : 'Genders'}
@@ -8468,12 +8883,28 @@ export default function App() {
                                     {t.genders[g as keyof typeof t.genders]}
                                   </div>
                                 ))}
+                                {selectedCustomGenderIds.map(id => {
+                                  const g = customGenders.find(cg => cg.id === id);
+                                  if (!g) return null;
+                                  const color = g.color || '#8B5CF6';
+                                  return (
+                                    <div
+                                      key={id}
+                                      style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
+                                      className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
+                                      title={g.definition || undefined}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                      {g.name}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
 
                           {/* Sexualities Row */}
-                          {selectedSexualities.length > 0 && (
+                          {(selectedSexualities.length > 0 || selectedCustomSexualityIds.length > 0) && (
                             <div className="flex flex-col gap-1">
                               <span className="text-[8px] font-black uppercase tracking-widest opacity-50 px-0.5">
                                 {lang === 'fr' ? 'Orientations sexuelles' : 'Sexual Orientations'}
@@ -8493,6 +8924,22 @@ export default function App() {
                                     {t.sexualityNames[s as keyof typeof t.sexualityNames]}
                                   </div>
                                 ))}
+                                {selectedCustomSexualityIds.map(id => {
+                                  const s = customSexualities.find(cs => cs.id === id);
+                                  if (!s) return null;
+                                  const color = s.color || '#8B5CF6';
+                                  return (
+                                    <div
+                                      key={id}
+                                      style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
+                                      className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
+                                      title={s.definition || undefined}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                      {s.name}
+                                    </div>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
