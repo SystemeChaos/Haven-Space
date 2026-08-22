@@ -3025,20 +3025,43 @@ export default function App() {
   const fidgetDrawingRef = useRef<boolean>(false);
 
   // --- Coloriage mandala (vrais mandalas illustrés, remplissage par flood-fill) ---
-  type MandalaCategory = 'fleur' | 'etoile' | 'cercle';
-  const MANDALA_FOLDER: Record<MandalaCategory, string> = { fleur: 'fleurs', etoile: 'etoiles', cercle: 'cercles' };
-  const MANDALA_COUNT: Record<MandalaCategory, number> = { fleur: 11, etoile: 6, cercle: 12 };
+  type MandalaCategory = 'fleur' | 'cercle';
+  const MANDALA_FILES: Record<MandalaCategory, string[]> = {
+    fleur: [
+      'clker-free-vector-images-flower-32781_1280.png', 'clker-free-vector-images-flower-37672_1280.png',
+      'danielefalamesca-mandala-7263703_1280.png', 'gdj-mandala-5398185_1280.png', 'gdj-rose-8815293_1280.png',
+      'jozefm84-drawing-7250858_1280.png', 'jozefm84-flower-7674675_1280.png', 'openclipart-vectors-biology-161667_1280.png',
+      'openclipart-vectors-flower-1298067_1280.png', 'openclipart-vectors-flower-1298076_1280.png',
+      'openclipart-vectors-flower-1298222_1280.png', 'openclipart-vectors-flower-1298240_1280.png',
+      'openclipart-vectors-flower-1298278_1280.png',
+    ],
+    cercle: [
+      'gdj-art-7120127_1280.png', 'gdj-floral-2746540_1280.png', 'gdj-mandala-5358331_1280.png',
+      'gdj-mandala-7099793_1280.png', 'gdj-mandala-7542041_1280.png', 'thedigitalartist-mandala-7033980_1280.png',
+      'thedigitalartist-mandala-8912659_1280.png', 'thedigitalartist-mandala-8912662_1280.png',
+      'thedigitalartist-mandala-8912663_1280.png', 'thedigitalartist-mandala-8912664_1280.png',
+      'thedigitalartist-pattern-7016847_1280.png', 'tinhhiep-floral-pattern-6925916_1280.png',
+      'tinhhiep-mandala-6864143_1280.png',
+    ],
+  };
   const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('fleur');
   const [mandalaDesignIndex, setMandalaDesignIndex] = useState<number>(0);
   const [mandalaSelectedColor, setMandalaSelectedColor] = useState<string>('#F3D9DF');
   const mandalaCanvasRef = useRef<HTMLCanvasElement>(null);
+  const mandalaViewportRef = useRef<HTMLDivElement>(null);
+  const mandalaPointersRef = useRef(new globalThis.Map<number, { x: number; y: number }>());
+  const mandalaPinchRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const mandalaPanRef = useRef<{ startX: number; startY: number; originX: number; originY: number; moved: boolean } | null>(null);
+  const mandalaMovedRef = useRef(false);
+  const [mandalaZoom, setMandalaZoom] = useState(1);
+  const [mandalaPan, setMandalaPan] = useState({ x: 0, y: 0 });
   // Cache par mandala (catégorie + design) de l'état colorié en cours, pour ne pas perdre le travail en changeant de design.
   // Objet simple plutôt que Map() : lucide-react exporte aussi une icône nommée "Map"
   // qui masque le constructeur natif Map dans ce fichier — new Map() y plante.
   const mandalaCacheRef = useRef<Record<string, string>>({});
   const mandalaKey = `${mandalaCategory}_${mandalaDesignIndex}`;
   const getMandalaSrc = (category: MandalaCategory, index: number) =>
-    `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/${MANDALA_FOLDER[category]}/${index + 1}.png`;
+    `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/${category === 'fleur' ? 'fleurs' : 'cercles'}/${MANDALA_FILES[category][index]}`;
 
   // Charge (ou recharge depuis le cache) le mandala sélectionné dans le canvas.
   useEffect(() => {
@@ -3051,7 +3074,12 @@ export default function App() {
     const img = new Image();
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      ctx.drawImage(img, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
     };
     img.src = cached || getMandalaSrc(mandalaCategory, mandalaDesignIndex);
   }, [currentTab, activeRelaxTool, fidgetSubTool, mandalaCategory, mandalaDesignIndex]);
@@ -3119,9 +3147,54 @@ export default function App() {
     const img = new Image();
     img.onload = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
+      const width = img.width * scale;
+      const height = img.height * scale;
+      ctx.drawImage(img, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
     };
     img.src = getMandalaSrc(mandalaCategory, mandalaDesignIndex);
+  };
+
+  const resetMandalaView = () => { setMandalaZoom(1); setMandalaPan({ x: 0, y: 0 }); };
+  const handleMandalaPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    mandalaPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (mandalaPointersRef.current.size === 2) {
+      const points = Array.from(mandalaPointersRef.current.values());
+      mandalaPinchRef.current = { distance: Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y), zoom: mandalaZoom };
+      mandalaPanRef.current = null;
+    } else {
+      mandalaPanRef.current = { startX: e.clientX, startY: e.clientY, originX: mandalaPan.x, originY: mandalaPan.y, moved: false };
+      mandalaMovedRef.current = false;
+    }
+  };
+  const handleMandalaPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!mandalaPointersRef.current.has(e.pointerId)) return;
+    mandalaPointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (mandalaPointersRef.current.size === 2 && mandalaPinchRef.current) {
+      e.preventDefault();
+      const points = Array.from(mandalaPointersRef.current.values());
+      const distance = Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y);
+      setMandalaZoom(Math.min(3, Math.max(1, mandalaPinchRef.current.zoom * distance / (mandalaPinchRef.current.distance || 1))));
+      return;
+    }
+    const pan = mandalaPanRef.current;
+    if (pan) {
+      const dx = e.clientX - pan.startX;
+      const dy = e.clientY - pan.startY;
+      if (Math.abs(dx) > 4 || Math.abs(dy) > 4) pan.moved = true;
+      if (pan.moved) {
+        mandalaMovedRef.current = true;
+        setMandalaPan({ x: pan.originX + dx, y: pan.originY + dy });
+      }
+    }
+  };
+  const handleMandalaPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    mandalaPointersRef.current.delete(e.pointerId);
+    if (mandalaPointersRef.current.size < 2) mandalaPinchRef.current = null;
+    mandalaPanRef.current = null;
   };
 
   const SAND_COLORS: Record<string, string> = { sand: '#C9A26D', snow: '#BFE3FF', waves: '#3B82F6' };
@@ -13601,7 +13674,6 @@ export default function App() {
                           <div className="flex gap-2 w-full">
                             {([
                               { id: 'fleur', label: lang === 'fr' ? 'Fleurs' : 'Flowers' },
-                              { id: 'etoile', label: lang === 'fr' ? 'Étoiles' : 'Stars' },
                               { id: 'cercle', label: lang === 'fr' ? 'Cercles' : 'Circles' },
                             ] as { id: MandalaCategory; label: string }[]).map(cat => (
                               <button
@@ -13616,7 +13688,7 @@ export default function App() {
 
                           {/* Sélecteur du mandala à colorier, dans la catégorie choisie */}
                           <div className="flex gap-2 w-full overflow-x-auto pb-1 scrollbar-thin">
-                            {Array.from({ length: MANDALA_COUNT[mandalaCategory] }, (_, i) => i).map(i => (
+                            {MANDALA_FILES[mandalaCategory].map((file, i) => (
                               <button
                                 key={i}
                                 onClick={() => setMandalaDesignIndex(i)}
@@ -13645,13 +13717,46 @@ export default function App() {
                             </span>
                           </div>
 
-                          <canvas
-                            ref={mandalaCanvasRef}
-                            width={512}
-                            height={512}
-                            onClick={(e) => floodFillMandala(e.clientX, e.clientY)}
-                            className="w-64 h-64 rounded-xl border border-app-border/50 bg-white cursor-pointer touch-none"
-                          />
+                          <div className="flex items-center gap-2 w-full">
+                            <button
+                              onClick={() => setMandalaZoom(z => Math.min(3, z + 0.25))}
+                              className="w-9 h-9 shrink-0 rounded-lg border border-app-border text-app-text text-lg font-bold"
+                              aria-label={lang === 'fr' ? 'Zoom avant' : 'Zoom in'}
+                            >+</button>
+                            <span className="flex-1 text-center text-[10px] font-mono text-app-muted">{Math.round(mandalaZoom * 100)}%</span>
+                            <button
+                              onClick={() => setMandalaZoom(z => Math.max(1, z - 0.25))}
+                              className="w-9 h-9 shrink-0 rounded-lg border border-app-border text-app-text text-lg font-bold"
+                              aria-label={lang === 'fr' ? 'Zoom arrière' : 'Zoom out'}
+                            >-</button>
+                            <button
+                              onClick={resetMandalaView}
+                              className="px-3 h-9 shrink-0 rounded-lg border border-app-border text-[9px] font-black uppercase tracking-wider text-app-muted"
+                            >
+                              {lang === 'fr' ? 'Réinitialiser' : 'Reset'}
+                            </button>
+                          </div>
+
+                          <div
+                            ref={mandalaViewportRef}
+                            className="w-full h-72 sm:h-96 rounded-xl border border-app-border/50 bg-white overflow-hidden touch-none"
+                            onPointerDown={handleMandalaPointerDown}
+                            onPointerMove={handleMandalaPointerMove}
+                            onPointerUp={handleMandalaPointerUp}
+                            onPointerCancel={handleMandalaPointerUp}
+                            onWheel={e => setMandalaZoom(z => Math.min(3, Math.max(1, z + (e.deltaY < 0 ? 0.15 : -0.15))))}
+                          >
+                            <div className="w-full h-full flex items-center justify-center">
+                              <canvas
+                                ref={mandalaCanvasRef}
+                                width={512}
+                                height={512}
+                                onClick={e => { if (!mandalaMovedRef.current) floodFillMandala(e.clientX, e.clientY); }}
+                                style={{ transform: `translate(${mandalaPan.x}px, ${mandalaPan.y}px) scale(${mandalaZoom})`, transformOrigin: 'center center' }}
+                                className="w-64 h-64 rounded-xl bg-white cursor-pointer"
+                              />
+                            </div>
+                          </div>
 
                           <button
                             onClick={clearCurrentMandala}
