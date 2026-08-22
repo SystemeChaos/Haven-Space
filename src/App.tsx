@@ -13744,6 +13744,7 @@ export default function App() {
                             onPointerMove={handleMandalaPointerMove}
                             onPointerUp={handleMandalaPointerUp}
                             onPointerCancel={handleMandalaPointerUp}
+                            onClick={e => { if (!mandalaMovedRef.current) floodFillMandala(e.clientX, e.clientY); }}
                             onWheel={e => setMandalaZoom(z => Math.min(3, Math.max(1, z + (e.deltaY < 0 ? 0.15 : -0.15))))}
                           >
                             <div className="w-full h-full flex items-center justify-center">
@@ -13751,7 +13752,6 @@ export default function App() {
                                 ref={mandalaCanvasRef}
                                 width={512}
                                 height={512}
-                                onClick={e => { if (!mandalaMovedRef.current) floodFillMandala(e.clientX, e.clientY); }}
                                 style={{ transform: `translate(${mandalaPan.x}px, ${mandalaPan.y}px) scale(${mandalaZoom})`, transformOrigin: 'center center' }}
                                 className="w-64 h-64 rounded-xl bg-white cursor-pointer"
                               />
