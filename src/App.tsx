@@ -3038,7 +3038,7 @@ export default function App() {
   const mandalaCacheRef = useRef<Record<string, string>>({});
   const mandalaKey = `${mandalaCategory}_${mandalaDesignIndex}`;
   const getMandalaSrc = (category: MandalaCategory, index: number) =>
-    `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/${MANDALA_FOLDER[category]}/${index + 1}.png`;
+    `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/${MANDALA_FOLDER[category]}/${index + 1}.png`;
 
   // Charge (ou recharge depuis le cache) le mandala sélectionné dans le canvas.
   useEffect(() => {
