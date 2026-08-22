@@ -30,6 +30,13 @@ export default defineConfig(({mode}) => {
           ],
         },
         workbox: {
+          // Force le nouveau Service Worker à prendre le contrôle immédiatement après un déploiement,
+          // et supprime les anciens caches — sans ça, une session déjà ouverte (ou la PWA installée)
+          // peut rester bloquée sur une ancienne version dont les fichiers ont disparu du serveur,
+          // ce qui donne un écran blanc.
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
             {
