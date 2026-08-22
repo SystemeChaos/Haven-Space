@@ -3021,47 +3021,107 @@ export default function App() {
   const [fidgetSubTool, setFidgetSubTool] = useState<'sand' | 'bubbles' | 'coloring'>('sand');
   const [sandColorMode, setSandColorMode] = useState<'sand' | 'snow' | 'waves'>('sand');
   const [poppedBubbles, setPoppedBubbles] = useState<Set<number>>(new Set());
-  const [mandalaColors, setMandalaColors] = useState<Record<string, string>>({});
-  const [mandalaTemplate, setMandalaTemplate] = useState<'flower' | 'star' | 'rings'>('flower');
   const fidgetCanvasRef = useRef<HTMLCanvasElement>(null);
   const fidgetDrawingRef = useRef<boolean>(false);
-  const MANDALA_PALETTE = ['#F3D9DF', '#D9E7F3', '#DDF3D9', '#F3ECD9', '#E6D9F3', '#F3D9EE', '#D9F3EF', '#F3E0D9', '#EAD9F3', '#F3D9D9', '#D9F3E0', '#E0E0F3'];
-  // Trois modèles de mandala, chacun avec sa propre disposition et ses propres formes.
-  const getMandalaPoints = (template: 'flower' | 'star' | 'rings'): { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] => {
-    if (template === 'star') {
-      const pts: { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] = [
-        { key: 'center', x: 128, y: 128, size: 44, shape: 'diamond' },
-      ];
-      for (let i = 0; i < 8; i++) {
-        const angle = (i * 45 - 90) * (Math.PI / 180);
-        pts.push({ key: `p${i}`, x: 128 + 95 * Math.cos(angle), y: 128 + 95 * Math.sin(angle), size: 38, shape: 'diamond' });
-      }
-      return pts;
-    }
-    if (template === 'rings') {
-      const pts: { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] = [
-        { key: 'center', x: 128, y: 128, size: 28, shape: 'square' },
-      ];
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * 60 - 90) * (Math.PI / 180);
-        pts.push({ key: `in${i}`, x: 128 + 50 * Math.cos(angle), y: 128 + 50 * Math.sin(angle), size: 24, shape: 'square' });
-      }
-      for (let i = 0; i < 12; i++) {
-        const angle = (i * 30 - 90) * (Math.PI / 180);
-        pts.push({ key: `out${i}`, x: 128 + 98 * Math.cos(angle), y: 128 + 98 * Math.sin(angle), size: 24, shape: 'square' });
-      }
-      return pts;
-    }
-    // flower (par défaut)
-    const pts: { key: string; x: number; y: number; size: number; shape: 'circle' | 'square' | 'diamond' }[] = [
-      { key: 'center', x: 128, y: 128, size: 48, shape: 'circle' },
-    ];
-    for (let i = 0; i < 12; i++) {
-      const angle = (i * 30 - 90) * (Math.PI / 180);
-      pts.push({ key: `p${i}`, x: 128 + 90 * Math.cos(angle), y: 128 + 90 * Math.sin(angle), size: 36, shape: 'circle' });
-    }
-    return pts;
+
+  // --- Coloriage mandala (vrais mandalas illustrés, remplissage par flood-fill) ---
+  type MandalaCategory = 'fleur' | 'etoile' | 'cercle';
+  const MANDALA_FOLDER: Record<MandalaCategory, string> = { fleur: 'fleurs', etoile: 'etoiles', cercle: 'cercles' };
+  const MANDALA_COUNT: Record<MandalaCategory, number> = { fleur: 11, etoile: 6, cercle: 12 };
+  const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('fleur');
+  const [mandalaDesignIndex, setMandalaDesignIndex] = useState<number>(0);
+  const [mandalaSelectedColor, setMandalaSelectedColor] = useState<string>('#F3D9DF');
+  const mandalaCanvasRef = useRef<HTMLCanvasElement>(null);
+  // Cache par mandala (catégorie + design) de l'état colorié en cours, pour ne pas perdre le travail en changeant de design.
+  const mandalaCacheRef = useRef<Map<string, string>>(new Map());
+  const mandalaKey = `${mandalaCategory}_${mandalaDesignIndex}`;
+  const getMandalaSrc = (category: MandalaCategory, index: number) =>
+    `${import.meta.env.BASE_URL}mandalas/${MANDALA_FOLDER[category]}/${index + 1}.png`;
+
+  // Charge (ou recharge depuis le cache) le mandala sélectionné dans le canvas.
+  useEffect(() => {
+    if (currentTab !== 'relax' || activeRelaxTool !== 'fidgets' || fidgetSubTool !== 'coloring') return;
+    const canvas = mandalaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const cached = mandalaCacheRef.current.get(mandalaKey);
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = cached || getMandalaSrc(mandalaCategory, mandalaDesignIndex);
+  }, [currentTab, activeRelaxTool, fidgetSubTool, mandalaCategory, mandalaDesignIndex]);
+
+  const hexToRgb = (hex: string): [number, number, number] => {
+    const h = hex.replace('#', '');
+    return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
   };
+
+  // Remplissage par diffusion (flood-fill) : clic dans une zone → remplit toute la zone connectée
+  // jusqu'aux traits noirs, avec la couleur du nuancier. Recliquer une zone déjà de cette couleur l'efface.
+  const floodFillMandala = (clientX: number, clientY: number) => {
+    const canvas = mandalaCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = Math.floor((clientX - rect.left) * scaleX);
+    const y = Math.floor((clientY - rect.top) * scaleY);
+    if (x < 0 || y < 0 || x >= canvas.width || y >= canvas.height) return;
+
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    const w = canvas.width, h = canvas.height;
+    const startIdx = (y * w + x) * 4;
+    const startLuma = 0.299 * data[startIdx] + 0.587 * data[startIdx + 1] + 0.114 * data[startIdx + 2];
+    if (startLuma < 90) return; // clic sur un trait noir → on ignore
+
+    const [fr, fg, fb] = hexToRgb(mandalaSelectedColor);
+    const startR = data[startIdx], startG = data[startIdx + 1], startB = data[startIdx + 2];
+    const isSameColor = Math.abs(startR - fr) < 10 && Math.abs(startG - fg) < 10 && Math.abs(startB - fb) < 10;
+    const [targetR, targetG, targetB] = isSameColor ? [255, 255, 255] : [fr, fg, fb];
+
+    const tolerance = 40;
+    const matches = (idx: number) => {
+      const dr = data[idx] - startR, dg = data[idx + 1] - startG, db = data[idx + 2] - startB;
+      return dr * dr + dg * dg + db * db <= tolerance * tolerance;
+    };
+
+    const stack: number[] = [x, y];
+    const visited = new Uint8Array(w * h);
+    while (stack.length) {
+      const cy = stack.pop()!;
+      const cx = stack.pop()!;
+      if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue;
+      const vIdx = cy * w + cx;
+      if (visited[vIdx]) continue;
+      const idx = vIdx * 4;
+      if (!matches(idx)) continue;
+      visited[vIdx] = 1;
+      data[idx] = targetR; data[idx + 1] = targetG; data[idx + 2] = targetB; data[idx + 3] = 255;
+      stack.push(cx + 1, cy, cx - 1, cy, cx, cy + 1, cx, cy - 1);
+    }
+    ctx.putImageData(imageData, 0, 0);
+    mandalaCacheRef.current.set(mandalaKey, canvas.toDataURL());
+  };
+
+  const clearCurrentMandala = () => {
+    mandalaCacheRef.current.delete(mandalaKey);
+    const canvas = mandalaCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = getMandalaSrc(mandalaCategory, mandalaDesignIndex);
+  };
+
   const SAND_COLORS: Record<string, string> = { sand: '#C9A26D', snow: '#BFE3FF', waves: '#3B82F6' };
   const BUBBLE_COUNT = 30;
 
@@ -3218,14 +3278,6 @@ export default function App() {
     if (poppedBubbles.has(i)) return;
     setPoppedBubbles(prev => new Set(prev).add(i));
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
-  };
-
-  const cycleMandalaColor = (key: string) => {
-    setMandalaColors(prev => {
-      const current = prev[key];
-      const idx = current ? (MANDALA_PALETTE.indexOf(current) + 1) % MANDALA_PALETTE.length : 0;
-      return { ...prev, [key]: MANDALA_PALETTE[idx] };
-    });
   };
 
   // --- Éphémère : bulles qui montent à l'écran et qu'on éclate, chacune avec son propre pop ---
@@ -13543,53 +13595,70 @@ export default function App() {
                       {/* Coloriage / mandala */}
                       {fidgetSubTool === 'coloring' && (
                         <div className="w-full max-w-sm space-y-3 flex flex-col items-center">
-                          <div className="flex gap-2">
-                            {[
-                              { id: 'flower', label: lang === 'fr' ? 'Fleur' : 'Flower' },
-                              { id: 'star', label: lang === 'fr' ? 'Étoile' : 'Star' },
-                              { id: 'rings', label: lang === 'fr' ? 'Cercles' : 'Rings' },
-                            ].map(tpl => (
+                          {/* Sélecteur de catégorie */}
+                          <div className="flex gap-2 w-full">
+                            {([
+                              { id: 'fleur', label: lang === 'fr' ? 'Fleurs' : 'Flowers' },
+                              { id: 'etoile', label: lang === 'fr' ? 'Étoiles' : 'Stars' },
+                              { id: 'cercle', label: lang === 'fr' ? 'Cercles' : 'Circles' },
+                            ] as { id: MandalaCategory; label: string }[]).map(cat => (
                               <button
-                                key={tpl.id}
-                                onClick={() => setMandalaTemplate(tpl.id as any)}
-                                className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${mandalaTemplate === tpl.id ? 'border-app-accent text-app-accent' : 'border-app-border text-app-muted'}`}
+                                key={cat.id}
+                                onClick={() => { setMandalaCategory(cat.id); setMandalaDesignIndex(0); }}
+                                className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${mandalaCategory === cat.id ? 'border-app-accent text-app-accent' : 'border-app-border text-app-muted'}`}
                               >
-                                {tpl.label}
+                                {cat.label}
                               </button>
                             ))}
                           </div>
-                          <div className="relative w-64 h-64">
-                            {getMandalaPoints(mandalaTemplate).map(pt => {
-                              const colorKey = `${mandalaTemplate}_${pt.key}`;
-                              const shapeClass = pt.shape === 'circle' ? 'rounded-full' : pt.shape === 'diamond' ? 'rounded-md rotate-45' : 'rounded-md';
-                              return (
-                                <button
-                                  key={pt.key}
-                                  onClick={() => cycleMandalaColor(colorKey)}
-                                  style={{
-                                    backgroundColor: mandalaColors[colorKey] || 'transparent',
-                                    left: pt.x - pt.size / 2,
-                                    top: pt.y - pt.size / 2,
-                                    width: pt.size,
-                                    height: pt.size,
-                                  }}
-                                  className={`absolute border-2 border-app-border/50 hover:border-app-accent transition-colors ${shapeClass}`}
+
+                          {/* Sélecteur du mandala à colorier, dans la catégorie choisie */}
+                          <div className="flex gap-2 w-full overflow-x-auto pb-1 scrollbar-thin">
+                            {Array.from({ length: MANDALA_COUNT[mandalaCategory] }, (_, i) => i).map(i => (
+                              <button
+                                key={i}
+                                onClick={() => setMandalaDesignIndex(i)}
+                                className={`shrink-0 w-12 h-12 rounded-lg border-2 overflow-hidden bg-white transition-all ${mandalaDesignIndex === i ? 'border-app-accent' : 'border-app-border/50 opacity-70 hover:opacity-100'}`}
+                              >
+                                <img
+                                  src={getMandalaSrc(mandalaCategory, i)}
+                                  alt={`${mandalaCategory} ${i + 1}`}
+                                  className="w-full h-full object-contain"
                                 />
-                              );
-                            })}
+                              </button>
+                            ))}
                           </div>
+
+                          {/* Nuancier hexa — même pattern que les autres sélecteurs de couleur de l'app */}
+                          <div className="flex items-center gap-2 w-full bg-app-card/30 border border-app-border rounded-xl px-3 py-2">
+                            <input
+                              type="color"
+                              value={mandalaSelectedColor}
+                              onChange={(e) => setMandalaSelectedColor(e.target.value)}
+                              className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                            />
+                            <span className="font-mono text-[10px] text-app-text/85 uppercase">{mandalaSelectedColor}</span>
+                            <span className="text-[10px] text-app-muted normal-case font-sans truncate">
+                              ({getClosestColorName(mandalaSelectedColor, bigColorNames)})
+                            </span>
+                          </div>
+
+                          <canvas
+                            ref={mandalaCanvasRef}
+                            width={512}
+                            height={512}
+                            onClick={(e) => floodFillMandala(e.clientX, e.clientY)}
+                            className="w-64 h-64 rounded-xl border border-app-border/50 bg-white cursor-pointer touch-none"
+                          />
+
                           <button
-                            onClick={() => setMandalaColors(prev => {
-                              const next = { ...prev };
-                              Object.keys(next).forEach(k => { if (k.startsWith(`${mandalaTemplate}_`)) delete next[k]; });
-                              return next;
-                            })}
+                            onClick={clearCurrentMandala}
                             className="w-full py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
                           >
                             {lang === 'fr' ? 'Effacer ce mandala' : 'Clear this mandala'}
                           </button>
                           <p className="text-[10px] text-app-muted text-center italic">
-                            {lang === 'fr' ? 'Clique sur une zone pour la colorer, reclique pour changer de couleur.' : 'Click a zone to color it, click again to cycle colors.'}
+                            {lang === 'fr' ? 'Choisis un mandala et une couleur, puis clique dans une zone pour la remplir. Reclique avec la même couleur pour l\'effacer.' : 'Pick a mandala and a color, then click inside a zone to fill it. Click again with the same color to erase it.'}
                           </p>
                         </div>
                       )}
