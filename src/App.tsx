@@ -140,8 +140,6 @@ import {
   CalendarDays,
   Mail,
   Send,
-  Lamp,
-  Package,
   ChevronRight,
   Wallet,
 } from 'lucide-react';
@@ -3467,19 +3465,102 @@ export default function App() {
     { id: 'papillon', label: 'Papillon', labelEn: 'Butterfly' },
     { id: 'coffre', label: 'Petit coffre', labelEn: 'Small chest' },
   ];
+  // Icônes "aquarelle" maison (SVG + filtre turbulence/flou) pour la Boîte à Souvenirs.
+  // Chaque filtre a un id propre à l'icône pour éviter toute collision si plusieurs
+  // instances sont montées en même temps (liste de souvenirs).
   const getMemoryElementIcon = (type: MemoryItem['elementType'], className: string) => {
     switch (type) {
-      case 'bougie': return <Flame className={className} />;
-      case 'lanterne': return <Lamp className={className} />;
-      case 'message': return <Mail className={className} />;
-      case 'coffre': return <Package className={className} />;
+      case 'bougie': return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <defs>
+            <filter id="wc-bougie" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018" numOctaves="2" seed="7" result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="7" />
+              <feGaussianBlur stdDeviation="0.6" />
+            </filter>
+          </defs>
+          <ellipse cx="60" cy="98" rx="20" ry="5" fill="#c9a876" opacity="0.35" filter="url(#wc-bougie)" />
+          <rect x="45" y="55" width="30" height="45" rx="3" fill="#f3e6c9" opacity="0.8" filter="url(#wc-bougie)" />
+          <rect x="45" y="55" width="30" height="45" rx="3" fill="none" stroke="#8a7350" strokeWidth="1" opacity="0.5" />
+          <path d="M55 55 Q60 48 65 55 Z" fill="#e8c98a" opacity="0.6" filter="url(#wc-bougie)" />
+          <line x1="60" y1="55" x2="60" y2="46" stroke="#5c4a30" strokeWidth="1.5" />
+          <path d="M60 46 C56 38 60 30 60 24 C60 30 64 38 60 46 Z" fill="#f2a13c" opacity="0.75" filter="url(#wc-bougie)" />
+          <path d="M60 42 C58 37 60 32 60 28 C60 32 62 37 60 42 Z" fill="#e5502a" opacity="0.7" filter="url(#wc-bougie)" />
+          <ellipse cx="59" cy="34" rx="3" ry="5" fill="#fbe27a" opacity="0.8" filter="url(#wc-bougie)" />
+        </svg>
+      );
+      case 'lanterne': return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <defs>
+            <filter id="wc-lanterne" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.014 0.02" numOctaves="2" seed="21" result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="7" />
+              <feGaussianBlur stdDeviation="0.6" />
+            </filter>
+          </defs>
+          <line x1="60" y1="18" x2="60" y2="26" stroke="#8a7350" strokeWidth="1.5" />
+          <path d="M50 26 Q60 20 70 26" fill="none" stroke="#8a7350" strokeWidth="2" />
+          <rect x="46" y="26" width="28" height="8" rx="2" fill="#c9a876" opacity="0.7" filter="url(#wc-lanterne)" />
+          <path d="M44 34 L76 34 L70 82 L50 82 Z" fill="#f2a13c" opacity="0.35" filter="url(#wc-lanterne)" />
+          <path d="M50 40 L70 40 L67 76 L53 76 Z" fill="#fbe27a" opacity="0.65" filter="url(#wc-lanterne)" />
+          <path d="M44 34 L76 34 L70 82 L50 82 Z" fill="none" stroke="#8a5a2b" strokeWidth="1" opacity="0.55" />
+          <line x1="60" y1="34" x2="60" y2="82" stroke="#8a5a2b" strokeWidth="0.8" opacity="0.4" />
+          <rect x="46" y="82" width="28" height="7" rx="2" fill="#c9a876" opacity="0.7" filter="url(#wc-lanterne)" />
+        </svg>
+      );
+      case 'message': return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <defs>
+            <filter id="wc-message" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.013 0.016" numOctaves="2" seed="33" result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="8" />
+              <feGaussianBlur stdDeviation="0.6" />
+            </filter>
+          </defs>
+          <path d="M52 30 L68 30 L68 42 C78 50 80 62 80 72 C80 90 68 98 60 98 C52 98 40 90 40 72 C40 62 42 50 52 42 Z"
+            fill="#8fc2c9" opacity="0.4" filter="url(#wc-message)" />
+          <path d="M52 30 L68 30 L68 42 C78 50 80 62 80 72 C80 90 68 98 60 98 C52 98 40 90 40 72 C40 62 42 50 52 42 Z"
+            fill="none" stroke="#4a7d84" strokeWidth="1" opacity="0.5" />
+          <rect x="53" y="22" width="14" height="10" rx="2" fill="#9c7a4a" opacity="0.7" filter="url(#wc-message)" />
+          <rect x="50" y="60" width="20" height="14" rx="2" fill="#f3ead2" opacity="0.85" filter="url(#wc-message)" transform="rotate(-8 60 67)" />
+          <line x1="53" y1="65" x2="66" y2="63" stroke="#a89468" strokeWidth="0.8" opacity="0.6" transform="rotate(-8 60 67)" />
+          <line x1="53" y1="69" x2="63" y2="67" stroke="#a89468" strokeWidth="0.8" opacity="0.6" transform="rotate(-8 60 67)" />
+        </svg>
+      );
+      case 'coffre': return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <defs>
+            <filter id="wc-coffre" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.012 0.016" numOctaves="2" seed="55" result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="7" />
+              <feGaussianBlur stdDeviation="0.6" />
+            </filter>
+          </defs>
+          <path d="M32 56 C32 44 44 38 60 38 C76 38 88 44 88 56 L88 60 L32 60 Z" fill="#b5824a" opacity="0.55" filter="url(#wc-coffre)" />
+          <rect x="30" y="60" width="60" height="34" rx="3" fill="#c9955c" opacity="0.55" filter="url(#wc-coffre)" />
+          <rect x="30" y="60" width="60" height="34" rx="3" fill="none" stroke="#7a5730" strokeWidth="1" opacity="0.5" />
+          <path d="M32 56 C32 44 44 38 60 38 C76 38 88 44 88 56 L88 60 L32 60 Z" fill="none" stroke="#7a5730" strokeWidth="1" opacity="0.5" />
+          <rect x="55" y="58" width="10" height="12" rx="2" fill="#e0b45a" opacity="0.8" filter="url(#wc-coffre)" />
+          <circle cx="60" cy="75" r="3.5" fill="#7a5730" opacity="0.6" />
+          <rect x="58.7" y="75" width="2.6" height="7" fill="#7a5730" opacity="0.6" />
+        </svg>
+      );
       case 'papillon': return (
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-          <path d="M11 11c-1-1-2.5-1.5-4-1.5C5 9.5 3.5 11 3.5 13c0 1.5 1 2.5 2.5 3c-1.5 0.5-2.5 1.5-2.5 3c0 2 1.5 3.5 3.5 3.5c1.5 0 3-0.5 4-1.5" />
-          <path d="M13 11c1-1 2.5-1.5 4-1.5c2 0 3.5 1.5 3.5 3.5c0 1.5-1 2.5-2.5 3c1.5 0.5 2.5 1.5 2.5 3c0 2-1.5 3.5-3.5 3.5c-1.5 0-3-0.5-4-1.5" />
-          <path d="M12 10v10" />
-          <circle cx="10.5" cy="7" r="0.5" />
-          <circle cx="13.5" cy="7" r="0.5" />
+        <svg viewBox="0 0 120 120" className={className}>
+          <defs>
+            <filter id="wc-papillon" x="-30%" y="-30%" width="160%" height="160%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.015 0.02" numOctaves="2" seed="44" result="n" />
+              <feDisplacementMap in="SourceGraphic" in2="n" scale="8" />
+              <feGaussianBlur stdDeviation="0.6" />
+            </filter>
+          </defs>
+          <path d="M60 40 C48 20 22 24 22 46 C22 64 44 66 60 52 Z" fill="#c98fc2" opacity="0.55" filter="url(#wc-papillon)" />
+          <path d="M60 40 C72 20 98 24 98 46 C98 64 76 66 60 52 Z" fill="#8fb2c9" opacity="0.55" filter="url(#wc-papillon)" />
+          <path d="M60 52 C48 66 30 68 32 84 C34 96 50 92 60 76 Z" fill="#c9a06f" opacity="0.5" filter="url(#wc-papillon)" />
+          <path d="M60 52 C72 66 90 68 88 84 C86 96 70 92 60 76 Z" fill="#e5b23c" opacity="0.5" filter="url(#wc-papillon)" />
+          <line x1="60" y1="34" x2="60" y2="80" stroke="#4a3a2a" strokeWidth="2" strokeLinecap="round" />
+          <path d="M60 34 C56 28 52 26 49 27" fill="none" stroke="#4a3a2a" strokeWidth="1" />
+          <path d="M60 34 C64 28 68 26 71 27" fill="none" stroke="#4a3a2a" strokeWidth="1" />
         </svg>
       );
     }
