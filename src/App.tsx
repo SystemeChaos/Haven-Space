@@ -4182,6 +4182,152 @@ export default function App() {
       || { id: type, emoji: '✦', label: type, labelEn: type, tab: '' };
   };
 
+  // Icônes "aquarelle" maison pour l'Éco-système, thème par thème (remplacent progressivement
+  // les emojis). Clé = `${theme}:${id}`. Si une clé n'existe pas encore ici, on retombe sur
+  // l'emoji d'origine (voir getEcoIcon plus bas) — ça permet d'avancer thème par thème sans
+  // rien casser sur les thèmes pas encore convertis.
+  const ECO_ICONS: Partial<Record<string, (className: string) => JSX.Element>> = {
+    'aquarium:meduse': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 55 C30 30 90 30 90 55 C90 62 82 62 78 56 C76 64 70 64 68 57 C66 65 60 65 58 57 C56 65 50 65 48 57 C46 64 40 64 38 56 C34 62 30 62 30 55 Z"
+          fill="#c98fc2" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M30 55 C30 30 90 30 90 55" fill="none" stroke="#8a5a94" strokeWidth="1" opacity="0.45" />
+        <path d="M42 60 C40 72 44 82 40 92" fill="none" stroke="#c98fc2" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+        <path d="M54 60 C52 74 57 84 53 96" fill="none" stroke="#c98fc2" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+        <path d="M66 60 C68 74 63 84 67 96" fill="none" stroke="#c98fc2" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+        <path d="M78 60 C80 72 76 82 80 92" fill="none" stroke="#c98fc2" strokeWidth="2" strokeLinecap="round" opacity="0.6" />
+      </svg>
+    ),
+    'aquarium:poisson': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M28 60 C28 44 48 34 68 34 C88 34 96 48 96 60 C96 72 88 86 68 86 C48 86 28 76 28 60 Z"
+          fill="#f2a13c" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M28 60 L12 46 L18 60 L12 74 Z" fill="#e5502a" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M28 60 C28 44 48 34 68 34 C88 34 96 48 96 60 C96 72 88 86 68 86 C48 86 28 76 28 60 Z"
+          fill="none" stroke="#9c5a1e" strokeWidth="1" opacity="0.45" />
+        <circle cx="78" cy="52" r="3" fill="#5c3a1a" opacity="0.7" />
+        <path d="M55 60 Q65 55 75 60 Q65 65 55 60" fill="#fbe27a" opacity="0.5" />
+      </svg>
+    ),
+    'aquarium:banc': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        {[[28, 40, 0.55], [58, 62, 0.7], [30, 82, 0.5]].map(([cx, cy, op], i) => (
+          <g key={i}>
+            <path d={`M${cx - 16} ${cy} C${cx - 16} ${cy - 10} ${cx - 2} ${cy - 14} ${cx + 14} ${cy - 8} C${cx + 18} ${cy - 2} ${cx + 14} ${cy + 8} ${cx - 2} ${cy + 10} C${cx - 16} ${cy + 10} ${cx - 16} ${cy} Z`}
+              fill="#8fb2c9" opacity={op} filter="url(#wc-tex)" />
+            <path d={`M${cx - 16} ${cy} L${cx - 24} ${cy - 6} L${cx - 20} ${cy} L${cx - 24} ${cy + 6} Z`} fill="#5a86a3" opacity={op} />
+          </g>
+        ))}
+      </svg>
+    ),
+    'aquarium:tortue': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="66" rx="34" ry="26" fill="#7fae72" opacity="0.55" filter="url(#wc-tex)" />
+        <ellipse cx="60" cy="66" rx="34" ry="26" fill="none" stroke="#4c7042" strokeWidth="1" opacity="0.5" />
+        <path d="M40 52 L60 44 L80 52 M32 66 L48 60 M88 66 L72 60 M40 84 L56 78 M80 84 L64 78"
+          fill="none" stroke="#4c7042" strokeWidth="0.8" opacity="0.5" />
+        <ellipse cx="26" cy="60" rx="10" ry="8" fill="#9cc48f" opacity="0.6" filter="url(#wc-tex)" />
+        <ellipse cx="34" cy="88" rx="8" ry="6" fill="#9cc48f" opacity="0.5" transform="rotate(20 34 88)" />
+        <ellipse cx="90" cy="88" rx="8" ry="6" fill="#9cc48f" opacity="0.5" transform="rotate(-20 90 88)" />
+      </svg>
+    ),
+    'aquarium:crabe': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="68" rx="26" ry="18" fill="#e5622a" opacity="0.55" filter="url(#wc-tex)" />
+        <ellipse cx="60" cy="68" rx="26" ry="18" fill="none" stroke="#9c3d16" strokeWidth="1" opacity="0.5" />
+        <path d="M30 58 C20 50 14 52 12 46 M14 60 C22 58 26 62 30 66" fill="none" stroke="#e5622a" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+        <path d="M90 58 C100 50 106 52 108 46 M106 60 C98 58 94 62 90 66" fill="none" stroke="#e5622a" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+        <line x1="42" y1="84" x2="34" y2="94" stroke="#9c3d16" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+        <line x1="52" y1="88" x2="46" y2="98" stroke="#9c3d16" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+        <line x1="68" y1="88" x2="74" y2="98" stroke="#9c3d16" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+        <line x1="78" y1="84" x2="86" y2="94" stroke="#9c3d16" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+        <circle cx="50" cy="60" r="2.2" fill="#3a1f0c" />
+        <circle cx="70" cy="60" r="2.2" fill="#3a1f0c" />
+      </svg>
+    ),
+    'aquarium:crevette': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 80 C24 60 32 40 54 32 C74 26 90 34 88 46 C86 54 74 52 70 46 C74 56 70 66 60 70 C68 72 70 82 62 88 C52 94 38 92 30 80 Z"
+          fill="#e5a0a0" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M30 80 C24 60 32 40 54 32" fill="none" stroke="#a35a5a" strokeWidth="1" opacity="0.45" />
+        <path d="M54 32 C50 24 44 20 38 20 M54 32 C56 22 62 18 68 18" fill="none" stroke="#a35a5a" strokeWidth="1" opacity="0.5" />
+        <path d="M30 80 L18 82 L26 88 Z" fill="#c97878" opacity="0.5" />
+      </svg>
+    ),
+    'aquarium:algue': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M40 98 C34 74 46 60 38 40 C32 26 40 16 40 16 C36 30 46 40 50 56 C54 72 44 82 48 98 Z" fill="#6ea86a" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M60 98 C56 76 68 62 60 44 C56 30 62 18 62 18 C60 32 68 42 70 58 C72 74 62 82 66 98 Z" fill="#4c8c58" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M80 98 C76 78 88 64 80 46 C76 32 82 20 82 20 C78 32 86 44 88 58 C90 74 80 82 84 98 Z" fill="#6ea86a" opacity="0.45" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'aquarium:corail': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 98 L60 70 M60 78 L44 58 M60 74 L76 52 M60 66 L50 44 M60 62 L70 40 M60 70 L60 40"
+          fill="none" stroke="#e08fa0" strokeWidth="6" strokeLinecap="round" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M60 98 L60 70 M60 78 L44 58 M60 74 L76 52 M60 66 L50 44 M60 62 L70 40 M60 70 L60 40"
+          fill="none" stroke="#c9607a" strokeWidth="1" opacity="0.35" />
+      </svg>
+    ),
+    'aquarium:coquillage': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 30 C34 40 26 66 30 90 L90 90 C94 66 86 40 60 30 Z" fill="#f0c9c0" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M60 30 C34 40 26 66 30 90 L90 90 C94 66 86 40 60 30 Z" fill="none" stroke="#b3806f" strokeWidth="1" opacity="0.45" />
+        <path d="M60 32 L60 88 M60 32 L42 88 M60 32 L78 88 M60 32 L34 84 M60 32 L86 84" fill="none" stroke="#b3806f" strokeWidth="0.8" opacity="0.5" />
+      </svg>
+    ),
+    'aquarium:bulles': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <circle cx="52" cy="88" r="10" fill="#bfe0e8" opacity="0.4" filter="url(#wc-tex)" />
+        <circle cx="66" cy="60" r="7" fill="#bfe0e8" opacity="0.45" filter="url(#wc-tex)" />
+        <circle cx="50" cy="38" r="5" fill="#bfe0e8" opacity="0.5" filter="url(#wc-tex)" />
+        <circle cx="52" cy="88" r="10" fill="none" stroke="#7fb8c4" strokeWidth="0.8" opacity="0.4" />
+        <circle cx="66" cy="60" r="7" fill="none" stroke="#7fb8c4" strokeWidth="0.8" opacity="0.4" />
+        <circle cx="50" cy="38" r="5" fill="none" stroke="#7fb8c4" strokeWidth="0.8" opacity="0.4" />
+      </svg>
+    ),
+    'aquarium:rayon': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M46 16 L34 100 L58 100 Z" fill="#fbe27a" opacity="0.4" filter="url(#wc-tex)" />
+        <path d="M66 20 L58 100 L84 100 Z" fill="#f2d060" opacity="0.35" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'aquarium:tresor': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M44 40 C44 28 76 28 76 40 L80 90 C80 98 40 98 40 90 Z" fill="#c9955c" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M44 40 C44 28 76 28 76 40 L80 90 C80 98 40 98 40 90 Z" fill="none" stroke="#7a5730" strokeWidth="1" opacity="0.5" />
+        <ellipse cx="60" cy="40" rx="16" ry="6" fill="#e0b45a" opacity="0.6" />
+        <path d="M50 60 L54 52 L58 60 L62 50 L66 60 L70 52" fill="none" stroke="#e0b45a" strokeWidth="1.5" opacity="0.6" />
+        <path d="M60 18 L62 24 L68 26 L62 28 L60 34 L58 28 L52 26 L58 24 Z" fill="#fbe27a" opacity="0.8" />
+      </svg>
+    ),
+    'aquarium:statue': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M46 98 L46 60 C46 44 74 44 74 60 L74 98 Z" fill="#9aa6b0" opacity="0.5" filter="url(#wc-tex)" />
+        <circle cx="60" cy="34" r="16" fill="#9aa6b0" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M46 98 L46 60 C46 44 74 44 74 60 L74 98 Z" fill="none" stroke="#5e6970" strokeWidth="1" opacity="0.45" />
+        <circle cx="60" cy="34" r="16" fill="none" stroke="#5e6970" strokeWidth="1" opacity="0.45" />
+        <path d="M52 44 L58 70 M68 46 L64 76" stroke="#5e6970" strokeWidth="0.8" opacity="0.4" />
+      </svg>
+    ),
+    'aquarium:anemone': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="92" rx="30" ry="8" fill="#c9508a" opacity="0.35" filter="url(#wc-tex)" />
+        {Array.from({ length: 10 }).map((_, i) => {
+          const angle = (i / 10) * Math.PI - Math.PI / 2;
+          const x1 = 60 + Math.cos(angle) * 8, y1 = 88;
+          const x2 = 60 + Math.cos(angle) * 30, y2 = 88 - Math.abs(Math.sin(angle)) * 60 - 10;
+          return <path key={i} d={`M${x1} ${y1} Q${(x1 + x2) / 2 + 6} ${(y1 + y2) / 2} ${x2} ${y2}`} fill="none" stroke="#e070a0" strokeWidth="4" strokeLinecap="round" opacity="0.55" />;
+        })}
+      </svg>
+    ),
+  };
+
+  const getEcoIcon = (theme: EcoElement['theme'], type: string, className: string, emojiFallback: string, emojiClassName: string = 'text-lg') => {
+    const renderer = ECO_ICONS[`${theme}:${type}`];
+    return renderer ? renderer(className) : <span className={emojiClassName}>{emojiFallback}</span>;
+  };
+
   const addEcoElement = () => {
     const newEl: EcoElement = {
       id: Math.random().toString(36).substring(2, 11),
@@ -6623,6 +6769,17 @@ export default function App() {
 
   return (
     <>
+      {/* Filtre "aquarelle" partagé (texture turbulence + léger flou), réutilisé par toutes les
+          icônes SVG maison de l'Éco-système pour éviter de dupliquer le <defs> à chaque icône. */}
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden="true">
+        <defs>
+          <filter id="wc-tex" x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.013 0.018" numOctaves="2" seed="12" result="n" />
+            <feDisplacementMap in="SourceGraphic" in2="n" scale="7" />
+            <feGaussianBlur stdDeviation="0.6" />
+          </filter>
+        </defs>
+      </svg>
       {/* Écran de verrouillage PIN */}
       {pinEnabled && isLocked && (
         <div className="fixed inset-0 z-[10000] bg-app-bg flex items-center justify-center p-6">
@@ -14665,7 +14822,11 @@ export default function App() {
                                   }}
                                   className={`absolute flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing transition-transform duration-300 ${ecoEditMode ? 'opacity-90 hover:opacity-40' : ''}`}
                                 >
-                                  <span className={`text-2xl pointer-events-none drop-shadow ${animClass}`} style={animStyle}>{displayEmoji}</span>
+                                  <span className={`pointer-events-none drop-shadow inline-flex ${animClass}`} style={animStyle}>
+                                    {(!isSeed && !isNightButterfly)
+                                      ? getEcoIcon(el.theme, el.type, 'w-7 h-7', displayEmoji, 'text-2xl')
+                                      : <span className="text-2xl">{displayEmoji}</span>}
+                                  </span>
                                   <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
                                     {isSeed
                                       ? (wilted ? (lang === 'fr' ? '💧 A soif — arrose-la' : '💧 Thirsty — water it') : (lang === 'fr' ? meta.label : meta.labelEn))
@@ -14741,7 +14902,7 @@ export default function App() {
                                     onClick={() => setEcoDraftType(t.id)}
                                     className={`flex flex-col items-center gap-1 py-2.5 rounded-xl text-[8px] font-bold border transition-all ${ecoDraftType === t.id ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
                                   >
-                                    <span className="text-lg">{t.emoji}</span>
+                                    {getEcoIcon(ecoBackground, t.id, 'w-6 h-6', t.emoji)}
                                     <span className="text-center leading-tight">{lang === 'fr' ? t.label : t.labelEn}</span>
                                   </button>
                                 ))}
