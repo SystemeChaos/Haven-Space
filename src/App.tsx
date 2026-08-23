@@ -13989,11 +13989,16 @@ export default function App() {
                                     onClick={() => setMemoryDraftElement(el.id)}
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${memoryDraftElement === el.id ? 'bg-amber-500/15 border-amber-500/50 text-amber-600' : 'bg-app-bg border-app-border text-app-muted'}`}
                                   >
-                                    {getMemoryElementIcon(el.id, 'w-3.5 h-3.5')}
+                                    {getMemoryElementIcon(el.id, 'w-5 h-5')}
                                     {lang === 'fr' ? el.label : el.labelEn}
                                   </button>
                                 ))}
                               </div>
+                              <p className="text-[9px] leading-relaxed text-app-muted italic pt-0.5">
+                                {lang === 'fr'
+                                  ? 'Bougie pour la nostalgie · Lanterne pour un souvenir précieux · Mot en bouteille pour l\u2019espoir · Papillon pour l\u2019émerveillement · Petit coffre pour un moment secret'
+                                  : 'Candle for nostalgia · Lantern for a precious memory · Message in a bottle for hope · Butterfly for wonder · Small chest for a secret moment'}
+                              </p>
                             </div>
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
