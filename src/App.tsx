@@ -2,7 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -4319,6 +4319,207 @@ export default function App() {
           const x2 = 60 + Math.cos(angle) * 30, y2 = 88 - Math.abs(Math.sin(angle)) * 60 - 10;
           return <path key={i} d={`M${x1} ${y1} Q${(x1 + x2) / 2 + 6} ${(y1 + y2) / 2} ${x2} ${y2}`} fill="none" stroke="#e070a0" strokeWidth="4" strokeLinecap="round" opacity="0.55" />;
         })}
+      </svg>
+    ),
+
+    // --- Serre (greenhouse) ---
+    'greenhouse:fougere': (className) => {
+      const P0 = { x: 60, y: 104 }, P1 = { x: 80, y: 56 }, P2 = { x: 56, y: 14 };
+      const bez = (t: number) => ({
+        x: (1 - t) ** 2 * P0.x + 2 * (1 - t) * t * P1.x + t * t * P2.x,
+        y: (1 - t) ** 2 * P0.y + 2 * (1 - t) * t * P1.y + t * t * P2.y,
+      });
+      const tangent = (t: number) => ({
+        x: 2 * (1 - t) * (P1.x - P0.x) + 2 * t * (P2.x - P1.x),
+        y: 2 * (1 - t) * (P1.y - P0.y) + 2 * t * (P2.y - P1.y),
+      });
+      const leaflet = (p: { x: number; y: number }, deg: number, len: number, key: string) => {
+        const rad = (deg * Math.PI) / 180;
+        const cx = p.x + Math.cos(rad) * (len / 2);
+        const cy = p.y + Math.sin(rad) * (len / 2);
+        return <ellipse key={key} cx={cx} cy={cy} rx={len / 2} ry="3" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" transform={`rotate(${deg} ${cx} ${cy})`} />;
+      };
+      const steps = Array.from({ length: 9 }, (_, i) => 0.12 + i * 0.09);
+      return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <path d={`M${P0.x} ${P0.y} Q${P1.x} ${P1.y} ${P2.x} ${P2.y}`} fill="none" stroke="#4c8c58" strokeWidth="2" strokeLinecap="round" opacity="0.55" filter="url(#wc-tex)" />
+          {steps.map((t, i) => {
+            const p = bez(t);
+            const tan = tangent(t);
+            const baseAngle = (Math.atan2(tan.y, tan.x) * 180) / Math.PI;
+            const len = 24 - i * 2;
+            return (
+              <g key={i}>
+                {leaflet(p, baseAngle - 60, len, `l${i}`)}
+                {leaflet(p, baseAngle + 60, len, `r${i}`)}
+              </g>
+            );
+          })}
+        </svg>
+      );
+    },
+    'greenhouse:pot': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M42 70 L78 70 L72 98 L48 98 Z" fill="#c9825c" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M42 70 L78 70 L72 98 L48 98 Z" fill="none" stroke="#8a5232" strokeWidth="1" opacity="0.5" />
+        <rect x="38" y="64" width="44" height="8" rx="2" fill="#b3714a" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M60 66 C56 46 40 40 34 24 C46 34 58 40 60 56 C62 40 74 34 86 24 C80 40 64 46 60 66 Z" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M60 60 C58 44 48 36 42 24" fill="none" stroke="#4c7042" strokeWidth="0.8" opacity="0.4" />
+      </svg>
+    ),
+    'greenhouse:cerisier': (className) => {
+      const petal = "M0 0 C-8 -8 -10 -20 -4 -26 C-2 -24 0 -23 0 -21 C0 -23 2 -24 4 -26 C10 -20 8 -8 0 0 Z";
+      const flower = (fx: number, fy: number, scale: number, key: string) => (
+        <g key={key} transform={`translate(${fx} ${fy}) scale(${scale})`}>
+          {[0, 72, 144, 216, 288].map(deg => (
+            <path key={deg} d={petal} fill="#f3b8cf" opacity="0.7" filter="url(#wc-tex)" transform={`rotate(${deg})`} />
+          ))}
+          <path d={petal} fill="none" stroke="#c9708f" strokeWidth="0.6" opacity="0.4" transform="rotate(0)" />
+          <circle r="3.5" fill="#fbe27a" opacity="0.85" />
+        </g>
+      );
+      return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <path d="M10 100 C30 90 40 74 55 60 C65 50 75 46 92 40" fill="none" stroke="#7a5c40" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
+          <path d="M55 60 C58 52 63 48 70 46" fill="none" stroke="#7a5c40" strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+          {flower(42, 76, 1, 'f1')}
+          {flower(68, 48, 0.85, 'f2')}
+          {flower(86, 34, 0.6, 'f3')}
+          <circle cx="30" cy="90" r="4" fill="#e58fb0" opacity="0.55" filter="url(#wc-tex)" />
+          <circle cx="96" cy="44" r="3.5" fill="#e58fb0" opacity="0.55" filter="url(#wc-tex)" />
+        </svg>
+      );
+    },
+    'greenhouse:orchidee': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 98 L60 50" fill="none" stroke="#4c8c58" strokeWidth="2" opacity="0.5" />
+        {[0, 72, 144, 216, 288].map((deg, i) => (
+          <ellipse key={i} cx="60" cy="30" rx="9" ry="18" fill="#c98fc2" opacity="0.55" filter="url(#wc-tex)" transform={`rotate(${deg} 60 46)`} />
+        ))}
+        <circle cx="60" cy="46" r="6" fill="#fbe27a" opacity="0.7" />
+      </svg>
+    ),
+    'greenhouse:lotus': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="94" rx="38" ry="8" fill="#6ea86a" opacity="0.4" filter="url(#wc-tex)" />
+        {[-40, -20, 0, 20, 40].map((deg, i) => (
+          <path key={i} d="M60 90 C56 70 58 54 60 44 C62 54 64 70 60 90 Z" fill="#e5a0c0" opacity="0.55" filter="url(#wc-tex)" transform={`rotate(${deg} 60 90)`} />
+        ))}
+        <circle cx="60" cy="80" r="8" fill="#fbe27a" opacity="0.7" />
+      </svg>
+    ),
+    'greenhouse:champignon': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <rect x="52" y="60" width="16" height="34" rx="4" fill="#e8dcc9" opacity="0.7" filter="url(#wc-tex)" />
+        <path d="M30 60 C30 40 90 40 90 60 C90 68 30 68 30 60 Z" fill="#8fc2c9" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M30 60 C30 40 90 40 90 60" fill="none" stroke="#4a7d84" strokeWidth="1" opacity="0.45" />
+        <circle cx="46" cy="52" r="3" fill="#fbe27a" opacity="0.8" />
+        <circle cx="66" cy="48" r="2.5" fill="#fbe27a" opacity="0.8" />
+        <circle cx="78" cy="54" r="2" fill="#fbe27a" opacity="0.7" />
+      </svg>
+    ),
+    'greenhouse:pousse': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="96" rx="18" ry="5" fill="#c9a876" opacity="0.35" filter="url(#wc-tex)" />
+        <path d="M60 96 L60 60" fill="none" stroke="#4c7042" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />
+        <path d="M60 66 C50 60 44 50 46 40 C56 44 60 54 60 66 Z" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M60 60 C70 54 76 44 74 34 C64 38 60 48 60 60 Z" fill="#7fb87a" opacity="0.55" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'greenhouse:papillon': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 40 C48 20 22 24 22 46 C22 64 44 66 60 52 Z" fill="#8fc2c9" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M60 40 C72 20 98 24 98 46 C98 64 76 66 60 52 Z" fill="#f2a13c" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M60 52 C48 66 30 68 32 84 C34 96 50 92 60 76 Z" fill="#fbe27a" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M60 52 C72 66 90 68 88 84 C86 96 70 92 60 76 Z" fill="#c98fc2" opacity="0.5" filter="url(#wc-tex)" />
+        <line x1="60" y1="34" x2="60" y2="80" stroke="#4a3a2a" strokeWidth="2" strokeLinecap="round" />
+        <path d="M60 34 C56 28 52 26 49 27" fill="none" stroke="#4a3a2a" strokeWidth="1" />
+        <path d="M60 34 C64 28 68 26 71 27" fill="none" stroke="#4a3a2a" strokeWidth="1" />
+      </svg>
+    ),
+    'greenhouse:coccinelle': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M32 62 C32 40 88 40 88 62 C88 84 32 84 32 62 Z" fill="#e5502a" opacity="0.6" filter="url(#wc-tex)" />
+        <line x1="60" y1="42" x2="60" y2="82" stroke="#3a1f0c" strokeWidth="1.5" opacity="0.5" />
+        <circle cx="46" cy="54" r="4" fill="#3a1f0c" opacity="0.75" />
+        <circle cx="72" cy="54" r="4" fill="#3a1f0c" opacity="0.75" />
+        <circle cx="48" cy="72" r="3.5" fill="#3a1f0c" opacity="0.75" />
+        <circle cx="70" cy="72" r="3.5" fill="#3a1f0c" opacity="0.75" />
+        <ellipse cx="60" cy="38" rx="12" ry="8" fill="#3a1f0c" opacity="0.7" />
+      </svg>
+    ),
+    'greenhouse:escargot': (className) => {
+      const spiral = () => {
+        const pts: string[] = [];
+        const turns = 2.3, steps = 60, a = 1.5, b = 2.6;
+        for (let i = 0; i <= steps; i++) {
+          const t = (i / steps) * turns * Math.PI * 2;
+          const r = a + (b * t) / (Math.PI * 2);
+          const x = 60 + r * Math.cos(t);
+          const y = 46 + r * Math.sin(t);
+          pts.push(`${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`);
+        }
+        return pts.join(' ');
+      };
+      return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <circle cx="60" cy="46" r="22" fill="#e5b26a" opacity="0.5" filter="url(#wc-tex)" />
+          <path d={spiral()} fill="none" stroke="#9c7040" strokeWidth="2.2" strokeLinecap="round" opacity="0.6" />
+          <path d="M38 60 C20 62 12 76 20 88 C30 98 56 98 66 86 C70 80 66 72 60 70"
+            fill="#c9955c" opacity="0.55" filter="url(#wc-tex)" />
+          <path d="M38 60 C20 62 12 76 20 88 C30 98 56 98 66 86 C70 80 66 72 60 70"
+            fill="none" stroke="#7a5730" strokeWidth="1" opacity="0.45" />
+          <line x1="22" y1="62" x2="14" y2="50" stroke="#7a5730" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
+          <line x1="30" y1="64" x2="26" y2="52" stroke="#7a5730" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
+          <circle cx="14" cy="50" r="2.2" fill="#3a2410" opacity="0.8" />
+          <circle cx="26" cy="52" r="2" fill="#3a2410" opacity="0.75" />
+        </svg>
+      );
+    },
+    'greenhouse:grenouille': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="96" rx="36" ry="8" fill="#6ea86a" opacity="0.35" filter="url(#wc-tex)" />
+        <ellipse cx="60" cy="78" rx="26" ry="18" fill="#7fb87a" opacity="0.6" filter="url(#wc-tex)" />
+        <circle cx="42" cy="58" r="9" fill="#7fb87a" opacity="0.6" filter="url(#wc-tex)" />
+        <circle cx="66" cy="56" r="9" fill="#7fb87a" opacity="0.6" filter="url(#wc-tex)" />
+        <circle cx="42" cy="58" r="3.5" fill="#2a3a1a" opacity="0.8" />
+        <circle cx="66" cy="56" r="3.5" fill="#2a3a1a" opacity="0.8" />
+      </svg>
+    ),
+    'greenhouse:lucioles': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M38 50 L82 50 L78 92 C78 98 42 98 42 92 Z" fill="#bfe0e8" opacity="0.3" filter="url(#wc-tex)" />
+        <path d="M38 50 L82 50 L78 92 C78 98 42 98 42 92 Z" fill="none" stroke="#7fb8c4" strokeWidth="1" opacity="0.4" />
+        <rect x="34" y="42" width="52" height="10" rx="4" fill="#c9a876" opacity="0.6" filter="url(#wc-tex)" />
+        <circle cx="54" cy="70" r="3" fill="#fbe27a" opacity="0.9" />
+        <circle cx="68" cy="80" r="2.5" fill="#fbe27a" opacity="0.85" />
+        <circle cx="58" cy="86" r="2" fill="#fbe27a" opacity="0.8" />
+      </svg>
+    ),
+    'greenhouse:terrarium': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 90 C30 50 90 50 90 90 Z" fill="#bfe0e8" opacity="0.3" filter="url(#wc-tex)" />
+        <path d="M30 90 C30 50 90 50 90 90 Z" fill="none" stroke="#7fb8c4" strokeWidth="1" opacity="0.4" />
+        <rect x="24" y="90" width="72" height="8" rx="3" fill="#c9955c" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M52 90 C48 76 54 66 50 54 C58 62 60 74 58 90 Z" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M68 90 C72 78 66 70 70 60 C64 68 62 78 64 90 Z" fill="#4c8c58" opacity="0.5" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'greenhouse:guirlande': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M14 30 Q60 70 106 30" fill="none" stroke="#8a7350" strokeWidth="1.5" opacity="0.5" />
+        {[26, 44, 60, 76, 94].map((x, i) => {
+          const y = 30 + Math.sin((x - 14) / 92 * Math.PI) * 34;
+          const colors = ['#f2a13c', '#e5502a', '#fbe27a', '#c98fc2', '#8fc2c9'];
+          return <circle key={i} cx={x} cy={y} r="6" fill={colors[i]} opacity="0.75" filter="url(#wc-tex)" />;
+        })}
+      </svg>
+    ),
+    'greenhouse:brumisateur': (className) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 90 C40 80 30 70 40 60 C50 50 40 40 50 28" fill="none" stroke="#bfe0e8" strokeWidth="5" strokeLinecap="round" opacity="0.45" filter="url(#wc-tex)" />
+        <path d="M60 94 C70 84 60 74 70 64 C80 54 70 44 80 32" fill="none" stroke="#d8ecf2" strokeWidth="5" strokeLinecap="round" opacity="0.4" filter="url(#wc-tex)" />
+        <path d="M90 90 C98 82 92 72 98 62" fill="none" stroke="#bfe0e8" strokeWidth="4" strokeLinecap="round" opacity="0.35" filter="url(#wc-tex)" />
       </svg>
     ),
   };
