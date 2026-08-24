@@ -2,7 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -4134,6 +4134,10 @@ export default function App() {
         { id: 'pleinelune', emoji: '🌕', label: 'Pleine lune dorée', labelEn: 'Golden full moon', tab: 'astres' },
         { id: 'filante', emoji: '🌠', label: 'Étoile filante', labelEn: 'Shooting star', tab: 'astres' },
         { id: 'etoile', emoji: '⭐', label: 'Étoile', labelEn: 'Star', tab: 'astres' },
+        { id: 'asteroide', emoji: '☄️', label: 'Astéroïde', labelEn: 'Asteroid', tab: 'astres' },
+        { id: 'nebuleuse', emoji: '🌌', label: 'Nébuleuse', labelEn: 'Nebula', tab: 'astres' },
+        { id: 'amas-stellaire', emoji: '✨', label: 'Amas stellaire', labelEn: 'Star cluster', tab: 'astres' },
+        { id: 'quasar', emoji: '✳️', label: 'Quasar', labelEn: 'Quasar', tab: 'astres' },
         { id: 'nuagedoux', emoji: '☁️', label: 'Nuage doux', labelEn: 'Soft cloud', tab: 'nuages' },
         { id: 'nuagerose', emoji: '☁️', label: 'Nuage cotonneux rose/violet', labelEn: 'Cotton-candy cloud', tab: 'nuages' },
         { id: 'nuagepluie', emoji: '🌧️', label: 'Nuage de pluie poétique', labelEn: 'Poetic rain cloud', tab: 'nuages' },
@@ -4186,6 +4190,21 @@ export default function App() {
   // les emojis). Clé = `${theme}:${id}`. Si une clé n'existe pas encore ici, on retombe sur
   // l'emoji d'origine (voir getEcoIcon plus bas) — ça permet d'avancer thème par thème sans
   // rien casser sur les thèmes pas encore convertis.
+  // Petit utilitaire pour générer un path d'étoile à N branches (utilisé par plusieurs
+  // icônes du Ciel nocturne : étoile, étoile filante, quasar, amas stellaire, comète...).
+  const svgStarPath = (cx: number, cy: number, rOuter: number, rInner: number, points: number) => {
+    const step = Math.PI / points;
+    let d = '';
+    for (let i = 0; i < points * 2; i++) {
+      const r = i % 2 === 0 ? rOuter : rInner;
+      const angle = i * step - Math.PI / 2;
+      const x = cx + Math.cos(angle) * r;
+      const y = cy + Math.sin(angle) * r;
+      d += `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)} `;
+    }
+    return d + 'Z';
+  };
+
   const ECO_ICONS: Partial<Record<string, (className: string) => JSX.Element>> = {
     'aquarium:meduse': (className) => (
       <svg viewBox="0 0 120 120" className={className}>
@@ -4523,6 +4542,173 @@ export default function App() {
       </svg>
     ),
   };
+
+  // --- Ciel nocturne ---
+  Object.assign(ECO_ICONS, {
+    'night:croissant': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path
+          fillRule="evenodd"
+          d="M18 60 A40 40 0 1 0 98 60 A40 40 0 1 0 18 60 Z M40 60 A28 28 0 1 0 96 60 A28 28 0 1 0 40 60 Z"
+          fill="#f2e6b8" opacity="0.75" filter="url(#wc-tex)"
+        />
+        <path
+          fillRule="evenodd"
+          d="M18 60 A40 40 0 1 0 98 60 A40 40 0 1 0 18 60 Z M40 60 A28 28 0 1 0 96 60 A28 28 0 1 0 40 60 Z"
+          fill="none" stroke="#c9b06a" strokeWidth="1" opacity="0.35"
+        />
+      </svg>
+    ),
+    'night:pleinelune': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <circle cx="60" cy="60" r="42" fill="#f7edb8" opacity="0.7" filter="url(#wc-tex)" />
+        <circle cx="60" cy="60" r="42" fill="none" stroke="#c9b06a" strokeWidth="1" opacity="0.3" />
+        <circle cx="46" cy="48" r="7" fill="#e0cf8a" opacity="0.45" />
+        <circle cx="70" cy="62" r="10" fill="#e0cf8a" opacity="0.4" />
+        <circle cx="54" cy="76" r="5" fill="#e0cf8a" opacity="0.4" />
+      </svg>
+    ),
+    'night:filante': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M92 24 L28 88" fill="none" stroke="#fbe27a" strokeWidth="3" strokeLinecap="round" opacity="0.4" filter="url(#wc-tex)" />
+        <path d={svgStarPath(92, 24, 12, 5, 4)} fill="#fbe27a" opacity="0.85" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'night:etoile': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d={svgStarPath(60, 60, 34, 14, 5)} fill="#fbe27a" opacity="0.8" filter="url(#wc-tex)" />
+        <path d={svgStarPath(60, 60, 34, 14, 5)} fill="none" stroke="#c9a13c" strokeWidth="1" opacity="0.35" />
+      </svg>
+    ),
+    'night:asteroide': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M32 56 C28 42 42 32 56 30 C74 28 92 36 94 52 C96 66 86 78 70 84 C54 90 38 84 32 72 Z"
+          fill="#9aa6b0" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M32 56 C28 42 42 32 56 30 C74 28 92 36 94 52 C96 66 86 78 70 84 C54 90 38 84 32 72 Z"
+          fill="none" stroke="#5e6970" strokeWidth="1" opacity="0.4" />
+        <circle cx="52" cy="52" r="5" fill="#5e6970" opacity="0.35" />
+        <circle cx="72" cy="60" r="7" fill="#5e6970" opacity="0.3" />
+        <circle cx="60" cy="72" r="4" fill="#5e6970" opacity="0.3" />
+      </svg>
+    ),
+    'night:nebuleuse': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="46" cy="54" rx="34" ry="20" fill="#c98fc2" opacity="0.35" filter="url(#wc-tex)" transform="rotate(-15 46 54)" />
+        <ellipse cx="72" cy="62" rx="30" ry="18" fill="#8fb2c9" opacity="0.35" filter="url(#wc-tex)" transform="rotate(10 72 62)" />
+        <ellipse cx="60" cy="66" rx="26" ry="14" fill="#e5a0c0" opacity="0.3" filter="url(#wc-tex)" transform="rotate(-5 60 66)" />
+        {[[38, 40], [78, 44], [56, 82], [90, 70]].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r={1.6 + (i % 2)} fill="#fbe27a" opacity="0.8" />
+        ))}
+      </svg>
+    ),
+    'night:amas-stellaire': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        {[[60, 58, 8], [38, 40, 4], [82, 36, 4.5], [30, 74, 3.5], [88, 72, 5], [58, 26, 3], [70, 90, 3.2], [24, 54, 2.6]].map(([cx, cy, r], i) => (
+          <g key={i}>
+            <circle cx={cx} cy={cy} r={Number(r) * 2.4} fill="#fbe27a" opacity="0.18" />
+            <path d={svgStarPath(Number(cx), Number(cy), Number(r), Number(r) * 0.4, 4)} fill="#fbe27a" opacity="0.85" filter="url(#wc-tex)" />
+          </g>
+        ))}
+      </svg>
+    ),
+    'night:quasar': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <circle cx="60" cy="60" r="34" fill="#8fc2c9" opacity="0.2" filter="url(#wc-tex)" />
+        {[0, 45, 90, 135].map(deg => (
+          <line key={deg} x1="60" y1="60" x2="60" y2="60" fill="none" stroke="#f7edb8" strokeWidth="3" opacity="0.6"
+            transform={`rotate(${deg} 60 60)`} />
+        ))}
+        <path d={svgStarPath(60, 60, 40, 6, 8)} fill="none" stroke="#f7edb8" strokeWidth="2.4" strokeLinejoin="round" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="60" cy="60" r="9" fill="#ffffff" opacity="0.9" />
+      </svg>
+    ),
+    'night:nuagedoux': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 76 C18 76 14 60 26 56 C24 44 40 38 50 46 C56 34 78 34 84 48 C98 46 104 66 92 72 C94 80 84 86 74 82 C68 88 46 88 38 80 C32 82 26 80 30 76 Z"
+          fill="#f0f4f8" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M30 76 C18 76 14 60 26 56 C24 44 40 38 50 46 C56 34 78 34 84 48 C98 46 104 66 92 72 C94 80 84 86 74 82 C68 88 46 88 38 80 C32 82 26 80 30 76 Z"
+          fill="none" stroke="#a8bcc8" strokeWidth="0.8" opacity="0.35" />
+      </svg>
+    ),
+    'night:nuagerose': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 76 C18 76 14 60 26 56 C24 44 40 38 50 46 C56 34 78 34 84 48 C98 46 104 66 92 72 C94 80 84 86 74 82 C68 88 46 88 38 80 C32 82 26 80 30 76 Z"
+          fill="#e5a0c9" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M40 60 C44 52 60 50 66 58 C74 52 88 58 86 68" fill="none" stroke="#c98fc2" strokeWidth="1" opacity="0.3" />
+      </svg>
+    ),
+    'night:nuagepluie': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 62 C18 62 14 46 26 42 C24 30 40 24 50 32 C56 20 78 20 84 34 C98 32 104 52 92 58 C94 64 88 70 80 68 C74 72 46 72 40 66 C32 68 26 66 30 62 Z"
+          fill="#9aa6b0" opacity="0.5" filter="url(#wc-tex)" />
+        {[42, 58, 74].map((x, i) => (
+          <path key={i} d={`M${x} 78 C${x - 2} 84 ${x - 2} 90 ${x} 94 C${x + 2} 90 ${x + 2} 84 ${x} 78 Z`} fill="#8fb2c9" opacity="0.6" filter="url(#wc-tex)" />
+        ))}
+      </svg>
+    ),
+    'night:nuageorage': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M30 58 C18 58 14 42 26 38 C24 26 40 20 50 28 C56 16 78 16 84 30 C98 28 104 48 92 54 C94 60 88 66 80 64 C74 68 46 68 40 62 C32 64 26 62 30 58 Z"
+          fill="#6b7280" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M66 68 L54 88 L64 88 L52 106 L74 82 L64 82 Z" fill="#fbe27a" opacity="0.8" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'night:aurore': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M6 70 C24 40 36 90 54 56 C68 30 82 78 96 46 C104 30 110 40 114 34"
+          fill="none" stroke="#7fd0a0" strokeWidth="10" strokeLinecap="round" opacity="0.35" filter="url(#wc-tex)" />
+        <path d="M6 82 C24 52 36 100 54 68 C68 42 82 90 96 58 C104 42 110 52 114 46"
+          fill="none" stroke="#c98fc2" strokeWidth="10" strokeLinecap="round" opacity="0.3" filter="url(#wc-tex)" />
+        <path d="M6 58 C24 28 36 78 54 44 C68 18 82 66 96 34 C104 18 110 28 114 22"
+          fill="none" stroke="#8fc2e5" strokeWidth="8" strokeLinecap="round" opacity="0.3" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'night:lanterne': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="28" rx="10" ry="4" fill="#e0b45a" opacity="0.6" />
+        <path d="M42 34 L78 34 L72 90 L48 90 Z" fill="#f2a13c" opacity="0.35" filter="url(#wc-tex)" />
+        <path d="M48 40 L72 40 L67 84 L53 84 Z" fill="#fbe27a" opacity="0.7" filter="url(#wc-tex)" />
+        <path d="M42 34 L78 34 L72 90 L48 90 Z" fill="none" stroke="#c9822e" strokeWidth="1" opacity="0.4" />
+        <ellipse cx="60" cy="90" rx="10" ry="4" fill="#e0b45a" opacity="0.6" />
+        <circle cx="60" cy="20" r="18" fill="#fbe27a" opacity="0.12" />
+      </svg>
+    ),
+    'night:montgolfiere': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 14 C36 14 26 40 32 62 C36 76 46 84 60 84 C74 84 84 76 88 62 C94 40 84 14 60 14 Z"
+          fill="#e5622a" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M46 20 C40 34 40 60 48 78 M60 16 L60 84 M74 20 C80 34 80 60 72 78"
+          fill="none" stroke="#9c3d16" strokeWidth="1" opacity="0.35" />
+        <path d="M60 84 C60 84 60 90 60 90" fill="none" />
+        <line x1="50" y1="84" x2="46" y2="96" stroke="#7a5730" strokeWidth="1.4" opacity="0.5" />
+        <line x1="70" y1="84" x2="74" y2="96" stroke="#7a5730" strokeWidth="1.4" opacity="0.5" />
+        <rect x="46" y="96" width="28" height="12" rx="2" fill="#c9955c" opacity="0.6" filter="url(#wc-tex)" />
+      </svg>
+    ),
+    'night:comete': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M78 42 C60 50 40 62 22 84" fill="none" stroke="#8fc2e5" strokeWidth="7" strokeLinecap="round" opacity="0.3" filter="url(#wc-tex)" />
+        <path d="M78 42 C64 48 48 58 32 76" fill="none" stroke="#bfe0e8" strokeWidth="4" strokeLinecap="round" opacity="0.4" filter="url(#wc-tex)" />
+        <circle cx="78" cy="42" r="12" fill="#ffffff" opacity="0.9" filter="url(#wc-tex)" />
+        <circle cx="78" cy="42" r="18" fill="#8fc2e5" opacity="0.25" />
+      </svg>
+    ),
+    'night:lumignon': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <circle cx="60" cy="60" r="24" fill="#fbe27a" opacity="0.15" />
+        <circle cx="60" cy="60" r="14" fill="#fbe27a" opacity="0.35" filter="url(#wc-tex)" />
+        <circle cx="60" cy="60" r="6" fill="#fff6d0" opacity="0.85" />
+      </svg>
+    ),
+    'night:constellation': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M26 84 L48 40 L72 58 L94 26 M48 40 L60 90" fill="none" stroke="#f7edb8" strokeWidth="1" opacity="0.4" />
+        {[[26, 84], [48, 40], [72, 58], [94, 26], [60, 90]].map(([x, y], i) => (
+          <path key={i} d={svgStarPath(x, y, 5, 2, 4)} fill="#fbe27a" opacity="0.85" filter="url(#wc-tex)" />
+        ))}
+      </svg>
+    ),
+  });
 
   const getEcoIcon = (theme: EcoElement['theme'], type: string, className: string, emojiFallback: string, emojiClassName: string = 'text-lg') => {
     const renderer = ECO_ICONS[`${theme}:${type}`];
