@@ -4030,6 +4030,98 @@ export default function App() {
   const isJardinWilted = (el: EcoElement) =>
     !!JARDIN_GROWTH_STAGES[el.type] && !!el.lastWatered && (Date.now() - el.lastWatered) > JARDIN_WILT_MS;
 
+  // Icônes aquarelle des graines par stade de pousse (0 = pousse, 1 = jeune plant, 2 = mature).
+  // La taille affichée grandit avec le stade (voir JARDIN_STAGE_SIZE) pour rendre la pousse visible
+  // d'un coup d'œil, pas seulement via le changement de forme.
+  const jardinSoil = <ellipse cx="60" cy="100" rx="24" ry="6" fill="#8a6a4a" opacity="0.35" filter="url(#wc-tex)" />;
+  const jardinSprout = (className: string) => (
+    <svg viewBox="0 0 120 120" className={className}>
+      {jardinSoil}
+      <path d="M60 98 L60 76" stroke="#4c7042" strokeWidth="2.5" strokeLinecap="round" opacity="0.6" />
+      <path d="M60 82 C52 78 46 70 48 62 C56 66 60 74 60 82 Z" fill="#7fb87a" opacity="0.6" filter="url(#wc-tex)" />
+      <path d="M60 78 C68 74 74 66 72 58 C64 62 60 70 60 78 Z" fill="#8fc28a" opacity="0.6" filter="url(#wc-tex)" />
+    </svg>
+  );
+  const JARDIN_STAGE_SIZE = ['w-6 h-6', 'w-8 h-8', 'w-11 h-11'];
+  const JARDIN_GROWTH_ICONS: Record<string, ((className: string) => JSX.Element)[]> = {
+    'graine-fleur': [
+      jardinSprout,
+      (className) => (
+        <svg viewBox="0 0 120 120" className={className}>
+          {jardinSoil}
+          <path d="M60 98 L60 50" stroke="#4c7042" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+          <path d="M60 84 C48 80 42 70 46 60 C56 64 60 74 60 84 Z" fill="#7fb87a" opacity="0.55" filter="url(#wc-tex)" />
+          <path d="M60 70 C72 66 78 56 74 46 C64 50 60 60 60 70 Z" fill="#8fc28a" opacity="0.55" filter="url(#wc-tex)" />
+          <circle cx="60" cy="44" r="9" fill="#e5a0c0" opacity="0.6" filter="url(#wc-tex)" />
+        </svg>
+      ),
+      (className) => (
+        <svg viewBox="0 0 120 120" className={className}>
+          {jardinSoil}
+          <path d="M60 100 L60 40" stroke="#4c7042" strokeWidth="3.5" strokeLinecap="round" opacity="0.6" />
+          <path d="M60 86 C44 82 36 68 42 56 C54 62 60 74 60 86 Z" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+          <path d="M60 70 C76 66 84 52 78 40 C66 46 60 58 60 70 Z" fill="#7fb87a" opacity="0.55" filter="url(#wc-tex)" />
+          {[0, 60, 120, 180, 240, 300].map(deg => (
+            <ellipse key={deg} cx="60" cy="24" rx="8" ry="16" fill="#e5a0c0" opacity="0.65" filter="url(#wc-tex)" transform={`rotate(${deg} 60 40)`} />
+          ))}
+          <circle cx="60" cy="40" r="7" fill="#fbe27a" opacity="0.85" />
+        </svg>
+      ),
+    ],
+    'graine-arbre': [
+      jardinSprout,
+      (className) => (
+        <svg viewBox="0 0 120 120" className={className}>
+          {jardinSoil}
+          <path d="M60 98 L60 62" stroke="#7a5c40" strokeWidth="4" strokeLinecap="round" opacity="0.6" />
+          <circle cx="60" cy="52" r="16" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+          <circle cx="48" cy="60" r="10" fill="#7fb87a" opacity="0.5" filter="url(#wc-tex)" />
+          <circle cx="74" cy="58" r="11" fill="#7fb87a" opacity="0.5" filter="url(#wc-tex)" />
+        </svg>
+      ),
+      (className) => (
+        <svg viewBox="0 0 120 120" className={className}>
+          {jardinSoil}
+          <path d="M60 100 L60 58" stroke="#7a5c40" strokeWidth="7" strokeLinecap="round" opacity="0.6" filter="url(#wc-tex)" />
+          <path d="M60 76 L42 66 M60 72 L80 60" stroke="#7a5c40" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+          <path d="M30 56 C18 56 14 40 26 36 C24 24 40 18 50 26 C56 14 78 14 84 28 C98 26 104 46 92 52 C94 60 84 66 74 62 C68 68 46 68 38 60 C32 62 26 60 30 56 Z"
+            fill="#6ea86a" opacity="0.6" filter="url(#wc-tex)" />
+          <path d="M30 56 C18 56 14 40 26 36 C24 24 40 18 50 26 C56 14 78 14 84 28 C98 26 104 46 92 52 C94 60 84 66 74 62 C68 68 46 68 38 60 C32 62 26 60 30 56 Z"
+            fill="none" stroke="#4c7042" strokeWidth="1" opacity="0.35" />
+          <path d="M40 40 C44 32 60 30 66 38 C74 32 88 38 86 48" fill="none" stroke="#4c7042" strokeWidth="1" opacity="0.3" />
+        </svg>
+      ),
+    ],
+    'graine-legume': [
+      jardinSprout,
+      (className) => (
+        <svg viewBox="0 0 120 120" className={className}>
+          {jardinSoil}
+          <path d="M60 98 L60 58" stroke="#4c7042" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+          <path d="M60 82 C48 78 42 68 46 58 C56 62 60 72 60 82 Z" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+          <path d="M60 70 C72 66 78 56 74 46 C64 50 60 60 60 70 Z" fill="#7fb87a" opacity="0.55" filter="url(#wc-tex)" />
+          <circle cx="60" cy="52" r="7" fill="#8fc28a" opacity="0.7" filter="url(#wc-tex)" />
+        </svg>
+      ),
+      (className) => (
+        <svg viewBox="0 0 120 120" className={className}>
+          {jardinSoil}
+          <path d="M60 100 L60 44" stroke="#4c7042" strokeWidth="3.5" strokeLinecap="round" opacity="0.6" />
+          <path d="M60 84 C44 80 36 66 42 52 C54 58 60 72 60 84 Z" fill="#6ea86a" opacity="0.55" filter="url(#wc-tex)" />
+          <path d="M60 68 C76 64 84 50 78 36 C66 42 60 54 60 68 Z" fill="#7fb87a" opacity="0.55" filter="url(#wc-tex)" />
+          <circle cx="46" cy="70" r="9" fill="#e5502a" opacity="0.75" filter="url(#wc-tex)" />
+          <circle cx="72" cy="62" r="8" fill="#e5502a" opacity="0.7" filter="url(#wc-tex)" />
+          <circle cx="58" cy="46" r="7" fill="#e5502a" opacity="0.7" filter="url(#wc-tex)" />
+        </svg>
+      ),
+    ],
+  };
+  const getJardinStageIndex = (el: EcoElement) => {
+    const stages = JARDIN_GROWTH_STAGES[el.type];
+    if (!stages) return 0;
+    return Math.min(stages.length - 1, Math.floor((el.growth || 0) / JARDIN_WATERS_PER_STAGE));
+  };
+
   // Cycle jour/nuit de l'Éco-Système entier, basé sur l'heure réelle de l'appareil — se réévalue chaque minute
   const [ecoClockTick, setEcoClockTick] = useState(0);
   useEffect(() => {
@@ -4164,6 +4256,9 @@ export default function App() {
         { id: 'coccinelle', emoji: '🐞', label: 'Coccinelle', labelEn: 'Ladybug', tab: 'faune' },
         { id: 'abeille', emoji: '🐝', label: 'Abeille', labelEn: 'Bee', tab: 'faune' },
         { id: 'oiseau', emoji: '🐦', label: 'Oiseau', labelEn: 'Bird', tab: 'faune' },
+        { id: 'herisson', emoji: '🦔', label: 'Hérisson', labelEn: 'Hedgehog', tab: 'faune' },
+        { id: 'raton-laveur', emoji: '🦝', label: 'Raton-laveur', labelEn: 'Raccoon', tab: 'faune' },
+        { id: 'chat', emoji: '🐱', label: 'Chat', labelEn: 'Cat', tab: 'faune' },
         { id: 'arrosoir', emoji: '🪣', label: 'Arrosoir', labelEn: 'Watering can', tab: 'decor' },
         { id: 'banc-jardin', emoji: '🪑', label: 'Banc de jardin', labelEn: 'Garden bench', tab: 'decor' },
         { id: 'lanterne-jardin', emoji: '🏮', label: 'Lanterne', labelEn: 'Lantern', tab: 'decor' },
@@ -4705,6 +4800,230 @@ export default function App() {
         <path d="M26 84 L48 40 L72 58 L94 26 M48 40 L60 90" fill="none" stroke="#f7edb8" strokeWidth="1" opacity="0.4" />
         {[[26, 84], [48, 40], [72, 58], [94, 26], [60, 90]].map(([x, y], i) => (
           <path key={i} d={svgStarPath(x, y, 5, 2, 4)} fill="#fbe27a" opacity="0.85" filter="url(#wc-tex)" />
+        ))}
+      </svg>
+    ),
+  });
+
+  // --- Jardin : faune (réutilise papillon/coccinelle de la Serre, mêmes bestioles) ---
+  Object.assign(ECO_ICONS, {
+    'jardin:graine-fleur': jardinSprout,
+    'jardin:graine-arbre': jardinSprout,
+    'jardin:graine-legume': jardinSprout,
+    'jardin:papillon': ECO_ICONS['greenhouse:papillon'],
+    'jardin:coccinelle': ECO_ICONS['greenhouse:coccinelle'],
+    'jardin:abeille': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="50" cy="60" rx="17" ry="11" fill="#e5f0f5" opacity="0.4" filter="url(#wc-tex)" transform="rotate(-18 50 60)" />
+        <ellipse cx="50" cy="80" rx="17" ry="11" fill="#e5f0f5" opacity="0.4" filter="url(#wc-tex)" transform="rotate(18 50 80)" />
+        <ellipse cx="58" cy="70" rx="34" ry="18" fill="#fbe27a" opacity="0.65" filter="url(#wc-tex)" />
+        <path d="M32 70 L32 56 M32 70 L32 84 M46 62 L46 78 M60 62 L60 78 M74 64 L74 76"
+          stroke="#3a2a10" strokeWidth="4.5" opacity="0.6" strokeLinecap="round" />
+        <circle cx="88" cy="70" r="9" fill="#3a2a10" opacity="0.65" />
+        <path d="M85 62 C83 55 78 52 73 52 M91 62 C93 55 98 52 103 52" fill="none" stroke="#3a2a10" strokeWidth="1.6" opacity="0.55" strokeLinecap="round" />
+        <circle cx="92" cy="69" r="1.6" fill="#f0ece5" opacity="0.9" />
+      </svg>
+    ),
+    'jardin:oiseau': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M40 88 C24 84 18 68 28 56 C36 46 52 42 66 46 C82 50 92 62 88 74 C84 86 66 92 52 88 Z"
+          fill="#c9825c" opacity="0.6" filter="url(#wc-tex)" />
+        <circle cx="76" cy="52" r="14" fill="#c9825c" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M88 50 L102 46 L92 58 Z" fill="#e5a13c" opacity="0.75" />
+        <circle cx="80" cy="48" r="2.6" fill="#3a2410" opacity="0.85" />
+        <path d="M50 66 C42 64 36 68 34 74" fill="none" stroke="#8a5232" strokeWidth="2" opacity="0.45" strokeLinecap="round" />
+        <path d="M28 74 L14 70 M30 80 L16 82 M34 86 L22 92" stroke="#8a5232" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+        <line x1="60" y1="90" x2="56" y2="100" stroke="#e5a13c" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+        <line x1="70" y1="90" x2="74" y2="100" stroke="#e5a13c" strokeWidth="2" opacity="0.5" strokeLinecap="round" />
+      </svg>
+    ),
+    'jardin:herisson': (className: string) => {
+      const cx = 64, cy = 68, rx = 40, ry = 26;
+      const spikes = Array.from({ length: 16 }).map((_, i) => {
+        const deg = 200 + (i / 15) * 160;
+        const rad = (deg * Math.PI) / 180;
+        const bx = cx + rx * 0.94 * Math.cos(rad), by = cy + ry * 0.94 * Math.sin(rad);
+        const tx = cx + (rx + 16) * Math.cos(rad), ty = cy + (ry + 13) * Math.sin(rad);
+        return <line key={i} x1={bx} y1={by} x2={tx} y2={ty} stroke="#5c4530" strokeWidth="3" strokeLinecap="round" opacity="0.55" />;
+      });
+      return (
+        <svg viewBox="0 0 120 120" className={className}>
+          <ellipse cx={cx} cy={cy} rx={rx} ry={ry} fill="#9c7a5c" opacity="0.55" filter="url(#wc-tex)" />
+          {spikes}
+          <ellipse cx="22" cy="80" rx="16" ry="12" fill="#e8dcc9" opacity="0.65" filter="url(#wc-tex)" />
+          <circle cx="10" cy="80" r="2.6" fill="#2a1c10" opacity="0.85" />
+          <circle cx="26" cy="70" r="2.2" fill="#2a1c10" opacity="0.8" />
+        </svg>
+      );
+    },
+    'jardin:raton-laveur': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M84 80 C100 78 112 66 108 50 C106 62 96 68 88 66" fill="none" stroke="#6b6058" strokeWidth="12" strokeLinecap="round" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M96 78 L100 68 M104 66 L108 56" stroke="#2a2420" strokeWidth="3" opacity="0.5" strokeLinecap="round" />
+        <ellipse cx="60" cy="72" rx="28" ry="24" fill="#8a8078" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="42" cy="50" r="10" fill="#8a8078" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="78" cy="50" r="10" fill="#8a8078" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="42" cy="50" r="5" fill="#e8ded0" opacity="0.5" />
+        <circle cx="78" cy="50" r="5" fill="#e8ded0" opacity="0.5" />
+        <ellipse cx="60" cy="66" rx="20" ry="10" fill="#3a3430" opacity="0.65" />
+        <circle cx="52" cy="66" r="2.6" fill="#f0ece5" opacity="0.9" />
+        <circle cx="68" cy="66" r="2.6" fill="#f0ece5" opacity="0.9" />
+        <ellipse cx="60" cy="80" rx="9" ry="6" fill="#e8ded0" opacity="0.6" />
+        <circle cx="60" cy="79" r="2" fill="#2a1c10" opacity="0.8" />
+      </svg>
+    ),
+    'jardin:chat': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M40 96 C36 74 36 60 44 52 C50 60 70 60 76 52 C84 60 84 74 80 96 Z" fill="#e5a13c" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="60" cy="48" r="20" fill="#e5a13c" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M44 36 L38 20 L52 32 Z" fill="#e5a13c" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M76 36 L82 20 L68 32 Z" fill="#e5a13c" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M80 96 C90 92 96 82 92 72" fill="none" stroke="#e5a13c" strokeWidth="6" strokeLinecap="round" opacity="0.55" />
+        <circle cx="52" cy="48" r="2.4" fill="#2a1c10" opacity="0.8" />
+        <circle cx="68" cy="48" r="2.4" fill="#2a1c10" opacity="0.8" />
+        <path d="M56 56 L64 56 L60 60 Z" fill="#c96a4a" opacity="0.7" />
+      </svg>
+    ),
+  });
+
+  // --- Jardin : décor ---
+  Object.assign(ECO_ICONS, {
+    'jardin:arrosoir': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M28 58 C28 48 40 42 54 42 C68 42 78 48 78 58 L78 88 C78 96 68 100 54 100 C40 100 28 96 28 88 Z" fill="#8fb2c9" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M28 58 C28 48 40 42 54 42 C68 42 78 48 78 58 L78 88 C78 96 68 100 54 100 C40 100 28 96 28 88 Z" fill="none" stroke="#5a86a3" strokeWidth="1" opacity="0.4" />
+        <path d="M74 54 L100 32" stroke="#5a86a3" strokeWidth="6" strokeLinecap="round" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="103" cy="29" r="9" fill="#8fb2c9" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="99" cy="24" r="1.4" fill="#3a4a54" opacity="0.6" />
+        <circle cx="106" cy="26" r="1.4" fill="#3a4a54" opacity="0.6" />
+        <circle cx="103" cy="33" r="1.4" fill="#3a4a54" opacity="0.6" />
+        <path d="M40 44 Q54 26 68 44" fill="none" stroke="#5a86a3" strokeWidth="4" opacity="0.5" strokeLinecap="round" />
+        <path d="M20 66 C16 74 16 82 20 88" stroke="#5a86a3" strokeWidth="3" fill="none" opacity="0.4" strokeLinecap="round" />
+      </svg>
+    ),
+    'jardin:banc-jardin': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <rect x="18" y="54" width="84" height="10" rx="2" fill="#c9955c" opacity="0.55" filter="url(#wc-tex)" />
+        <rect x="18" y="70" width="84" height="8" rx="2" fill="#c9955c" opacity="0.55" filter="url(#wc-tex)" />
+        <line x1="26" y1="78" x2="26" y2="98" stroke="#7a5730" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
+        <line x1="94" y1="78" x2="94" y2="98" stroke="#7a5730" strokeWidth="5" strokeLinecap="round" opacity="0.55" />
+        <line x1="24" y1="54" x2="24" y2="34" stroke="#7a5730" strokeWidth="5" strokeLinecap="round" opacity="0.5" />
+        <line x1="96" y1="54" x2="96" y2="34" stroke="#7a5730" strokeWidth="5" strokeLinecap="round" opacity="0.5" />
+      </svg>
+    ),
+    'jardin:lanterne-jardin': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <line x1="60" y1="100" x2="60" y2="52" stroke="#5c5044" strokeWidth="4" opacity="0.5" />
+        <path d="M44 26 L76 26 L70 56 L50 56 Z" fill="#f2a13c" opacity="0.35" filter="url(#wc-tex)" />
+        <path d="M50 32 L70 32 L66 50 L54 50 Z" fill="#fbe27a" opacity="0.7" filter="url(#wc-tex)" />
+        <path d="M44 26 L76 26 L70 56 L50 56 Z" fill="none" stroke="#8a5a2b" strokeWidth="1" opacity="0.4" />
+        <ellipse cx="60" cy="100" rx="14" ry="4" fill="#5c5044" opacity="0.4" />
+      </svg>
+    ),
+    'jardin:ruche': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 20 C74 20 78 32 74 40 C86 40 92 54 86 64 C98 66 102 80 94 90 C100 94 98 104 86 106 L34 106 C22 104 20 94 26 90 C18 80 22 66 34 64 C28 54 34 40 46 40 C42 32 46 20 60 20 Z"
+          fill="#e5b26a" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M60 20 C74 20 78 32 74 40 C86 40 92 54 86 64 C98 66 102 80 94 90 C100 94 98 104 86 106 L34 106 C22 104 20 94 26 90 C18 80 22 66 34 64 C28 54 34 40 46 40 C42 32 46 20 60 20 Z"
+          fill="none" stroke="#a3763c" strokeWidth="1" opacity="0.4" />
+        <path d="M40 40 L80 40 M32 64 L88 64 M26 90 L94 90" stroke="#a3763c" strokeWidth="1" opacity="0.35" />
+        <ellipse cx="60" cy="98" rx="9" ry="6" fill="#5c3a1a" opacity="0.6" />
+      </svg>
+    ),
+    'jardin:mare': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="72" rx="42" ry="20" fill="#8fc2c9" opacity="0.5" filter="url(#wc-tex)" />
+        <ellipse cx="60" cy="72" rx="42" ry="20" fill="none" stroke="#4a7d84" strokeWidth="1" opacity="0.4" />
+        <ellipse cx="60" cy="72" rx="24" ry="11" fill="none" stroke="#4a7d84" strokeWidth="0.8" opacity="0.35" />
+        <ellipse cx="60" cy="72" rx="10" ry="5" fill="none" stroke="#4a7d84" strokeWidth="0.8" opacity="0.35" />
+      </svg>
+    ),
+    'jardin:moulin': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M52 100 L58 50 L62 50 L68 100 Z" fill="#e8dcc9" opacity="0.6" filter="url(#wc-tex)" />
+        {[0, 90, 180, 270].map(deg => (
+          <path key={deg} d="M60 50 L60 20 C68 20 72 28 68 36 C64 42 60 46 60 50 Z" fill="#8fb2c9" opacity="0.55" filter="url(#wc-tex)" transform={`rotate(${deg} 60 50)`} />
+        ))}
+        <circle cx="60" cy="50" r="4" fill="#5a86a3" opacity="0.6" />
+      </svg>
+    ),
+    'jardin:fontaine': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <ellipse cx="60" cy="92" rx="38" ry="12" fill="#8fc2c9" opacity="0.4" filter="url(#wc-tex)" />
+        <rect x="52" y="60" width="16" height="30" fill="#c9c2b6" opacity="0.55" filter="url(#wc-tex)" />
+        <ellipse cx="60" cy="60" rx="16" ry="6" fill="#8fc2c9" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M60 60 C56 46 60 34 60 24 M60 40 C52 34 48 30 44 28 M60 40 C68 34 72 30 76 28" fill="none" stroke="#bfe0e8" strokeWidth="2.4" strokeLinecap="round" opacity="0.5" />
+      </svg>
+    ),
+    'jardin:girouette': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <line x1="60" y1="106" x2="60" y2="46" stroke="#7a5730" strokeWidth="3" opacity="0.5" />
+        <line x1="60" y1="30" x2="60" y2="42" stroke="#c9955c" strokeWidth="2" opacity="0.5" />
+        <line x1="48" y1="36" x2="72" y2="36" stroke="#c9955c" strokeWidth="2" opacity="0.5" />
+        <path d="M30 46 L82 46 L82 40 L100 48 L82 56 L82 50 L30 50 Z" fill="#c9955c" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M30 46 L18 40 L30 50 Z" fill="#e5b26a" opacity="0.55" filter="url(#wc-tex)" />
+        <circle cx="60" cy="46" r="4" fill="#7a5730" opacity="0.6" />
+      </svg>
+    ),
+    'jardin:epouvantail': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <line x1="60" y1="100" x2="60" y2="30" stroke="#8a6a4a" strokeWidth="4" opacity="0.5" />
+        <line x1="32" y1="52" x2="88" y2="52" stroke="#8a6a4a" strokeWidth="4" opacity="0.5" />
+        <path d="M40 52 C40 68 44 84 60 90 C76 84 80 68 80 52 Z" fill="#c9955c" opacity="0.5" filter="url(#wc-tex)" />
+        <circle cx="60" cy="30" r="16" fill="#e8dcc9" opacity="0.6" filter="url(#wc-tex)" />
+        <path d="M44 22 L76 22 L70 32 L50 32 Z" fill="#e5b26a" opacity="0.55" />
+        <circle cx="53" cy="30" r="1.6" fill="#3a2410" /><circle cx="67" cy="30" r="1.6" fill="#3a2410" />
+      </svg>
+    ),
+    'jardin:chemin-pierres': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        {[[26, 90, 16], [56, 74, 18], [84, 56, 15], [50, 38, 14]].map(([cx, cy, r], i) => (
+          <ellipse key={i} cx={cx} cy={cy} rx={r} ry={Number(r) * 0.55} fill="#9aa6b0" opacity="0.5" filter="url(#wc-tex)" />
+        ))}
+      </svg>
+    ),
+    'jardin:cloture': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <line x1="10" y1="60" x2="110" y2="60" stroke="#b3906a" strokeWidth="4" opacity="0.5" />
+        <line x1="10" y1="76" x2="110" y2="76" stroke="#b3906a" strokeWidth="4" opacity="0.5" />
+        {[16, 40, 64, 88, 108].map((x, i) => (
+          <path key={i} d={`M${x - 6} 96 L${x - 6} 46 L${x} 36 L${x + 6} 46 L${x + 6} 96 Z`} fill="#c9a876" opacity="0.55" filter="url(#wc-tex)" />
+        ))}
+      </svg>
+    ),
+    'jardin:compost': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M20 96 C16 76 34 58 60 58 C86 58 104 76 100 96 C98 104 22 104 20 96 Z" fill="#7a5c3a" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M20 96 C16 76 34 58 60 58 C86 58 104 76 100 96" fill="none" stroke="#4a3520" strokeWidth="1" opacity="0.4" />
+        <path d="M30 88 L90 88 M26 78 L94 78" stroke="#4a3520" strokeWidth="1" opacity="0.3" />
+        <path d="M40 66 C36 60 40 52 46 50 M64 60 C62 52 68 46 74 46 M80 68 C84 62 92 60 96 64"
+          fill="none" stroke="#6ea86a" strokeWidth="3" strokeLinecap="round" opacity="0.5" />
+        <path d="M84 50 C88 40 86 32 90 22" stroke="#7a5730" strokeWidth="2" opacity="0.45" strokeLinecap="round" fill="none" />
+        <path d="M82 24 L82 16 M90 24 L90 14 M98 24 L98 16" stroke="#7a5730" strokeWidth="2" opacity="0.45" strokeLinecap="round" />
+        <path d="M50 46 C48 40 52 34 50 28" stroke="#bfe0e8" strokeWidth="2" opacity="0.3" strokeLinecap="round" fill="none" />
+      </svg>
+    ),
+    'jardin:brouette': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <circle cx="30" cy="88" r="12" fill="#7a5730" opacity="0.5" filter="url(#wc-tex)" />
+        <circle cx="30" cy="88" r="5" fill="#5c4530" opacity="0.5" />
+        <path d="M26 76 L34 46 L98 46 L90 82 L34 82 Z" fill="#c9955c" opacity="0.55" filter="url(#wc-tex)" />
+        <path d="M26 76 L34 46 L98 46 L90 82 L34 82 Z" fill="none" stroke="#7a5730" strokeWidth="1" opacity="0.4" />
+        <line x1="90" y1="82" x2="108" y2="96" stroke="#7a5730" strokeWidth="3" opacity="0.5" strokeLinecap="round" />
+        <line x1="34" y1="82" x2="52" y2="98" stroke="#7a5730" strokeWidth="3" opacity="0.5" strokeLinecap="round" />
+        <line x1="18" y1="84" x2="8" y2="70" stroke="#7a5730" strokeWidth="3" opacity="0.5" strokeLinecap="round" />
+        <line x1="22" y1="92" x2="12" y2="80" stroke="#7a5730" strokeWidth="3" opacity="0.5" strokeLinecap="round" />
+        {[[46, 50, '#e5a0c0'], [62, 44, '#fbe27a'], [78, 50, '#c98fc2'], [54, 42, '#8fc2c9']].map(([cx, cy, c], i) => (
+          <circle key={i} cx={cx} cy={cy} r="8" fill={c as string} opacity="0.6" filter="url(#wc-tex)" />
+        ))}
+      </svg>
+    ),
+    'jardin:hotel-insectes': (className: string) => (
+      <svg viewBox="0 0 120 120" className={className}>
+        <path d="M60 22 L96 44 L96 96 L24 96 L24 44 Z" fill="#c9955c" opacity="0.5" filter="url(#wc-tex)" />
+        <path d="M60 22 L96 44 L24 44 Z" fill="#7a5730" opacity="0.55" filter="url(#wc-tex)" />
+        {[[36, 56, '#e8dcc9'], [60, 56, '#9aa6b0'], [84, 56, '#c9a876'], [36, 78, '#8a5a2b'], [60, 78, '#e8dcc9'], [84, 78, '#9aa6b0']].map(([x, y, c], i) => (
+          <rect key={i} x={Number(x) - 9} y={Number(y) - 9} width="18" height="18" rx="2" fill={c as string} opacity="0.55" filter="url(#wc-tex)" />
         ))}
       </svg>
     ),
@@ -15210,9 +15529,11 @@ export default function App() {
                                   className={`absolute flex flex-col items-center gap-1 cursor-grab active:cursor-grabbing transition-transform duration-300 ${ecoEditMode ? 'opacity-90 hover:opacity-40' : ''}`}
                                 >
                                   <span className={`pointer-events-none drop-shadow inline-flex ${animClass}`} style={animStyle}>
-                                    {(!isSeed && !isNightButterfly)
-                                      ? getEcoIcon(el.theme, el.type, 'w-7 h-7', displayEmoji, 'text-2xl')
-                                      : <span className="text-2xl">{displayEmoji}</span>}
+                                    {isSeed
+                                      ? JARDIN_GROWTH_ICONS[el.type][getJardinStageIndex(el)](JARDIN_STAGE_SIZE[getJardinStageIndex(el)])
+                                      : isNightButterfly
+                                      ? <span className="text-2xl">{displayEmoji}</span>
+                                      : getEcoIcon(el.theme, el.type, 'w-7 h-7', displayEmoji, 'text-2xl')}
                                   </span>
                                   <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
                                     {isSeed
