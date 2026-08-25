@@ -2,7 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -4122,18 +4122,63 @@ export default function App() {
     return Math.min(stages.length - 1, Math.floor((el.growth || 0) / JARDIN_WATERS_PER_STAGE));
   };
 
-  // Cycle jour/nuit de l'Éco-Système entier, basé sur l'heure réelle de l'appareil — se réévalue chaque minute
+  // Cycle jour/nuit de l'Éco-Système entier, basé sur l'heure réelle de l'appareil — se réévalue chaque minute.
+  // 4 phases (aube / jour / crépuscule / nuit) plutôt qu'un simple bascule jour-nuit, appliquées aux 4 paysages
+  // (le Ciel nocturne aussi : il s'éclaircit en journée au lieu de rester sombre en permanence).
   const [ecoClockTick, setEcoClockTick] = useState(0);
   useEffect(() => {
     const iv = setInterval(() => setEcoClockTick(t => t + 1), 60000);
     return () => clearInterval(iv);
   }, []);
-  const isNightTime = (() => { void ecoClockTick; const h = new Date().getHours(); return h >= 20 || h < 7; })();
-  // Variantes nocturnes par thème — Ciel nocturne est déjà sombre en permanence, pas besoin de variante
-  const ECO_NIGHT_VARIANTS: Partial<Record<'aquarium' | 'greenhouse' | 'night' | 'jardin', string>> = {
-    aquarium: 'from-slate-900/60 via-blue-950/50 to-cyan-950/50 border-blue-900/30',
-    greenhouse: 'from-emerald-950/55 via-slate-900/45 to-emerald-950/45 border-emerald-900/30',
-    jardin: 'from-indigo-950/50 via-emerald-950/40 to-slate-950/50 border-emerald-800/25',
+  const ecoPhase: 'dawn' | 'day' | 'dusk' | 'night' = (() => {
+    void ecoClockTick;
+    const h = new Date().getHours();
+    if (h >= 6 && h < 8) return 'dawn';
+    if (h >= 8 && h < 18) return 'day';
+    if (h >= 18 && h < 20) return 'dusk';
+    return 'night';
+  })();
+  const isNightTime = ecoPhase === 'night';
+  // Palette aquarelle par thème × phase — dégradés doux à plusieurs teintes façon lavis, dans la même
+  // famille de couleurs que les icônes SVG (pour que fond et présences se répondent visuellement).
+  const ECO_SKY: Record<'aquarium' | 'greenhouse' | 'night' | 'jardin', Record<'dawn' | 'day' | 'dusk' | 'night', string>> = {
+    aquarium: {
+      dawn: 'linear-gradient(180deg, #f0c9c0 0%, #a8c9d0 35%, #4a7d84 100%)',
+      day: 'linear-gradient(180deg, #bfe0e8 0%, #6ea8c9 40%, #2f5f74 100%)',
+      dusk: 'linear-gradient(180deg, #f2a13c 0%, #8fb2c9 40%, #2f5f74 100%)',
+      night: 'linear-gradient(180deg, #16324a 0%, #0c1f30 55%, #081420 100%)',
+    },
+    greenhouse: {
+      dawn: 'linear-gradient(180deg, #f0d9b8 0%, #d6e8c4 45%, #7fae72 100%)',
+      day: 'linear-gradient(180deg, #eaf5d8 0%, #bfe0a8 45%, #6ea86a 100%)',
+      dusk: 'linear-gradient(180deg, #f2a13c 0%, #d6c98f 40%, #6ea86a 100%)',
+      night: 'linear-gradient(180deg, #1c2e1c 0%, #16241a 55%, #0e1810 100%)',
+    },
+    night: {
+      dawn: 'linear-gradient(180deg, #f0b8a0 0%, #d0a8c9 45%, #7a6a9c 100%)',
+      day: 'linear-gradient(180deg, #bfe0e8 0%, #8fb2d0 45%, #5a7ab0 100%)',
+      dusk: 'linear-gradient(180deg, #e5622a 0%, #c98fc2 40%, #4a3d7a 100%)',
+      night: 'linear-gradient(180deg, #2a1f42 0%, #1c1530 55%, #100a1c 100%)',
+    },
+    jardin: {
+      dawn: 'linear-gradient(180deg, #f0c9a0 0%, #e5d8a0 40%, #9cc48f 100%)',
+      day: 'linear-gradient(180deg, #d8ecc9 0%, #cfe0a0 40%, #8fb87a 100%)',
+      dusk: 'linear-gradient(180deg, #e5622a 0%, #c9a06f 40%, #6ea86a 100%)',
+      night: 'linear-gradient(180deg, #1e2a42 0%, #1c2e1c 55%, #14200f 100%)',
+    },
+  };
+  // Astre (soleil/lune) : sa couleur et son opacité suivent la phase, sa position reste dans le coin du thème.
+  const ECO_GLOW_BY_PHASE: Record<'dawn' | 'day' | 'dusk' | 'night', { color: string; opacity: number }> = {
+    dawn: { color: '#f5cf9a', opacity: 0.4 },
+    day: { color: '#fff6d0', opacity: 0.3 },
+    dusk: { color: '#f2a13c', opacity: 0.45 },
+    night: { color: '#e8ecf5', opacity: 0.22 },
+  };
+  // Léger grain "papier aquarelle" superposé aux fonds pour rester cohérent avec le style des icônes SVG.
+  const ecoGrainStyle: React.CSSProperties = {
+    backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E\")",
+    opacity: 0.05,
+    mixBlendMode: 'overlay',
   };
 
   // Compteur de verres d'eau bus aujourd'hui — chaque arrosage d'une graine dans le Jardin en logge un
@@ -15193,11 +15238,9 @@ export default function App() {
                       </p>
                     </div>
                   ) : activeRelaxTool === 'eco-system' ? (() => {
-                    const bgDef = ECO_BACKGROUNDS.find(b => b.id === ecoBackground)!;
-                    // Le Jardin a une variante nocturne, appliquée automatiquement selon l'heure de l'appareil
-                    const bg = (isNightTime && ECO_NIGHT_VARIANTS[ecoBackground])
-                      ? { ...bgDef, className: ECO_NIGHT_VARIANTS[ecoBackground]! }
-                      : bgDef;
+                    // Fond aquarelle : dégradé qui suit la phase du jour (aube/jour/crépuscule/nuit), pour les 4 paysages.
+                    const skyGradient = ECO_SKY[ecoBackground][ecoPhase];
+                    const glow = ECO_GLOW_BY_PHASE[ecoPhase];
                     const catalog = ECO_CATALOG[ecoBackground];
                     const visibleElements = ecoElements.filter(el => el.theme === ecoBackground);
                     const itemsInTab = catalog.items.filter(it => it.tab === ecoDraftTab);
@@ -15357,7 +15400,21 @@ export default function App() {
                           className="relative w-full max-w-2xl h-72 sm:h-[26rem] rounded-3xl border overflow-hidden touch-none select-none cursor-grab active:cursor-grabbing"
                         >
                           {/* Fond — reste fixe et couvre tout le cadre, ne suit jamais le pan (sinon ça laisse un vide) */}
-                          <div className={`absolute inset-0 bg-gradient-to-b ${bg.className}`} />
+                          <div className="absolute inset-0 transition-all duration-1000" style={{ background: skyGradient }} />
+                          <div className="absolute inset-0 pointer-events-none" style={ecoGrainStyle} />
+                          {/* Astre (soleil/lune) — couleur/opacité suivent la phase du jour, position fixe par thème */}
+                          <div
+                            className="absolute rounded-full pointer-events-none transition-all duration-1000"
+                            style={{
+                              top: ecoBackground === 'aquarium' ? '6%' : '4%',
+                              right: ecoBackground === 'aquarium' ? '10%' : '6%',
+                              width: ecoBackground === 'aquarium' ? 36 : 44,
+                              height: ecoBackground === 'aquarium' ? 36 : 44,
+                              background: `radial-gradient(circle, ${glow.color}, transparent 70%)`,
+                              opacity: glow.opacity,
+                              filter: 'blur(2px)',
+                            }}
+                          />
                           {/* Décor d'arrière-plan, non-interactif — reste fixe lui aussi (sol, rayons, étoiles) :
                               s'il suivait le pan, il se décollerait des bords du cadre et ça créerait un décalage visible. */}
                           <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -15398,7 +15455,6 @@ export default function App() {
                                   <span className="absolute bottom-1 left-[10%] text-2xl opacity-50">🍃</span>
                                   <span className="absolute top-3 right-[10%] text-xl opacity-40">🍃</span>
                                   <span className="absolute bottom-2 right-[20%] text-lg opacity-35">🌾</span>
-                                  <div className="absolute top-0 right-0 w-24 h-24 rounded-full" style={{ background: 'radial-gradient(circle, rgba(254,249,195,0.25), transparent 70%)' }} />
                                   {/* Poussière de pollen qui flotte doucement */}
                                   {Array.from({ length: 8 }).map((_, i) => {
                                     const seed = (i * 41) % 100;
@@ -15421,32 +15477,35 @@ export default function App() {
                               )}
                               {ecoBackground === 'night' && (
                                 <>
-                                  {Array.from({ length: 26 }).map((_, i) => {
-                                    const seed = (i * 37) % 100;
-                                    const seed2 = (i * 61) % 100;
-                                    return (
-                                      <span
-                                        key={i}
-                                        className="absolute rounded-full bg-white eco-twinkle"
-                                        style={{
-                                          left: `${seed}%`,
-                                          top: `${(seed2 * 0.85)}%`,
-                                          width: i % 4 === 0 ? 2.5 : 1.5,
-                                          height: i % 4 === 0 ? 2.5 : 1.5,
-                                          animationDuration: `${2.5 + (i % 5) * 0.6}s`,
-                                          animationDelay: `${(i * 0.31) % 4}s`,
-                                        }}
-                                      />
-                                    );
-                                  })}
-                                  <div className="absolute top-4 right-6 w-10 h-10 rounded-full bg-yellow-50/25 blur-[2px]" />
+                                  <div
+                                    className="absolute inset-0 transition-opacity duration-1000"
+                                    style={{ opacity: ecoPhase === 'day' ? 0 : ecoPhase === 'dawn' || ecoPhase === 'dusk' ? 0.5 : 1 }}
+                                  >
+                                    {Array.from({ length: 26 }).map((_, i) => {
+                                      const seed = (i * 37) % 100;
+                                      const seed2 = (i * 61) % 100;
+                                      return (
+                                        <span
+                                          key={i}
+                                          className="absolute rounded-full bg-white eco-twinkle"
+                                          style={{
+                                            left: `${seed}%`,
+                                            top: `${(seed2 * 0.85)}%`,
+                                            width: i % 4 === 0 ? 2.5 : 1.5,
+                                            height: i % 4 === 0 ? 2.5 : 1.5,
+                                            animationDuration: `${2.5 + (i % 5) * 0.6}s`,
+                                            animationDelay: `${(i * 0.31) % 4}s`,
+                                          }}
+                                        />
+                                      );
+                                    })}
+                                  </div>
                                 </>
                               )}
                               {ecoBackground === 'jardin' && (
                                 <>
                                   <div className="absolute bottom-0 left-0 right-0 h-14 bg-gradient-to-t from-amber-800/25 to-transparent" />
                                   <div className="absolute top-0 left-[15%] w-20 h-full bg-gradient-to-b from-yellow-100/25 to-transparent rotate-6" />
-                                  <div className="absolute top-2 right-8 w-12 h-12 rounded-full bg-yellow-100/40 blur-[3px]" />
                                   <span className="absolute bottom-2 left-[6%] text-xl opacity-40">🌾</span>
                                   <span className="absolute bottom-3 right-[10%] text-lg opacity-35">🌾</span>
                                   {/* Petites feuilles qui dérivent doucement, purement décoratif */}
