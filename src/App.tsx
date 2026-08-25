@@ -3062,6 +3062,10 @@ export default function App() {
     `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/${category === 'fleur' ? 'fleurs' : 'cercles'}/${MANDALA_FILES[category][index]}`;
 
   // Charge (ou recharge depuis le cache) le mandala sélectionné dans le canvas.
+  // Résolution du canvas alignée sur celle des images sources (1280px) plutôt que downscalée à 512 :
+  // en downscalant, les traits fins du dessin devenaient de fins pixels gris quasi-blancs (anti-aliasing),
+  // ce qui laissait le remplissage "fuir" à travers un trait qui semblait fermé à l'œil. Ça réglait aussi
+  // le flou visible en zoomant, puisque l'image n'était plus qu'à 40% de sa résolution native.
   useEffect(() => {
     if (currentTab !== 'relax' || activeRelaxTool !== 'fidgets' || fidgetSubTool !== 'coloring') return;
     const canvas = mandalaCanvasRef.current;
@@ -3071,6 +3075,7 @@ export default function App() {
     const cached = mandalaCacheRef.current[mandalaKey];
     const img = new Image();
     img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -3144,6 +3149,7 @@ export default function App() {
     if (!canvas || !ctx) return;
     const img = new Image();
     img.onload = () => {
+      ctx.imageSmoothingEnabled = false;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -14739,8 +14745,8 @@ export default function App() {
                             <div className="w-full h-full flex items-center justify-center">
                               <canvas
                                 ref={mandalaCanvasRef}
-                                width={512}
-                                height={512}
+                                width={1280}
+                                height={1280}
                                 style={{ transform: `translate(${mandalaPan.x}px, ${mandalaPan.y}px) scale(${mandalaZoom})`, transformOrigin: 'center center' }}
                                 className="w-64 h-64 rounded-xl bg-white cursor-pointer"
                               />
