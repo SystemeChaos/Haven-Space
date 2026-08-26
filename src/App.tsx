@@ -3082,7 +3082,16 @@ export default function App() {
       const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
       const width = img.width * scale;
       const height = img.height * scale;
-      ctx.drawImage(img, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+      const drawX = (canvas.width - width) / 2, drawY = (canvas.height - height) / 2;
+      ctx.drawImage(img, drawX, drawY, width, height);
+      // Beaucoup de ces dessins ont des traits (tiges, feuilles) qui touchent le bord de l'image source —
+      // une fois posés sur un canvas plus grand, ce petit interstice relie l'intérieur au fond blanc entier
+      // et le remplissage fuit partout. On scelle donc le contour du dessin avec un cadre noir fin, invisible
+      // à l'usage mais qui bloque toute fuite vers la marge blanche autour.
+      const seal = Math.max(4, Math.round(canvas.width / 320));
+      ctx.lineWidth = seal;
+      ctx.strokeStyle = '#000000';
+      ctx.strokeRect(drawX + seal / 2, drawY + seal / 2, width - seal, height - seal);
     };
     img.src = cached || getMandalaSrc(mandalaCategory, mandalaDesignIndex);
   }, [currentTab, activeRelaxTool, fidgetSubTool, mandalaCategory, mandalaDesignIndex]);
@@ -3156,7 +3165,12 @@ export default function App() {
       const scale = Math.min(canvas.width / img.width, canvas.height / img.height);
       const width = img.width * scale;
       const height = img.height * scale;
-      ctx.drawImage(img, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+      const drawX = (canvas.width - width) / 2, drawY = (canvas.height - height) / 2;
+      ctx.drawImage(img, drawX, drawY, width, height);
+      const seal = Math.max(4, Math.round(canvas.width / 320));
+      ctx.lineWidth = seal;
+      ctx.strokeStyle = '#000000';
+      ctx.strokeRect(drawX + seal / 2, drawY + seal / 2, width - seal, height - seal);
     };
     img.src = getMandalaSrc(mandalaCategory, mandalaDesignIndex);
   };
