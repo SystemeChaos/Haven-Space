@@ -3023,7 +3023,7 @@ export default function App() {
   const fidgetDrawingRef = useRef<boolean>(false);
 
   // --- Coloriage mandala (vrais mandalas illustrés, remplissage par flood-fill) ---
-  type MandalaCategory = 'fleur' | 'cercle' | 'simple';
+  type MandalaCategory = 'fleur' | 'cercle';
   const MANDALA_FILES: Record<MandalaCategory, string[]> = {
     fleur: [
       'marguerite', 'tournesol', 'rose', 'pavot', 'cerisier', 'orchidee',
@@ -3037,7 +3037,6 @@ export default function App() {
       'thedigitalartist-pattern-7016847_1280.png', 'tinhhiep-floral-pattern-6925916_1280.png',
       'tinhhiep-mandala-6864143_1280.png',
     ],
-    simple: ['marguerite', 'tulipe', 'fleur-5-petales'],
   };
   // Fleurs "maison", dessinées directement plutôt que tracées depuis des PNG — chaque pétale, feuille et
   // tige est son propre <path> qui part et revient exactement au même point (fermé par construction, via
@@ -3212,7 +3211,7 @@ export default function App() {
     })(),
   };
 
-  const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('simple');
+  const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('fleur');
   const [mandalaDesignIndex, setMandalaDesignIndex] = useState<number>(0);
   const [mandalaSelectedColor, setMandalaSelectedColor] = useState<string>('#F3D9DF');
   const mandalaCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -3229,9 +3228,7 @@ export default function App() {
   const mandalaCacheRef = useRef<Record<string, string>>({});
   const mandalaKey = `${mandalaCategory}_${mandalaDesignIndex}`;
   const getMandalaSrc = (category: MandalaCategory, index: number) =>
-    category === 'simple'
-      ? `data:image/svg+xml;utf8,${encodeURIComponent(SIMPLE_FLOWER_SVGS[MANDALA_FILES.simple[index]])}`
-      : category === 'fleur'
+    category === 'fleur'
       ? `data:image/svg+xml;utf8,${encodeURIComponent(FLEUR_SVGS[MANDALA_FILES.fleur[index]])}`
       : `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/cercles/${MANDALA_FILES[category][index]}`;
 
@@ -4237,7 +4234,7 @@ export default function App() {
     </svg>
   );
   const JARDIN_STAGE_SIZE = ['w-6 h-6', 'w-8 h-8', 'w-11 h-11'];
-  const JARDIN_GROWTH_ICONS: Record<string, ((className: string) => JSX.Element)[]> = {
+  const JARDIN_GROWTH_ICONS: Record<string, ((className: string) => React.ReactElement)[]> = {
     'graine-fleur': [
       jardinSprout,
       (className) => (
@@ -4539,7 +4536,7 @@ export default function App() {
     return d + 'Z';
   };
 
-  const ECO_ICONS: Partial<Record<string, (className: string) => JSX.Element>> = {
+  const ECO_ICONS: Partial<Record<string, (className: string) => React.ReactElement>> = {
     'aquarium:meduse': (className) => (
       <svg viewBox="0 0 120 120" className={className}>
         <path d="M30 55 C30 30 90 30 90 55 C90 62 82 62 78 56 C76 64 70 64 68 57 C66 65 60 65 58 57 C56 65 50 65 48 57 C46 64 40 64 38 56 C34 62 30 62 30 55 Z"
@@ -14856,7 +14853,6 @@ export default function App() {
                           {/* Sélecteur de catégorie */}
                           <div className="flex gap-2 w-full">
                             {([
-                              { id: 'simple', label: lang === 'fr' ? 'Simple' : 'Simple' },
                               { id: 'fleur', label: lang === 'fr' ? 'Fleurs' : 'Flowers' },
                               { id: 'cercle', label: lang === 'fr' ? 'Cercles' : 'Circles' },
                             ] as { id: MandalaCategory; label: string }[]).map(cat => (
