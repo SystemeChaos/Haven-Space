@@ -3023,15 +3023,11 @@ export default function App() {
   const fidgetDrawingRef = useRef<boolean>(false);
 
   // --- Coloriage mandala (vrais mandalas illustrés, remplissage par flood-fill) ---
-  type MandalaCategory = 'fleur' | 'cercle';
+  type MandalaCategory = 'fleur' | 'cercle' | 'simple';
   const MANDALA_FILES: Record<MandalaCategory, string[]> = {
     fleur: [
-      'clker-free-vector-images-flower-32781_1280.png', 'clker-free-vector-images-flower-37672_1280.png',
-      'danielefalamesca-mandala-7263703_1280.png', 'gdj-mandala-5398185_1280.png', 'gdj-rose-8815293_1280.png',
-      'jozefm84-drawing-7250858_1280.png', 'jozefm84-flower-7674675_1280.png', 'openclipart-vectors-biology-161667_1280.png',
-      'openclipart-vectors-flower-1298067_1280.png', 'openclipart-vectors-flower-1298076_1280.png',
-      'openclipart-vectors-flower-1298222_1280.png', 'openclipart-vectors-flower-1298240_1280.png',
-      'openclipart-vectors-flower-1298278_1280.png',
+      'marguerite', 'tournesol', 'rose', 'pavot', 'cerisier', 'orchidee',
+      'jonquille', 'paquerette', 'campanule', 'trefle', 'tulipe', 'fleur-5-petales',
     ],
     cercle: [
       'gdj-art-7120127_1280.png', 'gdj-floral-2746540_1280.png', 'gdj-mandala-5358331_1280.png',
@@ -3041,8 +3037,182 @@ export default function App() {
       'thedigitalartist-pattern-7016847_1280.png', 'tinhhiep-floral-pattern-6925916_1280.png',
       'tinhhiep-mandala-6864143_1280.png',
     ],
+    simple: ['marguerite', 'tulipe', 'fleur-5-petales'],
   };
-  const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('fleur');
+  // Fleurs "maison", dessinées directement plutôt que tracées depuis des PNG — chaque pétale, feuille et
+  // tige est son propre <path> qui part et revient exactement au même point (fermé par construction, via
+  // Z), donc aucune fuite possible au remplissage, quel que soit le niveau de zoom ou le design.
+  const svgRadialPetal = (cx: number, cy: number, deg: number, halfW: number, len: number) =>
+    `<path transform="rotate(${deg} ${cx} ${cy})" d="M${cx},${cy} C${cx - halfW},${cy - len * 0.35} ${cx - halfW * 0.8},${cy - len * 0.8} ${cx},${cy - len} C${cx + halfW * 0.8},${cy - len * 0.8} ${cx + halfW},${cy - len * 0.35} ${cx},${cy} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  // Pétale arrondi (rose, pavot) : ovale posé à une distance du centre, orienté par rotation.
+  const svgRoundPetal = (cx: number, cy: number, deg: number, dist: number, rx: number, ry: number) =>
+    `<path transform="rotate(${deg} ${cx} ${cy})" d="M${cx},${cy - dist} C${cx - rx},${cy - dist - ry * 0.5} ${cx - rx},${cy - dist - ry * 1.5} ${cx},${cy - dist - ry * 1.8} C${cx + rx},${cy - dist - ry * 1.5} ${cx + rx},${cy - dist - ry * 0.5} ${cx},${cy - dist} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  // Pétale à encoche (fleur de cerisier) : deux lobes qui se rejoignent en une petite pointe.
+  const svgNotchedPetal = (cx: number, cy: number, deg: number, halfW: number, len: number) =>
+    `<path transform="rotate(${deg} ${cx} ${cy})" d="M${cx},${cy} C${cx - halfW},${cy - len * 0.3} ${cx - halfW * 1.2},${cy - len * 0.8} ${cx - halfW * 0.4},${cy - len} C${cx - halfW * 0.15},${cy - len * 0.92} ${cx},${cy - len * 0.9} ${cx},${cy - len * 0.85} C${cx},${cy - len * 0.9} ${cx + halfW * 0.15},${cy - len * 0.92} ${cx + halfW * 0.4},${cy - len} C${cx + halfW * 1.2},${cy - len * 0.8} ${cx + halfW},${cy - len * 0.3} ${cx},${cy} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  const svgLeaf = (x: number, y: number, deg: number, len: number, width: number) =>
+    `<path transform="rotate(${deg} ${x} ${y})" d="M${x},${y} C${x - width},${y - len * 0.3} ${x - width * 0.5},${y - len * 0.8} ${x},${y - len} C${x + width * 0.5},${y - len * 0.8} ${x + width},${y - len * 0.3} ${x},${y} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  const svgStem = (x: number, yTop: number, yBottom: number, w: number) =>
+    `<path d="M${x - w / 2},${yBottom} L${x - w / 2},${yTop + w / 2} Q${x},${yTop} ${x + w / 2},${yTop + w / 2} L${x + w / 2},${yBottom} Q${x},${yBottom + w * 0.6} ${x - w / 2},${yBottom} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  const SIMPLE_FLOWER_SVGS: Record<string, string> = {
+    marguerite: (() => {
+      const cx = 250, cy = 190;
+      const petals = Array.from({ length: 10 }, (_, i) => svgRadialPetal(cx, cy, i * 36, 26, 105)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 210, 610, 18)}
+        ${svgLeaf(240, 420, -55, 140, 46)}
+        ${svgLeaf(260, 480, 50, 150, 48)}
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="30" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    tulipe: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+      <rect width="500" height="640" fill="#ffffff"/>
+      ${svgStem(250, 330, 610, 18)}
+      ${svgLeaf(238, 440, -50, 140, 44)}
+      ${svgLeaf(262, 500, 48, 150, 46)}
+      <path d="M250,330 C205,300 190,230 210,170 C230,210 245,260 250,330 Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      <path d="M250,330 C295,300 310,230 290,170 C270,210 255,260 250,330 Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      <path d="M250,330 C220,270 220,180 250,110 C280,180 280,270 250,330 Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+    </svg>`,
+    'fleur-5-petales': (() => {
+      const cx = 260, cy = 190;
+      const petals = Array.from({ length: 5 }, (_, i) => svgRadialPetal(cx, cy, i * 72, 46, 120)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(240, 260, 610, 18)}
+        ${svgLeaf(226, 420, -60, 150, 42)}
+        ${svgLeaf(254, 380, 30, 120, 38)}
+        ${svgLeaf(230, 520, -40, 160, 48)}
+        ${svgLeaf(250, 560, 45, 150, 46)}
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="24" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+  };
+
+  // Les 12 fleurs de la catégorie "Fleur" — même principe que ci-dessus (chaque forme fermée par
+  // construction), avec moins de détails fins (pas de hachures/duvet) pour rester simple à colorier
+  // et éviter tout micro-interstice.
+  const FLEUR_SVGS: Record<string, string> = {
+    marguerite: SIMPLE_FLOWER_SVGS.marguerite,
+    tulipe: SIMPLE_FLOWER_SVGS.tulipe,
+    'fleur-5-petales': SIMPLE_FLOWER_SVGS['fleur-5-petales'],
+    tournesol: (() => {
+      const cx = 250, cy = 190;
+      const petals = Array.from({ length: 16 }, (_, i) => svgRadialPetal(cx, cy, i * 22.5, 18, 115)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 210, 610, 18)}
+        ${svgLeaf(238, 430, -55, 140, 46)}
+        ${svgLeaf(262, 490, 50, 150, 48)}
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="42" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    rose: (() => {
+      const cx = 250, cy = 210;
+      const outer = Array.from({ length: 8 }, (_, i) => svgRoundPetal(cx, cy, i * 45, 55, 40, 48)).join('');
+      const inner = Array.from({ length: 6 }, (_, i) => svgRoundPetal(cx, cy, i * 60 + 20, 28, 28, 34)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 250, 610, 18)}
+        ${svgLeaf(236, 440, -55, 140, 44)}
+        ${svgLeaf(264, 500, 50, 150, 46)}
+        ${outer}${inner}
+        <circle cx="${cx}" cy="${cy}" r="16" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    pavot: (() => {
+      const cx = 250, cy = 220;
+      const petals = [0, 90, 180, 270].map(deg => svgRoundPetal(cx, cy, deg, 40, 70, 78)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 300, 610, 16)}
+        ${svgLeaf(232, 440, -55, 140, 46)}
+        ${svgLeaf(268, 500, 52, 150, 48)}
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="30" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    cerisier: (() => {
+      const cx = 250, cy = 170;
+      const petals = Array.from({ length: 5 }, (_, i) => svgNotchedPetal(cx, cy, i * 72, 34, 90)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 190, 610, 18)}
+        ${svgLeaf(235, 420, -55, 130, 40)}
+        ${svgLeaf(265, 480, 50, 140, 42)}
+        <circle cx="322" cy="228" r="13" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+        <circle cx="188" cy="248" r="12" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="14" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    orchidee: (() => {
+      const cx = 250, cy = 200;
+      const top = [svgRadialPetal(cx, cy, -45, 22, 85), svgRadialPetal(cx, cy, 0, 26, 95), svgRadialPetal(cx, cy, 45, 22, 85)].join('');
+      const wings = [svgRoundPetal(cx, cy, -110, 30, 34, 50), svgRoundPetal(cx, cy, 110, 30, 34, 50)].join('');
+      const lip = `<path d="M${cx - 24},${cy + 20} C${cx - 40},${cy + 50} ${cx - 20},${cy + 80} ${cx},${cy + 82} C${cx + 20},${cy + 80} ${cx + 40},${cy + 50} ${cx + 24},${cy + 20} C${cx + 14},${cy + 10} ${cx - 14},${cy + 10} ${cx - 24},${cy + 20} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 260, 610, 16)}
+        ${svgLeaf(232, 470, -40, 170, 60)}
+        ${svgLeaf(268, 530, 35, 160, 58)}
+        ${top}${wings}${lip}
+        <circle cx="${cx}" cy="${cy + 15}" r="10" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    jonquille: (() => {
+      const cx = 250, cy = 190;
+      const petals = Array.from({ length: 6 }, (_, i) => svgRadialPetal(cx, cy, i * 60, 24, 95)).join('');
+      const trumpet = `<path d="M${cx - 26},${cy - 10} C${cx - 30},${cy + 20} ${cx - 22},${cy + 55} ${cx},${cy + 60} C${cx + 22},${cy + 55} ${cx + 30},${cy + 20} ${cx + 26},${cy - 10} C${cx + 18},${cy - 22} ${cx - 18},${cy - 22} ${cx - 26},${cy - 10} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 220, 610, 16)}
+        ${svgLeaf(230, 440, -50, 160, 34)}
+        ${svgLeaf(270, 500, 45, 160, 34)}
+        ${petals}${trumpet}
+      </svg>`;
+    })(),
+    paquerette: (() => {
+      const cx = 250, cy = 200;
+      const petals = Array.from({ length: 8 }, (_, i) => svgRoundPetal(cx, cy, i * 45, 20, 22, 34)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 235, 610, 14)}
+        ${svgLeaf(238, 420, -50, 110, 34)}
+        ${svgLeaf(262, 470, 45, 120, 36)}
+        ${petals}
+        <circle cx="${cx}" cy="${cy}" r="20" fill="#ffffff" stroke="#111111" stroke-width="5"/>
+      </svg>`;
+    })(),
+    campanule: (() => {
+      const cx = 250, cy = 230;
+      const bell = `<path d="M${cx - 10},${cy - 70} C${cx - 45},${cy - 40} ${cx - 50},${cy + 10} ${cx - 30},${cy + 40} C${cx - 15},${cy + 55} ${cx + 15},${cy + 55} ${cx + 30},${cy + 40} C${cx + 50},${cy + 10} ${cx + 45},${cy - 40} ${cx + 10},${cy - 70} C${cx + 6},${cy - 75} ${cx - 6},${cy - 75} ${cx - 10},${cy - 70} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 195, 610, 16)}
+        ${svgLeaf(235, 420, -50, 140, 40)}
+        ${svgLeaf(265, 480, 45, 140, 42)}
+        ${bell}
+      </svg>`;
+    })(),
+    trefle: (() => {
+      const cx = 250, cy = 180;
+      const tuft = Array.from({ length: 14 }, (_, i) => svgRoundPetal(cx, cy, i * (360 / 14), 10, 14, 22)).join('');
+      const leafCluster = [0, 120, 240].map(deg => svgLeaf(230, 480, deg, 50, 30)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 640">
+        <rect width="500" height="640" fill="#ffffff"/>
+        ${svgStem(250, 200, 610, 14)}
+        ${leafCluster}
+        ${tuft}
+      </svg>`;
+    })(),
+  };
+
+  const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('simple');
   const [mandalaDesignIndex, setMandalaDesignIndex] = useState<number>(0);
   const [mandalaSelectedColor, setMandalaSelectedColor] = useState<string>('#F3D9DF');
   const mandalaCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -3059,7 +3229,11 @@ export default function App() {
   const mandalaCacheRef = useRef<Record<string, string>>({});
   const mandalaKey = `${mandalaCategory}_${mandalaDesignIndex}`;
   const getMandalaSrc = (category: MandalaCategory, index: number) =>
-    `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/${category === 'fleur' ? 'fleurs' : 'cercles'}/${MANDALA_FILES[category][index]}`;
+    category === 'simple'
+      ? `data:image/svg+xml;utf8,${encodeURIComponent(SIMPLE_FLOWER_SVGS[MANDALA_FILES.simple[index]])}`
+      : category === 'fleur'
+      ? `data:image/svg+xml;utf8,${encodeURIComponent(FLEUR_SVGS[MANDALA_FILES.fleur[index]])}`
+      : `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/cercles/${MANDALA_FILES[category][index]}`;
 
   // Charge (ou recharge depuis le cache) le mandala sélectionné dans le canvas.
   // Résolution du canvas alignée sur celle des images sources (1280px) plutôt que downscalée à 512 :
@@ -14682,6 +14856,7 @@ export default function App() {
                           {/* Sélecteur de catégorie */}
                           <div className="flex gap-2 w-full">
                             {([
+                              { id: 'simple', label: lang === 'fr' ? 'Simple' : 'Simple' },
                               { id: 'fleur', label: lang === 'fr' ? 'Fleurs' : 'Flowers' },
                               { id: 'cercle', label: lang === 'fr' ? 'Cercles' : 'Circles' },
                             ] as { id: MandalaCategory; label: string }[]).map(cat => (
