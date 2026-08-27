@@ -38,11 +38,11 @@
 ### 🧘 Détente
 Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 - **Box Breathing** — respiration guidée
-- **Fidgets** — Bac à Sable, Bulles (bubble-wrap), Coloriage
+- **Fidgets** — Bac à Sable, Bulles (bubble-wrap), Coloriage (mandalas et fleurs dessinés à la main, tracés fermés pour un remplissage sans débordement)
 - **Kalimba** — instrument virtuel jouable
 - **Affirmations**, **Boîte à Souvenirs**, **Boîte à Choix**
 - **Éphémère** — bulles de tailles variées qui montent à l'écran, à éclater avant qu'elles n'atteignent le haut ; chaque taille correspond à une note d'un handpan (gamme D Kurd) pour un son doux et onirique
-- **Éco-Système** — élément visuel évolutif et apaisant
+- **Éco-Système** — 4 paysages (Aquarium, Serre, Ciel nocturne, Jardin) avec présences et décors illustrés en aquarelle, cycle lumineux à 4 phases (aube/jour/crépuscule/nuit) suivant l'heure réelle
 
 ### 🔔 Notifications push
 - Notifications navigateur natives (opt-in, avec demande de permission) pour : nouveaux messages privés, rappels de planning, rappels de traitement, rappel de sauvegarde JSON (si aucun export récent)
