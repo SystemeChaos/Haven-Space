@@ -982,6 +982,24 @@ export default function App() {
   const [profileImage, setProfileImage] = useState<string>('');
   const [description, setDescription] = useState('');
   const [internalNotes, setInternalNotes] = useState('');
+  // Confidentialité par fiche — PIN individuel, facultatif, indépendant du PIN principal de l'app.
+  // Champ du formulaire créateur (pas encore de PIN hash défini tant que le toggle n'est pas activé) :
+  const [alterLockEnabled, setAlterLockEnabled] = useState(false);
+  const [alterLockPinHash, setAlterLockPinHash] = useState('');
+  const [alterLockPinQuestion, setAlterLockPinQuestion] = useState('');
+  const [alterLockPinAnswerHash, setAlterLockPinAnswerHash] = useState('');
+  const [alterLockNewPin, setAlterLockNewPin] = useState('');
+  const [alterLockNewPinConfirm, setAlterLockNewPinConfirm] = useState('');
+  const [alterLockNewAnswer, setAlterLockNewAnswer] = useState('');
+  const [alterLockSetupError, setAlterLockSetupError] = useState('');
+  // Fiches déverrouillées pour la session en cours (jamais persisté — se re-verrouille à chaque rechargement)
+  const [unlockedAlterIds, setUnlockedAlterIds] = useState<string[]>([]);
+  // Fiche en attente de saisie du PIN avant ouverture
+  const [alterPinPromptTarget, setAlterPinPromptTarget] = useState<SavedAlter | null>(null);
+  const [alterPinPromptInput, setAlterPinPromptInput] = useState('');
+  const [alterPinPromptError, setAlterPinPromptError] = useState('');
+  const [alterPinPromptForgot, setAlterPinPromptForgot] = useState(false);
+  const [alterPinPromptAnswer, setAlterPinPromptAnswer] = useState('');
   const [alterAge, setAlterAge] = useState('');
   const [alterColor, setAlterColor] = useState('');
   const [triggersPositive, setTriggersPositive] = useState('');
@@ -6064,6 +6082,14 @@ export default function App() {
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
     };
+    // Confidentialité par fiche — champs ajoutés dynamiquement car SavedAlter vit dans types.ts,
+    // fichier auquel je n'ai pas accès depuis ce chat. Il faut ajouter ces 3 champs optionnels
+    // à l'interface SavedAlter (lockPinHash?: string; lockPinQuestion?: string; lockPinAnswerHash?: string;)
+    // pour que ce soit propre côté TypeScript — sans ça ça compile quand même grâce au `as any` ci-dessous,
+    // mais c'est plus sain de le faire.
+    (freshAlter as any).lockPinHash = alterLockEnabled ? (alterLockPinHash || undefined) : undefined;
+    (freshAlter as any).lockPinQuestion = alterLockEnabled ? (alterLockPinQuestion || undefined) : undefined;
+    (freshAlter as any).lockPinAnswerHash = alterLockEnabled ? (alterLockPinAnswerHash || undefined) : undefined;
 
     if (savedAlters.some(a => a.id === freshId)) {
       setSavedAlters(prev => prev.map(a => a.id === freshId ? freshAlter : a));
@@ -6110,6 +6136,14 @@ export default function App() {
     setSelectedCustomGenderIds(alter.customGenderIds || []);
     setSelectedCustomSexualityIds(alter.customSexualityIds || []);
     setFrontStatus(alter.frontStatus || 'none');
+    setAlterLockEnabled(!!(alter as any).lockPinHash);
+    setAlterLockPinHash((alter as any).lockPinHash || '');
+    setAlterLockPinQuestion((alter as any).lockPinQuestion || '');
+    setAlterLockPinAnswerHash((alter as any).lockPinAnswerHash || '');
+    setAlterLockNewPin('');
+    setAlterLockNewPinConfirm('');
+    setAlterLockNewAnswer('');
+    setAlterLockSetupError('');
     setEditingAlterId(alter.id);
     setCreatorReturnTab(currentTab !== 'creator' ? currentTab : creatorReturnTab);
     setCurrentTab('creator');
@@ -6117,6 +6151,16 @@ export default function App() {
   };
 
   const handleLoadAlter = (alter: SavedAlter) => {
+    // Fiche protégée par son propre PIN, pas encore déverrouillée cette session : on bloque ici,
+    // avant même la logique de confirmation d'écrasement du brouillon en cours.
+    if ((alter as any).lockPinHash && !unlockedAlterIds.includes(alter.id)) {
+      setAlterPinPromptTarget(alter);
+      setAlterPinPromptInput('');
+      setAlterPinPromptError('');
+      setAlterPinPromptForgot(false);
+      setAlterPinPromptAnswer('');
+      return;
+    }
     // If the creator already has current work, confirm it via state dialog
     if (editingAlterId || alterName || description || internalNotes || traitDecorations.length > 0) {
       setLoadConfirmAlter(alter);
@@ -6139,6 +6183,14 @@ export default function App() {
     setProfileImage('');
     setDescription('');
     setInternalNotes('');
+    setAlterLockEnabled(false);
+    setAlterLockPinHash('');
+    setAlterLockPinQuestion('');
+    setAlterLockPinAnswerHash('');
+    setAlterLockNewPin('');
+    setAlterLockNewPinConfirm('');
+    setAlterLockNewAnswer('');
+    setAlterLockSetupError('');
     setCreatorSystemId('');
     setCreatorSubsystemId('');
     setAlterAge('');
@@ -6632,7 +6684,10 @@ export default function App() {
             </div>
           )}
           <div className="flex-1 overflow-hidden">
-            <span className="font-bold text-sm text-app-text block overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
+            <span className="font-bold text-sm text-app-text flex items-center gap-1 overflow-hidden">
+              <span className="overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
+              {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
+            </span>
             {allRoleIds.length > 0 && (
               <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
                 {getRoleDisplayName(allRoleIds[0])}
@@ -6699,7 +6754,10 @@ export default function App() {
           )}
           
           <div className="min-w-0 flex-1">
-            <h4 className="font-black text-sm text-app-text truncate text-left">{alter.alterName}</h4>
+            <h4 className="font-black text-sm text-app-text truncate text-left flex items-center gap-1">
+              <span className="truncate">{alter.alterName}</span>
+              {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
+            </h4>
             <div className="flex flex-wrap gap-1 mt-1 justify-start">
               {alter.frontStatus && alter.frontStatus !== 'none' && (
                 <span
@@ -9020,6 +9078,104 @@ export default function App() {
                 </div>
               )}
             </div>
+          </section>
+
+          {/* Confidentialité — PIN individuel et facultatif, propre à cette fiche */}
+          <section className="space-y-3 p-4 bg-app-card border border-app-border/40 rounded-2xl">
+            <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
+              <Lock className="w-3 h-3" /> {lang === 'fr' ? 'Confidentialité de la fiche' : 'Card privacy'}
+            </label>
+            <p className="text-[11px] text-app-muted leading-relaxed">
+              {lang === 'fr'
+                ? "Protège cette fiche avec un code propre à elle, différent du code de l'app. Facultatif, à activer si tu veux la garder privée même quelqu'un d'autre a le code principal."
+                : "Protect this card with its own code, separate from the app's main code. Optional — turn it on to keep it private even from someone who has the main code."}
+            </p>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={alterLockEnabled}
+                onChange={e => {
+                  setAlterLockEnabled(e.target.checked);
+                  setAlterLockSetupError('');
+                  if (!e.target.checked) {
+                    setAlterLockPinHash('');
+                    setAlterLockPinQuestion('');
+                    setAlterLockPinAnswerHash('');
+                  }
+                }}
+                className="w-4 h-4 accent-app-accent"
+              />
+              <span className="text-sm text-app-text">{lang === 'fr' ? 'Protéger cette fiche avec un code' : 'Protect this card with a code'}</span>
+            </label>
+
+            {alterLockEnabled && (
+              <div className="space-y-2 pt-1">
+                {alterLockPinHash && !alterLockNewPin && (
+                  <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
+                    {lang === 'fr' ? '✓ Code déjà défini' : '✓ Code already set'}
+                  </p>
+                )}
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    value={alterLockNewPin}
+                    onChange={e => { setAlterLockNewPin(e.target.value.replace(/\D/g, '').slice(0, 8)); setAlterLockSetupError(''); }}
+                    placeholder={lang === 'fr' ? (alterLockPinHash ? 'Nouveau code (4-8 chiffres)' : 'Code (4-8 chiffres)') : (alterLockPinHash ? 'New code (4-8 digits)' : 'Code (4-8 digits)')}
+                    className="flex-1 min-w-0 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    value={alterLockNewPinConfirm}
+                    onChange={e => { setAlterLockNewPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 8)); setAlterLockSetupError(''); }}
+                    placeholder={lang === 'fr' ? 'Confirme le code' : 'Confirm code'}
+                    className="flex-1 min-w-0 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                </div>
+                <input
+                  type="text"
+                  value={alterLockPinQuestion}
+                  onChange={e => setAlterLockPinQuestion(e.target.value)}
+                  placeholder={lang === 'fr' ? "Question de récupération (facultatif)" : 'Recovery question (optional)'}
+                  className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                />
+                {alterLockPinQuestion && (
+                  <input
+                    type="text"
+                    value={alterLockNewAnswer}
+                    onChange={e => { setAlterLockNewAnswer(e.target.value); setAlterLockSetupError(''); }}
+                    placeholder={lang === 'fr' ? 'Réponse' : 'Answer'}
+                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                )}
+                {alterLockSetupError && <p className="text-[11px] text-red-500 font-bold">{alterLockSetupError}</p>}
+                {(alterLockNewPin || alterLockNewPinConfirm) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (alterLockNewPin.length < 4) {
+                        setAlterLockSetupError(lang === 'fr' ? 'Le code doit faire au moins 4 chiffres.' : 'Code must be at least 4 digits.');
+                        return;
+                      }
+                      if (alterLockNewPin !== alterLockNewPinConfirm) {
+                        setAlterLockSetupError(lang === 'fr' ? 'Les deux codes ne correspondent pas.' : "The two codes don't match.");
+                        return;
+                      }
+                      setAlterLockPinHash(simpleHash(alterLockNewPin));
+                      setAlterLockPinAnswerHash(alterLockNewAnswer ? simpleHash(alterLockNewAnswer.toLowerCase().trim()) : '');
+                      setAlterLockNewPin('');
+                      setAlterLockNewPinConfirm('');
+                      setAlterLockNewAnswer('');
+                      setAlterLockSetupError('');
+                    }}
+                    className="px-4 py-2 bg-app-accent text-white rounded-xl text-xs font-bold"
+                  >
+                    {lang === 'fr' ? 'Valider le code' : 'Set code'}
+                  </button>
+                )}
+              </div>
+            )}
           </section>
 
           {/* Bloc 1 : Informations de l'alter */}
@@ -17035,6 +17191,125 @@ export default function App() {
         })()}
 
         {/* Load Alter Custom Confirmation Modal */}
+        {/* Fiche protégée par un code — saisie requise avant ouverture */}
+        {alterPinPromptTarget && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-app-card border border-app-border w-full max-w-sm rounded-3xl p-7 shadow-2xl space-y-5 text-center"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent mx-auto">
+                <Lock className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black uppercase tracking-wider text-app-text">
+                  {lang === 'fr' ? 'Fiche protégée' : 'Protected card'}
+                </h3>
+                <p className="text-xs text-app-muted leading-relaxed">
+                  {alterPinPromptTarget.alterName}{lang === 'fr' ? ' a protégé cette fiche avec son propre code.' : ' has protected this card with its own code.'}
+                </p>
+              </div>
+
+              {!alterPinPromptForgot ? (
+                <>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    autoFocus
+                    value={alterPinPromptInput}
+                    onChange={e => { setAlterPinPromptInput(e.target.value.replace(/\D/g, '').slice(0, 8)); setAlterPinPromptError(''); }}
+                    onKeyDown={e => {
+                      if (e.key !== 'Enter') return;
+                      const target = alterPinPromptTarget;
+                      if (simpleHash(alterPinPromptInput) !== (target as any).lockPinHash) {
+                        setAlterPinPromptError(lang === 'fr' ? 'Code incorrect.' : 'Wrong code.');
+                        return;
+                      }
+                      setUnlockedAlterIds(prev => [...prev, target.id]);
+                      setAlterPinPromptTarget(null);
+                      handleLoadAlter(target);
+                    }}
+                    placeholder={lang === 'fr' ? 'Code de cette fiche' : "This card's code"}
+                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2.5 text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  {alterPinPromptError && <p className="text-[11px] text-red-500 font-bold">{alterPinPromptError}</p>}
+                  {(alterPinPromptTarget as any).lockPinQuestion && (
+                    <button
+                      onClick={() => { setAlterPinPromptForgot(true); setAlterPinPromptError(''); }}
+                      className="text-[11px] text-app-muted hover:text-app-accent underline"
+                    >
+                      {lang === 'fr' ? 'Code oublié ?' : 'Forgot the code?'}
+                    </button>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        const target = alterPinPromptTarget;
+                        if (simpleHash(alterPinPromptInput) !== (target as any).lockPinHash) {
+                          setAlterPinPromptError(lang === 'fr' ? 'Code incorrect.' : 'Wrong code.');
+                          return;
+                        }
+                        setUnlockedAlterIds(prev => [...prev, target.id]);
+                        setAlterPinPromptTarget(null);
+                        handleLoadAlter(target);
+                      }}
+                      className="w-full py-3 bg-app-accent hover:opacity-90 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                    >
+                      {lang === 'fr' ? 'Déverrouiller' : 'Unlock'}
+                    </button>
+                    <button
+                      onClick={() => setAlterPinPromptTarget(null)}
+                      className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-app-text font-bold">{(alterPinPromptTarget as any).lockPinQuestion}</p>
+                  <input
+                    type="text"
+                    autoFocus
+                    value={alterPinPromptAnswer}
+                    onChange={e => { setAlterPinPromptAnswer(e.target.value); setAlterPinPromptError(''); }}
+                    placeholder={lang === 'fr' ? 'Réponse' : 'Answer'}
+                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  {alterPinPromptError && <p className="text-[11px] text-red-500 font-bold">{alterPinPromptError}</p>}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => {
+                        const target = alterPinPromptTarget;
+                        if (simpleHash(alterPinPromptAnswer.toLowerCase().trim()) !== (target as any).lockPinAnswerHash) {
+                          setAlterPinPromptError(lang === 'fr' ? 'Réponse incorrecte.' : 'Wrong answer.');
+                          return;
+                        }
+                        // Bonne réponse : on déverrouille pour la session, mais on n'affiche pas le code —
+                        // la personne pourra en redéfinir un nouveau une fois dans l'éditeur si besoin.
+                        setUnlockedAlterIds(prev => [...prev, target.id]);
+                        setAlterPinPromptTarget(null);
+                        handleLoadAlter(target);
+                      }}
+                      className="w-full py-3 bg-app-accent hover:opacity-90 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
+                    >
+                      {lang === 'fr' ? 'Valider' : 'Confirm'}
+                    </button>
+                    <button
+                      onClick={() => setAlterPinPromptForgot(false)}
+                      className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
+                    >
+                      {lang === 'fr' ? 'Retour au code' : 'Back to code'}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </div>
+        )}
+
         {loadConfirmAlter && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
