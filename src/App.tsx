@@ -6683,8 +6683,8 @@ export default function App() {
               {alter.alterName.slice(0, 2).toUpperCase()}
             </div>
           )}
-          <div className="flex-1 overflow-hidden">
-            <span className="font-bold text-sm text-app-text flex items-center gap-1 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden">
+            <span className="font-bold text-sm text-app-text flex items-center gap-1 min-w-0 overflow-hidden">
               <span className="overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
               {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
             </span>
