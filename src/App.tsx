@@ -2,7 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -118,6 +118,7 @@ import {
   Vote,
   Clock,
   MapPin,
+  StickyNote,
   Home,
   ArrowLeftRight,
   UserCheck,
@@ -1331,7 +1332,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -1620,6 +1621,38 @@ export default function App() {
   const [editingJournalId, setEditingJournalId] = useState<string | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [journalDataLoaded, setJournalDataLoaded] = useState(false);
+
+  // Landing Notes — mot court laissé par le fronteur sortant pour la prochaine personne qui arrive.
+  interface LandingNote {
+    id: string;
+    text: string;
+    authorAlterId?: string;
+    createdAt: number;
+    read: boolean;
+  }
+  const [landingNotes, setLandingNotes] = useState<LandingNote[]>([]);
+  const [landingNotesLoaded, setLandingNotesLoaded] = useState(false);
+  const [newLandingNoteText, setNewLandingNoteText] = useState('');
+  const [newLandingNoteAuthorId, setNewLandingNoteAuthorId] = useState('');
+  const [landingNotesHistoryOpen, setLandingNotesHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const notes = await readMaybeEncrypted<LandingNote[]>('landingNotes', dek, []);
+      if (cancelled) return;
+      setLandingNotes(notes);
+      setLandingNotesLoaded(true);
+      if (dek) {
+        const raw = localStorage.getItem('landingNotes');
+        if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('landingNotes', notes, dek, true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
+  useEffect(() => {
+    if (landingNotesLoaded) writeMaybeEncrypted('landingNotes', landingNotes, dek, !!vaultMeta);
+  }, [landingNotes]);
 
   // Chargement (et migration douce) du Journal via le coffre chiffré — même logique que Santé :
   // redéclenché à chaque changement de dek, vide tant que le coffre est verrouillé.
@@ -13801,6 +13834,114 @@ export default function App() {
                   <CalendarDays className="w-4 h-4" />
                   {lang === 'fr' ? "Voir le programme du jour" : "See today's plan"}
                 </button>
+              </div>
+
+              {/* Landing Notes — mot du fronteur sortant pour la prochaine personne qui arrive */}
+              <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <StickyNote className="w-4 h-4 text-app-accent" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
+                    {lang === 'fr' ? "Message pour la suite" : "Landing note"}
+                  </h3>
+                </div>
+
+                {/* Note la plus récente non lue, mise en avant */}
+                {(() => {
+                  const latestUnread = [...landingNotes].sort((a, b) => b.createdAt - a.createdAt).find(n => !n.read);
+                  if (!latestUnread) return null;
+                  const author = savedAlters.find(a => a.id === latestUnread.authorAlterId);
+                  return (
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-2">
+                      <p className="text-sm text-app-text whitespace-pre-wrap leading-relaxed">{latestUnread.text}</p>
+                      <div className="flex items-center justify-between gap-2 pt-1">
+                        <p className="text-[10px] text-app-muted">
+                          {author ? `— ${author.alterName}` : ''} {new Date(latestUnread.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <button
+                          onClick={() => setLandingNotes(prev => prev.map(n => n.id === latestUnread.id ? { ...n, read: true } : n))}
+                          className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex-shrink-0"
+                        >
+                          {lang === 'fr' ? "OK, compris" : "Got it"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Nouveau message */}
+                <div className="space-y-2">
+                  <textarea
+                    value={newLandingNoteText}
+                    onChange={e => setNewLandingNoteText(e.target.value)}
+                    placeholder={lang === 'fr' ? "Où on est, ce qu'on faisait, à quelle heure il faut partir..." : "Where we are, what we were doing, what time to leave..."}
+                    rows={2}
+                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                  <div className="flex gap-2">
+                    {savedAlters.length > 0 && (
+                      <select
+                        value={newLandingNoteAuthorId}
+                        onChange={e => setNewLandingNoteAuthorId(e.target.value)}
+                        className="flex-1 min-w-0 bg-app-bg border border-app-border/40 rounded-xl px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                      >
+                        <option value="">{lang === 'fr' ? "Anonyme" : "Anonymous"}</option>
+                        {savedAlters.map(a => <option key={a.id} value={a.id}>{a.alterName}</option>)}
+                      </select>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (!newLandingNoteText.trim()) return;
+                        setLandingNotes(prev => [
+                          { id: Math.random().toString(36).substring(2, 11), text: newLandingNoteText.trim(), authorAlterId: newLandingNoteAuthorId || undefined, createdAt: Date.now(), read: false },
+                          ...prev,
+                        ].slice(0, 30));
+                        setNewLandingNoteText('');
+                      }}
+                      disabled={!newLandingNoteText.trim()}
+                      className="flex items-center gap-1.5 px-4 py-2 bg-app-accent text-white rounded-xl text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      {lang === 'fr' ? "Laisser" : "Leave"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Historique */}
+                {landingNotes.length > 0 && (
+                  <div>
+                    <button
+                      onClick={() => setLandingNotesHistoryOpen(o => !o)}
+                      className="text-[11px] font-bold text-app-muted hover:text-app-text flex items-center gap-1"
+                    >
+                      <ChevronRight className={`w-3.5 h-3.5 transition-transform ${landingNotesHistoryOpen ? 'rotate-90' : ''}`} />
+                      {lang === 'fr' ? `Historique (${landingNotes.length})` : `History (${landingNotes.length})`}
+                    </button>
+                    {landingNotesHistoryOpen && (
+                      <div className="mt-2 space-y-2 max-h-56 overflow-y-auto">
+                        {[...landingNotes].sort((a, b) => b.createdAt - a.createdAt).map(n => {
+                          const author = savedAlters.find(a => a.id === n.authorAlterId);
+                          return (
+                            <div key={n.id} className={`p-2.5 rounded-lg border text-xs ${n.read ? 'bg-app-bg border-app-border/30 text-app-muted' : 'bg-amber-500/5 border-amber-500/20 text-app-text'}`}>
+                              <p className="whitespace-pre-wrap leading-relaxed">{n.text}</p>
+                              <div className="flex items-center justify-between mt-1.5">
+                                <p className="text-[10px] text-app-muted">
+                                  {author ? `${author.alterName} · ` : ''}{new Date(n.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                </p>
+                                <button
+                                  onClick={() => setLandingNotes(prev => prev.filter(x => x.id !== n.id))}
+                                  className="text-app-muted hover:text-red-500 flex-shrink-0"
+                                  title={lang === 'fr' ? "Supprimer" : "Delete"}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Note intro */}
