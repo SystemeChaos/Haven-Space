@@ -2,7 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -117,6 +117,7 @@ import {
   BarChart3,
   Vote,
   Clock,
+  MapPin,
   Home,
   ArrowLeftRight,
   UserCheck,
@@ -2984,6 +2985,15 @@ export default function App() {
 
   // --- DID System Management Handlers ---
   const [openGroundingSections, setOpenGroundingSections] = useState<string[]>([]);
+  // Vérification de réalité (Reality Check) — horloge en direct + « où suis-je » non persisté à dessein :
+  // le but est de le formuler dans l'instant (comme le point « nomme le lieu » plus bas dans la liste),
+  // pas d'archiver une adresse. Se réinitialise à chaque ouverture.
+  const [realityCheckTick, setRealityCheckTick] = useState(0);
+  useEffect(() => {
+    const iv = setInterval(() => setRealityCheckTick(t => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+  const [realityCheckWhere, setRealityCheckWhere] = useState('');
   // --- Détente (section anti-dissociation) ---
   const [activeRelaxTool, setActiveRelaxTool] = useState<string | null>(null);
   const [breathingRhythm, setBreathingRhythm] = useState<'box' | '478'>('box');
@@ -4234,7 +4244,7 @@ export default function App() {
     </svg>
   );
   const JARDIN_STAGE_SIZE = ['w-6 h-6', 'w-8 h-8', 'w-11 h-11'];
-  const JARDIN_GROWTH_ICONS: Record<string, ((className: string) => React.ReactElement)[]> = {
+  const JARDIN_GROWTH_ICONS: Record<string, ((className: string) => JSX.Element)[]> = {
     'graine-fleur': [
       jardinSprout,
       (className) => (
@@ -4536,7 +4546,7 @@ export default function App() {
     return d + 'Z';
   };
 
-  const ECO_ICONS: Partial<Record<string, (className: string) => React.ReactElement>> = {
+  const ECO_ICONS: Partial<Record<string, (className: string) => JSX.Element>> = {
     'aquarium:meduse': (className) => (
       <svg viewBox="0 0 120 120" className={className}>
         <path d="M30 55 C30 30 90 30 90 55 C90 62 82 62 78 56 C76 64 70 64 68 57 C66 65 60 65 58 57 C56 65 50 65 48 57 C46 64 40 64 38 56 C34 62 30 62 30 55 Z"
@@ -13749,6 +13759,48 @@ export default function App() {
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
                   {lang === 'fr' ? "En cas de dissociation ou détresse émotionnelle" : 'In case of dissociation or emotional distress'}
                 </p>
+              </div>
+
+              {/* Vérification de réalité — accès en 1 clic, sans avoir à ouvrir un accordéon */}
+              <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-app-accent" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
+                    {lang === 'fr' ? "Vérification de réalité" : "Reality check"}
+                  </h3>
+                </div>
+                {(() => {
+                  void realityCheckTick;
+                  const now = new Date();
+                  const dateStr = now.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                  const timeStr = now.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <div className="p-4 bg-app-bg rounded-xl border border-app-border/30 text-center">
+                      <p className="text-3xl font-black text-app-text tabular-nums">{timeStr}</p>
+                      <p className="text-xs text-app-muted capitalize mt-1">{dateStr}</p>
+                    </div>
+                  );
+                })()}
+                <div>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-app-muted uppercase tracking-wide mb-1.5">
+                    <MapPin className="w-3.5 h-3.5" />
+                    {lang === 'fr' ? "Où suis-je ?" : "Where am I?"}
+                  </label>
+                  <input
+                    type="text"
+                    value={realityCheckWhere}
+                    onChange={e => setRealityCheckWhere(e.target.value)}
+                    placeholder={lang === 'fr' ? "Décris l'endroit où tu te trouves..." : "Describe where you are..."}
+                    className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                  />
+                </div>
+                <button
+                  onClick={() => setCurrentTab('planning')}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-app-bg hover:bg-app-border/20 border border-app-border/40 rounded-xl text-xs font-bold text-app-text transition-colors"
+                >
+                  <CalendarDays className="w-4 h-4" />
+                  {lang === 'fr' ? "Voir le programme du jour" : "See today's plan"}
+                </button>
               </div>
 
               {/* Note intro */}
