@@ -6675,27 +6675,27 @@ export default function App() {
     return (
       <div key={alter.id} className="w-full bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
         {/* Version mobile — liste compacte style Simply Plural */}
-        <div className="flex md:hidden items-center gap-2.5 w-full px-3 py-2">
-          {alter.profileImage ? (
-            <img src={alter.profileImage} alt={alter.alterName} className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-app-border/30" referrerPolicy="no-referrer" />
-          ) : (
-            <div className="w-10 h-10 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-xs">
-              {alter.alterName.slice(0, 2).toUpperCase()}
-            </div>
-          )}
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <span className="font-bold text-sm text-app-text flex items-center gap-1 min-w-0 overflow-hidden">
-              <span className="overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
-              {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
-            </span>
-            {allRoleIds.length > 0 && (
-              <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
-                {getRoleDisplayName(allRoleIds[0])}
-                {allRoleIds.length > 1 && ` +${allRoleIds.length - 1}`}
-              </span>
+        <div className="flex md:hidden flex-col gap-2 w-full px-3 py-2">
+          <div className="flex items-center gap-2.5 w-full min-w-0">
+            {alter.profileImage ? (
+              <img src={alter.profileImage} alt={alter.alterName} className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-app-border/30" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-xs">
+                {alter.alterName.slice(0, 2).toUpperCase()}
+              </div>
             )}
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <span className="font-bold text-sm text-app-text flex items-center gap-1 min-w-0 overflow-hidden">
+                <span className="overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
+                {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
+              </span>
+              {allRoleIds.length > 0 && (
+                <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
+                  {getRoleDisplayName(allRoleIds[0])}
+                  {allRoleIds.length > 1 && ` +${allRoleIds.length - 1}`}
+                </span>
+              )}
+            </div>
             {alter.frontStatus && alter.frontStatus !== 'none' && (
               <div
                 className={`w-2 h-2 rounded-full shrink-0 ${
@@ -6716,6 +6716,9 @@ export default function App() {
                 style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, #a855f7, #ec4899, #6366f1)' } : undefined}
               />
             )}
+          </div>
+          {/* Actions — sur leur propre ligne, jamais en compétition d'espace avec le nom */}
+          <div className="flex items-center justify-end gap-1.5 w-full">
             <button onClick={() => handleLoadAlter(alter)} className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
               {lang === 'fr' ? 'Charger' : 'Load'}
             </button>
