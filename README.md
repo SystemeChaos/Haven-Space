@@ -51,6 +51,7 @@ Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 ### 🔐 Sécurité locale
 - Verrouillage par code PIN (optionnel), avec verrouillage automatique quand l'app repasse en arrière-plan
 - Question de sécurité personnalisée pour la récupération du PIN
+- **Confidentialité par fiche** : chaque alter peut protéger sa propre fiche avec un code facultatif et indépendant du PIN principal ; déverrouillage valable pour la session en cours
 
 ### 💬 Communication interne
 - **Chat interne** entre alters du système
@@ -58,6 +59,8 @@ Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 - Support du markdown dans les messages (gras, italique, images…)
 
 ### ⚓ Ancrage
+- **Vérification de réalité** : heure et date en direct, champ "Où suis-je ?" (volontairement non sauvegardé), accès rapide au programme du jour
+- **Landing Notes** : mot court laissé par le fronteur sortant pour la prochaine personne qui arrive, avec historique
 - Techniques d'ancrage structurées en accordéon (travail du Dr Igor Thiriez, v3.1)
 - **Mini annuaire** de contacts de confiance (thérapeute, proches) avec lien d'appel direct
 - Bouton **SOS ⚠️** accessible depuis n'importe où dans l'app
