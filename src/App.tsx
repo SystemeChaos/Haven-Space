@@ -2227,6 +2227,50 @@ export default function App() {
     }
   };
 
+  // Export au format PluralKit — un fichier JSON compatible avec les autres apps du milieu pluriel qui
+  // savent lire ce format (Constellations, Simply Plural, Octocon, Tupperbox...), contrairement à notre
+  // export natif ci-dessus qui est propre à Haven Space. Volontairement limité aux fiches d'alters pour
+  // l'instant (pas l'historique des switchs) : le format des switchs PluralKit référence des IDs de membres
+  // par ailleurs attribués par PluralKit lui-même, ce qu'on ne peut pas reproduire fidèlement depuis ici.
+  const handleExportPluralKitJSON = () => {
+    try {
+      const members = savedAlters.map(alter => {
+        const pronounMatch = alter.internalNotes?.match(/(?:Pronouns|Pronoms|Prons):\s*(.*)/i);
+        // avatar_url doit être une URL publique accessible (spec PluralKit) — les images stockées en
+        // base64 dans Haven Space ne peuvent pas être reprises telles quelles, on les laisse de côté.
+        const avatarUrl = alter.profileImage && /^https?:\/\//i.test(alter.profileImage) ? alter.profileImage : null;
+        return {
+          name: alter.alterName,
+          description: alter.description || null,
+          pronouns: pronounMatch ? pronounMatch[1].trim() : null,
+          color: alter.alterColor ? alter.alterColor.replace(/^#/, '') : null,
+          birthday: alter.birthday || null,
+          avatar_url: avatarUrl,
+        };
+      });
+      const pkExport = {
+        name: mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
+        description: null,
+        tag: null,
+        avatar_url: null,
+        created: new Date().toISOString(),
+        members,
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(pkExport, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `haven_space_pluralkit_${new Date().toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setJsonSuccess(lang === 'fr' ? "Fichier compatible PluralKit exporté !" : "PluralKit-compatible file exported!");
+      setJsonError(null);
+    } catch (err: any) {
+      setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
+      setJsonSuccess(null);
+    }
+  };
+
   const readAndParseJSONFile = (file: File) => {
     setJsonError(null);
     setJsonSuccess(null);
@@ -16698,6 +16742,22 @@ export default function App() {
                     <Download className="w-4 h-4" />
                     <span>{lang === 'fr' ? 'Exporter en JSON' : 'Export JSON Backup'}</span>
                   </button>
+
+                  <div className="space-y-1.5">
+                    <button
+                      type="button"
+                      onClick={handleExportPluralKitJSON}
+                      className="w-full px-5 py-3 bg-app-bg hover:bg-app-border/20 border border-app-border font-extrabold uppercase text-xs tracking-widest text-app-text rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      <span>{lang === 'fr' ? 'Exporter (format PluralKit)' : 'Export (PluralKit format)'}</span>
+                    </button>
+                    <p className="text-[10px] text-app-muted leading-relaxed px-1">
+                      {lang === 'fr'
+                        ? "Pour importer tes fiches dans une autre app compatible PluralKit (Constellations, Simply Plural, Octocon...). Ne contient que les fiches d'alters (nom, description, pronoms, couleur, date de naissance) — pas l'historique de front ni les images stockées localement (elles doivent être hébergées en ligne pour être reprises ailleurs)."
+                        : "To import your cards into another PluralKit-compatible app (Constellations, Simply Plural, Octocon...). Only includes alter cards (name, description, pronouns, color, birthday) — not front history or locally-stored images (they'd need to be hosted online to carry over)."}
+                    </p>
+                  </div>
                 </div>
 
                 {/* Import Box */}
