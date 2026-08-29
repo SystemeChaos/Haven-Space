@@ -5914,42 +5914,41 @@ export default function App() {
   // Pop de bulle du bac "Bulles" (bubble-wrap) : bruit filtré (le "clic") + petit thump grave qui chute
   // en pitch (le "thock"), légèrement randomisés à chaque appel pour que les pops ne sonnent pas tous
   // pareil. Distinct de playBubblePop(size) plus haut, qui synthétise une note de handpan pour Éphémère.
+  // Reprend volontairement le même enchaînement d'appels que le "tak" d'Éphémère (lowpass, pas de
+  // noise.stop() explicite) car celui-là est confirmé fonctionner sur mobile — la version précédente
+  // (bandpass + stop() explicite) restait muette sur certains Android malgré un Web Audio par ailleurs actif.
   const playFidgetBubblePop = () => {
     try {
       const ctx = getAudioCtx();
       const now = ctx.currentTime;
-      const duration = 0.09;
-      const bufferSize = Math.floor(ctx.sampleRate * duration);
+      const bufferSize = Math.floor(ctx.sampleRate * 0.08);
       const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const data = buffer.getChannelData(0);
-      for (let i = 0; i < bufferSize; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
-      }
+      for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
       const noise = ctx.createBufferSource();
       noise.buffer = buffer;
-      const bandpass = ctx.createBiquadFilter();
-      bandpass.type = 'bandpass';
-      bandpass.frequency.setValueAtTime(700 + Math.random() * 500, now);
-      bandpass.Q.value = 1.2;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = 'lowpass';
+      noiseFilter.frequency.value = 900 + Math.random() * 400;
       const noiseGain = ctx.createGain();
-      noiseGain.gain.setValueAtTime(0.6, now);
-      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-      noise.connect(bandpass);
-      bandpass.connect(noiseGain);
+      noiseGain.gain.setValueAtTime(0.5, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
       noiseGain.connect(ctx.destination);
       noise.start(now);
-      noise.stop(now + duration);
+
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(180 + Math.random() * 40, now);
-      osc.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+      osc.frequency.setValueAtTime(200 + Math.random() * 40, now);
+      osc.frequency.exponentialRampToValueAtTime(70, now + 0.06);
       const oscGain = ctx.createGain();
-      oscGain.gain.setValueAtTime(0.35, now);
-      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      oscGain.gain.setValueAtTime(0.5, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
       osc.connect(oscGain);
       oscGain.connect(ctx.destination);
       osc.start(now);
-      osc.stop(now + 0.08);
+      osc.stop(now + 0.09);
     } catch { /* Web Audio indisponible — silencieux */ }
   };
 
