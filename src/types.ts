@@ -677,6 +677,9 @@ export interface SavedAlter {
   customSexualityIds?: string[]; // ids des sexualités personnalisées (CustomSexuality) attribuées à cet alter
   descriptionImages?: string[]; // photos jointes à la description (stockées à part, pas de base64 dans le texte)
   internalNotesImages?: string[]; // photos jointes aux notes internes
+  lockPinHash?: string;
+  lockPinQuestion?: string;
+  lockPinAnswerHash?: string;
 }
 
 export interface PollOption {

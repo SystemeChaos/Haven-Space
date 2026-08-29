@@ -3601,8 +3601,10 @@ export default function App() {
 
   const toggleBubble = (i: number) => {
     if (poppedBubbles.has(i)) return;
+    const bubbleSize = 24 + (i % 6) * 12;
     setPoppedBubbles(prev => new Set(prev).add(i));
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
+    playBubblePop(bubbleSize);
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(18);
   };
 
   // --- Éphémère : bulles qui montent à l'écran et qu'on éclate, chacune avec son propre pop ---
