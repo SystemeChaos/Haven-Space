@@ -2,7 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -2163,6 +2163,87 @@ export default function App() {
     }
   };
 
+  // Envoie TOUTES les fiches d'alters vers PluralKit en une fois — crée un nouveau membre PluralKit
+  // pour celles qui n'y sont pas encore liées (POST /v2/members, ne demande que "name"), met à jour
+  // celles déjà liées (mêmes champs que exportAlterToPluralKit). Objectif : une fois tout envoyé, un
+  // pk;export sur Discord donne un fichier PluralKit authentique, importable dans les autres apps du
+  // secteur (Ourcana, Constellations, PluralSpace, Ampersand...) qui savent toutes lire ce format —
+  // bien plus fiable que de fabriquer nous-mêmes un fichier dans un format qu'on ne peut pas tester.
+  const [pkPushAllProgress, setPkPushAllProgress] = useState<{ done: number; total: number } | null>(null);
+  const pushAllAltersToPluralKit = async () => {
+    if (!pkToken) return;
+    setPkError(null);
+    setPkSuccess(null);
+    const targets = savedAlters;
+    setPkPushAllProgress({ done: 0, total: targets.length });
+    let createdCount = 0, updatedCount = 0, failedCount = 0;
+    const updatedAlters: SavedAlter[] = [];
+
+    for (let i = 0; i < targets.length; i++) {
+      const alter = targets[i];
+      let pronouns = '';
+      if (alter.internalNotes) {
+        const matches = alter.internalNotes.match(/(?:Pronouns|Pronoms|Prons):\s*(.*)/i);
+        if (matches && matches[1]) pronouns = matches[1].trim();
+      }
+      const bodyData: Record<string, any> = {
+        name: alter.alterName,
+        description: alter.description || null,
+      };
+      if (alter.profileImage && /^https?:\/\//i.test(alter.profileImage)) bodyData.avatar_url = alter.profileImage;
+      if (alter.alterColor) bodyData.color = alter.alterColor.replace(/^#/, '');
+      if (alter.birthday) bodyData.birthday = alter.birthday;
+      if (pronouns) bodyData.pronouns = pronouns;
+
+      try {
+        if (alter.pkId) {
+          const response = await fetch(`https://api.pluralkit.me/v2/members/${alter.pkId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': pkToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyData),
+          });
+          if (!response.ok) throw new Error('update failed');
+          updatedCount++;
+        } else {
+          const response = await fetch('https://api.pluralkit.me/v2/members', {
+            method: 'POST',
+            headers: { 'Authorization': pkToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify(bodyData),
+          });
+          if (!response.ok) throw new Error('create failed');
+          const created = await response.json();
+          updatedAlters.push({ ...alter, pkId: created.id });
+          createdCount++;
+        }
+      } catch {
+        failedCount++;
+      }
+      setPkPushAllProgress({ done: i + 1, total: targets.length });
+      // Petite pause entre chaque appel pour rester raisonnable vis-à-vis des limites de l'API
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    if (updatedAlters.length > 0) {
+      setSavedAlters(prev => prev.map(a => updatedAlters.find(u => u.id === a.id) || a));
+    }
+    // Rafraîchit la liste des membres PluralKit affichée
+    try {
+      const memResponse = await fetch('https://api.pluralkit.me/v2/systems/@me/members', { headers: { 'Authorization': pkToken } });
+      if (memResponse.ok) setPkMembers(await memResponse.json());
+    } catch { /* ignore refresh failure */ }
+
+    setPkPushAllProgress(null);
+    if (failedCount === 0) {
+      setPkSuccess(lang === 'fr'
+        ? `Terminé ! ${createdCount} fiche(s) créée(s) et ${updatedCount} mise(s) à jour sur PluralKit. Tape pk;export sur Discord pour récupérer le fichier à importer ailleurs.`
+        : `Done! ${createdCount} card(s) created and ${updatedCount} updated on PluralKit. Run pk;export on Discord to get the file to import elsewhere.`);
+    } else {
+      setPkError(lang === 'fr'
+        ? `${createdCount + updatedCount} fiche(s) envoyée(s), mais ${failedCount} ont échoué (jeton expiré ou limite de l'API). Réessaie dans une minute.`
+        : `${createdCount + updatedCount} card(s) sent, but ${failedCount} failed (expired token or API limit). Try again in a minute.`);
+    }
+  };
+
   useEffect(() => {
     if (pkToken) {
       fetchPluralKitSystem(pkToken);
@@ -2221,50 +2302,6 @@ export default function App() {
       setJsonSuccess(lang === 'fr' ? "Fichier de sauvegarde exporté avec succès !" : "Backup file exported successfully!");
       setJsonError(null);
       localStorage.setItem('hs-last-json-export', String(Date.now()));
-    } catch (err: any) {
-      setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
-      setJsonSuccess(null);
-    }
-  };
-
-  // Export au format PluralKit — un fichier JSON compatible avec les autres apps du milieu pluriel qui
-  // savent lire ce format (Constellations, Simply Plural, Octocon, Tupperbox...), contrairement à notre
-  // export natif ci-dessus qui est propre à Haven Space. Volontairement limité aux fiches d'alters pour
-  // l'instant (pas l'historique des switchs) : le format des switchs PluralKit référence des IDs de membres
-  // par ailleurs attribués par PluralKit lui-même, ce qu'on ne peut pas reproduire fidèlement depuis ici.
-  const handleExportPluralKitJSON = () => {
-    try {
-      const members = savedAlters.map(alter => {
-        const pronounMatch = alter.internalNotes?.match(/(?:Pronouns|Pronoms|Prons):\s*(.*)/i);
-        // avatar_url doit être une URL publique accessible (spec PluralKit) — les images stockées en
-        // base64 dans Haven Space ne peuvent pas être reprises telles quelles, on les laisse de côté.
-        const avatarUrl = alter.profileImage && /^https?:\/\//i.test(alter.profileImage) ? alter.profileImage : null;
-        return {
-          name: alter.alterName,
-          description: alter.description || null,
-          pronouns: pronounMatch ? pronounMatch[1].trim() : null,
-          color: alter.alterColor ? alter.alterColor.replace(/^#/, '') : null,
-          birthday: alter.birthday || null,
-          avatar_url: avatarUrl,
-        };
-      });
-      const pkExport = {
-        name: mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
-        description: null,
-        tag: null,
-        avatar_url: null,
-        created: new Date().toISOString(),
-        members,
-      };
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(pkExport, null, 2));
-      const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
-      downloadAnchor.setAttribute("download", `haven_space_pluralkit_${new Date().toISOString().split('T')[0]}.json`);
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      downloadAnchor.remove();
-      setJsonSuccess(lang === 'fr' ? "Fichier compatible PluralKit exporté !" : "PluralKit-compatible file exported!");
-      setJsonError(null);
     } catch (err: any) {
       setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
       setJsonSuccess(null);
@@ -16550,6 +16587,36 @@ export default function App() {
                     <span>{t.pkSyncAllBtn}</span>
                   </button>
                 </div>
+
+                <div className="pt-4 border-t border-app-border/15 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <p className="text-xs font-black uppercase text-app-muted tracking-wider">
+                      {lang === 'fr' ? "Envoyer vers PluralKit (pour exporter ailleurs)" : "Push to PluralKit (to export elsewhere)"}
+                    </p>
+                    <p className="text-[10px] text-app-muted leading-relaxed mt-1">
+                      {lang === 'fr'
+                        ? "Envoie toutes tes fiches d'alters Haven Space vers PluralKit (crée les nouvelles, met à jour celles déjà liées). Une fois fait, tape pk;export sur Discord pour obtenir un fichier PluralKit authentique — importable dans Ourcana, Constellations, PluralSpace, Ampersand et la plupart des autres apps du secteur."
+                        : "Sends all your Haven Space alter cards to PluralKit (creates new ones, updates linked ones). Once done, run pk;export on Discord to get an authentic PluralKit file — importable into Ourcana, Constellations, PluralSpace, Ampersand, and most other apps in the space."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={pushAllAltersToPluralKit}
+                    disabled={!!pkPushAllProgress}
+                    className="w-full sm:w-auto px-6 py-3 bg-app-accent text-white hover:opacity-90 disabled:opacity-50 font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all flex items-center justify-center gap-2 shadow-md shrink-0"
+                  >
+                    {pkPushAllProgress ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>{pkPushAllProgress.done}/{pkPushAllProgress.total}</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{lang === 'fr' ? 'Tout envoyer' : 'Push all'}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -16743,19 +16810,14 @@ export default function App() {
                     <span>{lang === 'fr' ? 'Exporter en JSON' : 'Export JSON Backup'}</span>
                   </button>
 
-                  <div className="space-y-1.5">
-                    <button
-                      type="button"
-                      onClick={handleExportPluralKitJSON}
-                      className="w-full px-5 py-3 bg-app-bg hover:bg-app-border/20 border border-app-border font-extrabold uppercase text-xs tracking-widest text-app-text rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      <Link2 className="w-4 h-4" />
-                      <span>{lang === 'fr' ? 'Exporter (format PluralKit)' : 'Export (PluralKit format)'}</span>
-                    </button>
-                    <p className="text-[10px] text-app-muted leading-relaxed px-1">
+                  <div className="p-3.5 bg-app-bg/50 border border-app-border/40 rounded-xl space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted flex items-center gap-1.5">
+                      <Link2 className="w-3 h-3" /> {lang === 'fr' ? 'Vers une autre app ?' : 'Moving to another app?'}
+                    </p>
+                    <p className="text-[10px] text-app-muted leading-relaxed">
                       {lang === 'fr'
-                        ? "Pour importer tes fiches dans une autre app compatible PluralKit (Constellations, Simply Plural, Octocon...). Ne contient que les fiches d'alters (nom, description, pronoms, couleur, date de naissance) — pas l'historique de front ni les images stockées localement (elles doivent être hébergées en ligne pour être reprises ailleurs)."
-                        : "To import your cards into another PluralKit-compatible app (Constellations, Simply Plural, Octocon...). Only includes alter cards (name, description, pronouns, color, birthday) — not front history or locally-stored images (they'd need to be hosted online to carry over)."}
+                        ? "Pas de format universel entre apps différentes — mais l'onglet PluralKit peut envoyer toutes tes fiches vers un compte PluralKit, qui lui exporte un fichier lisible par la plupart des autres apps du secteur (Ourcana, Constellations, PluralSpace, Ampersand...)."
+                        : "There's no universal format across different apps — but the PluralKit tab can push all your cards to a PluralKit account, which exports a file readable by most other apps in the space (Ourcana, Constellations, PluralSpace, Ampersand...)."}
                     </p>
                   </div>
                 </div>
