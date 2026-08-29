@@ -3603,7 +3603,9 @@ export default function App() {
     if (poppedBubbles.has(i)) return;
     setPoppedBubbles(prev => new Set(prev).add(i));
     playFidgetBubblePop();
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
+    // navigator.vibrate n'existe pas du tout sur Safari iOS (limitation d'Apple, pas un bug d'app) —
+    // le check `&& navigator.vibrate` protège juste contre ce cas, ça reste normal de ne rien sentir sur iPhone.
+    try { if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15); } catch { /* ignore */ }
   };
 
   // --- Éphémère : bulles qui montent à l'écran et qu'on éclate, chacune avec son propre pop ---
@@ -5851,9 +5853,34 @@ export default function App() {
       const Ctx = window.AudioContext || (window as any).webkitAudioContext;
       audioCtxRef.current = new Ctx();
     }
-    if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
-    return audioCtxRef.current;
+    const ctx = audioCtxRef.current;
+    if (ctx.state === 'suspended') {
+      // Sur mobile (surtout iOS Safari), resume() est async et peut ne pas être terminé au moment où
+      // le son suivant est planifié — d'où un premier pop silencieux, voire tous silencieux si le
+      // contexte reste bloqué en 'suspended'. On relance resume() à chaque appel tant qu'il ne tourne
+      // pas, et on joue un micro-buffer muet pour forcer le déblocage audio sur les navigateurs stricts.
+      ctx.resume().catch(() => {});
+      try {
+        const unlockBuffer = ctx.createBuffer(1, 1, 22050);
+        const unlockSource = ctx.createBufferSource();
+        unlockSource.buffer = unlockBuffer;
+        unlockSource.connect(ctx.destination);
+        unlockSource.start(0);
+      } catch { /* ignore */ }
+    }
+    return ctx;
   };
+  // Débloque l'audio dès la toute première interaction tactile/clic n'importe où dans l'app, pour que
+  // le contexte soit déjà actif au moment où un son doit vraiment jouer (ex: premier pop de bulle).
+  useEffect(() => {
+    const unlock = () => { getAudioCtx(); };
+    window.addEventListener('touchstart', unlock, { once: true, passive: true });
+    window.addEventListener('mousedown', unlock, { once: true });
+    return () => {
+      window.removeEventListener('touchstart', unlock);
+      window.removeEventListener('mousedown', unlock);
+    };
+  }, []);
   const playKalimbaNote = (freq: number) => {
     try {
       const ctx = getAudioCtx();
