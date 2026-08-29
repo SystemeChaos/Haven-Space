@@ -3601,10 +3601,9 @@ export default function App() {
 
   const toggleBubble = (i: number) => {
     if (poppedBubbles.has(i)) return;
-    const bubbleSize = 24 + (i % 6) * 12;
     setPoppedBubbles(prev => new Set(prev).add(i));
-    playBubblePop(bubbleSize);
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(18);
+    playFidgetBubblePop();
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(15);
   };
 
   // --- Éphémère : bulles qui montent à l'écran et qu'on éclate, chacune avec son propre pop ---
@@ -5883,6 +5882,47 @@ export default function App() {
       gain2.connect(ctx.destination);
       osc2.start(now);
       osc2.stop(now + 0.65);
+    } catch { /* Web Audio indisponible — silencieux */ }
+  };
+  // Pop de bulle du bac "Bulles" (bubble-wrap) : bruit filtré (le "clic") + petit thump grave qui chute
+  // en pitch (le "thock"), légèrement randomisés à chaque appel pour que les pops ne sonnent pas tous
+  // pareil. Distinct de playBubblePop(size) plus haut, qui synthétise une note de handpan pour Éphémère.
+  const playFidgetBubblePop = () => {
+    try {
+      const ctx = getAudioCtx();
+      const now = ctx.currentTime;
+      const duration = 0.09;
+      const bufferSize = Math.floor(ctx.sampleRate * duration);
+      const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const bandpass = ctx.createBiquadFilter();
+      bandpass.type = 'bandpass';
+      bandpass.frequency.setValueAtTime(700 + Math.random() * 500, now);
+      bandpass.Q.value = 1.2;
+      const noiseGain = ctx.createGain();
+      noiseGain.gain.setValueAtTime(0.6, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+      noise.connect(bandpass);
+      bandpass.connect(noiseGain);
+      noiseGain.connect(ctx.destination);
+      noise.start(now);
+      noise.stop(now + duration);
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180 + Math.random() * 40, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.05);
+      const oscGain = ctx.createGain();
+      oscGain.gain.setValueAtTime(0.35, now);
+      oscGain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.connect(oscGain);
+      oscGain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
     } catch { /* Web Audio indisponible — silencieux */ }
   };
 
