@@ -42,7 +42,7 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
     const dx = x - CX;
     const dy = y - CY;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const angle = (Math.atan2(dy, dx) + Math.PI * 2) % (Math.PI * 2);
+    const angle = (Math.atan2(dy, dx) + Math.PI / 2 + Math.PI * 2) % (Math.PI * 2);
     const sector = Math.floor((angle / (Math.PI * 2)) * criteria.length) % criteria.length;
     const score = Math.max(0, Math.min(10, Math.round((distance / MAX_RADIUS) * 10)));
     const selected = criteria[sector];
