@@ -2267,7 +2267,7 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!dek) {
+    if (!dek && vaultMeta) {
       setSpectrumBySystem({});
       setSpectrumDataLoaded(false);
       return () => { cancelled = true; };
@@ -2280,7 +2280,7 @@ export default function App() {
       }
     })();
     return () => { cancelled = true; };
-  }, [dek]);
+  }, [dek, vaultMeta]);
 
   useEffect(() => {
     if (spectrumDataLoaded) writeMaybeEncrypted('spectrumTool', spectrumBySystem, dek, !!vaultMeta);
