@@ -77,6 +77,14 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
         <div>
           <p className="text-[10px] uppercase tracking-[0.22em] font-black text-app-accent">{labels.title}</p>
           <h2 className="text-xl md:text-2xl font-black uppercase tracking-wider mt-1">{labels.subtitle}</h2>
+          <a
+            href="https://partielles.com/tpa"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-block mt-2 text-[10px] text-app-muted underline underline-offset-2 hover:text-app-accent transition-colors"
+          >
+            The Plural Spectrum Tool — The Plural Association Nonprofit (partielles.com/tpa)
+          </a>
         </div>
         <p className="text-xs text-app-muted max-w-sm">{labels.hint}</p>
       </div>
