@@ -2,7 +2,8 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
+import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
 import { 
@@ -1350,7 +1351,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -1600,6 +1601,20 @@ export default function App() {
   const [showParallelSystemForm, setShowParallelSystemForm] = useState(false);
   const [parallelSystemFormName, setParallelSystemFormName] = useState('');
   const [editingParallelSystemId, setEditingParallelSystemId] = useState<string | null>(null);
+
+  const DEFAULT_SPECTRUM_CRITERIA: SpectrumCriterion[] = [
+    { id: 'shared-memories', name: 'Souvenirs partagés', color: '#38bdf8', score: 0 },
+    { id: 'cooperation', name: 'Coopération', color: '#34d399', score: 0 },
+    { id: 'system-stability', name: 'Stabilité du système', color: '#fbbf24', score: 0 },
+    { id: 'internal-communication', name: 'Communication interne', color: '#fb7185', score: 0 },
+    { id: 'switching-ability', name: 'Capacité à switcher', color: '#a78bfa', score: 0 },
+    { id: 'co-consciousness', name: 'Co-conscience', color: '#2dd4bf', score: 0 },
+    { id: 'elaboration', name: 'Élaboration', color: '#f97316', score: 0 },
+    { id: 'overt', name: 'Ouvert ("visible")', color: '#60a5fa', score: 0 },
+    { id: 'pride', name: 'Pride', color: '#e879f9', score: 0 },
+  ];
+  const [spectrumBySystem, setSpectrumBySystem] = useState<Record<string, SpectrumCriterion[]>>({});
+  const [spectrumDataLoaded, setSpectrumDataLoaded] = useState(false);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
@@ -2249,6 +2264,27 @@ export default function App() {
       fetchPluralKitSystem(pkToken);
     }
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!dek) {
+      setSpectrumBySystem({});
+      setSpectrumDataLoaded(false);
+      return () => { cancelled = true; };
+    }
+    (async () => {
+      const stored = await readMaybeEncrypted<Record<string, SpectrumCriterion[]>>('spectrumTool', dek, {});
+      if (!cancelled) {
+        setSpectrumBySystem(stored);
+        setSpectrumDataLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
+
+  useEffect(() => {
+    if (spectrumDataLoaded) writeMaybeEncrypted('spectrumTool', spectrumBySystem, dek, !!vaultMeta);
+  }, [spectrumBySystem, spectrumDataLoaded, dek, vaultMeta]);
 
   // --- JSON Backup Synchronisation Logical Handlers ---
   const collectInnerworldData = async (): Promise<Record<string, string>> => {
@@ -11941,6 +11977,12 @@ export default function App() {
                   )}
                 </div>
               </div>
+
+              <SpectrumTool
+                criteria={spectrumBySystem[activeSystemId] || DEFAULT_SPECTRUM_CRITERIA}
+                onChange={criteria => setSpectrumBySystem(prev => ({ ...prev, [activeSystemId]: criteria }))}
+                lang={lang}
+              />
 
             </>)}
             </div>
