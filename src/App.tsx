@@ -2324,6 +2324,7 @@ export default function App() {
         mappingData: await loadMapping('main', dek),
         walletEntries,
         walletCustomCategories,
+        spectrumBySystem,
         ecoSystem: {
           elements: ecoElements,
           background: ecoBackground,
@@ -2398,9 +2399,12 @@ export default function App() {
         const innerworldCount = parsed.innerworldData && typeof parsed.innerworldData === 'object'
           ? Object.keys(parsed.innerworldData).filter(k => k.startsWith('haven_innerworld_place_')).length
           : 0;
+        const spectrumCount = parsed.spectrumBySystem && typeof parsed.spectrumBySystem === 'object'
+          ? Object.values(parsed.spectrumBySystem as Record<string, unknown>).reduce((sum: number, criteria) => sum + (Array.isArray(criteria) ? criteria.length : 0), 0)
+          : 0;
 
         if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0
-          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0 && walletCount === 0 && ecoCount === 0 && innerworldCount === 0) {
+          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0 && walletCount === 0 && ecoCount === 0 && innerworldCount === 0 && spectrumCount === 0) {
           throw new Error(lang === 'fr' 
             ? "Le fichier ne contient aucune donnée compatible ou aucune donnée de système." 
             : "The file contains no compatible system data."
@@ -2417,6 +2421,7 @@ export default function App() {
           journalsCount,
           walletCount,
           innerworldCount,
+          spectrumCount,
           systemName: parsed.mainSystemName || (lang === 'fr' ? 'Système Importé' : 'Imported System')
         });
       } catch (err: any) {
@@ -2534,6 +2539,10 @@ export default function App() {
 
       const importedWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
       setWalletCustomCategories(importedWalletCategories);
+
+      if (data.spectrumBySystem && typeof data.spectrumBySystem === 'object') {
+        setSpectrumBySystem(data.spectrumBySystem);
+      }
 
       const importedEcoSystem = data.ecoSystem && typeof data.ecoSystem === 'object' ? data.ecoSystem : {};
       const importedEcoElements = Array.isArray(importedEcoSystem.elements) ? importedEcoSystem.elements : [];
@@ -2807,6 +2816,22 @@ export default function App() {
         if (!currentWalletCategories.some(c => c.id === incoming.id)) currentWalletCategories.push(incoming);
       });
       setWalletCustomCategories(currentWalletCategories);
+
+      // 12b. Spectrum Tool : fusion des critères par système, écrase les doublons par id, ajoute les nouveaux
+      if (data.spectrumBySystem && typeof data.spectrumBySystem === 'object') {
+        const mergedSpectrum: Record<string, SpectrumCriterion[]> = { ...spectrumBySystem };
+        Object.entries(data.spectrumBySystem as Record<string, SpectrumCriterion[]>).forEach(([systemId, incomingCriteria]) => {
+          if (!Array.isArray(incomingCriteria)) return;
+          const currentCriteria = [...(mergedSpectrum[systemId] || [])];
+          incomingCriteria.forEach((incoming: SpectrumCriterion) => {
+            const existingIndex = currentCriteria.findIndex((c: any) => c.id === (incoming as any).id);
+            if (existingIndex > -1) currentCriteria[existingIndex] = { ...currentCriteria[existingIndex], ...incoming };
+            else currentCriteria.push(incoming);
+          });
+          mergedSpectrum[systemId] = currentCriteria;
+        });
+        setSpectrumBySystem(mergedSpectrum);
+      }
 
       // 13. Éco-système : fusion des éléments et des paramètres globaux sans écraser les préférences locales si absent.
       const incomingEcoSystem = data.ecoSystem && typeof data.ecoSystem === 'object' ? data.ecoSystem : {};
@@ -16896,6 +16921,7 @@ export default function App() {
                       <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
                       <div><strong className="text-app-text">{walletEntries.length}</strong> {lang === 'fr' ? 'entrées de portefeuille' : 'wallet entries'}</div>
                       <div><strong className="text-app-text">{innerworldPageCount}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>
+                      <div><strong className="text-app-text">{Object.values(spectrumBySystem).reduce((sum, criteria) => sum + criteria.length, 0)}</strong> {lang === 'fr' ? 'critères Spectrum Tool' : 'Spectrum Tool criteria'}</div>
                     </div>
                   </div>
 
@@ -16986,7 +17012,7 @@ export default function App() {
 
                   <div className="space-y-3">
                     <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Contenu compatible détecté :' : 'Detected compatible content :'}</h5>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
                       <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
                         <div className="text-sm font-black text-app-text">{importPreview.altersCount}</div>
                         <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Alters' : 'Alters'}</div>
@@ -17014,6 +17040,10 @@ export default function App() {
                       <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
                         <div className="text-sm font-black text-app-text">{importPreview.innerworldCount}</div>
                         <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Innerworld' : 'Innerworld'}</div>
+                      </div>
+                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
+                        <div className="text-sm font-black text-app-text">{importPreview.spectrumCount}</div>
+                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Spectrum Tool' : 'Spectrum Tool'}</div>
                       </div>
                     </div>
                   </div>
