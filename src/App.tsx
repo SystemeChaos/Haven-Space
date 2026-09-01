@@ -2324,6 +2324,20 @@ export default function App() {
         mappingData: await loadMapping('main', dek),
         walletEntries,
         walletCustomCategories,
+        ecoSystem: {
+          elements: ecoElements,
+          background: ecoBackground,
+          altMood: ecoAltMood,
+          soundOn: ecoSoundOn,
+          waterCountToday,
+          waterLog: (() => {
+            try {
+              return JSON.parse(localStorage.getItem(WATER_LOG_KEY) || '{}');
+            } catch {
+              return {};
+            }
+          })(),
+        },
         innerworldData: await collectInnerworldData()
       };
 
@@ -2378,12 +2392,15 @@ export default function App() {
         const directMessagesCount = Array.isArray(parsed.directMessages) ? parsed.directMessages.length : 0;
         const healthCount = (Array.isArray(parsed.medications) ? parsed.medications.length : 0) + (Array.isArray(parsed.healthHistory) ? parsed.healthHistory.length : 0);
         const walletCount = Array.isArray(parsed.walletEntries) ? parsed.walletEntries.length : 0;
+        const ecoCount = parsed.ecoSystem && typeof parsed.ecoSystem === 'object'
+          ? (Array.isArray(parsed.ecoSystem.elements) ? parsed.ecoSystem.elements.length : 0)
+          : 0;
         const innerworldCount = parsed.innerworldData && typeof parsed.innerworldData === 'object'
           ? Object.keys(parsed.innerworldData).filter(k => k.startsWith('haven_innerworld_place_')).length
           : 0;
 
         if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0
-          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0 && walletCount === 0 && innerworldCount === 0) {
+          && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0 && walletCount === 0 && ecoCount === 0 && innerworldCount === 0) {
           throw new Error(lang === 'fr' 
             ? "Le fichier ne contient aucune donnée compatible ou aucune donnée de système." 
             : "The file contains no compatible system data."
@@ -2517,6 +2534,21 @@ export default function App() {
 
       const importedWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
       setWalletCustomCategories(importedWalletCategories);
+
+      const importedEcoSystem = data.ecoSystem && typeof data.ecoSystem === 'object' ? data.ecoSystem : {};
+      const importedEcoElements = Array.isArray(importedEcoSystem.elements) ? importedEcoSystem.elements : [];
+      setEcoElements(importedEcoElements);
+      if (importedEcoSystem.background === 'aquarium' || importedEcoSystem.background === 'greenhouse' || importedEcoSystem.background === 'night' || importedEcoSystem.background === 'jardin') {
+        setEcoBackground(importedEcoSystem.background);
+      }
+      if (typeof importedEcoSystem.altMood === 'boolean') setEcoAltMood(importedEcoSystem.altMood);
+      if (typeof importedEcoSystem.soundOn === 'boolean') setEcoSoundOn(importedEcoSystem.soundOn);
+      if (typeof importedEcoSystem.waterCountToday === 'number') setWaterCountToday(importedEcoSystem.waterCountToday);
+      if (importedEcoSystem.waterLog && typeof importedEcoSystem.waterLog === 'object') {
+        try {
+          localStorage.setItem(WATER_LOG_KEY, JSON.stringify(importedEcoSystem.waterLog));
+        } catch { /* ignore */ }
+      }
 
       if (data.innerworldData && typeof data.innerworldData === 'object') {
         // On repart d'une base propre pour l'Innerworld avant de restaurer la sauvegarde
@@ -2776,7 +2808,31 @@ export default function App() {
       });
       setWalletCustomCategories(currentWalletCategories);
 
-      // 13. Innerworld : ajoute les pages absentes localement, ne remplace jamais une page déjà personnalisée ; fusionne les index par système
+      // 13. Éco-système : fusion des éléments et des paramètres globaux sans écraser les préférences locales si absent.
+      const incomingEcoSystem = data.ecoSystem && typeof data.ecoSystem === 'object' ? data.ecoSystem : {};
+      const currentEcoElements = [...ecoElements];
+      const incomingEcoElements = Array.isArray(incomingEcoSystem.elements) ? incomingEcoSystem.elements : [];
+      incomingEcoElements.forEach((incoming: EcoElement) => {
+        if (!currentEcoElements.some(el => el.id === incoming.id)) currentEcoElements.push(incoming);
+      });
+      setEcoElements(currentEcoElements);
+      if (incomingEcoSystem.background === 'aquarium' || incomingEcoSystem.background === 'greenhouse' || incomingEcoSystem.background === 'night' || incomingEcoSystem.background === 'jardin') {
+        setEcoBackground(incomingEcoSystem.background);
+      }
+      if (typeof incomingEcoSystem.altMood === 'boolean') setEcoAltMood(incomingEcoSystem.altMood);
+      if (typeof incomingEcoSystem.soundOn === 'boolean') setEcoSoundOn(incomingEcoSystem.soundOn);
+      if (typeof incomingEcoSystem.waterCountToday === 'number') setWaterCountToday(incomingEcoSystem.waterCountToday);
+      if (incomingEcoSystem.waterLog && typeof incomingEcoSystem.waterLog === 'object') {
+        let mergedWaterLog: Record<string, number> = {};
+        try { mergedWaterLog = JSON.parse(localStorage.getItem(WATER_LOG_KEY) || '{}'); } catch { /* ignore */ }
+        Object.entries(incomingEcoSystem.waterLog as Record<string, unknown>).forEach(([day, value]) => {
+          const numeric = Number(value);
+          if (Number.isFinite(numeric)) mergedWaterLog[day] = Math.max(mergedWaterLog[day] || 0, numeric);
+        });
+        try { localStorage.setItem(WATER_LOG_KEY, JSON.stringify(mergedWaterLog)); } catch { /* ignore */ }
+      }
+
+      // 14. Innerworld : ajoute les pages absentes localement, ne remplace jamais une page déjà personnalisée ; fusionne les index par système
       if (data.innerworldData && typeof data.innerworldData === 'object') {
         for (const [key, value] of Object.entries(data.innerworldData)) {
           if (typeof value !== 'string') continue;
