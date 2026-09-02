@@ -6954,7 +6954,7 @@ export default function App() {
       alter.frontStatus === 'blend' ? '' : 'bg-zinc-500'
     );
     return (
-      <div key={alter.id} className="flex flex-col items-center text-center gap-1.5 w-20 sm:w-24">
+      <div key={alter.id} className="flex flex-col items-center text-center gap-1.5 w-full max-w-[6.5rem]">
         <button
           type="button"
           onClick={() => handleLoadAlter(alter)}
@@ -6965,11 +6965,11 @@ export default function App() {
             <img
               src={alter.profileImage}
               alt={alter.alterName}
-              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-app-border/30 group-hover/tile:border-app-accent/60 transition-colors"
+              className="w-20 h-20 sm:w-24 sm:h-24 rounded-full object-cover border-2 border-app-border/30 group-hover/tile:border-app-accent/60 transition-colors"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-app-accent/15 border-2 border-app-accent/25 group-hover/tile:border-app-accent/60 flex items-center justify-center text-app-text font-black text-sm transition-colors">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-app-accent/15 border-2 border-app-accent/25 group-hover/tile:border-app-accent/60 flex items-center justify-center text-app-text font-black text-base transition-colors">
               {alter.alterName.slice(0, 2).toUpperCase()}
             </div>
           )}
@@ -11653,7 +11653,7 @@ export default function App() {
                       </div>
                     )}
                     {subAlters.length > 0 ? (
-                      <div className="flex flex-wrap gap-x-3 gap-y-5 p-2 bg-app-card/40 rounded-2xl border border-app-border/20">
+                      <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-2 gap-y-6 justify-items-center p-3 bg-app-card/40 rounded-2xl border border-app-border/20">
                         {subAlters.map(a => renderAlterCard(a))}
                       </div>
                     ) : (
@@ -11703,7 +11703,7 @@ export default function App() {
                           {/* Conteneur scrollable avec scrollbar à gauche */}
                           <div className={`flex flex-row-reverse gap-2 ${activeSystemAlters.filter(a => !a.subsystemId && !a.archived).length > 10 ? 'max-h-[72vh] overflow-y-auto pr-1' : ''} alter-scroll-container`}>
                             <div className="flex-1">
-                              <div className="flex flex-wrap gap-x-3 gap-y-5 p-2">
+                              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-x-2 gap-y-6 justify-items-center p-3">
                                 {[...activeSystemAlters]
                                   .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole) || (a.customRoleIds || []).includes(r))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
@@ -11801,7 +11801,7 @@ export default function App() {
                             </p>
                           </div>
                         ) : (
-                          <div className="flex flex-wrap justify-center gap-x-3 gap-y-5 opacity-80">
+                          <div className="grid grid-cols-3 sm:grid-cols-4 gap-x-2 gap-y-6 justify-items-center opacity-80">
                             {filtered.map(a => renderAlterCard(a))}
                           </div>
                         );
