@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2, Lock, Unlock } from 'lucide-react';
 
 export interface SpectrumCriterion {
   id: string;
@@ -33,9 +33,10 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
   const wheelRef = useRef<SVGSVGElement>(null);
   const [activeId, setActiveId] = React.useState<string | null>(criteria[0]?.id || null);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [locked, setLocked] = React.useState(true);
 
   const updateScoreFromPointer = (event: React.PointerEvent<SVGSVGElement>) => {
-    if (!wheelRef.current || criteria.length === 0) return;
+    if (locked || !wheelRef.current || criteria.length === 0) return;
     const rect = wheelRef.current.getBoundingClientRect();
     const x = ((event.clientX - rect.left) / rect.width) * 520;
     const y = ((event.clientY - rect.top) / rect.height) * 520;
@@ -52,6 +53,7 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
   };
 
   const addCriterion = () => {
+    if (locked) return;
     const id = `spectrum-${Date.now()}`;
     onChange([...criteria, { id, name: lang === 'fr' ? 'Nouveau critère' : 'New criterion', color: '#2b8cbe', score: 0 }]);
     setActiveId(id);
@@ -59,17 +61,19 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
   };
 
   const updateCriterion = (id: string, patch: Partial<SpectrumCriterion>) => {
+    if (locked) return;
     onChange(criteria.map(item => item.id === id ? { ...item, ...patch } : item));
   };
 
   const removeCriterion = (id: string) => {
+    if (locked) return;
     onChange(criteria.filter(item => item.id !== id));
     if (activeId === id) setActiveId(criteria.find(item => item.id !== id)?.id || null);
   };
 
   const labels = lang === 'fr'
-    ? { title: 'Spectrum Tool', subtitle: 'Un aperçu évolutif de la vie du système', edit: 'Critères', add: 'Ajouter un critère', empty: 'Ajoutez un critère pour commencer', hint: 'Cliquez ou glissez dans la roue pour noter de 0 à 10.' }
-    : { title: 'Spectrum Tool', subtitle: 'A living snapshot of the system', edit: 'Criteria', add: 'Add a criterion', empty: 'Add a criterion to begin', hint: 'Click or drag in the wheel to score from 0 to 10.' };
+    ? { title: 'Spectrum Tool', subtitle: 'Un aperçu évolutif de la vie du système', edit: 'Critères', add: 'Ajouter un critère', empty: 'Ajoutez un critère pour commencer', hint: 'Cliquez ou glissez dans la roue pour noter de 0 à 10.', hintLocked: 'Roue verrouillée — touchez le cadenas pour la modifier.', lockAction: 'Déverrouiller pour modifier', unlockAction: 'Verrouiller la roue' }
+    : { title: 'Spectrum Tool', subtitle: 'A living snapshot of the system', edit: 'Criteria', add: 'Add a criterion', empty: 'Add a criterion to begin', hint: 'Click or drag in the wheel to score from 0 to 10.', hintLocked: 'Wheel locked — tap the padlock to edit it.', lockAction: 'Unlock to edit', unlockAction: 'Lock the wheel' };
 
   return (
     <section className="border-t border-app-border/20 pt-8 space-y-6">
@@ -86,20 +90,30 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
             The Plural Spectrum Tool — The Plural Association Nonprofit (partielles.com/tpa)
           </a>
         </div>
-        <p className="text-xs text-app-muted max-w-sm">{labels.hint}</p>
+        <p className="text-xs text-app-muted max-w-sm">{locked ? labels.hintLocked : labels.hint}</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(280px,390px)] gap-8 items-start">
-        <div className="bg-app-card/65 border border-app-border/30 rounded-2xl p-3 sm:p-6">
+        <div className="bg-app-card/65 border border-app-border/30 rounded-2xl p-3 sm:p-6 relative">
+          <button
+            type="button"
+            onClick={() => setLocked(prev => !prev)}
+            className={`absolute top-3 right-3 sm:top-4 sm:right-4 z-10 inline-flex items-center justify-center w-10 h-10 rounded-xl border shadow-sm transition-colors ${locked ? 'bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25' : 'bg-app-accent/15 border-app-accent/40 text-app-accent hover:bg-app-accent/25'}`}
+            title={locked ? labels.lockAction : labels.unlockAction}
+            aria-pressed={!locked}
+            aria-label={locked ? labels.lockAction : labels.unlockAction}
+          >
+            {locked ? <Lock className="w-4.5 h-4.5" /> : <Unlock className="w-4.5 h-4.5" />}
+          </button>
           {criteria.length === 0 ? (
             <div className="min-h-80 flex items-center justify-center text-sm text-app-muted">{labels.empty}</div>
           ) : (
             <svg
               ref={wheelRef}
               viewBox="0 0 520 520"
-              className="w-full max-w-[620px] mx-auto touch-none select-none"
-              onPointerDown={event => { event.currentTarget.setPointerCapture(event.pointerId); updateScoreFromPointer(event); }}
-              onPointerMove={event => { if (event.buttons) updateScoreFromPointer(event); }}
+              className={`w-full max-w-[620px] mx-auto select-none ${locked ? 'touch-pan-y' : 'touch-none'}`}
+              onPointerDown={event => { if (locked) return; event.currentTarget.setPointerCapture(event.pointerId); updateScoreFromPointer(event); }}
+              onPointerMove={event => { if (locked) return; if (event.buttons) updateScoreFromPointer(event); }}
               role="img"
               aria-label={labels.title}
             >
@@ -128,20 +142,20 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
         <div className="bg-app-card/65 border border-app-border/30 rounded-2xl p-4 sm:p-5 space-y-3">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-2"><Pencil className="w-4 h-4" />{labels.edit}</h3>
-            <button onClick={addCriterion} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-app-accent text-xs font-black uppercase tracking-wide hover:opacity-90 transition-opacity"><Plus className="w-3.5 h-3.5" />{labels.add}</button>
+            <button onClick={addCriterion} disabled={locked} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-app-accent text-xs font-black uppercase tracking-wide hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40"><Plus className="w-3.5 h-3.5" />{labels.add}</button>
           </div>
           <div className="space-y-2 max-h-[520px] overflow-y-auto pr-1">
             {criteria.map(criterion => (
-              <div key={criterion.id} className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${activeId === criterion.id ? 'border-app-accent/50 bg-app-accent/5' : 'border-app-border/20'}`} onClick={() => setActiveId(criterion.id)}>
-                <input aria-label={criterion.name} type="color" value={criterion.color} onChange={event => updateCriterion(criterion.id, { color: event.target.value })} className="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer p-0.5" />
+              <div key={criterion.id} className={`flex items-center gap-2 p-2 rounded-xl border transition-colors ${activeId === criterion.id ? 'border-app-accent/50 bg-app-accent/5' : 'border-app-border/20'} ${locked ? 'opacity-60' : ''}`} onClick={() => setActiveId(criterion.id)}>
+                <input aria-label={criterion.name} type="color" value={criterion.color} disabled={locked} onChange={event => updateCriterion(criterion.id, { color: event.target.value })} className="w-8 h-8 rounded-lg border-0 bg-transparent cursor-pointer p-0.5 disabled:cursor-not-allowed" />
                 {editingId === criterion.id ? (
-                  <input autoFocus value={criterion.name} onChange={event => updateCriterion(criterion.id, { name: event.target.value })} onBlur={() => setEditingId(null)} onKeyDown={event => { if (event.key === 'Enter') setEditingId(null); }} className="min-w-0 flex-1 bg-app-bg border border-app-accent/40 rounded-lg px-2 py-1.5 text-xs text-app-text focus:outline-none" />
+                  <input autoFocus value={criterion.name} disabled={locked} onChange={event => updateCriterion(criterion.id, { name: event.target.value })} onBlur={() => setEditingId(null)} onKeyDown={event => { if (event.key === 'Enter') setEditingId(null); }} className="min-w-0 flex-1 bg-app-bg border border-app-accent/40 rounded-lg px-2 py-1.5 text-xs text-app-text focus:outline-none" />
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-xs font-semibold">{criterion.name}</span>
                 )}
                 <span className="w-7 text-center text-xs font-black text-app-muted">{criterion.score}</span>
-                <button onClick={() => setEditingId(criterion.id)} className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg" title={lang === 'fr' ? 'Renommer' : 'Rename'}><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => removeCriterion(criterion.id)} className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10" title={lang === 'fr' ? 'Supprimer' : 'Delete'}><Trash2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setEditingId(criterion.id)} disabled={locked} className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={lang === 'fr' ? 'Renommer' : 'Rename'}><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => removeCriterion(criterion.id)} disabled={locked} className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={lang === 'fr' ? 'Supprimer' : 'Delete'}><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>
