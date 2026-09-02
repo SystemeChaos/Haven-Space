@@ -6936,175 +6936,90 @@ export default function App() {
   };
 
   const renderAlterCard = (alter: SavedAlter) => {
-    const alterRoles = cleanAlterRoles(alter.selectedRoles);
-    const allRoleIds: string[] = [...alterRoles, ...(alter.customRoleIds || [])];
+    const isLocked = !!(alter as any).lockPinHash;
+    const hasFrontDot = !!alter.frontStatus && alter.frontStatus !== 'none';
+    const frontDotClass = !hasFrontDot ? '' : (
+      alter.frontStatus === 'primary' ? 'bg-emerald-500' :
+      alter.frontStatus === 'co_front' ? 'bg-sky-500' :
+      alter.frontStatus === 'co_conscious' ? 'bg-violet-500' :
+      alter.frontStatus === 'passive' ? 'bg-amber-500' :
+      alter.frontStatus === 'frontstuck' ? 'bg-red-600' :
+      alter.frontStatus === 'front_locked' ? 'bg-rose-600' :
+      alter.frontStatus === 'front_held' ? 'bg-orange-600' :
+      alter.frontStatus === 'shadowing' ? 'bg-slate-500' :
+      alter.frontStatus === 'blurry' ? 'bg-purple-400' :
+      alter.frontStatus === 'triggered' ? 'bg-pink-500' :
+      alter.frontStatus === 'switching' ? 'bg-cyan-500' :
+      alter.frontStatus === 'fading' ? 'bg-stone-400' :
+      alter.frontStatus === 'blend' ? '' : 'bg-zinc-500'
+    );
     return (
-      <div key={alter.id} className="w-full bg-app-card/65 md:rounded-2xl border-b md:border border-app-border/30 md:shadow-sm hover:shadow-md transition-shadow relative">
-        {/* Version mobile — liste compacte style Simply Plural */}
-        <div className="flex md:hidden flex-col gap-2 w-full px-3 py-2">
-          <div className="flex items-center gap-2.5 w-full min-w-0">
-            {alter.profileImage ? (
-              <img src={alter.profileImage} alt={alter.alterName} className="w-10 h-10 rounded-full object-cover shrink-0 border-2 border-app-border/30" referrerPolicy="no-referrer" />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-app-accent/15 border-2 border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0 text-xs">
-                {alter.alterName.slice(0, 2).toUpperCase()}
-              </div>
-            )}
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <span className="font-bold text-sm text-app-text flex items-center gap-1 min-w-0 overflow-hidden">
-                <span className="overflow-hidden text-ellipsis whitespace-nowrap">{alter.alterName}</span>
-                {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
-              </span>
-              {allRoleIds.length > 0 && (
-                <span className="text-[11px] text-app-muted block overflow-hidden text-ellipsis whitespace-nowrap">
-                  {getRoleDisplayName(allRoleIds[0])}
-                  {allRoleIds.length > 1 && ` +${allRoleIds.length - 1}`}
-                </span>
-              )}
-            </div>
-            {alter.frontStatus && alter.frontStatus !== 'none' && (
-              <div
-                className={`w-2 h-2 rounded-full shrink-0 ${
-                  alter.frontStatus === 'primary' ? 'bg-emerald-500' :
-                  alter.frontStatus === 'co_front' ? 'bg-sky-500' :
-                  alter.frontStatus === 'co_conscious' ? 'bg-violet-500' :
-                  alter.frontStatus === 'passive' ? 'bg-amber-500' :
-                  alter.frontStatus === 'frontstuck' ? 'bg-red-600' :
-                  alter.frontStatus === 'front_locked' ? 'bg-rose-600' :
-                  alter.frontStatus === 'front_held' ? 'bg-orange-600' :
-                  alter.frontStatus === 'shadowing' ? 'bg-slate-500' :
-                  alter.frontStatus === 'blurry' ? 'bg-purple-400' :
-                  alter.frontStatus === 'triggered' ? 'bg-pink-500' :
-                  alter.frontStatus === 'switching' ? 'bg-cyan-500' :
-                  alter.frontStatus === 'fading' ? 'bg-stone-400' :
-                  alter.frontStatus === 'blend' ? '' : 'bg-zinc-500'
-                }`}
-                style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, #a855f7, #ec4899, #6366f1)' } : undefined}
-              />
-            )}
-          </div>
-          {/* Actions — sur leur propre ligne, jamais en compétition d'espace avec le nom */}
-          <div className="flex items-center justify-end gap-1.5 w-full">
-            <button onClick={() => handleLoadAlter(alter)} className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide border border-app-border rounded-xl text-app-muted hover:text-app-text hover:border-app-accent transition-all whitespace-nowrap">
-              {lang === 'fr' ? 'Charger' : 'Load'}
-            </button>
-            <button
-              onClick={() => { setInnerworldTargetAlterId(alter.id); setCurrentTab('innerworld'); }}
-              className="p-1 text-app-muted hover:text-app-accent transition-colors shrink-0"
-              title={lang === 'fr' ? 'Voir son Innerworld' : 'View Innerworld'}
-            >
-              <TreePine className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a))}
-              className="p-1 text-app-muted hover:text-amber-500 transition-colors shrink-0"
-              title={alter.archived ? (lang === 'fr' ? 'Desarchiver' : 'Unarchive') : (lang === 'fr' ? 'Archiver' : 'Archive')}>
-              <Archive className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={() => handleDeleteAlter(alter.id)} className="p-1 text-app-muted hover:text-red-400 transition-colors shrink-0">
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Version desktop — carte complète */}
-        <div className="hidden md:flex p-4 flex-col justify-between gap-4">
-        <div className="flex gap-3">
+      <div key={alter.id} className="flex flex-col items-center text-center gap-1.5 w-20 sm:w-24">
+        <button
+          type="button"
+          onClick={() => handleLoadAlter(alter)}
+          className="relative shrink-0 group/tile"
+          title={lang === 'fr' ? 'Charger cette fiche' : 'Load this card'}
+        >
           {alter.profileImage ? (
-            <img 
-              src={alter.profileImage} 
-              alt={alter.alterName} 
-              className="w-12 h-12 rounded-xl object-cover border border-app-border/30 shrink-0" 
+            <img
+              src={alter.profileImage}
+              alt={alter.alterName}
+              className="w-16 h-16 sm:w-20 sm:h-20 rounded-full object-cover border-2 border-app-border/30 group-hover/tile:border-app-accent/60 transition-colors"
               referrerPolicy="no-referrer"
             />
           ) : (
-            <div className="w-12 h-12 rounded-xl bg-app-accent/15 border border-app-accent/25 flex items-center justify-center text-app-text font-black shrink-0">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-app-accent/15 border-2 border-app-accent/25 group-hover/tile:border-app-accent/60 flex items-center justify-center text-app-text font-black text-sm transition-colors">
               {alter.alterName.slice(0, 2).toUpperCase()}
             </div>
           )}
-          
-          <div className="min-w-0 flex-1">
-            <h4 className="font-black text-sm text-app-text truncate text-left flex items-center gap-1">
-              <span className="truncate">{alter.alterName}</span>
-              {(alter as any).lockPinHash && <Lock className="w-3 h-3 text-app-muted shrink-0" />}
-            </h4>
-            <div className="flex flex-wrap gap-1 mt-1 justify-start">
-              {alter.frontStatus && alter.frontStatus !== 'none' && (
-                <span
-                  className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block ${
-                    alter.frontStatus === 'primary' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30' :
-                    alter.frontStatus === 'co_front' ? 'bg-sky-500/10 text-sky-500 border-sky-500/30' :
-                    alter.frontStatus === 'co_conscious' ? 'bg-violet-500/10 text-violet-500 border-violet-500/30' :
-                    alter.frontStatus === 'passive' ? 'bg-amber-500/10 text-amber-500 border-amber-500/30' :
-                    alter.frontStatus === 'frontstuck' ? 'bg-red-600/10 text-red-600 border-red-600/30' :
-                    alter.frontStatus === 'front_locked' ? 'bg-rose-600/10 text-rose-600 border-rose-600/30' :
-                    alter.frontStatus === 'front_held' ? 'bg-orange-600/10 text-orange-600 border-orange-600/30' :
-                    alter.frontStatus === 'shadowing' ? 'bg-slate-500/10 text-slate-500 border-slate-500/30' :
-                    alter.frontStatus === 'blurry' ? 'bg-purple-400/10 text-purple-400 border-purple-400/30' :
-                    alter.frontStatus === 'triggered' ? 'bg-pink-500/10 text-pink-500 border-pink-500/30' :
-                    alter.frontStatus === 'switching' ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/30' :
-                    alter.frontStatus === 'fading' ? 'bg-stone-400/10 text-stone-400 border-stone-400/30' :
-                    alter.frontStatus === 'blend' ? 'border-fuchsia-500/30 text-fuchsia-500' :
-                    'bg-zinc-500/10 text-zinc-500 border-zinc-500/30'
-                  }`}
-                  style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' } : undefined}
-                >
-                  {t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}
-                </span>
-              )}
-              {allRoleIds.slice(0, 2).map(r => (
-                <span 
-                  key={r} 
-                  style={{ 
-                    backgroundColor: `${alter.customRoleColors?.[r] || getRoleDisplayColor(r)}15`, 
-                    color: alter.customRoleColors?.[r] || getRoleDisplayColor(r),
-                    borderColor: `${alter.customRoleColors?.[r] || getRoleDisplayColor(r)}40`
-                  }}
-                  className="px-1.5 py-0.5 rounded text-[8px] font-extrabold uppercase tracking-wide border inline-block"
-                >
-                  {getRoleDisplayName(r)}
-                </span>
-              ))}
-              {allRoleIds.length > 2 && (
-                <span className="px-1.5 py-0.5 rounded bg-app-bg text-app-muted text-[8px] font-extrabold">
-                  +{allRoleIds.length - 2}
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
+          {isLocked && (
+            <span
+              className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-app-bg border border-app-border/40 flex items-center justify-center shadow-sm"
+              title={lang === 'fr' ? 'Fiche verrouillée par PIN' : 'PIN-locked card'}
+            >
+              <Lock className="w-3 h-3 text-amber-500" />
+            </span>
+          )}
+          {(hasFrontDot) && (
+            <span
+              className={`absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full border-2 border-app-bg ${frontDotClass}`}
+              style={alter.frontStatus === 'blend' ? { background: 'linear-gradient(135deg, #a855f7, #ec4899, #6366f1)' } : undefined}
+              title={t.frontStatuses[alter.frontStatus as keyof typeof t.frontStatuses] || alter.frontStatus}
+            />
+          )}
+        </button>
 
-        {/* Load trigger */}
-        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-app-border/15">
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => handleLoadAlter(alter)}
-              className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-widest bg-app-bg hover:bg-app-accent hover:text-white border border-app-border/40 hover:border-transparent rounded-lg transition-all"
-            >
-              {lang === 'fr' ? 'Charger' : 'Load'}
-            </button>
-            <button
-              onClick={() => { setInnerworldTargetAlterId(alter.id); setCurrentTab('innerworld'); }}
-              className="p-1 text-app-muted hover:text-app-accent rounded-lg transition-colors"
-              title={lang === 'fr' ? 'Voir son Innerworld' : 'View Innerworld'}
-            >
-              <TreePine className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a))}
-              className="p-1 text-app-muted hover:text-amber-500 rounded-lg transition-colors"
-              title={alter.archived ? (lang === 'fr' ? 'Desarchiver' : 'Unarchive') : (lang === 'fr' ? 'Archiver' : 'Archive')}
-            >
-              <Archive className="w-3.5 h-3.5" />
-            </button>
-            <button
-              onClick={() => handleDeleteAlter(alter.id)}
-              className="p-1 text-app-muted hover:text-red-500 rounded-lg transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
+        <span className="text-xs sm:text-sm font-bold text-app-text truncate max-w-full w-full" title={alter.alterName}>
+          {alter.alterName}
+        </span>
+
+        <div className="flex items-center gap-2.5 pt-0.5">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setInnerworldTargetAlterId(alter.id); setCurrentTab('innerworld'); }}
+            className="p-1 text-app-muted hover:text-app-accent transition-colors"
+            title={lang === 'fr' ? 'Voir son Innerworld' : 'View Innerworld'}
+          >
+            <TreePine className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a)); }}
+            className="p-1 text-app-muted hover:text-amber-500 transition-colors"
+            title={alter.archived ? (lang === 'fr' ? 'Desarchiver' : 'Unarchive') : (lang === 'fr' ? 'Archiver' : 'Archive')}
+          >
+            <Archive className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); handleDeleteAlter(alter.id); }}
+            className="p-1 text-app-muted hover:text-red-400 transition-colors"
+            title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
         </div>
-        </div> {/* fin version desktop */}
       </div>
     );
   };
@@ -11738,14 +11653,9 @@ export default function App() {
                       </div>
                     )}
                     {subAlters.length > 0 ? (
-                      <>
-                        <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65">
-                          {subAlters.map(a => renderAlterCard(a))}
-                        </div>
-                        <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                          {subAlters.map(a => renderAlterCard(a))}
-                        </div>
-                      </>
+                      <div className="flex flex-wrap gap-x-3 gap-y-5 p-2 bg-app-card/40 rounded-2xl border border-app-border/20">
+                        {subAlters.map(a => renderAlterCard(a))}
+                      </div>
                     ) : (
                       <div className="p-8 text-center bg-app-card/30 rounded-2xl border border-app-border/20">
                         <p className="text-sm text-app-muted uppercase tracking-wider font-semibold">
@@ -11793,13 +11703,7 @@ export default function App() {
                           {/* Conteneur scrollable avec scrollbar à gauche */}
                           <div className={`flex flex-row-reverse gap-2 ${activeSystemAlters.filter(a => !a.subsystemId && !a.archived).length > 10 ? 'max-h-[72vh] overflow-y-auto pr-1' : ''} alter-scroll-container`}>
                             <div className="flex-1">
-                              <div className="md:hidden rounded-2xl border border-app-border/30 overflow-hidden bg-app-card/65 mb-2">
-                                {[...activeSystemAlters]
-                                  .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole) || (a.customRoleIds || []).includes(r))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
-                                  .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
-                                  .map(a => renderAlterCard(a))}
-                              </div>
-                              <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                              <div className="flex flex-wrap gap-x-3 gap-y-5 p-2">
                                 {[...activeSystemAlters]
                                   .filter(a => !a.subsystemId && !a.archived && (!systemSearch || (a.alterName || '').toLowerCase().includes(systemSearch.toLowerCase())) && (roleFilter.length === 0 || roleFilter.every(r => (a.selectedRoles || []).includes(r as AlterRole) || (a.customRoleIds || []).includes(r))) && (tagFilter.length === 0 || tagFilter.every(tg => (a.tags || []).includes(tg))))
                                   .sort((a, b) => (a.alterName || "").localeCompare(b.alterName || "", lang))
@@ -11897,7 +11801,7 @@ export default function App() {
                             </p>
                           </div>
                         ) : (
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 opacity-80">
+                          <div className="flex flex-wrap justify-center gap-x-3 gap-y-5 opacity-80">
                             {filtered.map(a => renderAlterCard(a))}
                           </div>
                         );
