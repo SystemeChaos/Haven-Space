@@ -8,7 +8,7 @@ import {
   Clock, MapPin, StickyNote, KeyRound,
 } from 'lucide-react';
 
-export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary';
+export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary' | 'roles';
 
 interface LegalPagesProps {
   initialPage?: LegalPage;
@@ -26,6 +26,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       contact: 'Contact',
       guide: 'Guide',
       vocabulary: 'Vocabulaire',
+      roles: 'Lexique des rôles',
       back: 'Retour',
       lastUpdate: 'Dernière mise à jour : juillet 2026',
       ownData: "Tes données t'appartiennent.",
@@ -186,6 +187,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       contact: 'Contact',
       guide: 'Guide',
       vocabulary: 'Vocabulary',
+      roles: 'Role Lexicon',
       back: 'Back',
       lastUpdate: 'Last updated: July 2026',
       ownData: 'Your data belongs to you.',
@@ -347,6 +349,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
   const [copied, setCopied] = useState(false);
   const [guideSearch, setGuideSearch] = useState('');
   const [vocabSearch, setVocabSearch] = useState('');
+  const [roleSearch, setRoleSearch] = useState('');
   const [openGuideIds, setOpenGuideIds] = useState<string[]>([]);
 
   const toggleGuideItem = (id: string) => {
@@ -467,7 +470,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           </button>
         )}
         <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          {(['guide', 'vocabulary', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
+          {(['guide', 'vocabulary', 'roles', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
             <button
               key={tab}
               type="button"
@@ -761,6 +764,164 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 </div>
               ))}
             </div>
+          </div>
+        );
+      })()}
+
+      {currentPage === 'roles' && (() => {
+        interface RoleTerm { name: string; definition: string; }
+        interface RoleCategory { title: string; terms: RoleTerm[]; }
+
+        const categories: RoleCategory[] = [
+          {
+            title: 'Protection & défense',
+            terms: [
+              { name: 'Protecteur', definition: "Alter dont le rôle est de protéger les autres membres du système, que la menace soit extérieure (danger, agression) ou intérieure (souvenirs traumatiques, membre qui se met en difficulté)." },
+              { name: 'Gardien', definition: "Alter qui protège le système des menaces extérieures : il surveille les limites du monde intérieur, évalue les nouveaux venus et peut retenir des souvenirs jugés dangereux pour les autres membres." },
+              { name: 'Sentinelle', definition: "Alter en co-conscience quasi permanente, qui veille sur le front pour pouvoir protéger le système en cas de besoin." },
+              { name: 'Protecteur interne', definition: "Protecteur tourné vers les menaces internes au système plutôt qu'externes ; peut recouper le rôle de gatekeeper s'il peut empêcher un membre de fronter." },
+              { name: "Protecteur de l'Innerworld", definition: "Protecteur spécifiquement centré sur les menaces internes au monde intérieur ; proche du gardien dans les systèmes construits autour d'un lieu de passage." },
+              { name: 'Bouclier', definition: "Alter qui fronte aux côtés d'un autre membre pour dissimuler sa présence — par exemple un protecteur qui fronte avec un petit pour que celui-ci paraisse adulte dans certaines situations." },
+              { name: 'Geôlier / Warden', definition: "Alter qui fait tampon entre un persécuteur et le reste du système, dans une logique de mise à distance et de réhabilitation plutôt que de punition." },
+            ],
+          },
+          {
+            title: 'Soin & soutien émotionnel',
+            terms: [
+              { name: 'Caretaker / Aidant', definition: "Alter dont le rôle est de prendre soin des autres membres du système : apaiser, guider ou aider à traiter les émotions, individuellement ou pour le système entier." },
+              { name: 'Apaisant / Soother', definition: "Alter dont le rôle est de réconforter les autres membres, parfois en installant simplement le corps dans une position confortable pour se reposer." },
+              { name: 'Soutien émotionnel', definition: "Alter qui apporte un soutien émotionnel au système ou à d'autres membres ; proche de l'apaisant." },
+              { name: 'Aidant des créatures', definition: "Alter dont le rôle est de prendre soin des membres non-humains du système, notamment en co-fronting lorsque ceux-ci ne peuvent pas gérer seuls le corps." },
+              { name: 'Caregater', definition: "Alter sensible aux besoins émotionnels de chacun, capable d'amener les bons membres au front pour que les besoins de tous soient pris en compte équitablement." },
+              { name: 'Curadare', definition: "Alter dont le rôle est d'accompagner la régression d'âge ou d'autres membres ayant besoin d'un soin particulier, dans le système comme en dehors." },
+            ],
+          },
+          {
+            title: 'Mémoire & organisation interne',
+            terms: [
+              { name: 'Archiviste', definition: "Alter particulièrement informé de ce qui se passe dans le système, à l'intérieur comme à l'extérieur, qui peut aussi organiser et conserver cette information dans le monde intérieur." },
+              { name: 'Gardien de mémoire', definition: "Alter qui conserve des souvenirs spécifiques, pas toujours accessibles aux autres membres — liés à un traumatisme, une personne, un lieu ou une période de vie." },
+              { name: 'Recenseur', definition: "Alter dont le rôle est de compter les membres du système, existants ou nouveaux, pour s'organiser ou simplement par plaisir." },
+              { name: 'Cartographe', definition: "Alter dont le rôle est de représenter ou d'organiser spatialement le monde intérieur du système." },
+            ],
+          },
+          {
+            title: 'Front, administration & hiérarchie',
+            terms: [
+              { name: 'Hôte', definition: "Alter le plus souvent aux commandes du corps au quotidien. Un système peut avoir un hôte, plusieurs, ou aucun." },
+              { name: 'Co-hôte', definition: "Alter qui partage les responsabilités du quotidien avec un ou plusieurs autres hôtes plutôt que de les assumer seul." },
+              { name: 'Gatekeeper', definition: "Alter qui régule le switch, l'accès à certaines zones du monde intérieur, ou l'accès à certains membres ou souvenirs." },
+              { name: 'Administrateur / Manager', definition: "Alter qui s'occupe des tâches internes assurant le bon fonctionnement du système : gestion du front, organisation des informations, communication interne, entre autres." },
+              { name: 'Régulateur de front', definition: "Autre nom pour le gatekeeper : alter qui régule le switch et l'accès à certaines zones ou membres du système." },
+              { name: 'Guide', definition: "Alter impliqué dans des tâches concernant le système dans son ensemble ; peut englober plusieurs rôles de gestion à la fois." },
+              { name: 'Consul', definition: "Alter occupant une position de décision centrale dans le fonctionnement du système, aux responsabilités proches d'un manager ou d'un gatekeeper." },
+              { name: 'Superviseur / Overseer', definition: "Alter qui garde un œil sur le monde intérieur et le front pour s'assurer que chacun est en sécurité, sans nécessairement contrôler qui fronte." },
+            ],
+          },
+          {
+            title: 'Émotions, symptômes & trauma',
+            terms: [
+              { name: "Porteur d'émotion", definition: "Alter qui porte principalement une émotion donnée pour le système — joie, tristesse, colère... Un porteur « pan » peut porter l'ensemble des émotions du système." },
+              { name: 'Porteur de colère', definition: "Alter qui porte la colère du système : ressenti de colère plus fréquent ou plus intense que les autres membres." },
+              { name: 'Porteur de trauma émotionnel', definition: "Type de porteur de trauma centré sur la charge émotionnelle d'un événement (abus émotionnel, conflits, épisodes dépressifs) plutôt que sur le souvenir factuel lui-même." },
+              { name: 'Partie émotionnelle (EP)', definition: "Dans la théorie de la dissociation structurelle, alter resté « bloqué » au moment du traumatisme, portant des réponses de survie (colère, détresse, impulsivité). Terme à réserver à l'auto-description, jamais pour catégoriser un autre membre." },
+              { name: 'Porteur de symptôme', definition: "Alter qui porte un symptôme particulier pour le système plutôt qu'une émotion ou un souvenir précis." },
+            ],
+          },
+          {
+            title: 'Rôles sociaux & relationnels',
+            terms: [
+              { name: 'Compagnon', definition: "Alter dont le rôle est de tenir compagnie aux autres membres du système." },
+              { name: 'Communicateur', definition: "Alter qui communique avec les autres, en général de façon plus claire que le reste du système — pour poser des limites ou porter la parole d'un autre membre." },
+              { name: 'Réconciliateur', definition: "Alter qui aide les membres du système à se comprendre et à trouver des compromis en cas de désaccord interne." },
+            ],
+          },
+          {
+            title: 'Rôles fonctionnels & compétences',
+            terms: [
+              { name: 'Chef cuisinier', definition: "Alter qui cuisine pour le système, ou qui aime le faire." },
+              { name: 'Artiste', definition: "Alter le plus à l'aise avec la créativité, ou celui qui l'exprime le plus souvent — dessin, peinture, écriture ou tout autre moyen d'expression." },
+              { name: 'Passionné / Hobbyiste', definition: "Alter qui prend part aux loisirs du système en front, dans un domaine particulier ou de façon générale." },
+              { name: 'Chauffeur', definition: "Alter à l'aise pour conduire, qui prend volontiers le front pour les trajets en voiture." },
+              { name: 'Codeur', definition: "Alter dont le rôle ou la compétence est centré sur la programmation et les tâches informatiques." },
+              { name: 'Athlète', definition: "Alter à l'aise dans le sport, qui prend souvent le front pour les activités physiques." },
+              { name: 'Comédien', definition: "Alter dont le rôle est de faire rire ou de détendre l'atmosphère au sein du système." },
+            ],
+          },
+        ];
+
+        const query = roleSearch.trim().toLowerCase();
+        const filteredCategories = categories
+          .map(cat => ({
+            ...cat,
+            terms: query
+              ? cat.terms.filter(term => term.name.toLowerCase().includes(query) || term.definition.toLowerCase().includes(query))
+              : cat.terms,
+          }))
+          .filter(cat => cat.terms.length > 0);
+
+        return (
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <div className="text-[10px] uppercase font-black tracking-widest text-app-muted flex items-center gap-2">
+                <Tag size={14} className="text-app-accent" />
+                {currentT.roles}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">Le lexique des rôles.</h1>
+              <p className="text-xs text-app-muted font-bold uppercase tracking-widest">Protecteur, gatekeeper, porteur de trauma... un lexique étoffé des rôles d'alters</p>
+            </div>
+
+            <p className="text-xs text-app-muted leading-relaxed bg-app-card border border-app-border/40 rounded-2xl p-4">
+              Ce lexique rassemble les rôles d'alters les plus reconnus au sein de la communauté plurielle, classés par
+              fonction. Un même alter peut cumuler plusieurs rôles, en changer avec le temps, ou n'en avoir aucun —
+              aucun de ces termes n'est obligatoire pour se comprendre soi-même ou son système.
+            </p>
+
+            <div className="relative">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted" />
+              <input
+                type="text"
+                value={roleSearch}
+                onChange={e => setRoleSearch(e.target.value)}
+                placeholder="Rechercher un rôle..."
+                className="w-full bg-app-card border border-app-border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+              />
+            </div>
+
+            {filteredCategories.length === 0 && (
+              <p className="text-sm text-app-muted italic px-1">Aucun rôle ne correspond à ta recherche.</p>
+            )}
+
+            <div className="space-y-10">
+              {filteredCategories.map(cat => (
+                <div key={cat.title} className="space-y-4">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-app-text/80 pb-2 border-b border-app-border/30">
+                    {cat.title}
+                  </h2>
+                  <div className="space-y-3">
+                    {cat.terms.map(term => (
+                      <div key={term.name} className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-1.5">
+                        <span className="font-black text-sm text-app-text block">{term.name}</span>
+                        <p className="text-xs text-app-muted leading-relaxed">{term.definition}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[10px] text-app-muted leading-relaxed pt-6 border-t border-app-border/20">
+              Définitions reformulées à partir de{' '}
+              <a
+                href="https://pluralpedia.org/w/Category:System_Roles"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-app-accent transition-colors"
+              >
+                Pluralpedia — Category: System Roles
+              </a>
+              , sous licence Creative Commons BY-SA 3.0. Cette liste n'est pas exhaustive et sera complétée avec le temps.
+            </p>
           </div>
         );
       })()}
