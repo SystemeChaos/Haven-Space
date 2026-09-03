@@ -783,6 +783,9 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: "Protecteur de l'Innerworld", definition: "Protecteur spécifiquement centré sur les menaces internes au monde intérieur ; proche du gardien dans les systèmes construits autour d'un lieu de passage." },
               { name: 'Bouclier', definition: "Alter qui fronte aux côtés d'un autre membre pour dissimuler sa présence — par exemple un protecteur qui fronte avec un petit pour que celui-ci paraisse adulte dans certaines situations." },
               { name: 'Geôlier / Warden', definition: "Alter qui fait tampon entre un persécuteur et le reste du système, dans une logique de mise à distance et de réhabilitation plutôt que de punition." },
+              { name: 'Janusien', definition: "Alter capable de fonctionner tour à tour comme protecteur et/ou comme persécuteur selon les situations." },
+              { name: 'Malicitor', definition: "Terme d'auto-identification pour un alter qui agit avec l'intention de nuire, sans chercher à protéger le système — à ne jamais utiliser pour catégoriser un autre membre que soi-même." },
+              { name: 'Disciplinaire', definition: "Type de protecteur qui sanctionne les autres membres dans une intention corrective, généralement à la demande de l'hôte ou d'un gatekeeper, pour gérer les menaces internes pendant qu'un autre protecteur gère les menaces externes." },
             ],
           },
           {
@@ -803,6 +806,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Gardien de mémoire', definition: "Alter qui conserve des souvenirs spécifiques, pas toujours accessibles aux autres membres — liés à un traumatisme, une personne, un lieu ou une période de vie." },
               { name: 'Recenseur', definition: "Alter dont le rôle est de compter les membres du système, existants ou nouveaux, pour s'organiser ou simplement par plaisir." },
               { name: 'Cartographe', definition: "Alter dont le rôle est de représenter ou d'organiser spatialement le monde intérieur du système." },
+              { name: 'Beastmaster', definition: "Alter capable de créer, faire disparaître ou contrôler les éléments vivants du monde intérieur (PNJ, animaux, végétation), sans emprise sur les autres alters. Rôle complémentaire à l'architecte, qui s'occupe des éléments non-vivants." },
+              { name: 'Technicien', definition: "Alter chargé de comprendre le fonctionnement du système : analyser les autres membres et le monde intérieur, suivre les fusions ou scissions, ou encore le nombre de membres." },
             ],
           },
           {
@@ -816,6 +821,10 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Guide', definition: "Alter impliqué dans des tâches concernant le système dans son ensemble ; peut englober plusieurs rôles de gestion à la fois." },
               { name: 'Consul', definition: "Alter occupant une position de décision centrale dans le fonctionnement du système, aux responsabilités proches d'un manager ou d'un gatekeeper." },
               { name: 'Superviseur / Overseer', definition: "Alter qui garde un œil sur le monde intérieur et le front pour s'assurer que chacun est en sécurité, sans nécessairement contrôler qui fronte." },
+              { name: 'Scout', definition: "Alter chargé de repérer et d'évaluer les nouveaux membres qui émergent dans le système, avant de les signaler aux autres (archivistes, recenseurs...)." },
+              { name: 'Réceptionniste', definition: "Alter chargé d'accueillir les nouveaux membres qui rejoignent le système." },
+              { name: 'Fronteur principal', definition: "Alter qui fronte plus souvent ou plus activement que les autres membres du système. Un système peut avoir un, plusieurs, ou aucun fronteur principal." },
+              { name: 'ISH (Internal Self Helper)', definition: "Alter détenant une connaissance approfondie du système, de ses membres et de son fonctionnement interne ; historiquement décrit comme une sorte de guide ou de conscience interne, parfois aussi gatekeeper." },
             ],
           },
           {
@@ -826,6 +835,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Porteur de trauma émotionnel', definition: "Type de porteur de trauma centré sur la charge émotionnelle d'un événement (abus émotionnel, conflits, épisodes dépressifs) plutôt que sur le souvenir factuel lui-même." },
               { name: 'Partie émotionnelle (EP)', definition: "Dans la théorie de la dissociation structurelle, alter resté « bloqué » au moment du traumatisme, portant des réponses de survie (colère, détresse, impulsivité). Terme à réserver à l'auto-description, jamais pour catégoriser un autre membre." },
               { name: 'Porteur de symptôme', definition: "Alter qui porte un symptôme particulier pour le système plutôt qu'une émotion ou un souvenir précis." },
+              { name: 'Porteur de peur', definition: "Alter qui porte la peur, l'angoisse ou la terreur pour le reste du système, souvent liées à des expériences passées ou à un stress continu." },
+              { name: 'Porteur de culpabilité', definition: "Alter qui porte les sentiments de culpabilité du système, que cette culpabilité soit fondée ou non." },
             ],
           },
           {
@@ -834,6 +845,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Compagnon', definition: "Alter dont le rôle est de tenir compagnie aux autres membres du système." },
               { name: 'Communicateur', definition: "Alter qui communique avec les autres, en général de façon plus claire que le reste du système — pour poser des limites ou porter la parole d'un autre membre." },
               { name: 'Réconciliateur', definition: "Alter qui aide les membres du système à se comprendre et à trouver des compromis en cas de désaccord interne." },
+              { name: 'Analyste', definition: "Alter qui suit les dynamiques relationnelles du système : les opinions ou impressions des différents membres sur les personnes de la réalité partagée." },
             ],
           },
           {
