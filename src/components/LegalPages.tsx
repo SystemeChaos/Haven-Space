@@ -354,6 +354,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
   const [guideSearch, setGuideSearch] = useState('');
   const [vocabSearch, setVocabSearch] = useState('');
   const [roleSearch, setRoleSearch] = useState('');
+  const [functionSearch, setFunctionSearch] = useState('');
   const [openGuideIds, setOpenGuideIds] = useState<string[]>([]);
 
   const toggleGuideItem = (id: string) => {
@@ -1016,29 +1017,132 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
         );
       })()}
 
-      {currentPage === 'functions' && (
-        <div className="space-y-8">
-          <div className="space-y-2">
-            <div className="text-[10px] uppercase font-black tracking-widest text-app-muted flex items-center gap-2">
-              <Tag size={14} className="text-app-accent" />
-              {currentT.functions}
+      {currentPage === 'functions' && (() => {
+        interface FunctionTerm { name: string; definition: string; }
+        interface FunctionCategory { title: string; terms: FunctionTerm[]; }
+
+        const categories: FunctionCategory[] = [
+          {
+            title: 'Front & switch',
+            terms: [
+              { name: 'Switch rapide (Rapid Switching)', definition: "État ou période durant laquelle le système connaît des changements de front très fréquents et rapprochés, parfois de façon aléatoire, sans qu'aucun membre ne reste au front longtemps." },
+              { name: 'Possession', definition: "Type de switch où le membre qui cède le front reste conscient et présent, par opposition à un switch où il « devient » simplement effacé. Aussi appelé switch dur ou switch possessif." },
+              { name: 'Imposition', definition: "Hallucination volontaire et consciente d'un alter — le voir, l'entendre ou le ressentir physiquement comme s'il était réellement présent, au-delà de la perception interne habituelle." },
+              { name: 'Gouvernement interne', definition: "Structure interne qui détient un pouvoir décisionnel ou organisationnel au sein du système — formelle ou informelle, elle peut reposer sur un ou plusieurs membres (souvent l'hôte ou un protecteur), une hiérarchie explicite, ou un simple équilibre des rapports de force." },
+            ],
+          },
+          {
+            title: 'Communication & partage interne',
+            terms: [
+              { name: 'Bleedover / Débordement', definition: "Passage d'émotions, de pensées ou de sensations d'un alter non-fronter vers celui qui est au front, de façon passive et parfois involontaire." },
+              { name: 'Partage de mémoire (Symnesia)', definition: "Fait, pour deux alters ou plus, de partager consciemment des souvenirs entre eux." },
+              { name: 'Barrières amnésiques', definition: "Barrières internes empêchant certains alters de se souvenir de ce que d'autres ont vécu ou fait, souvent pour protéger le système d'un contenu traumatique." },
+              { name: 'Barrières de communication', definition: "Obstacles internes qui limitent ou empêchent les échanges entre certains membres du système, distincts des barrières amnésiques qui concernent la mémoire." },
+              { name: 'Blackout / Greyout', definition: "Deux formes d'amnésie liées au front : le blackout est une perte totale du souvenir d'un événement, le greyout un souvenir présent mais coupé de la charge émotionnelle qui allait avec." },
+            ],
+          },
+          {
+            title: 'Structure du monde intérieur',
+            terms: [
+              { name: 'Couche (Layer)', definition: "Division du monde intérieur en zones significativement différentes les unes des autres — apparence, fonction, ou type d'alters qui y résident. Certains systèmes ont du mal, ou ne peuvent pas, se déplacer ou communiquer entre les couches." },
+              { name: 'Accès au monde intérieur', definition: "Ensemble des règles et barrières qui déterminent comment les différentes zones d'un monde intérieur peuvent être atteintes ou traversées par les membres du système." },
+              { name: 'Layering', definition: "Dans certains systèmes médians, façon de fronter en se superposant à une identité centrale plutôt qu'en switchant complètement — le ressenti est celui d'une couche appliquée par-dessus, non d'un remplacement." },
+              { name: 'Alter venu d\'ailleurs (Walk-In)', definition: "Alter dont l'origine se situe en dehors du système — un autre monde intérieur, une autre réalité perçue — et qui a rejoint le système en cours de route plutôt que d'en être issu depuis le départ." },
+              { name: 'Groupe / Cluster', definition: "Ensemble d'alters reliés entre eux par un point commun (origine, thème, fonction...), sans former nécessairement un sous-système à part entière." },
+            ],
+          },
+          {
+            title: 'Fusion, scission & évolution des membres',
+            terms: [
+              { name: 'Lignes de fracture', definition: "Après une fusion, axes internes le long desquels les membres fusionnés peuvent, dans certains systèmes, se re-séparer par la suite." },
+              { name: 'Fusion forcée', definition: "Fusion imposée à des membres sous pression ou contrainte plutôt que choisie ou spontanée ; généralement considérée comme abusive." },
+            ],
+          },
+        ];
+
+        const query = functionSearch.trim().toLowerCase();
+        const filteredCategories = categories
+          .map(cat => ({
+            ...cat,
+            terms: query
+              ? cat.terms.filter(term => term.name.toLowerCase().includes(query) || term.definition.toLowerCase().includes(query))
+              : cat.terms,
+          }))
+          .filter(cat => cat.terms.length > 0);
+
+        return (
+          <div className="space-y-8">
+            <div className="space-y-2">
+              <div className="text-[10px] uppercase font-black tracking-widest text-app-muted flex items-center gap-2">
+                <Tag size={14} className="text-app-accent" />
+                {currentT.functions}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">
+                {lang === 'fr' ? 'Le lexique des fonctions.' : 'The functions lexicon.'}
+              </h1>
+              <p className="text-xs text-app-muted font-bold uppercase tracking-widest">
+                {lang === 'fr'
+                  ? "Switch rapide, walk-in, bleedover... le fonctionnement interne du système, en profondeur"
+                  : 'Rapid switching, walk-ins, bleedover... the internal mechanics of the system, in depth'}
+              </p>
             </div>
-            <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">
-              {lang === 'fr' ? 'Le lexique des fonctions.' : 'The functions lexicon.'}
-            </h1>
-            <p className="text-xs text-app-muted font-bold uppercase tracking-widest">
+
+            <p className="text-xs text-app-muted leading-relaxed bg-app-card border border-app-border/40 rounded-2xl p-4">
               {lang === 'fr'
-                ? "Switch, front, co-conscience... le fonctionnement interne du système, en profondeur"
-                : 'Switching, fronting, co-consciousness... the internal mechanics of the system, in depth'}
+                ? "Ce lexique va plus loin que les mécanismes de base déjà présentés dans le Vocabulaire (switch, front, co-conscience...). Il couvre des dynamiques internes plus spécifiques : structure du monde intérieur, communication interne, gouvernance, fusion..."
+                : "This lexicon goes further than the basic mechanics already covered in the Vocabulary (switching, fronting, co-consciousness...). It covers more specific internal dynamics: inner-world structure, internal communication, governance, fusion..."}
+            </p>
+
+            <div className="relative">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-app-muted" />
+              <input
+                type="text"
+                value={functionSearch}
+                onChange={e => setFunctionSearch(e.target.value)}
+                placeholder={lang === 'fr' ? 'Rechercher une fonction...' : 'Search a function...'}
+                className="w-full bg-app-card border border-app-border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+              />
+            </div>
+
+            {filteredCategories.length === 0 && (
+              <p className="text-sm text-app-muted italic px-1">{lang === 'fr' ? 'Aucune fonction ne correspond à ta recherche.' : 'No function matches your search.'}</p>
+            )}
+
+            <div className="space-y-10">
+              {filteredCategories.map(cat => (
+                <div key={cat.title} className="space-y-4">
+                  <h2 className="text-sm font-black uppercase tracking-widest text-app-text/80 pb-2 border-b border-app-border/30">
+                    {cat.title}
+                  </h2>
+                  <div className="space-y-3">
+                    {cat.terms.map(term => (
+                      <div key={term.name} className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-1.5">
+                        <span className="font-black text-sm text-app-text block">{term.name}</span>
+                        <p className="text-xs text-app-muted leading-relaxed">{term.definition}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-[10px] text-app-muted leading-relaxed pt-6 border-t border-app-border/20">
+              {lang === 'fr' ? 'Définitions reformulées à partir de' : 'Definitions rephrased from'}{' '}
+              <a
+                href="https://pluralpedia.org/w/Category:System_Function_Terms"
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2 hover:text-app-accent transition-colors"
+              >
+                Pluralpedia — Category: System Function Terms
+              </a>
+              {lang === 'fr'
+                ? ', sous licence Creative Commons BY-SA 3.0. Cette liste n\'est pas exhaustive et sera complétée avec le temps.'
+                : ', under Creative Commons BY-SA 3.0. This list is not exhaustive and will grow over time.'}
             </p>
           </div>
-          <p className="text-xs text-app-muted leading-relaxed bg-app-card border border-app-border/40 rounded-2xl p-4">
-            {lang === 'fr'
-              ? "Cette section est en préparation : elle approfondira les mécanismes internes du système (au-delà de ce qui est déjà couvert dans le Vocabulaire), toujours sourcée depuis PluralPedia et reformulée."
-              : 'This section is in progress: it will go deeper into the system\'s internal mechanics (beyond what is already covered in the Vocabulary), sourced from Pluralpedia and rephrased.'}
-          </p>
-        </div>
-      )}
+        );
+      })()}
 
       {currentPage === 'privacy' && (
         <div className="space-y-8">
