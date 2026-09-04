@@ -8,7 +8,7 @@ import {
   Clock, MapPin, StickyNote, KeyRound,
 } from 'lucide-react';
 
-export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary' | 'roles';
+export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary' | 'roles' | 'functions';
 
 interface LegalPagesProps {
   initialPage?: LegalPage;
@@ -27,6 +27,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       guide: 'Guide',
       vocabulary: 'Vocabulaire',
       roles: 'Lexique des rôles',
+      functions: 'Fonctions',
+      lexicons: 'Lexiques',
       back: 'Retour',
       lastUpdate: 'Dernière mise à jour : juillet 2026',
       ownData: "Tes données t'appartiennent.",
@@ -188,6 +190,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       guide: 'Guide',
       vocabulary: 'Vocabulary',
       roles: 'Role Lexicon',
+      functions: 'Functions',
+      lexicons: 'Lexicons',
       back: 'Back',
       lastUpdate: 'Last updated: July 2026',
       ownData: 'Your data belongs to you.',
@@ -470,22 +474,48 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           </button>
         )}
         <div className="flex gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
-          {(['guide', 'vocabulary', 'roles', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => (
+          {(['guide', 'vocabulary', 'privacy', 'about', 'contact'] as LegalPage[]).map((tab) => {
+            const isLexiconGroup = tab === 'vocabulary';
+            const isActive = isLexiconGroup
+              ? (currentPage === 'vocabulary' || currentPage === 'roles' || currentPage === 'functions')
+              : currentPage === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setCurrentPage(tab)}
+                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-app-accent text-app-accent-text border border-transparent shadow-sm'
+                    : 'bg-app-card text-app-text border border-app-border hover:border-app-accent/25'
+                }`}
+              >
+                {isLexiconGroup ? currentT.lexicons : currentT[tab]}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Sub-navigation for the Lexicons group */}
+      {(currentPage === 'vocabulary' || currentPage === 'roles' || currentPage === 'functions') && (
+        <div className="flex gap-2 -mt-4 pb-2 overflow-x-auto">
+          {(['vocabulary', 'roles', 'functions'] as LegalPage[]).map((tab) => (
             <button
               key={tab}
               type="button"
               onClick={() => setCurrentPage(tab)}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                currentPage === tab 
-                  ? 'bg-app-accent text-app-accent-text border border-transparent shadow-sm' 
-                  : 'bg-app-card text-app-text border border-app-border hover:border-app-accent/25'
+              className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
+                currentPage === tab
+                  ? 'bg-app-text text-app-bg border-transparent'
+                  : 'bg-transparent text-app-muted border-app-border/40 hover:border-app-accent/30 hover:text-app-text'
               }`}
             >
               {currentT[tab]}
             </button>
           ))}
         </div>
-      </div>
+      )}
 
       {/* Pages Content router */}
       {currentPage === 'guide' && (() => {
@@ -985,6 +1015,30 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           </div>
         );
       })()}
+
+      {currentPage === 'functions' && (
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <div className="text-[10px] uppercase font-black tracking-widest text-app-muted flex items-center gap-2">
+              <Tag size={14} className="text-app-accent" />
+              {currentT.functions}
+            </div>
+            <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">
+              {lang === 'fr' ? 'Le lexique des fonctions.' : 'The functions lexicon.'}
+            </h1>
+            <p className="text-xs text-app-muted font-bold uppercase tracking-widest">
+              {lang === 'fr'
+                ? "Switch, front, co-conscience... le fonctionnement interne du système, en profondeur"
+                : 'Switching, fronting, co-consciousness... the internal mechanics of the system, in depth'}
+            </p>
+          </div>
+          <p className="text-xs text-app-muted leading-relaxed bg-app-card border border-app-border/40 rounded-2xl p-4">
+            {lang === 'fr'
+              ? "Cette section est en préparation : elle approfondira les mécanismes internes du système (au-delà de ce qui est déjà couvert dans le Vocabulaire), toujours sourcée depuis PluralPedia et reformulée."
+              : 'This section is in progress: it will go deeper into the system\'s internal mechanics (beyond what is already covered in the Vocabulary), sourced from Pluralpedia and rephrased.'}
+          </p>
+        </div>
+      )}
 
       {currentPage === 'privacy' && (
         <div className="space-y-8">

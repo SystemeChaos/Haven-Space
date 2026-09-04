@@ -17012,16 +17012,7 @@ export default function App() {
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
             >
-              {lang === 'fr' ? 'Vocabulaire' : 'Vocabulary'}
-            </button>
-            <button
-              onClick={() => {
-                setActiveLegalPage('roles');
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
-            >
-              {lang === 'fr' ? 'Lexique des rôles' : 'Role Lexicon'}
+              {lang === 'fr' ? 'Lexiques' : 'Lexicons'}
             </button>
             <button
               onClick={() => {
