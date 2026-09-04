@@ -1,4 +1,6 @@
-import { useState } from 'react';
+git add src/components/LegalPages.tsx
+git commit -m "feat: ajout des rôles de l'app (AlterRole) au Lexique, +2 catégories (88 rôles au total)"
+git push origin mainimport { useState } from 'react';
 import {
   Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
@@ -786,6 +788,14 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Janusien', definition: "Alter capable de fonctionner tour à tour comme protecteur et/ou comme persécuteur selon les situations." },
               { name: 'Malicitor', definition: "Terme d'auto-identification pour un alter qui agit avec l'intention de nuire, sans chercher à protéger le système — à ne jamais utiliser pour catégoriser un autre membre que soi-même." },
               { name: 'Disciplinaire', definition: "Type de protecteur qui sanctionne les autres membres dans une intention corrective, généralement à la demande de l'hôte ou d'un gatekeeper, pour gérer les menaces internes pendant qu'un autre protecteur gère les menaces externes." },
+              { name: 'Protecteur physique', definition: "Protecteur spécialisé dans la défense face aux menaces physiques extérieures : danger, agression, violence." },
+              { name: 'Protecteur émotionnel', definition: "Protecteur spécialisé dans la défense face aux menaces émotionnelles : souvenirs douloureux, sentiments accablants, autres membres en détresse." },
+              { name: 'Persécuteur', definition: "Alter qui agit de façon nuisible envers d'autres membres du système et/ou envers le corps. Souvent issu d'un protecteur ayant développé des comportements inadaptés pour tenter de protéger le système ou lui-même ; réagit fréquemment à un trauma, une colère, une honte ou une culpabilité internalisés." },
+              { name: 'Prosécuteur', definition: "Terme plus spécifique que persécuteur, réservé aux alters qui font du mal à des personnes extérieures au système plutôt qu'à ses propres membres." },
+              { name: 'Vengeur', definition: "Sous-type de protecteur qui agit avec une intention de justice ou de représailles envers ce qui a menacé le système." },
+              { name: 'Protecteur égaré / dysfonctionnel', definition: "Alter qui tente d'assumer un rôle de protecteur mais bascule vers des comportements de persécuteur ou de prosécuteur dans une tentative maladroite d'aider le système." },
+              { name: 'Saboteur', definition: "Alter dont les actions nuisent, consciemment ou non, aux objectifs ou au bon fonctionnement du système." },
+              { name: 'Abuseur', definition: "Terme réservé à l'auto-identification, décrivant un alter qui reproduit des comportements abusifs vécus par le système. Comme pour le malicitor ou le persécuteur, à ne jamais utiliser pour catégoriser un autre membre que soi-même." },
             ],
           },
           {
@@ -808,6 +818,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Cartographe', definition: "Alter dont le rôle est de représenter ou d'organiser spatialement le monde intérieur du système." },
               { name: 'Beastmaster', definition: "Alter capable de créer, faire disparaître ou contrôler les éléments vivants du monde intérieur (PNJ, animaux, végétation), sans emprise sur les autres alters. Rôle complémentaire à l'architecte, qui s'occupe des éléments non-vivants." },
               { name: 'Technicien', definition: "Alter chargé de comprendre le fonctionnement du système : analyser les autres membres et le monde intérieur, suivre les fusions ou scissions, ou encore le nombre de membres." },
+              { name: 'Architecte', definition: "Alter capable de créer, modifier ou contrôler les éléments non-vivants du monde intérieur (bâtiments, paysages, objets). Rôle complémentaire au beastmaster, qui s'occupe des éléments vivants." },
             ],
           },
           {
@@ -824,6 +835,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Scout', definition: "Alter chargé de repérer et d'évaluer les nouveaux membres qui émergent dans le système, avant de les signaler aux autres (archivistes, recenseurs...)." },
               { name: 'Réceptionniste', definition: "Alter chargé d'accueillir les nouveaux membres qui rejoignent le système." },
               { name: 'Fronteur principal', definition: "Alter qui fronte plus souvent ou plus activement que les autres membres du système. Un système peut avoir un, plusieurs, ou aucun fronteur principal." },
+              { name: 'Fronteur régulier', definition: "Alter qui fronte régulièrement, sans que cela implique nécessairement un rôle central ou de commande comme l'hôte ou le fronteur principal." },
               { name: 'ISH (Internal Self Helper)', definition: "Alter détenant une connaissance approfondie du système, de ses membres et de son fonctionnement interne ; historiquement décrit comme une sorte de guide ou de conscience interne, parfois aussi gatekeeper." },
             ],
           },
@@ -837,6 +849,9 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Porteur de symptôme', definition: "Alter qui porte un symptôme particulier pour le système plutôt qu'une émotion ou un souvenir précis." },
               { name: 'Porteur de peur', definition: "Alter qui porte la peur, l'angoisse ou la terreur pour le reste du système, souvent liées à des expériences passées ou à un stress continu." },
               { name: 'Porteur de culpabilité', definition: "Alter qui porte les sentiments de culpabilité du système, que cette culpabilité soit fondée ou non." },
+              { name: 'Porteur de trauma', definition: "Alter qui porte le souvenir ou le vécu d'un événement traumatique spécifique pour le système, factuellement ou émotionnellement." },
+              { name: 'Porteur de douleur', definition: "Alter qui porte la douleur physique du système, ressentie plus fréquemment ou plus intensément que par les autres membres." },
+              { name: 'Anesthésiant', definition: "Alter dont le rôle est d'atténuer ou de couper certaines émotions ou sensations physiques du système, notamment en situation de stress ou de douleur." },
             ],
           },
           {
@@ -846,6 +861,13 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Communicateur', definition: "Alter qui communique avec les autres, en général de façon plus claire que le reste du système — pour poser des limites ou porter la parole d'un autre membre." },
               { name: 'Réconciliateur', definition: "Alter qui aide les membres du système à se comprendre et à trouver des compromis en cas de désaccord interne." },
               { name: 'Analyste', definition: "Alter qui suit les dynamiques relationnelles du système : les opinions ou impressions des différents membres sur les personnes de la réalité partagée." },
+              { name: 'Médiateur', definition: "Alter qui intervient pour désamorcer les conflits et faciliter la compréhension entre les membres du système." },
+              { name: 'Messager', definition: "Alter chargé de transmettre des informations entre les membres du système, ou entre le système et l'extérieur." },
+              { name: 'Traducteur', definition: "Alter qui aide à clarifier ou reformuler ce qu'expriment d'autres membres, pour faciliter la communication interne." },
+              { name: 'Gardien de secret', definition: "Alter qui conserve certaines informations à l'abri des autres membres du système, généralement pour les protéger." },
+              { name: 'Alter relais', definition: "Alter qui sert d'intermédiaire entre deux autres membres ou espaces du système, facilitant le passage d'informations ou de front." },
+              { name: 'Social', definition: "Alter à l'aise dans les interactions sociales, qui prend souvent le front dans ces contextes." },
+              { name: 'Alter Sexuel', definition: "Alter dont le rôle est lié à la sexualité du système — il peut par exemple fronter davantage dans un contexte intime. Un rôle parmi d'autres, qui ne définit pas l'ensemble de l'alter." },
             ],
           },
           {
@@ -858,6 +880,34 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               { name: 'Codeur', definition: "Alter dont le rôle ou la compétence est centré sur la programmation et les tâches informatiques." },
               { name: 'Athlète', definition: "Alter à l'aise dans le sport, qui prend souvent le front pour les activités physiques." },
               { name: 'Comédien', definition: "Alter dont le rôle est de faire rire ou de détendre l'atmosphère au sein du système." },
+              { name: 'Professionnel', definition: "Alter qui prend le front pour les tâches liées au travail ou aux études, à l'aise dans ce contexte." },
+            ],
+          },
+          {
+            title: 'Structure & élaboration',
+            terms: [
+              { name: 'Coquille (Shell)', definition: "Alter qui sert d'interface neutre par laquelle d'autres membres passent pour fronter, sans forcément avoir d'identité élaborée propre." },
+              { name: 'Fragment', definition: "Alter qui ne possède généralement pas une pleine autonomie, conscience de soi ou identité développée. Un fragment peut évoluer, se complexifier ou fusionner avec le temps, ou rester très spécialisé dans une tâche précise." },
+              { name: 'Fragment fonctionnel', definition: "Fragment centré sur une tâche unique, qu'il peut accomplir avec beaucoup d'efficacité, parfois au point de prendre le pas sur la volonté des autres membres. N'a généralement pas d'identité développée en dehors de cette tâche." },
+              { name: 'PAN (ANP)', definition: "Dans la théorie de la dissociation structurelle, alter orienté vers la vie quotidienne, qui évite en général le contenu traumatique. Fait pendant à la partie émotionnelle (EP). Terme réservé à l'auto-description." },
+              { name: 'Observateur', definition: "Alter qui observe ce qui se passe sans fronter, parfois en gardant en mémoire ce qui a lieu au front pour le compte du système." },
+              { name: 'Ancre', definition: "Alter qui sert de point de repère stable pour ancrer le système en période de forte dissociation ou de détresse, en maintenant un lien avec le monde extérieur." },
+              { name: 'Effaceur (Eraser)', definition: "Alter dont la capacité rapportée est d'effacer des souvenirs ou des informations au sein du système." },
+            ],
+          },
+          {
+            title: "Âge, origine & type d'alter",
+            terms: [
+              { name: 'Non-humain', definition: "Alter qui ne s'identifie pas comme humain — animal, créature, objet ou entité d'un autre type." },
+              { name: 'Introject', definition: "Alter dont l'identité provient en tout ou partie d'une personne réelle extérieure au système (proche, figure d'autorité, etc.)." },
+              { name: 'Fictif (Fictive)', definition: "Alter dont l'identité provient en tout ou partie d'un personnage de fiction (livre, jeu, film, série...)." },
+              { name: 'Factif (Factive)', definition: "Alter dont l'identité provient en tout ou partie d'une personne réelle mais non directement connue du système (célébrité, personnage historique...)." },
+              { name: 'Petit (Little)', definition: "Alter qui se perçoit ou se comporte comme un enfant, quel que soit son âge ressenti précis." },
+              { name: 'Middle', definition: "Alter dont l'âge ressenti se situe entre celui d'un petit et celui d'un adulte, souvent proche de l'adolescence ou du jeune âge adulte." },
+              { name: 'Ado (Teen)', definition: "Alter dont l'âge ressenti correspond à l'adolescence." },
+              { name: 'Nourrisson (Infant)', definition: "Alter dont l'âge ressenti correspond à la petite enfance, généralement avant l'âge verbal." },
+              { name: 'Aîné (Elder)', definition: "Alter dont l'âge ressenti est supérieur à celui du corps réel, parfois bien plus âgé." },
+              { name: 'Âge glissant', definition: "Alter (ou système) dont l'âge ressenti change au fil du temps, avec un contrôle plus ou moins grand sur ce glissement selon les cas." },
             ],
           },
         ];
