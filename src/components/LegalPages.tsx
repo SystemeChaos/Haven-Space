@@ -1,6 +1,4 @@
-git add src/components/LegalPages.tsx
-git commit -m "feat: ajout des rôles de l'app (AlterRole) au Lexique, +2 catégories (88 rôles au total)"
-git push origin mainimport { useState } from 'react';
+import { useState } from 'react';
 import {
   Shield, Info, Mail, ChevronLeft, ChevronDown, Heart, Lock, Database, Eye, Users,
   BookOpen, Search, UserCircle2, Layers, GitBranch, Tag, Radio, History, NotebookPen,
