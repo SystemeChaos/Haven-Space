@@ -1409,16 +1409,17 @@ export default function App() {
   const [lockError, setLockError] = useState('');
   const [forgotPinMode, setForgotPinMode] = useState(false);
   const [forgotPinAnswer, setForgotPinAnswer] = useState('');
+  const [isUnlocking, setIsUnlocking] = useState(false);
 
   const attemptUnlock = () => {
     if (simpleHash(lockPinInput) === pinHash) {
       const pinValue = lockPinInput;
-      setIsLocked(false);
       setLockPinInput('');
       setLockError('');
       setForgotPinMode(false);
       setForgotPinAnswer('');
       setLastVerifiedPin(pinValue);
+      setIsUnlocking(true);
 
       (async () => {
         if (vaultMeta) {
@@ -1430,11 +1431,19 @@ export default function App() {
             // Ne devrait pas arriver puisque le PIN vient d'être validé, mais on ne bloque pas l'accès à l'app pour autant
             console.warn('[Haven Space] Échec du déverrouillage du coffre (unlockWithPin) :', e);
             setDek(null);
+          } finally {
+            // On ne lève le verrou visuel qu'une fois le coffre réellement déverrouillé (dek prêt) —
+            // sinon une édition faite dans la fenêtre entre "écran déverrouillé" et "dek disponible"
+            // serait silencieusement perdue par writeMaybeEncrypted (coffre actif mais dek encore null).
+            setIsLocked(false);
+            setIsUnlocking(false);
           }
         } else {
           // Coffre pas encore créé (PIN existant d'avant l'arrivée du chiffrement) : on propose de le sécuriser maintenant
           console.warn('[Haven Space] Pas de coffre (vaultMeta absent) au moment du déverrouillage : proposition de le créer.');
           setVaultMigrationPrompt(true);
+          setIsLocked(false);
+          setIsUnlocking(false);
         }
       })();
     } else {
@@ -8031,16 +8040,20 @@ export default function App() {
                   autoFocus
                   value={lockPinInput}
                   onChange={e => { setLockPinInput(e.target.value.replace(/\D/g, '')); setLockError(''); }}
-                  onKeyDown={e => { if (e.key === 'Enter') attemptUnlock(); }}
-                  className="w-full text-center tracking-[0.5em] text-xl font-black bg-app-card border border-app-border rounded-xl px-4 py-3 focus:outline-none focus:border-app-accent transition-colors"
+                  onKeyDown={e => { if (e.key === 'Enter' && !isUnlocking) attemptUnlock(); }}
+                  disabled={isUnlocking}
+                  className="w-full text-center tracking-[0.5em] text-xl font-black bg-app-card border border-app-border rounded-xl px-4 py-3 focus:outline-none focus:border-app-accent transition-colors disabled:opacity-60"
                   placeholder="••••"
                 />
                 {lockError && <p className="text-xs text-red-500 font-bold">{lockError}</p>}
                 <button
                   onClick={attemptUnlock}
-                  className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
+                  disabled={isUnlocking}
+                  className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:opacity-60"
                 >
-                  {lang === 'fr' ? 'Déverrouiller' : 'Unlock'}
+                  {isUnlocking
+                    ? (lang === 'fr' ? 'Déverrouillage...' : 'Unlocking...')
+                    : (lang === 'fr' ? 'Déverrouiller' : 'Unlock')}
                 </button>
                 <button
                   onClick={() => { setForgotPinMode(true); setLockError(''); }}
