@@ -1347,6 +1347,20 @@ export default function App() {
     setVaultMetaState(meta);
   };
 
+  // Filet de sécurité : coffre orphelin (vaultMeta encore présent alors que le code est
+  // désactivé). Ça arrive si handleConfirmDisablePin s'est exécuté pendant que dek était
+  // encore null (fenêtre de course avec l'écran de déverrouillage) — le code disparaît mais
+  // le coffre reste "actif" sans qu'aucun écran ne puisse plus jamais redemander dek. Laissé
+  // tel quel, writeMaybeEncrypted bloque alors TOUTES les écritures pour toujours (coffre actif
+  // mais verrouillé = écriture ignorée), silencieusement. On nettoie donc automatiquement.
+  useEffect(() => {
+    if (!pinEnabled && vaultMeta && !dek) {
+      console.warn('[Haven Space] Coffre orphelin détecté (pas de code actif pour le déverrouiller) — nettoyage automatique pour débloquer les sauvegardes.');
+      localStorage.removeItem('hs-vault-meta');
+      setVaultMetaState(null);
+    }
+  }, [pinEnabled, vaultMeta, dek]);
+
   // Toutes les clés protégées par le coffre — fixes et à préfixe dynamique (une entrée par
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon

@@ -14,6 +14,10 @@ import { encryptData, decryptData, EncryptedPayload } from './cryptoEngine';
 export const HS_ENCRYPTED_MARKER = '__hsEncrypted';
 
 interface HsEncryptedRecord { __hsEncrypted: true; payload: EncryptedPayload; }
+// Enregistrement "en clair" stocké dans IndexedDB (coffre jamais activé) — même volume
+// disponible que le chiffré, juste sans passer par encryptData/decryptData.
+interface HsPlainRecord { __hsEncrypted: false; value: unknown; }
+type HsIdbRecord = HsEncryptedRecord | HsPlainRecord;
 
 // Le chiffré vit dans IndexedDB, pas localStorage : localStorage plafonne à 5-10 Mo
 // selon le navigateur, et entre plusieurs alters avec avatars et le surcoût du
@@ -33,7 +37,7 @@ function openVaultDb(): Promise<IDBDatabase> {
   });
 }
 
-async function idbGet(key: string): Promise<HsEncryptedRecord | null> {
+async function idbGet(key: string): Promise<HsIdbRecord | null> {
   const db = await openVaultDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(HS_IDB_STORE, 'readonly');
@@ -43,7 +47,7 @@ async function idbGet(key: string): Promise<HsEncryptedRecord | null> {
   });
 }
 
-async function idbSet(key: string, value: HsEncryptedRecord): Promise<void> {
+async function idbSet(key: string, value: HsIdbRecord): Promise<void> {
   const db = await openVaultDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(HS_IDB_STORE, 'readwrite');
@@ -116,6 +120,10 @@ export async function readMaybeEncrypted<T>(key: string, dek: CryptoKey | null, 
         console.warn(`[Haven Space] "${key}" trouvé chiffré dans IndexedDB mais impossible à déchiffrer avec la clé actuelle du coffre :`, e);
         return fallback;
       }
+    } else if (idbRecord) {
+      // Enregistrement en clair stocké dans IndexedDB (coffre jamais activé, écrit
+      // après le passage de localStorage vers IndexedDB pour ces données).
+      return (idbRecord as HsPlainRecord).value as T;
     }
   } catch (e) {
     console.warn(`[Haven Space] Lecture IndexedDB impossible pour "${key}", repli sur localStorage :`, e);
@@ -159,10 +167,13 @@ export async function migrateKeyIfNeeded(key: string, dek: CryptoKey | null): Pr
 
 
 // Écrit une valeur : chiffrée dans IndexedDB si le coffre est déverrouillé (et on
-// nettoie l'éventuel clair résiduel dans localStorage, pour libérer sa place) ; en
-// clair dans localStorage si aucun coffre n'a jamais été activé (comportement
-// historique inchangé). Si le coffre existe mais est verrouillé, on n'écrit RIEN —
-// sinon on écraserait des données chiffrées valides par du vide.
+// nettoie l'éventuel clair résiduel dans localStorage, pour libérer sa place) ; en clair
+// dans IndexedDB si aucun coffre n'a jamais été activé — là aussi pour éviter le plafond
+// de 5-10 Mo de localStorage, qui saute vite avec plusieurs alters et leurs photos même
+// sans chiffrement. Repli sur localStorage uniquement si IndexedDB échoue (navigateur en
+// mode privé strict, quota IndexedDB également dépassé, etc.). Si le coffre existe mais
+// est verrouillé, on n'écrit RIEN — sinon on écraserait des données chiffrées valides par
+// du vide.
 export async function writeMaybeEncrypted<T>(key: string, value: T, dek: CryptoKey | null, hasVaultActive: boolean): Promise<void> {
   if (dek) {
     const payload = await encryptData(dek, JSON.stringify(value));
@@ -170,7 +181,18 @@ export async function writeMaybeEncrypted<T>(key: string, value: T, dek: CryptoK
     await idbSet(key, record);
     if (localStorage.getItem(key)) localStorage.removeItem(key);
   } else if (!hasVaultActive) {
-    localStorage.setItem(key, JSON.stringify(value));
+    try {
+      const record: HsPlainRecord = { __hsEncrypted: false, value };
+      await idbSet(key, record);
+      if (localStorage.getItem(key)) localStorage.removeItem(key);
+    } catch (e) {
+      console.warn(`[Haven Space] Écriture IndexedDB impossible pour "${key}", repli sur localStorage :`, e);
+      try {
+        localStorage.setItem(key, JSON.stringify(value));
+      } catch (e2) {
+        console.error(`[Haven Space] Échec de sauvegarde pour "${key}" (IndexedDB et localStorage tous deux indisponibles) :`, e2);
+      }
+    }
   }
   // sinon : coffre actif mais verrouillé → écriture ignorée volontairement
 }
