@@ -15065,14 +15065,30 @@ export default function App() {
                       className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                     />
                   </div>
-                  <div className="flex gap-2 pt-2">
-                    <button onClick={saveWalletEntry} className="flex-1 px-4 py-2.5 bg-app-accent text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-                      {lang === 'fr' ? 'Enregistrer' : 'Save'}
-                    </button>
-                    <button onClick={() => setWalletFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border text-app-muted font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
-                    </button>
-                  </div>
+                  {(() => {
+                    const walletFormValid = parseFloat(walletDraftAmount.replace(',', '.')) > 0 && walletDraftLabel.trim().length > 0;
+                    return (
+                      <div className="space-y-1.5">
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={saveWalletEntry}
+                            disabled={!walletFormValid}
+                            className="flex-1 px-4 py-2.5 bg-app-accent text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                          </button>
+                          <button onClick={() => setWalletFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border text-app-muted font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                        {!walletFormValid && (
+                          <p className="text-[10px] text-app-muted italic px-1">
+                            {lang === 'fr' ? 'Renseigne un montant supérieur à 0 et une description pour pouvoir enregistrer.' : 'Enter an amount above 0 and a description to save.'}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
