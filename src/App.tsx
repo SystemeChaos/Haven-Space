@@ -9298,7 +9298,7 @@ export default function App() {
             </label>
             <p className="text-[11px] text-app-muted leading-relaxed">
               {lang === 'fr'
-                ? "Protège cette fiche avec un code propre à elle, différent du code de l'app. Facultatif, à activer si tu veux la garder privée même quelqu'un d'autre a le code principal."
+                ? "Protège cette fiche avec un code propre à elle, différent du code de l'app. Facultatif, à activer si tu veux la garder privée même si quelqu'un d'autre a le code principal."
                 : "Protect this card with its own code, separate from the app's main code. Optional — turn it on to keep it private even from someone who has the main code."}
             </p>
             <label className="flex items-center gap-2 cursor-pointer">
