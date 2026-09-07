@@ -1,17 +1,22 @@
 {
+  "id": "/Haven-Space/",
   "name": "Haven Space",
   "short_name": "Haven Space",
   "description": "Outil de gestion de système pluriel",
   "theme_color": "#efe9e3",
   "background_color": "#efe9e3",
   "display": "standalone",
+  "orientation": "portrait",
   "scope": "/Haven-Space/",
   "start_url": "/Haven-Space/",
+  "lang": "fr",
+  "dir": "ltr",
   "icons": [
     {
       "src": "icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-512.png",

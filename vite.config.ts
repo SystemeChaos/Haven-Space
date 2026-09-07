@@ -13,20 +13,23 @@ export default defineConfig(({mode}) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'],
+        includeAssets: ['favicon.ico', 'icons/icon-192.png', 'icons/icon-512.png', 'apple-touch-icon.png'],
         manifest: {
+          id: '/Haven-Space/',
           name: 'Haven Space',
           short_name: 'Haven Space',
           description: 'Gestionnaire de système pluriel',
-          theme_color: '#273f4f',
-          background_color: '#f2ede9',
+          theme_color: '#efe9e3',
+          background_color: '#efe9e3',
           display: 'standalone',
           orientation: 'portrait',
           scope: '/Haven-Space/',
           start_url: '/Haven-Space/',
+          lang: 'fr',
+          dir: 'ltr',
           icons: [
-            { src: '/Haven-Space/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
-            { src: '/Haven-Space/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+            { src: '/Haven-Space/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+            { src: '/Haven-Space/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
           ],
         },
         workbox: {
