@@ -94,7 +94,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fZ: '✦ Confidentialité par fiche',
       fAA: '✦ Spectrum Tool (The Plural Association)',
       openSourceTitle: 'Transparence',
-      openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage. Elle est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
+      openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage — un outil parmi d\'autres, comme un traitement de texte ou un éditeur de code, pas un service auquel les données sont envoyées. Aucun compte, aucun serveur : toutes les données restent stockées localement, sur l\'appareil de la personne qui utilise l\'app, et rien n\'en sort jamais. Un chiffrement (protégé par un code personnel) peut en plus être activé pour protéger ces données même en cas d\'accès à l\'appareil. Haven Space est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
       thanksTitle: 'Merci à nos alpha & bêta testeur·euses',
       thanksText: 'Haven Space n\'existerait pas sous cette forme sans les personnes qui ont testé chaque fonctionnalité avant tout le monde, remonté des bugs, partagé leur vécu et donné des retours sincères — parfois en plein moment difficile, parce que c\'est aussi à ça que sert l\'outil. Ce projet leur doit énormément. Si vous vous reconnaissez : merci, du fond du cœur, pour votre temps, votre confiance et votre patience.',
 
@@ -257,7 +257,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fZ: '✦ Per-Profile Privacy',
       fAA: '✦ Spectrum Tool (The Plural Association)',
       openSourceTitle: 'Transparency',
-      openSourceText: 'This app was built by a plural person, with AI assistance for coding. It is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
+      openSourceText: 'This app was built by a plural person, with AI assistance for coding — a tool used like a text editor or code editor, not a service that data gets sent to. No account, no server: all data stays stored locally, on the device of the person using the app, and none of it ever leaves. Encryption (protected by a personal code) can also be enabled to protect that data even if the device itself is accessed. Haven Space is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
       thanksTitle: 'Thank you to our alpha & beta testers',
       thanksText: 'Haven Space wouldn\'t exist in its current form without the people who tested every feature before anyone else, reported bugs, shared their lived experience, and gave honest feedback — sometimes in the middle of a hard moment, because that\'s exactly what this tool is for. This project owes them a lot. If you recognize yourself here: thank you, sincerely, for your time, your trust, and your patience.',
 
