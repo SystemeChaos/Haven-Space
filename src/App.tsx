@@ -114,6 +114,7 @@ import {
   LayoutGrid,
   Laugh,
   MessageSquareQuote,
+  MessageSquare,
   Timer,
   BarChart3,
   Vote,
@@ -146,7 +147,7 @@ import {
   ChevronRight,
   Wallet,
 } from 'lucide-react';
-import { AlterRole, Gender, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, CustomGender, CustomSexuality, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
+import { AlterRole, Gender, Pronoun, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, PRONOUN_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, PRONOUN_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, CustomGender, CustomPronoun, CustomSexuality, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
 import LegalPages, { LegalPage } from './components/LegalPages';
 import SwitchAnalytics from './components/SwitchAnalytics';
@@ -893,6 +894,7 @@ export default function App() {
   ];
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     roles: false,
+    pronoun: false,
     gender: false,
     sexuality: false,
     pattern: false,
@@ -953,6 +955,7 @@ export default function App() {
   const [history, setHistory] = useState<{
     selectedRoles: AlterRole[];
     selectedGenders: Gender[];
+    selectedPronouns: Pronoun[];
     selectedSexualities: Sexuality[];
     traitDecorations: TraitDecoration[];
     patternLayers: PatternLayer[];
@@ -960,6 +963,7 @@ export default function App() {
     alterName: string;
     customRoleColors: Record<string, string>;
     customGenderColors: Record<string, string>;
+    customPronounColors: Record<string, string>;
     customSexualityColors: Record<string, string>;
     theme: Theme;
     profileImage: string;
@@ -970,6 +974,7 @@ export default function App() {
 
   const [selectedRoles, setSelectedRoles] = useState<AlterRole[]>([AlterRole.HOST]);
   const [selectedGenders, setSelectedGenders] = useState<Gender[]>([Gender.NEUTRAL]);
+  const [selectedPronouns, setSelectedPronouns] = useState<Pronoun[]>([]);
   const [selectedSexualities, setSelectedSexualities] = useState<Sexuality[]>([Sexuality.OTHER]);
   const [traitDecorations, setTraitDecorations] = useState<TraitDecoration[]>([]);
   const [patternLayers, setPatternLayers] = useState<PatternLayer[]>([]);
@@ -979,6 +984,7 @@ export default function App() {
   const [alterName, setAlterName] = useState('');
   const [customRoleColors, setCustomRoleColors] = useState<Record<string, string>>({});
   const [customGenderColors, setCustomGenderColors] = useState<Record<string, string>>({});
+  const [customPronounColors, setCustomPronounColors] = useState<Record<string, string>>({});
   const [customSexualityColors, setCustomSexualityColors] = useState<Record<string, string>>({});
   const [profileImage, setProfileImage] = useState<string>('');
   const [description, setDescription] = useState('');
@@ -1043,6 +1049,13 @@ export default function App() {
   const [customGenderDraftColor, setCustomGenderDraftColor] = useState('#8B5CF6');
   const [editingCustomGenderId, setEditingCustomGenderId] = useState<string | null>(null);
   const [customGenderDeleteConfirmId, setCustomGenderDeleteConfirmId] = useState<string | null>(null);
+  // Pronoms personnalisés attribués à l'alter en cours d'édition
+  const [selectedCustomPronounIds, setSelectedCustomPronounIds] = useState<string[]>([]);
+  const [customPronounDraftName, setCustomPronounDraftName] = useState('');
+  const [customPronounDraftDefinition, setCustomPronounDraftDefinition] = useState('');
+  const [customPronounDraftColor, setCustomPronounDraftColor] = useState('#8B5CF6');
+  const [editingCustomPronounId, setEditingCustomPronounId] = useState<string | null>(null);
+  const [customPronounDeleteConfirmId, setCustomPronounDeleteConfirmId] = useState<string | null>(null);
   // Sexualités personnalisées attribuées à l'alter en cours d'édition
   const [selectedCustomSexualityIds, setSelectedCustomSexualityIds] = useState<string[]>([]);
   const [customSexualityDraftName, setCustomSexualityDraftName] = useState('');
@@ -1365,7 +1378,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -1594,6 +1607,9 @@ export default function App() {
   // --- Genres personnalisés (définis par l'utilisateur, en plus des genres fixes) ---
   const [customGenders, setCustomGenders] = useState<CustomGender[]>([]);
 
+  // --- Pronoms personnalisés (définis par l'utilisateur, en plus des pronoms fixes) ---
+  const [customPronouns, setCustomPronouns] = useState<CustomPronoun[]>([]);
+
   // --- Sexualités personnalisées (définies par l'utilisateur, en plus des sexualités fixes) ---
   const [customSexualities, setCustomSexualities] = useState<CustomSexuality[]>([]);
 
@@ -1730,16 +1746,17 @@ export default function App() {
   // Chargement (et migration douce) du deuxième lot de données sensibles via le coffre chiffré —
   // même logique que Santé/Journal/Système, regroupée ici pour éviter 15 effets quasi-identiques.
   const [batch2Loaded, setBatch2Loaded] = useState(false);
-  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'] as const;
+  const BATCH2_KEYS = ['subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'pk_token', 'hs-dm-last-seen'] as const;
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const [subs, roles, traits, disorders, genders, sexualities, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel, sysName, token, lastSeen] = await Promise.all([
+      const [subs, roles, traits, disorders, genders, pronounsCustom, sexualities, parallel, chat, salons, convs, dms, mems, walletCats, walletEnt, switches, contacts, wheel, sysName, token, lastSeen] = await Promise.all([
         readMaybeEncrypted<Subsystem[]>('subsystems', dek, []),
         readMaybeEncrypted<CustomRole[]>('customRoles', dek, []),
         readMaybeEncrypted<CustomTrait[]>('customTraits', dek, []),
         readMaybeEncrypted<CustomDisorder[]>('customDisorders', dek, []),
         readMaybeEncrypted<CustomGender[]>('customGenders', dek, []),
+        readMaybeEncrypted<CustomPronoun[]>('customPronouns', dek, []),
         readMaybeEncrypted<CustomSexuality[]>('customSexualities', dek, []),
         readMaybeEncrypted<ParallelSystem[]>('parallelSystems', dek, []),
         readMaybeEncrypted<ChatMessage[]>('chatMessages', dek, []),
@@ -1758,14 +1775,14 @@ export default function App() {
       ]);
       if (cancelled) return;
       setSubsystems(subs); setCustomRoles(roles); setCustomTraits(traits); setCustomDisorders(disorders);
-      setCustomGenders(genders); setCustomSexualities(sexualities);
+      setCustomGenders(genders); setCustomPronouns(pronounsCustom); setCustomSexualities(sexualities);
       setParallelSystems(parallel); setChatMessages(chat); setChatSalons(salons); setConversations(convs);
       setDirectMessages(dms); setMemories(mems); setWalletCustomCategories(walletCats); setWalletEntries(walletEnt);
       setSwitchLogs(switches); setTrustedContacts(contacts); setWheelHistory(wheel);
       setMainSystemName(sysName); setPkToken(token); setLastSeenMsgIdByConv(lastSeen);
       setBatch2Loaded(true);
       if (dek) {
-        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, customGenders: genders, customSexualities: sexualities, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel, mainSystemName: sysName, pk_token: token, 'hs-dm-last-seen': lastSeen };
+        const values: Record<string, unknown> = { subsystems: subs, customRoles: roles, customTraits: traits, customDisorders: disorders, customGenders: genders, customPronouns: pronounsCustom, customSexualities: sexualities, parallelSystems: parallel, chatMessages: chat, chatSalons: salons, 'hs-conversations': convs, 'hs-direct-messages': dms, 'hs-memories': mems, 'hs-wallet-custom-categories': walletCats, 'hs-wallet-entries': walletEnt, switchLogs: switches, trustedContacts: contacts, wheelHistory: wheel, mainSystemName: sysName, pk_token: token, 'hs-dm-last-seen': lastSeen };
         for (const key of BATCH2_KEYS) {
           const raw = localStorage.getItem(key);
           if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted(key, values[key], dek, true);
@@ -1780,6 +1797,7 @@ export default function App() {
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customTraits', customTraits, dek, !!vaultMeta); }, [customTraits]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customDisorders', customDisorders, dek, !!vaultMeta); }, [customDisorders]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customGenders', customGenders, dek, !!vaultMeta); }, [customGenders]);
+  useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customPronouns', customPronouns, dek, !!vaultMeta); }, [customPronouns]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('customSexualities', customSexualities, dek, !!vaultMeta); }, [customSexualities]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('parallelSystems', parallelSystems, dek, !!vaultMeta); }, [parallelSystems]);
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('chatMessages', chatMessages, dek, !!vaultMeta); }, [chatMessages]);
@@ -2131,6 +2149,8 @@ export default function App() {
           frontStatus: existing?.frontStatus || 'none',
           subsystemId: existing?.subsystemId || undefined,
           systemId: existing?.systemId || activeSystemId,
+          selectedPronouns: [],
+          customPronounColors: existing?.customPronounColors || {}
         };
 
         if (existingIndex >= 0) {
@@ -2333,6 +2353,7 @@ export default function App() {
         customTraits,
         customDisorders,
         customGenders,
+        customPronouns,
         customSexualities,
         chatMessages,
         conversations,
@@ -2522,6 +2543,8 @@ export default function App() {
 
       const importedCustomGenders = Array.isArray(data.customGenders) ? data.customGenders : [];
       setCustomGenders(importedCustomGenders);
+      const importedCustomPronouns = Array.isArray(data.customPronouns) ? data.customPronouns : [];
+      setCustomPronouns(importedCustomPronouns);
 
       const importedCustomSexualities = Array.isArray(data.customSexualities) ? data.customSexualities : [];
       setCustomSexualities(importedCustomSexualities);
@@ -2724,6 +2747,15 @@ export default function App() {
         else currentCustomGenders.push(incoming);
       });
       setCustomGenders(currentCustomGenders);
+
+      const currentCustomPronouns = [...customPronouns];
+      const incomingCustomPronouns = Array.isArray(data.customPronouns) ? data.customPronouns : [];
+      incomingCustomPronouns.forEach((incoming: CustomPronoun) => {
+        const existingIndex = currentCustomPronouns.findIndex(p => p.id === incoming.id || p.name.toLowerCase() === incoming.name?.toLowerCase());
+        if (existingIndex > -1) currentCustomPronouns[existingIndex] = { ...currentCustomPronouns[existingIndex], ...incoming };
+        else currentCustomPronouns.push(incoming);
+      });
+      setCustomPronouns(currentCustomPronouns);
 
       const currentCustomSexualities = [...customSexualities];
       const incomingCustomSexualities = Array.isArray(data.customSexualities) ? data.customSexualities : [];
@@ -2962,6 +2994,7 @@ export default function App() {
       const currentState = {
         selectedRoles,
         selectedGenders,
+        selectedPronouns,
         selectedSexualities,
         traitDecorations,
         patternLayers,
@@ -2969,6 +3002,7 @@ export default function App() {
         alterName,
         customRoleColors,
         customGenderColors,
+        customPronounColors,
         customSexualityColors,
         theme,
         profileImage,
@@ -2994,7 +3028,7 @@ export default function App() {
     } catch (error) {
       console.error('Failed to save to history:', error);
     }
-  }, [selectedRoles, selectedGenders, selectedSexualities, traitDecorations, patternLayers, decorations, alterName, customRoleColors, customGenderColors, customSexualityColors, theme, history, historyIndex, profileImage, description, internalNotes, frontStatus]);
+  }, [selectedRoles, selectedGenders, selectedPronouns, selectedSexualities, traitDecorations, patternLayers, decorations, alterName, customRoleColors, customGenderColors, customPronounColors, customSexualityColors, theme, history, historyIndex, profileImage, description, internalNotes, frontStatus]);
 
   const undo = () => {
     if (historyIndex > 0) {
@@ -3024,6 +3058,8 @@ export default function App() {
       setSelectedGenders([Gender.NEUTRAL]);
     }
 
+    setSelectedPronouns(state.selectedPronouns || []);
+
     if (state.selectedSexualities) {
       setSelectedSexualities(state.selectedSexualities);
     } else if (state.sexuality) {
@@ -3038,6 +3074,7 @@ export default function App() {
     setAlterName(state.alterName || '');
     setCustomRoleColors(state.customRoleColors || {});
     setCustomGenderColors(state.customGenderColors || {});
+    setCustomPronounColors(state.customPronounColors || {});
     setCustomSexualityColors(state.customSexualityColors || {});
     setProfileImage(state.profileImage || '');
     setDescription(state.description || '');
@@ -3189,6 +3226,13 @@ export default function App() {
       const gender = customGenders.find(g => g.id === genderId);
       if (gender) content += `- ${gender.name}${gender.definition ? `: ${gender.definition}` : ''}\n`;
     });
+    if (selectedPronouns.length > 0 || selectedCustomPronounIds.length > 0) {
+      content += `Pronouns: ${selectedPronouns.map(p => t.pronouns[p as keyof typeof t.pronouns]).join(', ')}\n`;
+      selectedCustomPronounIds.forEach(pronounId => {
+        const pronoun = customPronouns.find(p => p.id === pronounId);
+        if (pronoun) content += `- ${pronoun.name}${pronoun.definition ? `: ${pronoun.definition}` : ''}\n`;
+      });
+    }
     content += `Sexuality: ${selectedSexualities.map(s => `${t.sexualityNames[s as keyof typeof t.sexualityNames]} (${t.sexualityData[s as keyof typeof t.sexualityData] || ''})`).join(', ')}\n`;
     selectedCustomSexualityIds.forEach(sexualityId => {
       const sexuality = customSexualities.find(s => s.id === sexualityId);
@@ -6338,12 +6382,14 @@ export default function App() {
       alterName: trimmedName,
       selectedRoles: cleanAlterRoles(selectedRoles),
       selectedGenders,
+      selectedPronouns,
       selectedSexualities,
       traitDecorations,
       patternLayers,
       decorations,
       customRoleColors,
       customGenderColors,
+      customPronounColors,
       customSexualityColors,
       theme,
       profileImage,
@@ -6367,6 +6413,7 @@ export default function App() {
       customTraitIds: selectedCustomTraitIds.length > 0 ? selectedCustomTraitIds : undefined,
       customDisorderIds: selectedCustomDisorderIds.length > 0 ? selectedCustomDisorderIds : undefined,
       customGenderIds: selectedCustomGenderIds.length > 0 ? selectedCustomGenderIds : undefined,
+      customPronounIds: selectedCustomPronounIds.length > 0 ? selectedCustomPronounIds : undefined,
       customSexualityIds: selectedCustomSexualityIds.length > 0 ? selectedCustomSexualityIds : undefined,
       archived: existingAlter?.archived || false,
       systemId: creatorSystemId || existingAlter?.systemId || activeSystemId,
@@ -6394,6 +6441,7 @@ export default function App() {
   const executeLoadAlter = (alter: SavedAlter) => {
     setSelectedRoles(cleanAlterRoles(alter.selectedRoles));
     setSelectedGenders(alter.selectedGenders || [Gender.NEUTRAL]);
+    setSelectedPronouns(alter.selectedPronouns || []);
     setSelectedSexualities(alter.selectedSexualities || [Sexuality.OTHER]);
     setTraitDecorations(alter.traitDecorations || []);
     setPatternLayers(alter.patternLayers || []);
@@ -6401,6 +6449,7 @@ export default function App() {
     setAlterName(alter.alterName || '');
     setCustomRoleColors(alter.customRoleColors || {});
     setCustomGenderColors(alter.customGenderColors || {});
+    setCustomPronounColors(alter.customPronounColors || {});
     setCustomSexualityColors(alter.customSexualityColors || {});
     // Le thème global n'est pas lié à la fiche
     setProfileImage(alter.profileImage || '');
@@ -6423,6 +6472,7 @@ export default function App() {
     setSelectedCustomTraitIds(alter.customTraitIds || []);
     setSelectedCustomDisorderIds(alter.customDisorderIds || []);
     setSelectedCustomGenderIds(alter.customGenderIds || []);
+    setSelectedCustomPronounIds(alter.customPronounIds || []);
     setSelectedCustomSexualityIds(alter.customSexualityIds || []);
     setFrontStatus(alter.frontStatus || 'none');
     setAlterLockEnabled(!!(alter as any).lockPinHash);
@@ -6461,6 +6511,7 @@ export default function App() {
   const handleResetCreator = () => {
     setSelectedRoles([AlterRole.HOST]);
     setSelectedGenders([Gender.NEUTRAL]);
+    setSelectedPronouns([]);
     setSelectedSexualities([Sexuality.OTHER]);
     setTraitDecorations([]);
     setPatternLayers([]);
@@ -6468,6 +6519,7 @@ export default function App() {
     setAlterName('');
     setCustomRoleColors({});
     setCustomGenderColors({});
+    setCustomPronounColors({});
     setCustomSexualityColors({});
     setProfileImage('');
     setDescription('');
@@ -6498,6 +6550,7 @@ export default function App() {
     setSelectedCustomTraitIds([]);
     setSelectedCustomDisorderIds([]);
     setSelectedCustomGenderIds([]);
+    setSelectedCustomPronounIds([]);
     setSelectedCustomSexualityIds([]);
     resetCustomRoleDraft();
     setFrontStatus('none');
@@ -7118,6 +7171,11 @@ export default function App() {
     setTimeout(saveToHistory, 0);
   };
 
+  const togglePronoun = (p: Pronoun) => {
+    setSelectedPronouns(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+    setTimeout(saveToHistory, 0);
+  };
+
   const updateCustomRoleColors = (colors: Record<string, string>) => {
     setCustomRoleColors(colors);
     setTimeout(saveToHistory, 0);
@@ -7125,6 +7183,11 @@ export default function App() {
 
   const updateCustomGenderColors = (colors: Record<string, string>) => {
     setCustomGenderColors(colors);
+    setTimeout(saveToHistory, 0);
+  };
+
+  const updateCustomPronounColors = (colors: Record<string, string>) => {
+    setCustomPronounColors(colors);
     setTimeout(saveToHistory, 0);
   };
 
@@ -7550,6 +7613,59 @@ export default function App() {
       : a));
     if (editingCustomGenderId === genderId) resetCustomGenderDraft();
     setCustomGenderDeleteConfirmId(null);
+  };
+
+  const toggleCustomPronounSelection = (pronounId: string) => {
+    setSelectedCustomPronounIds(prev =>
+      prev.includes(pronounId) ? prev.filter(id => id !== pronounId) : [...prev, pronounId]
+    );
+    setTimeout(saveToHistory, 0);
+  };
+
+  const resetCustomPronounDraft = () => {
+    setEditingCustomPronounId(null);
+    setCustomPronounDraftName('');
+    setCustomPronounDraftDefinition('');
+    setCustomPronounDraftColor('#8B5CF6');
+  };
+
+  // Crée un nouveau pronom personnalisé, ou enregistre les modifications si on est en mode édition
+  const saveCustomPronounDraft = () => {
+    const name = customPronounDraftName.trim();
+    if (!name) return;
+    if (editingCustomPronounId) {
+      setCustomPronouns(prev => prev.map(p => p.id === editingCustomPronounId
+        ? { ...p, name, definition: customPronounDraftDefinition.trim(), color: customPronounDraftColor }
+        : p));
+    } else {
+      const newPronoun: CustomPronoun = {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        definition: customPronounDraftDefinition.trim(),
+        color: customPronounDraftColor,
+      };
+      setCustomPronouns(prev => [...prev, newPronoun]);
+      setSelectedCustomPronounIds(prev => [...prev, newPronoun.id]);
+    }
+    resetCustomPronounDraft();
+  };
+
+  const startEditCustomPronoun = (pronoun: CustomPronoun) => {
+    setEditingCustomPronounId(pronoun.id);
+    setCustomPronounDraftName(pronoun.name);
+    setCustomPronounDraftDefinition(pronoun.definition);
+    setCustomPronounDraftColor(pronoun.color || '#8B5CF6');
+  };
+
+  // Supprime un pronom personnalisé de la liste globale et le détache de tous les alters qui l'utilisaient
+  const deleteCustomPronounDefinition = (pronounId: string) => {
+    setCustomPronouns(prev => prev.filter(p => p.id !== pronounId));
+    setSelectedCustomPronounIds(prev => prev.filter(id => id !== pronounId));
+    setSavedAlters(prev => prev.map(a => a.customPronounIds?.includes(pronounId)
+      ? { ...a, customPronounIds: a.customPronounIds.filter(id => id !== pronounId) }
+      : a));
+    if (editingCustomPronounId === pronounId) resetCustomPronounDraft();
+    setCustomPronounDeleteConfirmId(null);
   };
 
   // Attribue / retire une sexualité personnalisée sur l'alter en cours d'édition
@@ -9743,6 +9859,213 @@ export default function App() {
             </AnimatePresence>
           </section>
 
+          {/* Pronoun Selection */}
+          <section className="space-y-4">
+            <button 
+              onClick={() => toggleSection('pronoun')}
+              className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-app-muted hover:text-app-text transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-3 h-3" /> {t.pronoun}
+              </div>
+              {openSections.pronoun ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            <AnimatePresence>
+              {openSections.pronoun && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden space-y-4"
+                >
+                  <div className="space-y-4">
+                    {Object.entries(PRONOUN_CATEGORIES).map(([category, pronounsInCat]) => (
+                      <div key={category} className="space-y-2">
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1">
+                          {t.pronounCategories[category as keyof typeof t.pronounCategories]}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {[...pronounsInCat].map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => {
+                                togglePronoun(p);
+                              }}
+                              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                                selectedPronouns.includes(p)
+                                  ? 'bg-app-accent text-app-bg border-transparent shadow-sm'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                            >
+                              {t.pronouns[p as keyof typeof t.pronouns]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {selectedPronouns.length > 0 && (
+                    <div className="pt-4 border-t border-app-border/25 space-y-3">
+                      <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                        {t.customizeColors}
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedPronouns.map((p) => (
+                          <div key={p} className="flex items-center justify-between bg-app-card/40 p-2 rounded-xl border border-app-border/15">
+                            <div className="flex items-center gap-1.5 min-w-0 px-1">
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-app-border animate-pulse" style={{ backgroundColor: customPronounColors[p] || PRONOUN_COLORS[p] }} />
+                              <span className="text-[10px] font-semibold truncate">
+                                {t.pronouns[p as keyof typeof t.pronouns]}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 pr-1">
+                              <input 
+                                type="text"
+                                value={customPronounColors[p] || PRONOUN_COLORS[p]}
+                                onChange={(e) => updateCustomPronounColors({ ...customPronounColors, [p]: e.target.value })}
+                                className="w-14 px-1 py-0.5 text-[8px] font-mono border border-app-border rounded bg-app-bg uppercase focus:outline-none text-center"
+                                placeholder="#000000"
+                              />
+                              <input 
+                                type="color" 
+                                value={customPronounColors[p] || PRONOUN_COLORS[p]}
+                                onChange={(e) => updateCustomPronounColors({ ...customPronounColors, [p]: e.target.value })}
+                                className="w-5 h-5 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pronoms personnalisés */}
+                  <div className="pt-4 border-t border-app-border/25 space-y-3">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                      {lang === 'fr' ? 'Pronoms personnalisés' : 'Custom pronouns'}
+                    </div>
+
+                    {customPronouns.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {[...customPronouns].sort((a, b) => a.name.localeCompare(b.name, lang)).map((pronoun) => {
+                          const isSelected = selectedCustomPronounIds.includes(pronoun.id);
+                          return (
+                            <div
+                              key={pronoun.id}
+                              className={`relative group flex items-center gap-2 pl-3 pr-1.5 py-2 rounded-xl border text-sm transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-app-text text-app-bg border-transparent shadow-lg'
+                                  : 'bg-app-card border-app-border hover:border-app-accent/30'
+                              }`}
+                              onClick={() => toggleCustomPronounSelection(pronoun.id)}
+                              title={pronoun.definition || undefined}
+                            >
+                              <span
+                                className="w-2.5 h-2.5 rounded-full shrink-0"
+                                style={{ backgroundColor: pronoun.color || '#8B5CF6' }}
+                              />
+                              <span className="font-medium truncate">{pronoun.name}</span>
+                              <span className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); startEditCustomPronoun(pronoun); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-app-accent/10 text-app-muted hover:text-app-text'}`}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setCustomPronounDeleteConfirmId(pronoun.id); }}
+                                  className={`p-1 rounded-lg transition-colors ${isSelected ? 'hover:bg-app-bg/20' : 'hover:bg-red-500/10 text-app-muted hover:text-red-500'}`}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {customPronounDeleteConfirmId && (
+                      <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                        <span className="text-xs text-app-text">
+                          {lang === 'fr'
+                            ? `Supprimer « ${customPronouns.find(p => p.id === customPronounDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
+                            : `Delete "${customPronouns.find(p => p.id === customPronounDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => deleteCustomPronounDefinition(customPronounDeleteConfirmId)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
+                          >
+                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCustomPronounDeleteConfirmId(null)}
+                            className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2 p-3 rounded-xl border border-dashed border-app-border">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="color"
+                          value={customPronounDraftColor}
+                          onChange={(e) => setCustomPronounDraftColor(e.target.value)}
+                          className="w-8 h-8 rounded-md border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={customPronounDraftName}
+                          onChange={(e) => setCustomPronounDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Pronom personnalisé...' : 'Custom pronoun...'}
+                          className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
+                        />
+                      </div>
+                      <textarea
+                        value={customPronounDraftDefinition}
+                        onChange={(e) => setCustomPronounDraftDefinition(e.target.value)}
+                        placeholder={lang === 'fr' ? 'Précision (facultatif)...' : 'Note (optional)...'}
+                        rows={2}
+                        className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={saveCustomPronounDraft}
+                          disabled={!customPronounDraftName.trim()}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
+                        >
+                          {editingCustomPronounId
+                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
+                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un pronom' : 'Add a pronoun'}</>}
+                        </button>
+                        {editingCustomPronounId && (
+                          <button
+                            type="button"
+                            onClick={resetCustomPronounDraft}
+                            className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
+                          >
+                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </section>
+
           {/* Gender Selection */}
           <section className="space-y-4">
             <button 
@@ -10577,7 +10900,7 @@ export default function App() {
                       )}
 
                       {/* Identity Row - Gender & Sexuality Row stacked vertically or wrapped inside the left-hand section */}
-                      {(selectedGenders.length > 0 || selectedSexualities.length > 0 || selectedCustomGenderIds.length > 0 || selectedCustomSexualityIds.length > 0) && (
+                      {(selectedGenders.length > 0 || selectedPronouns.length > 0 || selectedSexualities.length > 0 || selectedCustomGenderIds.length > 0 || selectedCustomPronounIds.length > 0 || selectedCustomSexualityIds.length > 0) && (
                         <div className="flex flex-col gap-2 pt-0.5">
                           {/* Genders Row */}
                           {(selectedGenders.length > 0 || selectedCustomGenderIds.length > 0) && (
@@ -10613,6 +10936,47 @@ export default function App() {
                                     >
                                       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
                                       {g.name}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Pronouns Row */}
+                          {(selectedPronouns.length > 0 || selectedCustomPronounIds.length > 0) && (
+                            <div className="flex flex-col gap-1">
+                              <span className="text-[8px] font-black uppercase tracking-widest opacity-50 px-0.5">
+                                {t.pronounLabel}
+                              </span>
+                              <div className="flex flex-wrap gap-1">
+                                {selectedPronouns.map(p => (
+                                  <div 
+                                    key={p} 
+                                    style={{ 
+                                      backgroundColor: `${customPronounColors[p] || PRONOUN_COLORS[p]}15`, 
+                                      borderColor: `${customPronounColors[p] || PRONOUN_COLORS[p]}40`,
+                                      color: customPronounColors[p] || PRONOUN_COLORS[p]
+                                    }}
+                                    className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
+                                  >
+                                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: customPronounColors[p] || PRONOUN_COLORS[p] }} />
+                                    {t.pronouns[p as keyof typeof t.pronouns]}
+                                  </div>
+                                ))}
+                                {selectedCustomPronounIds.map(id => {
+                                  const p = customPronouns.find(cp => cp.id === id);
+                                  if (!p) return null;
+                                  const color = p.color || '#8B5CF6';
+                                  return (
+                                    <div
+                                      key={id}
+                                      style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
+                                      className="px-2 py-0.5 rounded-lg text-[9px] font-extrabold uppercase tracking-wider border flex items-center gap-1 shrink-0 whitespace-nowrap animate-fade-in"
+                                      title={p.definition || undefined}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                      {p.name}
                                     </div>
                                   );
                                 })}
@@ -11188,6 +11552,12 @@ export default function App() {
                           <div key={g} className="flex items-center gap-2 animate-fade-in">
                             <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customGenderColors[g] || GENDER_COLORS[g] }} />
                             <span className="text-sm font-medium">{t.gender}: {t.genders[g as keyof typeof t.genders]}{t.genderData[g as keyof typeof t.genderData] ? ` — ${t.genderData[g as keyof typeof t.genderData]}` : ''}</span>
+                          </div>
+                        ))}
+                        {selectedPronouns.map(p => (
+                          <div key={p} className="flex items-center gap-2 animate-fade-in">
+                            <div className="w-3 h-3 rounded-full shadow-sm flex-shrink-0" style={{ backgroundColor: customPronounColors[p] || PRONOUN_COLORS[p] }} />
+                            <span className="text-sm font-medium">{t.pronoun}: {t.pronouns[p as keyof typeof t.pronouns]}</span>
                           </div>
                         ))}
                         {selectedSexualities.map(s => (
@@ -16790,6 +17160,8 @@ export default function App() {
                                     description: member.description || '',
                                     internalNotes: member.pronouns ? `${lang === 'fr' ? 'Pronoms' : 'Pronouns'}: ${member.pronouns}` : '',
                                     frontStatus: 'none',
+                                    selectedPronouns: [],
+                                    customPronounColors: {}
                                   };
                                   return [...prev, alterData];
                                 });

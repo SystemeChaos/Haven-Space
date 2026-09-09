@@ -111,6 +111,8 @@ export const translations = {
     patternColor: "Couleur du Motif",
     gender: "Genre de l'Alter",
     genderLabel: "Genre",
+    pronoun: "Pronoms de l'Alter",
+    pronounLabel: "Pronoms",
     sexuality: "Sexualité de l'Alter",
     sexualityLabel: "Sexualité",
     personalityTraitsTitle: "Traits de Personnalité",
@@ -345,6 +347,24 @@ export const translations = {
       FLUID: "Fluide",
       OTHER: "Autre",
       DEMI_GNC: "Demi / GNC / Spécifique"
+    },
+    pronouns: {
+      "Il/Lui": "Il/Lui",
+      "Elle/Elle": "Elle/Elle",
+      "Iel/Iel": "Iel/Iel",
+      "Ils/Eux": "Ils/Eux",
+      "Elles/Elles": "Elles/Elles",
+      On: "On",
+      "Prénom uniquement": "Prénom uniquement",
+      "Tous pronoms": "Tous pronoms",
+      "Aucun pronom": "Aucun pronom",
+      "À demander": "À demander",
+      Autre: "Autre"
+    },
+    pronounCategories: {
+      STANDARD: "Standards",
+      FLEXIBLE: "Flexibles",
+      OTHER: "Autre"
     },
     sexualityNames: {
       Hétérosexuel: "Hétérosexuel",
@@ -982,6 +1002,8 @@ export const translations = {
     patternColor: "Pattern Color",
     gender: "Alter Gender",
     genderLabel: "Gender",
+    pronoun: "Alter Pronouns",
+    pronounLabel: "Pronouns",
     sexuality: "Alter Sexuality",
     sexualityLabel: "Sexuality",
     personalityTraitsTitle: "Personality Traits",
@@ -1216,6 +1238,24 @@ export const translations = {
       FLUID: "Fluid",
       OTHER: "Other",
       DEMI_GNC: "Demi / GNC / Specific"
+    },
+    pronouns: {
+      "Il/Lui": "He/Him",
+      "Elle/Elle": "She/Her",
+      "Iel/Iel": "They/Them (neutral)",
+      "Ils/Eux": "They/Them (masc. plural)",
+      "Elles/Elles": "They/Them (fem. plural)",
+      On: "One/Generic",
+      "Prénom uniquement": "Name only",
+      "Tous pronoms": "Any pronouns",
+      "Aucun pronom": "No pronouns",
+      "À demander": "Ask me",
+      Autre: "Other"
+    },
+    pronounCategories: {
+      STANDARD: "Standard",
+      FLEXIBLE: "Flexible",
+      OTHER: "Other"
     },
     sexualityNames: {
       Hétérosexuel: "Heterosexual",

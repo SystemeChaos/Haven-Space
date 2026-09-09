@@ -99,6 +99,26 @@ export const GENDER_CATEGORIES = {
   OTHER: [Gender.NEUTRAL, Gender.QUESTIONING, Gender.OTHER],
 };
 
+export enum Pronoun {
+  IL = 'Il/Lui',
+  ELLE = 'Elle/Elle',
+  IEL = 'Iel/Iel',
+  ILS = 'Ils/Eux',
+  ELLES = 'Elles/Elles',
+  ON = 'On',
+  NAME_ONLY = 'Prénom uniquement',
+  ANY = 'Tous pronoms',
+  NONE = 'Aucun pronom',
+  ASK = 'À demander',
+  OTHER = 'Autre',
+}
+
+export const PRONOUN_CATEGORIES = {
+  STANDARD: [Pronoun.IL, Pronoun.ELLE, Pronoun.IEL, Pronoun.ILS, Pronoun.ELLES],
+  FLEXIBLE: [Pronoun.ON, Pronoun.NAME_ONLY, Pronoun.ANY, Pronoun.NONE, Pronoun.ASK],
+  OTHER: [Pronoun.OTHER],
+};
+
 export enum PersonalityTrait {
   CREATIVE = 'CREATIVE',
   CALM = 'CALM',
@@ -584,6 +604,20 @@ export const GENDER_COLORS: Record<Gender, string> = {
   [Gender.OTHER]: '#4B5563',
 };
 
+export const PRONOUN_COLORS: Record<Pronoun, string> = {
+  [Pronoun.IL]: '#3B82F6',
+  [Pronoun.ELLE]: '#EC4899',
+  [Pronoun.IEL]: '#FBBF24',
+  [Pronoun.ILS]: '#60A5FA',
+  [Pronoun.ELLES]: '#F472B6',
+  [Pronoun.ON]: '#A855F7',
+  [Pronoun.NAME_ONLY]: '#10B981',
+  [Pronoun.ANY]: '#4ADE80',
+  [Pronoun.NONE]: '#808080',
+  [Pronoun.ASK]: '#9CA3AF',
+  [Pronoun.OTHER]: '#4B5563',
+};
+
 export interface ParallelSystem {
   id: string;
   name: string;
@@ -631,6 +665,13 @@ export interface CustomGender {
   color: string;
 }
 
+export interface CustomPronoun {
+  id: string;
+  name: string;
+  definition: string;
+  color: string;
+}
+
 export interface CustomSexuality {
   id: string;
   name: string;
@@ -643,12 +684,14 @@ export interface SavedAlter {
   alterName: string;
   selectedRoles: AlterRole[];
   selectedGenders: Gender[];
+  selectedPronouns: Pronoun[];
   selectedSexualities: Sexuality[];
   traitDecorations: TraitDecoration[];
   patternLayers: PatternLayer[];
   decorations: Decoration[];
   customRoleColors: Record<string, string>;
   customGenderColors: Record<string, string>;
+  customPronounColors: Record<string, string>;
   customSexualityColors: Record<string, string>;
   theme: Theme;
   profileImage: string;
@@ -674,6 +717,7 @@ export interface SavedAlter {
   customTraitIds?: string[]; // ids des traits personnalisés (CustomTrait) attribués à cet alter
   customDisorderIds?: string[]; // ids des troubles personnalisés (CustomDisorder) attribués à cet alter
   customGenderIds?: string[]; // ids des genres personnalisés (CustomGender) attribués à cet alter
+  customPronounIds?: string[]; // ids des pronoms personnalisés (CustomPronoun) attribués à cet alter
   customSexualityIds?: string[]; // ids des sexualités personnalisées (CustomSexuality) attribuées à cet alter
   descriptionImages?: string[]; // photos jointes à la description (stockées à part, pas de base64 dans le texte)
   internalNotesImages?: string[]; // photos jointes aux notes internes
