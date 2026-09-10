@@ -2149,8 +2149,6 @@ export default function App() {
           frontStatus: existing?.frontStatus || 'none',
           subsystemId: existing?.subsystemId || undefined,
           systemId: existing?.systemId || activeSystemId,
-          selectedPronouns: [],
-          customPronounColors: existing?.customPronounColors || {}
         };
 
         if (existingIndex >= 0) {
@@ -6176,96 +6174,6 @@ export default function App() {
       osc2.stop(now + 0.65);
     } catch { /* Web Audio indisponible — silencieux */ }
   };
-  type KalimbaRecordingEvent = { noteIndex: number; at: number };
-  type KalimbaTrack = { events: KalimbaRecordingEvent[]; duration: number };
-  const KALIMBA_TRACK_COUNT = 5;
-  const KALIMBA_STORAGE_KEY = 'hs-kalimba-tracks';
-  const emptyKalimbaTracks = (): KalimbaTrack[] => Array.from({ length: KALIMBA_TRACK_COUNT }, () => ({ events: [], duration: 0 }));
-  const [kalimbaTracks, setKalimbaTracks] = useState<KalimbaTrack[]>(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(KALIMBA_STORAGE_KEY) || 'null');
-      if (!Array.isArray(stored)) return emptyKalimbaTracks();
-      return Array.from({ length: KALIMBA_TRACK_COUNT }, (_, index) => {
-        const track = stored[index];
-        return track && Array.isArray(track.events)
-          ? { events: track.events.filter((event: any) => Number.isFinite(event.noteIndex) && Number.isFinite(event.at)), duration: Number(track.duration) || 0 }
-          : { events: [], duration: 0 };
-      });
-    } catch {
-      return emptyKalimbaTracks();
-    }
-  });
-  const [kalimbaRecordingTrack, setKalimbaRecordingTrack] = useState<number | null>(null);
-  const [kalimbaPlayingTrack, setKalimbaPlayingTrack] = useState<number | 'all' | null>(null);
-  const kalimbaRecordingStartedAtRef = useRef<number | null>(null);
-  const kalimbaPlaybackTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-
-  useEffect(() => {
-    try { localStorage.setItem(KALIMBA_STORAGE_KEY, JSON.stringify(kalimbaTracks)); } catch { /* stockage indisponible, on garde la session */ }
-  }, [kalimbaTracks]);
-
-  const stopKalimbaPlayback = () => {
-    kalimbaPlaybackTimersRef.current.forEach(timer => clearTimeout(timer));
-    kalimbaPlaybackTimersRef.current = [];
-    setKalimbaPlayingTrack(null);
-  };
-
-  const playKalimbaTracks = (trackIndexes: number[]) => {
-    stopKalimbaPlayback();
-    const playable = trackIndexes.filter(index => kalimbaTracks[index]?.events.length);
-    if (!playable.length) return;
-    setKalimbaPlayingTrack(trackIndexes.length === KALIMBA_TRACK_COUNT ? 'all' : playable[0]);
-    const maxDuration = Math.max(...playable.map(index => kalimbaTracks[index].duration));
-    playable.forEach(index => {
-      kalimbaTracks[index].events.forEach(event => {
-        const timer = setTimeout(() => {
-          const note = KALIMBA_NOTES[event.noteIndex];
-          if (note) playKalimbaNote(noteToFreq(note.note, note.octave));
-        }, event.at);
-        kalimbaPlaybackTimersRef.current.push(timer);
-      });
-    });
-    const endTimer = setTimeout(stopKalimbaPlayback, maxDuration + 300);
-    kalimbaPlaybackTimersRef.current.push(endTimer);
-  };
-
-  const toggleKalimbaRecording = (trackIndex: number) => {
-    if (kalimbaRecordingTrack === trackIndex) {
-      const startedAt = kalimbaRecordingStartedAtRef.current;
-      const duration = startedAt === null ? 0 : Math.max(500, performance.now() - startedAt + 500);
-      setKalimbaTracks(prev => prev.map((track, index) => index === trackIndex ? { ...track, duration } : track));
-      kalimbaRecordingStartedAtRef.current = null;
-      setKalimbaRecordingTrack(null);
-      return;
-    }
-    if (kalimbaRecordingTrack !== null) return;
-    stopKalimbaPlayback();
-    kalimbaRecordingStartedAtRef.current = performance.now();
-    setKalimbaTracks(prev => prev.map((track, index) => index === trackIndex ? { events: [], duration: 0 } : track));
-    setKalimbaRecordingTrack(trackIndex);
-  };
-
-  const clearKalimbaTrack = (trackIndex: number) => {
-    if (kalimbaRecordingTrack === trackIndex) {
-      kalimbaRecordingStartedAtRef.current = null;
-      setKalimbaRecordingTrack(null);
-    }
-    setKalimbaTracks(prev => prev.map((track, index) => index === trackIndex ? { events: [], duration: 0 } : track));
-  };
-
-  const handleKalimbaNote = (noteIndex: number) => {
-    const note = KALIMBA_NOTES[noteIndex];
-    if (!note) return;
-    playKalimbaNote(noteToFreq(note.note, note.octave));
-    if (kalimbaRecordingTrack !== null && kalimbaRecordingStartedAtRef.current !== null) {
-      const at = Math.max(0, performance.now() - kalimbaRecordingStartedAtRef.current);
-      setKalimbaTracks(prev => prev.map((track, index) => index === kalimbaRecordingTrack
-        ? { ...track, events: [...track.events, { noteIndex, at }], duration: at + 500 }
-        : track));
-    }
-  };
-
-  useEffect(() => () => stopKalimbaPlayback(), []);
   // Pop de bulle du bac "Bulles" (bubble-wrap) : bruit filtré (le "clic") + petit thump grave qui chute
   // en pitch (le "thock"), légèrement randomisés à chaque appel pour que les pops ne sonnent pas tous
   // pareil. Distinct de playBubblePop(size) plus haut, qui synthétise une note de handpan pour Éphémère.
@@ -7020,6 +6928,16 @@ export default function App() {
   const handleCompressAndStoreFiles = (files: FileList | null, onComplete: (urls: string[]) => void) => {
     if (!files) return;
     const promises = Array.from(files).map(file => {
+      // Les GIFs animés perdraient leur animation en passant par le canvas (qui ne capture
+      // qu'une seule image statique) — on les lit tels quels, sans compression, pour la préserver.
+      if (file.type === 'image/gif') {
+        return new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target?.result as string);
+          reader.onerror = () => reject(reader.error);
+          reader.readAsDataURL(file);
+        });
+      }
       return new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -13050,7 +12968,7 @@ export default function App() {
                 <form onSubmit={handleSendChatMessage} className="p-4 border-t border-app-border/30 bg-app-card/65 flex gap-3 items-center">
                   <label
                     className="shrink-0 p-3.5 border border-app-border rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
-                    title={lang === 'fr' ? 'Importer une image' : 'Upload an image'}
+                    title={lang === 'fr' ? 'Importer une image ou un GIF' : 'Upload an image or GIF'}
                   >
                     <Upload className="w-4 h-4" />
                     <input
@@ -13070,7 +12988,7 @@ export default function App() {
                     type="button"
                     onClick={() => setChatImageUrlInput(chatImageUrlInput === null ? '' : null)}
                     className={`shrink-0 p-3.5 border rounded-xl transition-colors ${chatImageUrlInput !== null ? 'text-app-accent border-app-accent/40 bg-app-accent/5' : 'text-app-muted border-app-border hover:text-app-accent hover:border-app-accent/40'}`}
-                    title={lang === 'fr' ? 'Insérer une image par URL' : 'Insert an image by URL'}
+                    title={lang === 'fr' ? 'Insérer une image ou un GIF par URL' : 'Insert an image or GIF by URL'}
                   >
                     <ImageIcon className="w-4 h-4" />
                   </button>
@@ -14405,7 +14323,7 @@ export default function App() {
                       <form onSubmit={handleSendDirectMessage} className="flex gap-2">
                         <label
                           className="shrink-0 p-2.5 border border-app-border rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
-                          title={lang === 'fr' ? 'Importer une image' : 'Upload an image'}
+                          title={lang === 'fr' ? 'Importer une image ou un GIF' : 'Upload an image or GIF'}
                         >
                           <Upload className="w-4 h-4" />
                           <input
@@ -14425,7 +14343,7 @@ export default function App() {
                           type="button"
                           onClick={() => setMsgImageUrlInput(msgImageUrlInput === null ? '' : null)}
                           className={`shrink-0 p-2.5 border rounded-xl transition-colors ${msgImageUrlInput !== null ? 'text-app-accent border-app-accent/40 bg-app-accent/5' : 'text-app-muted border-app-border hover:text-app-accent hover:border-app-accent/40'}`}
-                          title={lang === 'fr' ? 'Insérer une image par URL' : 'Insert an image by URL'}
+                          title={lang === 'fr' ? 'Insérer une image ou un GIF par URL' : 'Insert an image or GIF by URL'}
                         >
                           <ImageIcon className="w-4 h-4" />
                         </button>
@@ -15993,7 +15911,7 @@ export default function App() {
                             return (
                               <button
                                 key={i}
-                                onPointerDown={() => handleKalimbaNote(i)}
+                                onPointerDown={() => playKalimbaNote(noteToFreq(n.note, n.octave))}
                                 style={{ height: `${height}px` }}
                                 className="w-4 sm:w-5 rounded-b-md bg-gradient-to-t from-app-card to-app-border/50 border border-app-border/60 active:from-app-accent/50 active:to-app-accent/20 transition-colors shadow-sm shrink-0"
                                 title={`${n.note}${n.octave}`}
@@ -16002,63 +15920,8 @@ export default function App() {
                           })}
                         </div>
                       </div>
-                      <div className="w-full max-w-md bg-app-card border border-app-border/40 rounded-2xl p-4 space-y-2 shadow-sm">
-                        <div className="flex items-center justify-between gap-2 mb-3">
-                          <div>
-                            <h4 className="text-xs font-black uppercase tracking-widest text-app-text">
-                              {lang === 'fr' ? 'Séquenceur' : 'Sequencer'}
-                            </h4>
-                            <p className="text-[10px] text-app-muted mt-1">
-                              {lang === 'fr' ? 'Tes pistes sont conservées sur cet appareil.' : 'Your tracks are kept on this device.'}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => playKalimbaTracks([0, 1, 2, 3, 4])}
-                            disabled={!kalimbaTracks.some(track => track.events.length) || kalimbaRecordingTrack !== null}
-                            className="px-3 py-2 rounded-lg bg-app-accent text-white text-[10px] font-black uppercase tracking-wider disabled:opacity-40"
-                          >
-                            {lang === 'fr' ? 'Jouer tout' : 'Play all'}
-                          </button>
-                        </div>
-                        {kalimbaTracks.map((track, index) => {
-                          const isRecording = kalimbaRecordingTrack === index;
-                          const isPlaying = kalimbaPlayingTrack === index || kalimbaPlayingTrack === 'all';
-                          return (
-                            <div key={index} className="flex items-center gap-2 rounded-xl border border-app-border/30 px-2 py-2">
-                              <span className="w-6 text-center text-xs font-black text-app-muted">{index + 1}</span>
-                              <span className="flex-1 text-[10px] font-semibold text-app-text">
-                                {track.events.length
-                                  ? `${track.events.length} ${lang === 'fr' ? 'note(s)' : 'note(s)'}`
-                                  : (lang === 'fr' ? 'Piste vide' : 'Empty track')}
-                              </span>
-                              <button
-                                onClick={() => toggleKalimbaRecording(index)}
-                                disabled={kalimbaRecordingTrack !== null && !isRecording}
-                                className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider ${isRecording ? 'bg-red-500 text-white animate-pulse' : 'border border-red-400/50 text-red-500'} disabled:opacity-40`}
-                              >
-                                {isRecording ? (lang === 'fr' ? 'Stop' : 'Stop') : 'REC'}
-                              </button>
-                              <button
-                                onClick={() => playKalimbaTracks([index])}
-                                disabled={!track.events.length || kalimbaRecordingTrack !== null}
-                                className={`px-2.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border border-app-border/50 text-app-text disabled:opacity-40 ${isPlaying ? 'bg-app-accent/20' : ''}`}
-                              >
-                                {lang === 'fr' ? 'Lire' : 'Play'}
-                              </button>
-                              <button
-                                onClick={() => clearKalimbaTrack(index)}
-                                disabled={!track.events.length || kalimbaRecordingTrack !== null}
-                                className="px-2 py-1.5 rounded-lg border border-app-border/50 text-app-muted hover:text-red-500 disabled:opacity-40"
-                                title={lang === 'fr' ? 'Effacer la piste' : 'Clear track'}
-                              >
-                                <Trash2 className="w-3 h-3" />
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
                       <p className="text-[10px] text-app-muted text-center italic max-w-xs">
-                        {lang === 'fr' ? 'Touche les lames pour jouer une note, ou enregistre une piste.' : 'Tap the tines to play a note, or record a track.'}
+                        {lang === 'fr' ? 'Touche les lames pour jouer une note.' : 'Tap the tines to play a note.'}
                       </p>
                     </div>
                   ) : activeRelaxTool === 'affirmations' ? (() => {
@@ -17305,8 +17168,6 @@ export default function App() {
                                     description: member.description || '',
                                     internalNotes: member.pronouns ? `${lang === 'fr' ? 'Pronoms' : 'Pronouns'}: ${member.pronouns}` : '',
                                     frontStatus: 'none',
-                                    selectedPronouns: [],
-                                    customPronounColors: {}
                                   };
                                   return [...prev, alterData];
                                 });
