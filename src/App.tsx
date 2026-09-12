@@ -1114,6 +1114,7 @@ export default function App() {
   const [journalContentInput, setJournalContentInput] = useState('');
   const [journalImages, setJournalImages] = useState<string[]>([]);
   const [journalSearch, setJournalSearch] = useState('');
+  const [journalSubTab, setJournalSubTab] = useState<'notes' | 'habits'>('notes');
 
   // --- PluralKit & Navigation Dropdown States ---
   const [navMenuOpen, setNavMenuOpen] = useState(false);
@@ -1378,7 +1379,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -1726,6 +1727,156 @@ export default function App() {
     if (landingNotesLoaded) writeMaybeEncrypted('landingNotes', landingNotes, dek, !!vaultMeta);
   }, [landingNotes]);
 
+  // Habitudes — suivi de tâches récurrentes avec streaks, indépendant de qui s'en charge au quotidien
+  // (utile quand le système ne se souvient pas si quelqu'un s'est douché·e ou a fait une lessive, peu
+  // importe l'alter). Une habitude peut être assignée à des alters précis, ou laissée "Commune" (tableau
+  // vide = n'importe qui).
+  interface Habit {
+    id: string;
+    name: string;
+    emoji: string;
+    color: string;
+    targetPerDay: number; // 1 = simple case à cocher, >1 = compteur (ex. "Boire de l'eau" x8)
+    assignedAlterIds: string[]; // [] = commune / n'importe qui
+    createdAt: number;
+  }
+  interface HabitLog {
+    id: string;
+    habitId: string;
+    date: string; // YYYY-MM-DD
+    count: number;
+    alterId?: string | null; // qui a coché, si connu — informatif seulement
+  }
+  const [habits, setHabits] = useState<Habit[]>([]);
+  const [habitLogs, setHabitLogs] = useState<HabitLog[]>([]);
+  const [habitsDataLoaded, setHabitsDataLoaded] = useState(false);
+  const [habitFormOpen, setHabitFormOpen] = useState(false);
+  const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
+  const [habitDraftName, setHabitDraftName] = useState('');
+  const [habitDraftEmoji, setHabitDraftEmoji] = useState('✅');
+  const [habitDraftColor, setHabitDraftColor] = useState('#8B5CF6');
+  const [habitDraftTarget, setHabitDraftTarget] = useState('1');
+  const [habitDraftAlterIds, setHabitDraftAlterIds] = useState<string[]>([]);
+  const [habitAlterSearch, setHabitAlterSearch] = useState('');
+  const [habitDeleteConfirmId, setHabitDeleteConfirmId] = useState<string | null>(null);
+  const [showCompletedHabits, setShowCompletedHabits] = useState(false);
+  const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [loadedHabits, loadedLogs] = await Promise.all([
+        readMaybeEncrypted<Habit[]>('habits', dek, []),
+        readMaybeEncrypted<HabitLog[]>('habitLogs', dek, []),
+      ]);
+      if (cancelled) return;
+      setHabits(loadedHabits);
+      setHabitLogs(loadedLogs);
+      setHabitsDataLoaded(true);
+      if (dek) {
+        const rawHabits = localStorage.getItem('habits');
+        if (rawHabits && !rawHabits.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('habits', loadedHabits, dek, true);
+        const rawLogs = localStorage.getItem('habitLogs');
+        if (rawLogs && !rawLogs.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('habitLogs', loadedLogs, dek, true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
+  useEffect(() => { if (habitsDataLoaded) writeMaybeEncrypted('habits', habits, dek, !!vaultMeta); }, [habits]);
+  useEffect(() => { if (habitsDataLoaded) writeMaybeEncrypted('habitLogs', habitLogs, dek, !!vaultMeta); }, [habitLogs]);
+
+  const todayStr = () => new Date().toISOString().slice(0, 10);
+
+  const getHabitCountForDate = (habitId: string, date: string) =>
+    habitLogs.filter(l => l.habitId === habitId && l.date === date).reduce((sum, l) => sum + l.count, 0);
+
+  // Calcule le streak actuel d'une habitude : nombre de jours consécutifs (en partant d'aujourd'hui ou
+  // d'hier si aujourd'hui n'est pas encore fait) où l'objectif quotidien a été atteint.
+  const getHabitStreak = (habit: Habit): number => {
+    let streak = 0;
+    const cursor = new Date();
+    const todayCount = getHabitCountForDate(habit.id, todayStr());
+    if (todayCount < habit.targetPerDay) {
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    while (true) {
+      const dateStr = cursor.toISOString().slice(0, 10);
+      const count = getHabitCountForDate(habit.id, dateStr);
+      if (count >= habit.targetPerDay) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+    return streak;
+  };
+
+  const incrementHabitToday = (habitId: string) => {
+    const date = todayStr();
+    setHabitLogs(prev => [...prev, { id: Math.random().toString(36).substring(2, 11), habitId, date, count: 1 }]);
+  };
+
+  const decrementHabitToday = (habitId: string) => {
+    const date = todayStr();
+    setHabitLogs(prev => {
+      const idx = [...prev].reverse().findIndex(l => l.habitId === habitId && l.date === date);
+      if (idx === -1) return prev;
+      const realIdx = prev.length - 1 - idx;
+      return prev.filter((_, i) => i !== realIdx);
+    });
+  };
+
+  const resetHabitDraft = () => {
+    setEditingHabitId(null);
+    setHabitDraftName('');
+    setHabitDraftEmoji('✅');
+    setHabitDraftColor('#8B5CF6');
+    setHabitDraftTarget('1');
+    setHabitDraftAlterIds([]);
+    setHabitAlterSearch('');
+    setHabitFormOpen(false);
+  };
+
+  const saveHabitDraft = () => {
+    const name = habitDraftName.trim();
+    if (!name) return;
+    const target = Math.max(1, parseInt(habitDraftTarget, 10) || 1);
+    if (editingHabitId) {
+      setHabits(prev => prev.map(h => h.id === editingHabitId
+        ? { ...h, name, emoji: habitDraftEmoji || '✅', color: habitDraftColor, targetPerDay: target, assignedAlterIds: habitDraftAlterIds }
+        : h));
+    } else {
+      setHabits(prev => [...prev, {
+        id: Math.random().toString(36).substring(2, 11),
+        name,
+        emoji: habitDraftEmoji || '✅',
+        color: habitDraftColor,
+        targetPerDay: target,
+        assignedAlterIds: habitDraftAlterIds,
+        createdAt: Date.now(),
+      }]);
+    }
+    resetHabitDraft();
+  };
+
+  const startEditHabit = (habit: Habit) => {
+    setEditingHabitId(habit.id);
+    setHabitDraftName(habit.name);
+    setHabitDraftEmoji(habit.emoji);
+    setHabitDraftColor(habit.color);
+    setHabitDraftTarget(String(habit.targetPerDay));
+    setHabitDraftAlterIds(habit.assignedAlterIds || []);
+    setHabitFormOpen(true);
+  };
+
+  const deleteHabit = (habitId: string) => {
+    setHabits(prev => prev.filter(h => h.id !== habitId));
+    setHabitLogs(prev => prev.filter(l => l.habitId !== habitId));
+    setHabitDeleteConfirmId(null);
+    if (editingHabitId === habitId) resetHabitDraft();
+  };
+
   // Chargement (et migration douce) du Journal via le coffre chiffré — même logique que Santé :
   // redéclenché à chaque changement de dek, vide tant que le coffre est verrouillé.
   useEffect(() => {
@@ -2010,7 +2161,6 @@ export default function App() {
     if (!desc) return {
       roles: existingAlter?.selectedRoles || [] as string[],
       genders: existingAlter?.selectedGenders || [] as string[],
-      pronouns: existingAlter?.selectedPronouns || [] as Pronoun[],
       sexualities: existingAlter?.selectedSexualities || [] as string[],
       traits: existingAlter?.traitDecorations || [] as any[],
       cleanDescription: '',
@@ -2133,7 +2283,7 @@ export default function App() {
           alterName: member.name,
           selectedRoles: cleanAlterRoles(parsed.roles.length > 0 ? parsed.roles : existing?.selectedRoles),
           selectedGenders: parsed.genders.length > 0 ? parsed.genders as Gender[] : (existing?.selectedGenders || []),
-          selectedPronouns: (parsed.pronouns && parsed.pronouns.length > 0 ? parsed.pronouns : existing?.selectedPronouns || []),
+          selectedPronouns: existing?.selectedPronouns || [],
           selectedSexualities: parsed.sexualities.length > 0 ? parsed.sexualities as Sexuality[] : (existing?.selectedSexualities || []),
           traitDecorations: parsed.traits.length > 0 ? parsed.traits as TraitDecoration[] : (existing?.traitDecorations || []),
           description: parsed.cleanDescription || (existing?.description || ''),
@@ -2361,6 +2511,8 @@ export default function App() {
         directMessages,
         switchLogs,
         journalEntries,
+        habits,
+        habitLogs,
         planningEntries: await loadPlanning(activeSystemId, dek),
         eisenhowerTasks: await loadEisenhower(activeSystemId, dek),
         medications,
@@ -2529,6 +2681,8 @@ export default function App() {
       // Journal : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
       const importedJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
       setJournalEntries(importedJournals);
+      if (Array.isArray(data.habits)) setHabits(data.habits);
+      if (Array.isArray(data.habitLogs)) setHabitLogs(data.habitLogs);
 
       const importedParallelSystems = Array.isArray(data.parallelSystems) ? data.parallelSystems : [];
       setParallelSystems(importedParallelSystems);
@@ -2701,6 +2855,23 @@ export default function App() {
       });
       currentJournals.sort((a, b) => b.timestamp - a.timestamp);
       setJournalEntries(currentJournals);
+
+      // Habitudes : fusion par id, les logs quotidiens s'additionnent sans écraser (append simple, dédoublonné par id)
+      const currentHabits = [...habits];
+      const incomingHabits = Array.isArray(data.habits) ? data.habits : [];
+      incomingHabits.forEach((incoming: Habit) => {
+        const existingIndex = currentHabits.findIndex(h => h.id === incoming.id);
+        if (existingIndex > -1) currentHabits[existingIndex] = { ...currentHabits[existingIndex], ...incoming };
+        else currentHabits.push(incoming);
+      });
+      setHabits(currentHabits);
+
+      const currentHabitLogs = [...habitLogs];
+      const incomingHabitLogs = Array.isArray(data.habitLogs) ? data.habitLogs : [];
+      incomingHabitLogs.forEach((incoming: HabitLog) => {
+        if (!currentHabitLogs.some(l => l.id === incoming.id)) currentHabitLogs.push(incoming);
+      });
+      setHabitLogs(currentHabitLogs);
 
       // 7. Systèmes parallèles : écrase les doublons par id ou nom, ajoute les nouveaux
       const currentParallelSystems = [...parallelSystems];
@@ -13876,7 +14047,7 @@ export default function App() {
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">{t.journalSubtitle}</p>
               </div>
 
-              {/* Search bar inside Journal */}
+              {journalSubTab === 'notes' && (
               <div className="w-full md:w-72 relative">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-app-muted" />
                 <input
@@ -13887,8 +14058,27 @@ export default function App() {
                   className="w-full bg-app-card border border-app-border/45 rounded-xl pl-11 pr-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                 />
               </div>
+              )}
             </div>
 
+            <div className="flex gap-2">
+              {(['notes', 'habits'] as const).map(tab => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => setJournalSubTab(tab)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                    journalSubTab === tab
+                      ? 'bg-app-accent text-white shadow-sm'
+                      : 'bg-app-card text-app-text border border-app-border hover:border-app-accent/25'
+                  }`}
+                >
+                  {tab === 'notes' ? (lang === 'fr' ? 'Notes' : 'Notes') : (lang === 'fr' ? 'Habitudes' : 'Habits')}
+                </button>
+              ))}
+            </div>
+
+            {journalSubTab === 'notes' && (
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
               
               {/* Note Editor Area */}
@@ -14045,6 +14235,244 @@ export default function App() {
               </div>
 
             </div>
+            )}
+
+            {journalSubTab === 'habits' && (() => {
+              const today = todayStr();
+              const activeHabits = habits.filter(h => getHabitCountForDate(h.id, today) < h.targetPerDay);
+              const doneHabits = habits.filter(h => getHabitCountForDate(h.id, today) >= h.targetPerDay);
+
+              const renderHabitRow = (habit: Habit) => {
+                const count = getHabitCountForDate(habit.id, today);
+                const done = count >= habit.targetPerDay;
+                const streak = getHabitStreak(habit);
+                const assignedNames = (habit.assignedAlterIds || [])
+                  .map(id => savedAlters.find(a => a.id === id)?.alterName)
+                  .filter(Boolean);
+                return (
+                  <div key={habit.id} className="rounded-2xl border border-app-border/30 bg-app-card overflow-hidden">
+                    <div className="flex items-center gap-3 p-3">
+                      <button
+                        type="button"
+                        onClick={() => done ? decrementHabitToday(habit.id) : incrementHabitToday(habit.id)}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-lg shrink-0 transition-all"
+                        style={{ backgroundColor: done ? habit.color : `${habit.color}20`, border: `2px solid ${habit.color}` }}
+                        title={done ? (lang === 'fr' ? 'Décocher' : 'Uncheck') : (lang === 'fr' ? 'Marquer comme fait' : 'Mark as done')}
+                      >
+                        {done ? <Check className="w-4 h-4 text-white" /> : habit.emoji}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHabitId(prev => prev === habit.id ? null : habit.id)}
+                        className="flex-1 min-w-0 text-left"
+                      >
+                        <div className={`text-sm font-bold truncate ${done ? 'text-app-muted line-through' : 'text-app-text'}`}>{habit.name}</div>
+                        {assignedNames.length > 0 && (
+                          <div className="text-[9px] text-app-muted uppercase tracking-wider truncate">{assignedNames.join(', ')}</div>
+                        )}
+                      </button>
+                      {habit.targetPerDay > 1 && (
+                        <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-app-bg text-app-muted shrink-0">{count}/{habit.targetPerDay}</span>
+                      )}
+                      {streak > 0 && (
+                        <span className="flex items-center gap-0.5 text-[10px] font-black px-2 py-1 rounded-lg bg-orange-500/10 text-orange-500 shrink-0">
+                          🔥{streak}
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedHabitId(prev => prev === habit.id ? null : habit.id)}
+                        className="p-1 text-app-muted hover:text-app-text transition-colors shrink-0"
+                      >
+                        {expandedHabitId === habit.id ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {expandedHabitId === habit.id && (
+                      <div className="px-3 pb-3 flex items-center justify-between border-t border-app-border/20 pt-3">
+                        <div className="text-[10px] text-app-muted uppercase tracking-wider">
+                          {lang === 'fr' ? `Meilleur streak : ${Math.max(streak, getHabitStreak(habit))} jour(s)` : `Best streak: ${Math.max(streak, getHabitStreak(habit))} day(s)`}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <button type="button" onClick={() => startEditHabit(habit)} className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg transition-colors">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button type="button" onClick={() => setHabitDeleteConfirmId(habit.id)} className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              };
+
+              return (
+                <div className="max-w-2xl space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-widest text-app-muted">
+                      {lang === 'fr' ? "Aujourd'hui" : 'Today'}
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => { resetHabitDraft(); setHabitFormOpen(true); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-accent text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> {lang === 'fr' ? 'Ajouter' : 'Add'}
+                    </button>
+                  </div>
+
+                  {habits.length === 0 && !habitFormOpen && (
+                    <div className="text-center p-14 bg-app-card/35 rounded-2xl border border-app-border/20 text-app-muted uppercase tracking-widest text-[10px]">
+                      {lang === 'fr' ? 'Aucune habitude pour le moment.' : 'No habits yet.'}
+                    </div>
+                  )}
+
+                  <div className="space-y-2.5">
+                    {activeHabits.map(renderHabitRow)}
+                  </div>
+
+                  {doneHabits.length > 0 && (
+                    <div className="space-y-2.5">
+                      <button
+                        type="button"
+                        onClick={() => setShowCompletedHabits(v => !v)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
+                      >
+                        {lang === 'fr' ? `Terminées (${doneHabits.length})` : `Complete (${doneHabits.length})`}
+                        {showCompletedHabits ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                      </button>
+                      {showCompletedHabits && (
+                        <div className="space-y-2.5 opacity-70">
+                          {doneHabits.map(renderHabitRow)}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Formulaire d'ajout / édition d'habitude */}
+                  {habitFormOpen && (
+                    <div className="p-4 rounded-2xl border border-dashed border-app-border space-y-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={habitDraftEmoji}
+                          onChange={(e) => setHabitDraftEmoji(e.target.value.slice(0, 2))}
+                          className="w-12 h-12 text-center text-xl bg-app-bg border border-app-border rounded-xl focus:outline-none shrink-0"
+                        />
+                        <input
+                          type="color"
+                          value={habitDraftColor}
+                          onChange={(e) => setHabitDraftColor(e.target.value)}
+                          className="w-12 h-12 rounded-xl border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
+                        />
+                        <input
+                          type="text"
+                          value={habitDraftName}
+                          onChange={(e) => setHabitDraftName(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Nom de l\'habitude (ex. Douche, Lessive...)' : 'Habit name...'}
+                          className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-muted shrink-0">
+                          {lang === 'fr' ? 'Objectif / jour' : 'Target / day'}
+                        </label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={habitDraftTarget}
+                          onChange={(e) => setHabitDraftTarget(e.target.value)}
+                          className="w-20 bg-app-bg border border-app-border rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                          {lang === 'fr' ? 'Qui ? (vide = commune / n\'importe qui)' : 'Who? (empty = shared / anyone)'}
+                        </label>
+                        {habitDraftAlterIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {habitDraftAlterIds.map(id => {
+                              const alter = savedAlters.find(a => a.id === id);
+                              if (!alter) return null;
+                              return (
+                                <span key={id} className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-lg bg-app-bg border border-app-border text-xs">
+                                  {alter.alterName}
+                                  <button type="button" onClick={() => setHabitDraftAlterIds(prev => prev.filter(x => x !== id))} className="p-0.5 hover:text-red-500">
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <input
+                          type="text"
+                          value={habitAlterSearch}
+                          onChange={(e) => setHabitAlterSearch(e.target.value)}
+                          placeholder={lang === 'fr' ? 'Rechercher un alter par nom...' : 'Search an alter by name...'}
+                          className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
+                        />
+                        {habitAlterSearch.trim() && (
+                          <div className="max-h-32 overflow-y-auto space-y-1">
+                            {savedAlters
+                              .filter(a => !habitDraftAlterIds.includes(a.id) && a.alterName.toLowerCase().includes(habitAlterSearch.toLowerCase()))
+                              .slice(0, 6)
+                              .map(a => (
+                                <button
+                                  key={a.id}
+                                  type="button"
+                                  onClick={() => { setHabitDraftAlterIds(prev => [...prev, a.id]); setHabitAlterSearch(''); }}
+                                  className="w-full text-left px-3 py-1.5 rounded-lg text-xs hover:bg-app-bg transition-colors"
+                                >
+                                  {a.alterName}
+                                </button>
+                              ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={saveHabitDraft}
+                          disabled={!habitDraftName.trim()}
+                          className="flex-1 py-2.5 rounded-xl bg-app-accent text-white text-xs font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                        >
+                          {editingHabitId ? (lang === 'fr' ? 'Enregistrer' : 'Save') : (lang === 'fr' ? 'Ajouter l\'habitude' : 'Add habit')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={resetHabitDraft}
+                          className="px-4 py-2.5 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-black uppercase tracking-widest transition-colors"
+                        >
+                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {habitDeleteConfirmId && (
+                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
+                      <span className="text-xs text-app-text">
+                        {lang === 'fr'
+                          ? `Supprimer « ${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''} » ? Son historique de streak sera perdu.`
+                          : `Delete "${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''}"? Its streak history will be lost.`}
+                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onClick={() => deleteHabit(habitDeleteConfirmId)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors">
+                          {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                        </button>
+                        <button type="button" onClick={() => setHabitDeleteConfirmId(null)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors">
+                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 
