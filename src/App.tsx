@@ -2010,6 +2010,7 @@ export default function App() {
     if (!desc) return {
       roles: existingAlter?.selectedRoles || [] as string[],
       genders: existingAlter?.selectedGenders || [] as string[],
+      pronouns: existingAlter?.selectedPronouns || [] as Pronoun[],
       sexualities: existingAlter?.selectedSexualities || [] as string[],
       traits: existingAlter?.traitDecorations || [] as any[],
       cleanDescription: '',
@@ -2132,6 +2133,7 @@ export default function App() {
           alterName: member.name,
           selectedRoles: cleanAlterRoles(parsed.roles.length > 0 ? parsed.roles : existing?.selectedRoles),
           selectedGenders: parsed.genders.length > 0 ? parsed.genders as Gender[] : (existing?.selectedGenders || []),
+          selectedPronouns: (parsed.pronouns && parsed.pronouns.length > 0 ? parsed.pronouns : existing?.selectedPronouns || []),
           selectedSexualities: parsed.sexualities.length > 0 ? parsed.sexualities as Sexuality[] : (existing?.selectedSexualities || []),
           traitDecorations: parsed.traits.length > 0 ? parsed.traits as TraitDecoration[] : (existing?.traitDecorations || []),
           description: parsed.cleanDescription || (existing?.description || ''),
@@ -2144,6 +2146,7 @@ export default function App() {
           decorations: existing?.decorations || [],
           customRoleColors: existing?.customRoleColors || {},
           customGenderColors: existing?.customGenderColors || {},
+          customPronounColors: existing?.customPronounColors || {},
           customSexualityColors: existing?.customSexualityColors || {},
           theme: existing?.theme || Theme.LIGHT,
           frontStatus: existing?.frontStatus || 'none',
@@ -3354,12 +3357,9 @@ export default function App() {
       'jonquille', 'paquerette', 'campanule', 'trefle', 'tulipe', 'fleur-5-petales',
     ],
     cercle: [
-      'gdj-art-7120127_1280.png', 'gdj-floral-2746540_1280.png', 'gdj-mandala-5358331_1280.png',
-      'gdj-mandala-7099793_1280.png', 'gdj-mandala-7542041_1280.png', 'thedigitalartist-mandala-7033980_1280.png',
-      'thedigitalartist-mandala-8912659_1280.png', 'thedigitalartist-mandala-8912662_1280.png',
-      'thedigitalartist-mandala-8912663_1280.png', 'thedigitalartist-mandala-8912664_1280.png',
-      'thedigitalartist-pattern-7016847_1280.png', 'tinhhiep-floral-pattern-6925916_1280.png',
-      'tinhhiep-mandala-6864143_1280.png',
+      'perles', 'marguerite-ronde', 'etoile-rayons', 'triple-anneau', 'losanges',
+      'couronne-vagues', 'double-fleur', 'fleur-de-vie', 'soleil-fin', 'etoile-8-branches',
+      'mandala-mixte', 'cible-douce',
     ],
   };
   // Fleurs "maison", dessinées directement plutôt que tracées depuis des PNG — chaque pétale, feuille et
@@ -3377,6 +3377,17 @@ export default function App() {
     `<path transform="rotate(${deg} ${x} ${y})" d="M${x},${y} C${x - width},${y - len * 0.3} ${x - width * 0.5},${y - len * 0.8} ${x},${y - len} C${x + width * 0.5},${y - len * 0.8} ${x + width},${y - len * 0.3} ${x},${y} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
   const svgStem = (x: number, yTop: number, yBottom: number, w: number) =>
     `<path d="M${x - w / 2},${yBottom} L${x - w / 2},${yTop + w / 2} Q${x},${yTop} ${x + w / 2},${yTop + w / 2} L${x + w / 2},${yBottom} Q${x},${yBottom + w * 0.6} ${x - w / 2},${yBottom} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  // Primitives pour les mandalas "Cercle" — pas de tige ni de feuille, tout tourne autour d'un même
+  // centre. Chaque <circle>/<ellipse> est fermé nativement (pas de tracé à refermer soi-même), donc
+  // pas de risque de fuite au remplissage, même avec des formes qui se chevauchent.
+  const svgCircle = (cx: number, cy: number, r: number) =>
+    `<circle cx="${cx}" cy="${cy}" r="${r}" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+  const svgRingOfCircles = (cx: number, cy: number, ringR: number, count: number, shapeR: number, offsetDeg = 0) =>
+    Array.from({ length: count }, (_, i) => {
+      const angle = ((i / count) * 360 + offsetDeg) * (Math.PI / 180);
+      return svgCircle(cx + Math.cos(angle) * ringR, cy + Math.sin(angle) * ringR, shapeR);
+    }).join('');
+  const svgBorder = (cx: number, cy: number, r: number) => svgCircle(cx, cy, r);
   const SIMPLE_FLOWER_SVGS: Record<string, string> = {
     marguerite: (() => {
       const cx = 250, cy = 190;
@@ -3535,6 +3546,149 @@ export default function App() {
     })(),
   };
 
+  // Les 12 mandalas de la catégorie "Cercle" — même principe que les fleurs (formes fermées, blanc/noir,
+  // pas de détail fin), mais purement radial autour d'un centre commun, avec un cercle de bordure sur
+  // chacun pour que le motif ne déborde jamais du canevas.
+  const CERCLE_SVGS: Record<string, string> = {
+    perles: (() => {
+      const cx = 250, cy = 250;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${svgRingOfCircles(cx, cy, 190, 20, 20)}
+        ${svgRingOfCircles(cx, cy, 130, 14, 16)}
+        ${svgRingOfCircles(cx, cy, 75, 10, 13)}
+        ${svgCircle(cx, cy, 26)}
+      </svg>`;
+    })(),
+    'marguerite-ronde': (() => {
+      const cx = 250, cy = 250;
+      const petals = Array.from({ length: 12 }, (_, i) => svgRoundPetal(cx, cy, i * 30, 130, 34, 60)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${petals}
+        ${svgCircle(cx, cy, 34)}
+      </svg>`;
+    })(),
+    'etoile-rayons': (() => {
+      const cx = 250, cy = 250;
+      const petals = Array.from({ length: 16 }, (_, i) => svgRadialPetal(cx, cy, i * 22.5, 16, 185)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${petals}
+        ${svgCircle(cx, cy, 30)}
+      </svg>`;
+    })(),
+    'triple-anneau': (() => {
+      const cx = 250, cy = 250;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${svgCircle(cx, cy, 175)}
+        ${svgCircle(cx, cy, 115)}
+        ${svgCircle(cx, cy, 55)}
+      </svg>`;
+    })(),
+    losanges: (() => {
+      const cx = 250, cy = 250;
+      const petals = Array.from({ length: 10 }, (_, i) => svgRadialPetal(cx, cy, i * 36, 36, 150)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${petals}
+        ${svgRingOfCircles(cx, cy, 90, 10, 14, 18)}
+        ${svgCircle(cx, cy, 28)}
+      </svg>`;
+    })(),
+    'couronne-vagues': (() => {
+      const cx = 250, cy = 250;
+      const outer = Array.from({ length: 22 }, (_, i) => svgRoundPetal(cx, cy, i * (360 / 22), 205, 18, 30)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${outer}
+        ${svgCircle(cx, cy, 150)}
+        ${svgCircle(cx, cy, 40)}
+      </svg>`;
+    })(),
+    'double-fleur': (() => {
+      const cx = 250, cy = 250;
+      const outer = Array.from({ length: 10 }, (_, i) => svgRoundPetal(cx, cy, i * 36, 165, 42, 68)).join('');
+      const inner = Array.from({ length: 8 }, (_, i) => svgRoundPetal(cx, cy, i * 45 + 22, 85, 28, 46)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${outer}${inner}
+        ${svgCircle(cx, cy, 24)}
+      </svg>`;
+    })(),
+    'fleur-de-vie': (() => {
+      const cx = 250, cy = 250, r = 85;
+      const petals = Array.from({ length: 6 }, (_, i) => {
+        const angle = (i * 60) * (Math.PI / 180);
+        return svgCircle(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r, r);
+      }).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${svgCircle(cx, cy, r)}
+        ${petals}
+      </svg>`;
+    })(),
+    'soleil-fin': (() => {
+      const cx = 250, cy = 250;
+      const rays = Array.from({ length: 24 }, (_, i) => svgRadialPetal(cx, cy, i * 15, 9, 195)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${rays}
+        ${svgCircle(cx, cy, 45)}
+      </svg>`;
+    })(),
+    'etoile-8-branches': (() => {
+      const cx = 250, cy = 250;
+      const points = Array.from({ length: 8 }, (_, i) => {
+        const a1 = (i * 45) * (Math.PI / 180);
+        const a2 = ((i * 45) + 22.5) * (Math.PI / 180);
+        const outerX = cx + Math.cos(a1) * 200, outerY = cy + Math.sin(a1) * 200;
+        const innerX1 = cx + Math.cos(a1 - 0.35) * 70, innerY1 = cy + Math.sin(a1 - 0.35) * 70;
+        const innerX2 = cx + Math.cos(a1 + 0.35) * 70, innerY2 = cy + Math.sin(a1 + 0.35) * 70;
+        return `<path d="M${cx},${cy} L${innerX1},${innerY1} L${outerX},${outerY} L${innerX2},${innerY2} Z" fill="#ffffff" stroke="#111111" stroke-width="5"/>`;
+      }).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${points}
+        ${svgCircle(cx, cy, 32)}
+      </svg>`;
+    })(),
+    'mandala-mixte': (() => {
+      const cx = 250, cy = 250;
+      const outerPetals = Array.from({ length: 8 }, (_, i) => svgRoundPetal(cx, cy, i * 45, 195, 34, 44)).join('');
+      const dots = svgRingOfCircles(cx, cy, 130, 16, 12, 11.25);
+      const innerPetals = Array.from({ length: 8 }, (_, i) => svgRoundPetal(cx, cy, i * 45 + 22.5, 65, 20, 34)).join('');
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${outerPetals}${dots}${innerPetals}
+        ${svgCircle(cx, cy, 20)}
+      </svg>`;
+    })(),
+    'cible-douce': (() => {
+      const cx = 250, cy = 250;
+      return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+        <rect width="500" height="500" fill="#ffffff"/>
+        ${svgBorder(cx, cy, 235)}
+        ${svgCircle(cx, cy, 195)}
+        ${svgCircle(cx, cy, 155)}
+        ${svgCircle(cx, cy, 115)}
+        ${svgCircle(cx, cy, 75)}
+        ${svgCircle(cx, cy, 35)}
+      </svg>`;
+    })(),
+  };
   const [mandalaCategory, setMandalaCategory] = useState<MandalaCategory>('fleur');
   const [mandalaDesignIndex, setMandalaDesignIndex] = useState<number>(0);
   const [mandalaSelectedColor, setMandalaSelectedColor] = useState<string>('#F3D9DF');
@@ -3551,10 +3705,10 @@ export default function App() {
   // qui masque le constructeur natif Map dans ce fichier — new Map() y plante.
   const mandalaCacheRef = useRef<Record<string, string>>({});
   const mandalaKey = `${mandalaCategory}_${mandalaDesignIndex}`;
-  const getMandalaSrc = (category: MandalaCategory, index: number) =>
-    category === 'fleur'
-      ? `data:image/svg+xml;utf8,${encodeURIComponent(FLEUR_SVGS[MANDALA_FILES.fleur[index]])}`
-      : `${((import.meta as any).env?.BASE_URL as string) || '/'}mandalas/mandalas/cercles/${MANDALA_FILES[category][index]}`;
+  const getMandalaSrc = (category: MandalaCategory, index: number) => {
+    const svgs = category === 'fleur' ? FLEUR_SVGS : CERCLE_SVGS;
+    return `data:image/svg+xml;utf8,${encodeURIComponent(svgs[MANDALA_FILES[category][index]])}`;
+  };
 
   // Charge (ou recharge depuis le cache) le mandala sélectionné dans le canvas.
   // Résolution du canvas alignée sur celle des images sources (1280px) plutôt que downscalée à 512 :
@@ -17156,12 +17310,14 @@ export default function App() {
                                     alterName: member.name,
                                     selectedRoles: [],
                                     selectedGenders: [],
+                                    selectedPronouns: [],
                                     selectedSexualities: [],
                                     traitDecorations: [],
                                     patternLayers: [],
                                     decorations: [],
                                     customRoleColors: {},
                                     customGenderColors: {},
+                                    customPronounColors: {},
                                     customSexualityColors: {},
                                     theme: Theme.LIGHT,
                                     profileImage: member.avatar_url || '',
