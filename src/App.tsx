@@ -1735,7 +1735,6 @@ export default function App() {
     id: string;
     name: string;
     emoji: string;
-    color: string;
     targetPerDay: number; // 1 = simple case à cocher, >1 = compteur (ex. "Boire de l'eau" x8)
     assignedAlterIds: string[]; // [] = commune / n'importe qui
     createdAt: number;
@@ -1754,12 +1753,10 @@ export default function App() {
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [habitDraftName, setHabitDraftName] = useState('');
   const [habitDraftEmoji, setHabitDraftEmoji] = useState('⭐');
-  const [habitDraftColor, setHabitDraftColor] = useState('#8B5CF6');
   const [habitDraftTarget, setHabitDraftTarget] = useState('1');
   const [habitDraftAlterIds, setHabitDraftAlterIds] = useState<string[]>([]);
   const [habitAlterSearch, setHabitAlterSearch] = useState('');
   const [habitDeleteConfirmId, setHabitDeleteConfirmId] = useState<string | null>(null);
-  const [showCompletedHabits, setShowCompletedHabits] = useState(false);
   const [expandedHabitId, setExpandedHabitId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -1810,7 +1807,6 @@ export default function App() {
     setEditingHabitId(null);
     setHabitDraftName('');
     setHabitDraftEmoji('⭐');
-    setHabitDraftColor('#8B5CF6');
     setHabitDraftTarget('1');
     setHabitDraftAlterIds([]);
     setHabitAlterSearch('');
@@ -1823,14 +1819,13 @@ export default function App() {
     const target = Math.max(1, parseInt(habitDraftTarget, 10) || 1);
     if (editingHabitId) {
       setHabits(prev => prev.map(h => h.id === editingHabitId
-        ? { ...h, name, emoji: habitDraftEmoji || '⭐', color: habitDraftColor, targetPerDay: target, assignedAlterIds: habitDraftAlterIds }
+        ? { ...h, name, emoji: habitDraftEmoji || '⭐', targetPerDay: target, assignedAlterIds: habitDraftAlterIds }
         : h));
     } else {
       setHabits(prev => [...prev, {
         id: Math.random().toString(36).substring(2, 11),
         name,
         emoji: habitDraftEmoji || '⭐',
-        color: habitDraftColor,
         targetPerDay: target,
         assignedAlterIds: habitDraftAlterIds,
         createdAt: Date.now(),
@@ -1843,7 +1838,6 @@ export default function App() {
     setEditingHabitId(habit.id);
     setHabitDraftName(habit.name);
     setHabitDraftEmoji(habit.emoji);
-    setHabitDraftColor(habit.color);
     setHabitDraftTarget(String(habit.targetPerDay));
     setHabitDraftAlterIds(habit.assignedAlterIds || []);
     setHabitFormOpen(true);
@@ -14218,8 +14212,6 @@ export default function App() {
 
             {journalSubTab === 'habits' && (() => {
               const today = todayStr();
-              const activeHabits = habits.filter(h => getHabitCountForDate(h.id, today) < h.targetPerDay);
-              const doneHabits = habits.filter(h => getHabitCountForDate(h.id, today) >= h.targetPerDay);
 
               const renderHabitRow = (habit: Habit) => {
                 const count = getHabitCountForDate(habit.id, today);
@@ -14228,16 +14220,15 @@ export default function App() {
                   .map(id => savedAlters.find(a => a.id === id)?.alterName)
                   .filter(Boolean);
                 return (
-                  <div key={habit.id} className="rounded-2xl border border-app-border/30 bg-app-card overflow-hidden">
+                  <div key={habit.id} className={`rounded-2xl border border-app-border/30 bg-app-card overflow-hidden transition-opacity ${done ? 'opacity-55' : ''}`}>
                     <div className="flex items-center gap-3 p-3">
                       <button
                         type="button"
                         onClick={() => done ? decrementHabitToday(habit.id) : incrementHabitToday(habit.id)}
-                        className="w-9 h-9 rounded-full flex items-center justify-center text-lg shrink-0 transition-all"
-                        style={{ backgroundColor: done ? habit.color : `${habit.color}20`, border: `2px solid ${habit.color}` }}
+                        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all border-2 ${done ? 'bg-app-muted text-app-bg border-app-muted' : 'bg-app-bg text-app-muted border-app-border hover:border-app-accent hover:text-app-accent'}`}
                         title={done ? (lang === 'fr' ? 'Décocher' : 'Uncheck') : (lang === 'fr' ? 'Marquer comme fait' : 'Mark as done')}
                       >
-                        {done ? <Check className="w-4 h-4 text-white" /> : habit.emoji}
+                        <Check className="w-4 h-4" />
                       </button>
                       <button
                         type="button"
@@ -14298,26 +14289,8 @@ export default function App() {
                   )}
 
                   <div className="space-y-2.5">
-                    {activeHabits.map(renderHabitRow)}
+                    {habits.map(renderHabitRow)}
                   </div>
-
-                  {doneHabits.length > 0 && (
-                    <div className="space-y-2.5">
-                      <button
-                        type="button"
-                        onClick={() => setShowCompletedHabits(v => !v)}
-                        className="w-full flex items-center justify-center gap-1.5 py-2 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
-                      >
-                        {lang === 'fr' ? `Terminées (${doneHabits.length})` : `Complete (${doneHabits.length})`}
-                        {showCompletedHabits ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-                      {showCompletedHabits && (
-                        <div className="space-y-2.5 opacity-70">
-                          {doneHabits.map(renderHabitRow)}
-                        </div>
-                      )}
-                    </div>
-                  )}
 
                   {/* Formulaire d'ajout / édition d'habitude */}
                   {habitFormOpen && (
@@ -14328,12 +14301,6 @@ export default function App() {
                           value={habitDraftEmoji}
                           onChange={(e) => setHabitDraftEmoji(e.target.value.slice(0, 2))}
                           className="w-12 h-12 text-center text-xl bg-app-bg border border-app-border rounded-xl focus:outline-none shrink-0"
-                        />
-                        <input
-                          type="color"
-                          value={habitDraftColor}
-                          onChange={(e) => setHabitDraftColor(e.target.value)}
-                          className="w-12 h-12 rounded-xl border border-app-border overflow-hidden cursor-pointer p-0 bg-transparent shrink-0"
                         />
                         <input
                           type="text"
