@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.systemechaos.twa",
+        "sha256_cert_fingerprints": ["54:15:A6:D6:E4:24:26:57:8D:00:F1:FF:DF:49:E1:BC:12:91:AC:18:F6:EC:D4:F5:52:F9:7A:7D:4E:9E:63:63"]
+      }
+    }]
