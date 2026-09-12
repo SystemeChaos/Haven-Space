@@ -14394,8 +14394,8 @@ export default function App() {
                     <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                       <span className="text-xs text-app-text">
                         {lang === 'fr'
-                          ? `Supprimer « ${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''} » ? Son historique de streak sera perdu.`
-                          : `Delete "${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''}"? Its streak history will be lost.`}
+                          ? `Supprimer « ${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''} » ?`
+                          : `Delete "${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''}"?`}
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button type="button" onClick={() => deleteHabit(habitDeleteConfirmId)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors">
