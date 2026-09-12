@@ -1753,7 +1753,7 @@ export default function App() {
   const [habitFormOpen, setHabitFormOpen] = useState(false);
   const [editingHabitId, setEditingHabitId] = useState<string | null>(null);
   const [habitDraftName, setHabitDraftName] = useState('');
-  const [habitDraftEmoji, setHabitDraftEmoji] = useState('✅');
+  const [habitDraftEmoji, setHabitDraftEmoji] = useState('⭐');
   const [habitDraftColor, setHabitDraftColor] = useState('#8B5CF6');
   const [habitDraftTarget, setHabitDraftTarget] = useState('1');
   const [habitDraftAlterIds, setHabitDraftAlterIds] = useState<string[]>([]);
@@ -1790,27 +1790,6 @@ export default function App() {
   const getHabitCountForDate = (habitId: string, date: string) =>
     habitLogs.filter(l => l.habitId === habitId && l.date === date).reduce((sum, l) => sum + l.count, 0);
 
-  // Calcule le streak actuel d'une habitude : nombre de jours consécutifs (en partant d'aujourd'hui ou
-  // d'hier si aujourd'hui n'est pas encore fait) où l'objectif quotidien a été atteint.
-  const getHabitStreak = (habit: Habit): number => {
-    let streak = 0;
-    const cursor = new Date();
-    const todayCount = getHabitCountForDate(habit.id, todayStr());
-    if (todayCount < habit.targetPerDay) {
-      cursor.setDate(cursor.getDate() - 1);
-    }
-    while (true) {
-      const dateStr = cursor.toISOString().slice(0, 10);
-      const count = getHabitCountForDate(habit.id, dateStr);
-      if (count >= habit.targetPerDay) {
-        streak++;
-        cursor.setDate(cursor.getDate() - 1);
-      } else {
-        break;
-      }
-    }
-    return streak;
-  };
 
   const incrementHabitToday = (habitId: string) => {
     const date = todayStr();
@@ -1830,7 +1809,7 @@ export default function App() {
   const resetHabitDraft = () => {
     setEditingHabitId(null);
     setHabitDraftName('');
-    setHabitDraftEmoji('✅');
+    setHabitDraftEmoji('⭐');
     setHabitDraftColor('#8B5CF6');
     setHabitDraftTarget('1');
     setHabitDraftAlterIds([]);
@@ -1844,13 +1823,13 @@ export default function App() {
     const target = Math.max(1, parseInt(habitDraftTarget, 10) || 1);
     if (editingHabitId) {
       setHabits(prev => prev.map(h => h.id === editingHabitId
-        ? { ...h, name, emoji: habitDraftEmoji || '✅', color: habitDraftColor, targetPerDay: target, assignedAlterIds: habitDraftAlterIds }
+        ? { ...h, name, emoji: habitDraftEmoji || '⭐', color: habitDraftColor, targetPerDay: target, assignedAlterIds: habitDraftAlterIds }
         : h));
     } else {
       setHabits(prev => [...prev, {
         id: Math.random().toString(36).substring(2, 11),
         name,
-        emoji: habitDraftEmoji || '✅',
+        emoji: habitDraftEmoji || '⭐',
         color: habitDraftColor,
         targetPerDay: target,
         assignedAlterIds: habitDraftAlterIds,
@@ -14245,7 +14224,6 @@ export default function App() {
               const renderHabitRow = (habit: Habit) => {
                 const count = getHabitCountForDate(habit.id, today);
                 const done = count >= habit.targetPerDay;
-                const streak = getHabitStreak(habit);
                 const assignedNames = (habit.assignedAlterIds || [])
                   .map(id => savedAlters.find(a => a.id === id)?.alterName)
                   .filter(Boolean);
@@ -14274,11 +14252,6 @@ export default function App() {
                       {habit.targetPerDay > 1 && (
                         <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-app-bg text-app-muted shrink-0">{count}/{habit.targetPerDay}</span>
                       )}
-                      {streak > 0 && (
-                        <span className="flex items-center gap-0.5 text-[10px] font-black px-2 py-1 rounded-lg bg-orange-500/10 text-orange-500 shrink-0">
-                          🔥{streak}
-                        </span>
-                      )}
                       <button
                         type="button"
                         onClick={() => setExpandedHabitId(prev => prev === habit.id ? null : habit.id)}
@@ -14288,10 +14261,7 @@ export default function App() {
                       </button>
                     </div>
                     {expandedHabitId === habit.id && (
-                      <div className="px-3 pb-3 flex items-center justify-between border-t border-app-border/20 pt-3">
-                        <div className="text-[10px] text-app-muted uppercase tracking-wider">
-                          {lang === 'fr' ? `Meilleur streak : ${Math.max(streak, getHabitStreak(habit))} jour(s)` : `Best streak: ${Math.max(streak, getHabitStreak(habit))} day(s)`}
-                        </div>
+                      <div className="px-3 pb-3 flex items-center justify-end border-t border-app-border/20 pt-3">
                         <div className="flex items-center gap-1.5">
                           <button type="button" onClick={() => startEditHabit(habit)} className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg transition-colors">
                             <Pencil className="w-3.5 h-3.5" />
