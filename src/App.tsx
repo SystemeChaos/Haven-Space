@@ -1161,6 +1161,17 @@ export default function App() {
   };
 
   const requestBrowserNotifPermission = async () => {
+    const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.();
+    if (isNative) {
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
+        const result = await LocalNotifications.requestPermissions();
+        return result.display === 'granted';
+      } catch (e) {
+        console.warn('[Haven Space] Permission notification native impossible :', e);
+        return false;
+      }
+    }
     if (!('Notification' in window)) return false;
     if (Notification.permission === 'granted') return true;
     const result = await Notification.requestPermission();
@@ -1197,6 +1208,66 @@ export default function App() {
     });
   };
 
+  // Point d'entrée unique pour déclencher une notification, que ce soit sur la PWA (API Notification du
+  // navigateur) ou sur l'app Android empaquetée avec Capacitor (notifications locales natives, fiables
+  // même app fermée). Centraliser ici évite de dupliquer la logique de bascule dans chaque rappel.
+  // Le clic sur la notification (web ou natif) déclenche onClick, s'il est fourni.
+  const pendingNotificationClicksRef = useRef<Map<number, () => void>>(new Map());
+
+  useEffect(() => {
+    const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.();
+    if (!isNative) return;
+    let handle: { remove: () => void } | undefined;
+    (async () => {
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
+        handle = await LocalNotifications.addListener('localNotificationActionPerformed', (action: any) => {
+          const cb = pendingNotificationClicksRef.current.get(action.notification.id);
+          cb?.();
+        });
+      } catch (e) {
+        console.warn('[Haven Space] Écoute des clics de notification native impossible :', e);
+      }
+    })();
+    return () => { handle?.remove(); };
+  }, []);
+
+  const fireLocalNotification = async (
+    title: string,
+    body: string,
+    options?: { icon?: string; badge?: string; tag?: string; onClick?: () => void }
+  ) => {
+    if (!notifBrowser) return;
+    const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.();
+    if (isNative) {
+      try {
+        const { LocalNotifications } = await import('@capacitor/local-notifications');
+        const id = Math.floor(Math.random() * 2147483647);
+        if (options?.onClick) pendingNotificationClicksRef.current.set(id, options.onClick);
+        await LocalNotifications.schedule({
+          notifications: [{ id, title, body, schedule: { at: new Date(Date.now() + 100) } }],
+        });
+      } catch (e) {
+        console.warn('[Haven Space] Notification native impossible :', e);
+      }
+      return;
+    }
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const notif = new Notification(title, {
+      body,
+      icon: options?.icon || '/icon-192.png',
+      badge: options?.badge || '/icon-192.png',
+      tag: options?.tag,
+    });
+    if (options?.onClick) {
+      notif.onclick = () => {
+        window.focus();
+        options.onClick!();
+        notif.close();
+      };
+    }
+  };
+
   const fireSwitchNotifications = (alterNames: string[], status: string, avatar?: string) => {
     const label = alterNames.join(', ');
     const statusLabel = t.frontStatuses[status as keyof typeof t.frontStatuses] || status;
@@ -1205,9 +1276,7 @@ export default function App() {
       const av = i === 0 ? avatar : undefined;
       setTimeout(() => addToast(name, statusLabel, av), i * 300);
     });
-    if (notifBrowser && 'Notification' in window && Notification.permission === 'granted') {
-      new Notification('✦ Haven Space — Switch', { body, icon: avatar || '/icon-192.png', badge: '/icon-192.png' });
-    }
+    fireLocalNotification('✦ Haven Space — Switch', body, { icon: avatar });
   };
   const [pkToken, setPkToken] = useState<string>('');
   const [pkSystem, setPkSystem] = useState<any | null>(null);
@@ -2046,7 +2115,7 @@ export default function App() {
   // pour continuer à fonctionner même quand on n'est pas sur l'onglet Planning.
   useEffect(() => {
     const check = async () => {
-      if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (!notifBrowser) return;
       const now = Date.now();
       const planningEntries = await loadPlanning(activeSystemId, dek);
       let remindedIds: string[] = [];
@@ -2057,15 +2126,9 @@ export default function App() {
         const target = new Date(`${en.date}T${en.time}:00`).getTime();
         const triggerAt = target - en.reminderMinutes * 60000;
         if (now >= triggerAt && now < target) {
-          const notif = new Notification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', {
-            body: `${en.time} — ${en.text}`,
-            icon: '/icon-192.png',
+          fireLocalNotification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', `${en.time} — ${en.text}`, {
+            onClick: () => setCurrentTab('planning'),
           });
-          notif.onclick = () => {
-            window.focus();
-            setCurrentTab('planning');
-            notif.close();
-          };
           remindedIds.push(en.id);
           changed = true;
         }
@@ -4446,7 +4509,7 @@ export default function App() {
   const MED_REMINDED_STORAGE_KEY = 'hs-med-reminded';
   useEffect(() => {
     const check = () => {
-      if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (!notifBrowser) return;
       const now = new Date();
       const todayStr = now.toISOString().slice(0, 10);
       let remindedKeys: string[] = [];
@@ -4463,15 +4526,11 @@ export default function App() {
           target.setHours(hh, mm, 0, 0);
           const diffMs = now.getTime() - target.getTime();
           if (diffMs >= 0 && diffMs < 60000) {
-            const notif = new Notification(lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder', {
-              body: med.dosage ? `${med.name} — ${med.dosage}` : med.name,
-              icon: '/icon-192.png',
-            });
-            notif.onclick = () => {
-              window.focus();
-              setCurrentTab('health');
-              notif.close();
-            };
+            fireLocalNotification(
+              lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder',
+              med.dosage ? `${med.name} — ${med.dosage}` : med.name,
+              { onClick: () => setCurrentTab('health') }
+            );
             remindedKeys.push(key);
             changed = true;
           }
@@ -4491,7 +4550,7 @@ export default function App() {
   const HYDRO_WAKE_END_HOUR = 22;
   useEffect(() => {
     const check = () => {
-      if (!notifBrowser || !hydroReminderOn || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (!notifBrowser || !hydroReminderOn) return;
       const now = new Date();
       if (now.getHours() < HYDRO_WAKE_START_HOUR || now.getHours() >= HYDRO_WAKE_END_HOUR) return;
       const intervalMs = Math.max(1, hydroIntervalMinutes) * 60000;
@@ -4499,20 +4558,20 @@ export default function App() {
       const lastReminded = Number(localStorage.getItem(HYDRO_REMINDED_KEY) || '0');
       if (now.getTime() - lastWater < intervalMs) return;
       if (now.getTime() - lastReminded < intervalMs) return;
-      const notif = new Notification(lang === 'fr' ? '✦ Rappel d\'hydratation' : '✦ Hydration reminder', {
-        body: lang === 'fr'
+      fireLocalNotification(
+        lang === 'fr' ? '✦ Rappel d\'hydratation' : '✦ Hydration reminder',
+        lang === 'fr'
           ? "Ton jardin a soif — et toi, tu as bu récemment ? Va arroser une graine 💧"
           : 'Your garden is thirsty — have you had water lately? Go water a seed 💧',
-        icon: '/icon-192.png',
-        tag: 'hs-hydro-reminder',
-      });
-      notif.onclick = () => {
-        window.focus();
-        setCurrentTab('relax');
-        setActiveRelaxTool('eco-system');
-        setEcoBackground('jardin');
-        notif.close();
-      };
+        {
+          tag: 'hs-hydro-reminder',
+          onClick: () => {
+            setCurrentTab('relax');
+            setActiveRelaxTool('eco-system');
+            setEcoBackground('jardin');
+          },
+        }
+      );
       localStorage.setItem(HYDRO_REMINDED_KEY, String(now.getTime()));
     };
     check();
@@ -4525,29 +4584,28 @@ export default function App() {
   const EXPORT_REMINDER_DAYS = 7;
   useEffect(() => {
     const check = () => {
-      if (!notifBrowser || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      if (!notifBrowser) return;
       if (savedAlters.length === 0) return; // rien à sauvegarder pour l'instant
       const lastExport = Number(localStorage.getItem('hs-last-json-export') || '0');
       const daysSinceExport = (Date.now() - lastExport) / (1000 * 60 * 60 * 24);
       if (daysSinceExport < EXPORT_REMINDER_DAYS) return;
       const todayStr = new Date().toISOString().slice(0, 10);
       if (localStorage.getItem('hs-export-reminded-day') === todayStr) return;
-      const notif = new Notification(lang === 'fr' ? '✦ Pense à sauvegarder' : '✦ Backup reminder', {
-        body: lang === 'fr'
+      fireLocalNotification(
+        lang === 'fr' ? '✦ Pense à sauvegarder' : '✦ Backup reminder',
+        lang === 'fr'
           ? "Ça fait un moment que tu n'as pas exporté ton système en JSON — c'est ta seule sauvegarde."
           : "It's been a while since your last JSON export — it's your only backup.",
-        icon: '/icon-192.png',
-        tag: 'hs-export-reminder',
-      });
-      // Clic sur la notif → ouvre l'app sur la section de sauvegarde JSON et y scrolle directement
-      notif.onclick = () => {
-        window.focus();
-        setCurrentTab('pluralkit');
-        setTimeout(() => {
-          document.getElementById('json-backup-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 150);
-        notif.close();
-      };
+        {
+          tag: 'hs-export-reminder',
+          onClick: () => {
+            setCurrentTab('pluralkit');
+            setTimeout(() => {
+              document.getElementById('json-backup-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 150);
+          },
+        }
+      );
       localStorage.setItem('hs-export-reminded-day', todayStr);
     };
     check();
@@ -6584,21 +6642,21 @@ export default function App() {
 
     // Notification native si on n'est pas déjà en train de regarder cette conversation
     // (onglet caché, ou ailleurs dans l'app) — inutile de notifier ce qu'on a déjà sous les yeux.
-    if (notifBrowser && typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    if (notifBrowser) {
       const isViewingConv = currentTab === 'messaging' && activeConvId === conv.id && !document.hidden;
       if (!isViewingConv) {
         const senderName = allAlters.find(a => a.id === msgSenderId)?.alterName || (lang === 'fr' ? 'Un alter' : 'An alter');
-        const notif = new Notification(lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`, {
-          body: msg.text.length > 120 ? msg.text.slice(0, 120) + '…' : msg.text,
-          icon: '/icon-192.png',
-          tag: `hs-dm-${conv.id}`,
-        });
-        notif.onclick = () => {
-          window.focus();
-          setCurrentTab('messaging');
-          setActiveConvId(conv.id);
-          notif.close();
-        };
+        fireLocalNotification(
+          lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`,
+          msg.text.length > 120 ? msg.text.slice(0, 120) + '…' : msg.text,
+          {
+            tag: `hs-dm-${conv.id}`,
+            onClick: () => {
+              setCurrentTab('messaging');
+              setActiveConvId(conv.id);
+            },
+          }
+        );
       }
     }
   };
