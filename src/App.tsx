@@ -1212,7 +1212,7 @@ export default function App() {
   // navigateur) ou sur l'app Android empaquetée avec Capacitor (notifications locales natives, fiables
   // même app fermée). Centraliser ici évite de dupliquer la logique de bascule dans chaque rappel.
   // Le clic sur la notification (web ou natif) déclenche onClick, s'il est fourni.
-  const pendingNotificationClicksRef = useRef<Map<number, () => void>>(new Map());
+  const pendingNotificationClicksRef = useRef<globalThis.Map<number, () => void>>(new globalThis.Map());
 
   useEffect(() => {
     const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.();
