@@ -866,7 +866,32 @@ export default function App() {
     document.documentElement.style.fontSize = scales[fontScale] || '100%';
   }, [fontScale]);
   const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('hs-theme') as Theme) || Theme.LIGHT);
-  const [activeLegalPage, setActiveLegalPage] = useState<LegalPage | null>(null);
+  const [activeLegalPage, setActiveLegalPage] = useState<LegalPage | null>(() => {
+    const hash = window.location.hash.replace(/^#\/?/, '');
+    const validPages: LegalPage[] = ['guide', 'vocabulary', 'roles', 'functions', 'privacy', 'about', 'contact'];
+    return validPages.includes(hash as LegalPage) ? (hash as LegalPage) : null;
+  });
+
+  // Garde l'URL synchronisée avec la page légale affichée, pour qu'un lien direct
+  // (ex. .../#/privacy) ouvre la bonne page sans manip — nécessaire pour la case
+  // "politique de confidentialité" de Play Console, qui exige une vraie URL.
+  const openLegalPage = (page: LegalPage) => {
+    setActiveLegalPage(page);
+    window.history.pushState(null, '', `#/${page}`);
+  };
+  const closeLegalPage = () => {
+    setActiveLegalPage(null);
+    window.history.pushState(null, '', window.location.pathname + window.location.search);
+  };
+  useEffect(() => {
+    const onHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '');
+      const validPages: LegalPage[] = ['guide', 'vocabulary', 'roles', 'functions', 'privacy', 'about', 'contact'];
+      setActiveLegalPage(validPages.includes(hash as LegalPage) ? (hash as LegalPage) : null);
+    };
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
 
   const fonts = [
     { name: 'Sans', value: 'font-sans' },
@@ -9550,7 +9575,7 @@ export default function App() {
       </header>
 
       {activeLegalPage ? (
-        <LegalPages initialPage={activeLegalPage} onBack={() => setActiveLegalPage(null)} lang={lang} />
+        <LegalPages initialPage={activeLegalPage} onBack={closeLegalPage} lang={lang} />
       ) : (
         <>
           {/* Secondary Navigation Dropdown Menu & System Info */}
@@ -17998,7 +18023,7 @@ export default function App() {
           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 sm:gap-x-8 text-xs font-bold uppercase tracking-widest text-app-muted">
             <button
               onClick={() => {
-                setActiveLegalPage('guide');
+                openLegalPage('guide');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
@@ -18007,7 +18032,7 @@ export default function App() {
             </button>
             <button
               onClick={() => {
-                setActiveLegalPage('vocabulary');
+                openLegalPage('vocabulary');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
@@ -18016,7 +18041,7 @@ export default function App() {
             </button>
             <button
               onClick={() => {
-                setActiveLegalPage('privacy');
+                openLegalPage('privacy');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
@@ -18025,7 +18050,7 @@ export default function App() {
             </button>
             <button
               onClick={() => {
-                setActiveLegalPage('about');
+                openLegalPage('about');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
@@ -18034,7 +18059,7 @@ export default function App() {
             </button>
             <button
               onClick={() => {
-                setActiveLegalPage('contact');
+                openLegalPage('contact');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
