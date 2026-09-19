@@ -119,6 +119,16 @@ function detectAudioPlatform(url: string): AudioPlatform {
 function compressImageFiles(files: FileList | null): Promise<string[]> {
   if (!files || files.length === 0) return Promise.resolve([]);
   const promises = Array.from(files).map(file => {
+    // Les GIFs animés perdraient leur animation en passant par le canvas (qui ne capture
+    // qu'une seule image statique) — on les lit tels quels, sans compression, pour la préserver.
+    if (file.type === 'image/gif') {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+      });
+    }
     return new Promise<string>((resolve) => {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -164,7 +174,7 @@ interface InnerworldPageProps {
 const BLOCK_TYPES: { type: InnerworldBlockType; icon: React.ComponentType<any>; label: string; labelEn: string }[] = [
   { type: 'banner', icon: ImageIcon, label: 'Image / Bannière', labelEn: 'Image / Banner' },
   { type: 'text', icon: TypeIcon, label: 'Texte libre', labelEn: 'Free text' },
-  { type: 'gallery', icon: Images, label: 'Galerie photos', labelEn: 'Photo gallery' },
+  { type: 'gallery', icon: Images, label: 'Galerie photos/GIFs', labelEn: 'Photo/GIF gallery' },
   { type: 'audio', icon: Music, label: 'Audio / Playlist', labelEn: 'Audio / Playlist' },
 ];
 
@@ -205,7 +215,7 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
     addVisitor: lang === 'fr' ? 'Ajouter' : 'Add',
     imgUrl: lang === 'fr' ? "URL de l'image" : 'Image URL',
     textPlaceholder: lang === 'fr' ? 'Souvenirs, ambiance, description…' : 'Memories, mood, description…',
-    galleryPlaceholder: lang === 'fr' ? 'Une URL d\u2019image par ligne' : 'One image URL per line',
+    galleryPlaceholder: lang === 'fr' ? 'Une URL d\u2019image ou de GIF par ligne' : 'One image or GIF URL per line',
     audioPlaceholder: lang === 'fr' ? 'Lien (playlist, morceau…)' : 'Link (playlist, track…)',
     blockTitlePlaceholder: lang === 'fr' ? 'Titre du bloc (optionnel)' : 'Block title (optional)',
     open: lang === 'fr' ? 'Ouvrir' : 'Open',
