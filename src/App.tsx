@@ -1478,7 +1478,7 @@ export default function App() {
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
   const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'kalimbaSequences', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
-  const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
+  const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower', 'haven_alter_'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
     const flatten = async (key: string) => {
@@ -1649,22 +1649,42 @@ export default function App() {
   
   const [savedAlters, setSavedAlters] = useState<SavedAlter[]>([]);
   const [systemDataLoaded, setSystemDataLoaded] = useState(false);
+  // Table de référence (id → dernière version écrite) utilisée par l'effet d'écriture par-alter
+  // ci-dessous, pour ne réécrire que ce qui a réellement changé plutôt que tout le système à chaque fois.
+  const alterRecordsRef = useRef<Map<string, SavedAlter>>(new Map());
 
   // Chargement (et migration douce) du profil système (alters, triggers compris) via le coffre
   // chiffré — même logique que Santé/Journal : vide tant que le coffre est verrouillé, donc
   // TOUTE l'app (mapping, chat, planning...) reste sans données d'alter tant qu'on n'a pas
   // déverrouillé. C'est le choix assumé pour ce niveau de sensibilité.
+  //
+  // Format de stockage : une entrée IndexedDB par alter (haven_alter_<id>), comme pour les pages
+  // Innerworld — pensé pour les systèmes qui comptent énormément de membres (plusieurs centaines),
+  // où réécrire un seul gros bloc à chaque modification devenait le vrai goulot d'étranglement.
+  // Migration douce et sans risque : si aucune entrée individuelle n'existe encore, on retombe sur
+  // l'ancien bloc unique 'savedAlters' — jamais supprimé automatiquement, pur filet de sécurité.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const alters = await readMaybeEncrypted<SavedAlter[]>('savedAlters', dek, []);
+      const alterKeys = await listVaultKeys('haven_alter_');
+      let alters: SavedAlter[];
+      if (alterKeys.length > 0) {
+        const loaded = await Promise.all(
+          alterKeys.map(key => readMaybeEncrypted<SavedAlter | null>(key, dek, null))
+        );
+        alters = loaded.filter((a): a is SavedAlter => a !== null);
+      } else {
+        alters = await readMaybeEncrypted<SavedAlter[]>('savedAlters', dek, []);
+      }
       if (cancelled) return;
       setSavedAlters(alters);
-      setSystemDataLoaded(true);
-      if (dek) {
-        const raw = localStorage.getItem('savedAlters');
-        if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('savedAlters', alters, dek, true);
+      // Amorce la table de référence utilisée par l'effet d'écriture ci-dessous, pour que la
+      // première passe après un chargement "nouveau format" ne réécrive rien inutilement — seule
+      // une migration depuis l'ancien bloc doit déclencher l'écriture individuelle de chaque alter.
+      if (alterKeys.length > 0) {
+        alterRecordsRef.current = new Map(alters.map(a => [a.id, a]));
       }
+      setSystemDataLoaded(true);
     })();
     return () => { cancelled = true; };
   }, [dek]);
@@ -2037,8 +2057,30 @@ export default function App() {
   useEffect(() => { if (batch2Loaded) writeMaybeEncrypted('wheelHistory', wheelHistory, dek, !!vaultMeta); }, [wheelHistory]);
 
   // LocalStorage Sync Effects
+  // Écriture par-alter : ne réécrit (et ne rechiffre) que les alters dont la référence a changé
+  // depuis la dernière écriture, au lieu de tout le système à chaque modification — le vrai
+  // goulot d'étranglement pour les systèmes à plusieurs centaines de membres. Fonctionne parce que
+  // le reste du code met déjà à jour savedAlters via des .map() qui préservent la référence des
+  // entrées non concernées (ex. `a.id === id ? {...a, x} : a`).
   useEffect(() => {
-    if (systemDataLoaded) writeMaybeEncrypted('savedAlters', savedAlters, dek, !!vaultMeta);
+    if (!systemDataLoaded) return;
+    (async () => {
+      const prevMap = alterRecordsRef.current;
+      const currentIds = new Set(savedAlters.map(a => a.id));
+      const nextMap = new Map<string, SavedAlter>();
+      for (const alter of savedAlters) {
+        nextMap.set(alter.id, alter);
+        if (prevMap.get(alter.id) !== alter) {
+          await writeMaybeEncrypted(`haven_alter_${alter.id}`, alter, dek, !!vaultMeta);
+        }
+      }
+      for (const id of prevMap.keys()) {
+        if (!currentIds.has(id)) {
+          await deleteVaultKey(`haven_alter_${id}`);
+        }
+      }
+      alterRecordsRef.current = nextMap;
+    })();
   }, [savedAlters]);
 
   useEffect(() => {
