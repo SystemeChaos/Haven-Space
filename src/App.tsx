@@ -32,7 +32,7 @@ import {
   Layers,
   Trash2,
   Move,
-  Map,
+  Map as MapIcon,
   Languages,
   Eye,
   Briefcase,
@@ -8553,7 +8553,7 @@ export default function App() {
       case Disorder.SLEEP_DISORDER: return <Moon className="w-4 h-4" />;
       case Disorder.PHOBIA: return <Skull className="w-4 h-4" />;
       case Disorder.PANIC_DISORDER: return <AlertTriangle className="w-4 h-4" />;
-      case Disorder.AGORAPHOBIA: return <Map className="w-4 h-4" />;
+      case Disorder.AGORAPHOBIA: return <MapIcon className="w-4 h-4" />;
       case Disorder.SOCIAL_ANXIETY: return <UserMinus className="w-4 h-4" />;
       case Disorder.SELECTIVE_MUTISM: return <MicOff className="w-4 h-4" />;
       case Disorder.SPD: return <Fingerprint className="w-4 h-4" />;
