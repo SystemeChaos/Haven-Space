@@ -115,6 +115,7 @@ import {
   Laugh,
   MessageSquareQuote,
   MessageSquare,
+  Play,
   Timer,
   BarChart3,
   Vote,
@@ -1476,7 +1477,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'kalimbaSequences', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -6528,6 +6529,69 @@ export default function App() {
       window.removeEventListener('mousedown', unlock);
     };
   }, []);
+  // --- Kalimba : jusqu'à 5 séquences enregistrables ---
+  interface KalimbaNoteEvent { note: string; octave: number; t: number; } // t = ms depuis le début de l'enregistrement
+  interface KalimbaSequence { id: string; name: string; notes: KalimbaNoteEvent[]; createdAt: number; }
+  const [kalimbaSequences, setKalimbaSequences] = useState<KalimbaSequence[]>([]);
+  const [kalimbaSequencesLoaded, setKalimbaSequencesLoaded] = useState(false);
+  const [kalimbaRecordingActive, setKalimbaRecordingActive] = useState(false);
+  const [kalimbaPlayingId, setKalimbaPlayingId] = useState<string | null>(null);
+  const kalimbaRecordBufferRef = useRef<KalimbaNoteEvent[]>([]);
+  const kalimbaRecordStartRef = useRef<number>(0);
+  const kalimbaPlaybackTimeoutsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const loaded = await readMaybeEncrypted<KalimbaSequence[]>('kalimbaSequences', dek, []);
+      if (cancelled) return;
+      setKalimbaSequences(loaded);
+      setKalimbaSequencesLoaded(true);
+      if (dek) {
+        const raw = localStorage.getItem('kalimbaSequences');
+        if (raw && !raw.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('kalimbaSequences', loaded, dek, true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [dek]);
+  useEffect(() => { if (kalimbaSequencesLoaded) writeMaybeEncrypted('kalimbaSequences', kalimbaSequences, dek, !!vaultMeta); }, [kalimbaSequences]);
+
+  const startKalimbaRecording = () => {
+    kalimbaRecordBufferRef.current = [];
+    kalimbaRecordStartRef.current = Date.now();
+    setKalimbaRecordingActive(true);
+  };
+
+  const stopKalimbaRecording = () => {
+    setKalimbaRecordingActive(false);
+    const notes = kalimbaRecordBufferRef.current;
+    if (notes.length === 0) return;
+    const nextIndex = kalimbaSequences.length + 1;
+    setKalimbaSequences(prev => [...prev, {
+      id: Math.random().toString(36).substring(2, 11),
+      name: lang === 'fr' ? `Séquence ${nextIndex}` : `Sequence ${nextIndex}`,
+      notes,
+      createdAt: Date.now(),
+    }]);
+  };
+
+  const deleteKalimbaSequence = (id: string) => {
+    setKalimbaSequences(prev => prev.filter(s => s.id !== id));
+  };
+
+  const playKalimbaSequence = (seq: KalimbaSequence) => {
+    kalimbaPlaybackTimeoutsRef.current.forEach(id => clearTimeout(id));
+    kalimbaPlaybackTimeoutsRef.current = [];
+    setKalimbaPlayingId(seq.id);
+    seq.notes.forEach(n => {
+      const timeoutId = window.setTimeout(() => playKalimbaNote(noteToFreq(n.note, n.octave)), n.t);
+      kalimbaPlaybackTimeoutsRef.current.push(timeoutId);
+    });
+    const lastT = seq.notes.length > 0 ? seq.notes[seq.notes.length - 1].t : 0;
+    const endTimeoutId = window.setTimeout(() => setKalimbaPlayingId(null), lastT + 300);
+    kalimbaPlaybackTimeoutsRef.current.push(endTimeoutId);
+  };
+
   const playKalimbaNote = (freq: number) => {
     try {
       const ctx = getAudioCtx();
@@ -6557,6 +6621,17 @@ export default function App() {
       osc2.start(now);
       osc2.stop(now + 0.65);
     } catch { /* Web Audio indisponible — silencieux */ }
+  };
+  // Point d'entrée utilisé par les lames du Kalimba : joue la note, et si un enregistrement est en
+  // cours, l'ajoute au buffer avec son décalage temporel par rapport au début de l'enregistrement.
+  const handleKalimbaTap = (note: string, octave: number) => {
+    playKalimbaNote(noteToFreq(note, octave));
+    if (kalimbaRecordingActive) {
+      kalimbaRecordBufferRef.current = [
+        ...kalimbaRecordBufferRef.current,
+        { note, octave, t: Date.now() - kalimbaRecordStartRef.current },
+      ];
+    }
   };
   // Pop de bulle du bac "Bulles" (bubble-wrap) : bruit filtré (le "clic") + petit thump grave qui chute
   // en pitch (le "thock"), légèrement randomisés à chaque appel pour que les pops ne sonnent pas tous
@@ -16555,7 +16630,7 @@ export default function App() {
                             return (
                               <button
                                 key={i}
-                                onPointerDown={() => playKalimbaNote(noteToFreq(n.note, n.octave))}
+                                onPointerDown={() => handleKalimbaTap(n.note, n.octave)}
                                 style={{ height: `${height}px` }}
                                 className="w-4 sm:w-5 rounded-b-md bg-gradient-to-t from-app-card to-app-border/50 border border-app-border/60 active:from-app-accent/50 active:to-app-accent/20 transition-colors shadow-sm shrink-0"
                                 title={`${n.note}${n.octave}`}
@@ -16567,6 +16642,67 @@ export default function App() {
                       <p className="text-[10px] text-app-muted text-center italic max-w-xs">
                         {lang === 'fr' ? 'Touche les lames pour jouer une note.' : 'Tap the tines to play a note.'}
                       </p>
+
+                      {/* Enregistrement de séquences */}
+                      <div className="w-full max-w-md space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">
+                            {lang === 'fr' ? `Séquences (${kalimbaSequences.length}/5)` : `Sequences (${kalimbaSequences.length}/5)`}
+                          </span>
+                          {kalimbaRecordingActive ? (
+                            <button
+                              onClick={stopKalimbaRecording}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500 text-white text-[10px] font-black uppercase tracking-widest animate-pulse"
+                            >
+                              <span className="w-2 h-2 rounded-sm bg-white" />
+                              {lang === 'fr' ? 'Arrêter' : 'Stop'}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={startKalimbaRecording}
+                              disabled={kalimbaSequences.length >= 5}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-accent text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+                            >
+                              <span className="w-2.5 h-2.5 rounded-full bg-white" />
+                              {lang === 'fr' ? 'Enregistrer' : 'Record'}
+                            </button>
+                          )}
+                        </div>
+
+                        {kalimbaRecordingActive && (
+                          <p className="text-[10px] text-red-500 text-center font-bold uppercase tracking-wider animate-pulse">
+                            {lang === 'fr' ? '● Enregistrement en cours — joue ta séquence, puis Arrêter.' : '● Recording — play your sequence, then Stop.'}
+                          </p>
+                        )}
+
+                        {kalimbaSequences.length === 0 && !kalimbaRecordingActive && (
+                          <p className="text-[10px] text-app-muted italic text-center">
+                            {lang === 'fr' ? "Aucune séquence enregistrée pour l'instant." : 'No sequences recorded yet.'}
+                          </p>
+                        )}
+
+                        <div className="space-y-2">
+                          {kalimbaSequences.map(seq => (
+                            <div key={seq.id} className="flex items-center gap-2 p-2.5 rounded-xl border border-app-border/30 bg-app-card">
+                              <button
+                                onClick={() => playKalimbaSequence(seq)}
+                                disabled={kalimbaPlayingId !== null && kalimbaPlayingId !== seq.id}
+                                className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-all ${kalimbaPlayingId === seq.id ? 'bg-app-accent text-white animate-pulse' : 'bg-app-accent/15 text-app-accent hover:bg-app-accent/25'} disabled:opacity-40`}
+                              >
+                                <Play className="w-3.5 h-3.5" />
+                              </button>
+                              <span className="flex-1 min-w-0 text-xs font-bold truncate">{seq.name}</span>
+                              <span className="text-[9px] text-app-muted shrink-0">{seq.notes.length} {lang === 'fr' ? 'notes' : 'notes'}</span>
+                              <button
+                                onClick={() => deleteKalimbaSequence(seq.id)}
+                                className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   ) : activeRelaxTool === 'affirmations' ? (() => {
                     const affirmation = AFFIRMATIONS[currentAffirmationIdx];
