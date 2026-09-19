@@ -9956,10 +9956,42 @@ export default function App() {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? "Date d'anniversaire" : 'Birthday'}</label>
-                  <input type="date" value={alterBirthday} onChange={e => setAlterBirthday(e.target.value)}
-                    className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
+                  {(() => {
+                    const m = alterBirthday.match(/^(?:(\d{1,4})-)?(\d{1,2})-(\d{1,2})$/);
+                    const bYear = m?.[1] || '';
+                    const bMonth = m?.[2] || '';
+                    const bDay = m?.[3] || '';
+                    const rebuildBirthday = (y: string, mo: string, d: string) => {
+                      if (!mo.trim() || !d.trim()) { setAlterBirthday(''); return; }
+                      const mm = mo.padStart(2, '0');
+                      const dd = d.padStart(2, '0');
+                      setAlterBirthday(y.trim() ? `${y.padStart(4, '0')}-${mm}-${dd}` : `${mm}-${dd}`);
+                    };
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Jour' : 'Day'}</span>
+                          <input type="number" min={1} max={31} value={bDay} placeholder="JJ"
+                            onChange={e => rebuildBirthday(bYear, bMonth, e.target.value)}
+                            className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Mois' : 'Month'}</span>
+                          <input type="number" min={1} max={12} value={bMonth} placeholder="MM"
+                            onChange={e => rebuildBirthday(bYear, e.target.value, bDay)}
+                            className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
+                        </div>
+                        <div className="space-y-1">
+                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Année (optionnel)' : 'Year (optional)'}</span>
+                          <input type="number" min={1} max={9999} value={bYear} placeholder="AAAA"
+                            onChange={e => rebuildBirthday(e.target.value, bMonth, bDay)}
+                            className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <p className="text-[9px] text-app-muted italic">
-                    {lang === 'fr' ? 'Apparaîtra automatiquement chaque année dans le Planning.' : 'Will automatically appear every year in Planning.'}
+                    {lang === 'fr' ? "L'année est facultative — jour et mois seuls suffisent. Apparaîtra automatiquement chaque année dans le Planning." : 'Year is optional — day and month alone are enough. Will automatically appear every year in Planning.'}
                   </p>
                 </div>
                 <div className="space-y-1.5">

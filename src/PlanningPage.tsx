@@ -250,7 +250,9 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     savedAlters.forEach(alter => {
       const bday = (alter as any).birthday as string | undefined;
       if (!bday) return;
-      const match = /^\d{4}-(\d{2})-(\d{2})/.exec(bday);
+      // Accepte les deux formats stockés côté fiche d'alter : AAAA-MM-JJ (année connue)
+      // et MM-JJ (jour/mois seuls, année inconnue ou non communiquée).
+      const match = /^(?:\d{4}-)?(\d{2})-(\d{2})$/.exec(bday);
       if (!match) return;
       const [, mm, dd] = match;
       years.forEach(y => {
