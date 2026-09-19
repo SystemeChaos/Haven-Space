@@ -1039,6 +1039,9 @@ export default function App() {
   const [alterLanguages, setAlterLanguages] = useState('');
   const [alterOriginWorld, setAlterOriginWorld] = useState('');
   const [alterBirthday, setAlterBirthday] = useState('');
+  const [alterBirthdayYear, setAlterBirthdayYear] = useState('');
+  const [alterBirthdayMonth, setAlterBirthdayMonth] = useState('');
+  const [alterBirthdayDay, setAlterBirthdayDay] = useState('');
   const [alterTags, setAlterTags] = useState<string[]>([]);
   const [alterTagInput, setAlterTagInput] = useState('');
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
@@ -6842,7 +6845,12 @@ export default function App() {
     setTriggersNegative(alter.triggersNegative || '');
     setAlterLanguages(alter.alterLanguages || '');
     setAlterOriginWorld(alter.alterOriginWorld || '');
-    setAlterBirthday((alter as any).birthday || '');
+    const birthday = (alter as any).birthday || '';
+    const birthdayMatch = birthday.match(/^(?:(\d{1,4})-)?(\d{1,2})-(\d{1,2})$/);
+    setAlterBirthday(birthday);
+    setAlterBirthdayYear(birthdayMatch?.[1] || '');
+    setAlterBirthdayMonth(birthdayMatch?.[2] || '');
+    setAlterBirthdayDay(birthdayMatch?.[3] || '');
     setAlterTags(alter.tags || []);
     setCustomFields(alter.customFields || []);
     setDescriptionImages(alter.descriptionImages || []);
@@ -6920,6 +6928,9 @@ export default function App() {
     setAlterLanguages('');
     setAlterOriginWorld('');
     setAlterBirthday('');
+    setAlterBirthdayYear('');
+    setAlterBirthdayMonth('');
+    setAlterBirthdayDay('');
     setAlterTags([]);
     setAlterTagInput('');
     setCustomFields([]);
@@ -9957,34 +9968,33 @@ export default function App() {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? "Date d'anniversaire" : 'Birthday'}</label>
                   {(() => {
-                    const m = alterBirthday.match(/^(?:(\d{1,4})-)?(\d{1,2})-(\d{1,2})$/);
-                    const bYear = m?.[1] || '';
-                    const bMonth = m?.[2] || '';
-                    const bDay = m?.[3] || '';
-                    const rebuildBirthday = (y: string, mo: string, d: string) => {
-                      if (!mo.trim() || !d.trim()) { setAlterBirthday(''); return; }
-                      const mm = mo.padStart(2, '0');
-                      const dd = d.padStart(2, '0');
-                      setAlterBirthday(y.trim() ? `${y.padStart(4, '0')}-${mm}-${dd}` : `${mm}-${dd}`);
+                    const rebuildBirthday = (year: string, month: string, day: string) => {
+                      if (!month.trim() || !day.trim()) {
+                        setAlterBirthday('');
+                        return;
+                      }
+                      const mm = month.padStart(2, '0');
+                      const dd = day.padStart(2, '0');
+                      setAlterBirthday(year.trim() ? `${year.padStart(4, '0')}-${mm}-${dd}` : `${mm}-${dd}`);
                     };
                     return (
                       <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
                           <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Jour' : 'Day'}</span>
-                          <input type="number" min={1} max={31} value={bDay} placeholder="JJ"
-                            onChange={e => rebuildBirthday(bYear, bMonth, e.target.value)}
+                          <input type="number" min={1} max={31} value={alterBirthdayDay} placeholder="JJ"
+                            onChange={e => { setAlterBirthdayDay(e.target.value); rebuildBirthday(alterBirthdayYear, alterBirthdayMonth, e.target.value); }}
                             className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                         </div>
                         <div className="space-y-1">
                           <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Mois' : 'Month'}</span>
-                          <input type="number" min={1} max={12} value={bMonth} placeholder="MM"
-                            onChange={e => rebuildBirthday(bYear, e.target.value, bDay)}
+                          <input type="number" min={1} max={12} value={alterBirthdayMonth} placeholder="MM"
+                            onChange={e => { setAlterBirthdayMonth(e.target.value); rebuildBirthday(alterBirthdayYear, e.target.value, alterBirthdayDay); }}
                             className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                         </div>
                         <div className="space-y-1">
                           <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Année (optionnel)' : 'Year (optional)'}</span>
-                          <input type="number" min={1} max={9999} value={bYear} placeholder="AAAA"
-                            onChange={e => rebuildBirthday(e.target.value, bMonth, bDay)}
+                          <input type="number" min={1} max={9999} value={alterBirthdayYear} placeholder="AAAA"
+                            onChange={e => { setAlterBirthdayYear(e.target.value); rebuildBirthday(e.target.value, alterBirthdayMonth, alterBirthdayDay); }}
                             className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                         </div>
                       </div>
