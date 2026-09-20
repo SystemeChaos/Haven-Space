@@ -32,7 +32,7 @@ import {
   Layers,
   Trash2,
   Move,
-  Map as MapIcon,
+  Map,
   Languages,
   Eye,
   Briefcase,
@@ -1651,7 +1651,7 @@ export default function App() {
   const [systemDataLoaded, setSystemDataLoaded] = useState(false);
   // Table de référence (id → dernière version écrite) utilisée par l'effet d'écriture par-alter
   // ci-dessous, pour ne réécrire que ce qui a réellement changé plutôt que tout le système à chaque fois.
-  const alterRecordsRef = useRef<Map<string, SavedAlter>>(new Map());
+  const alterRecordsRef = useRef<globalThis.Map<string, SavedAlter>>(new globalThis.Map<string, SavedAlter>());
 
   // Chargement (et migration douce) du profil système (alters, triggers compris) via le coffre
   // chiffré — même logique que Santé/Journal : vide tant que le coffre est verrouillé, donc
@@ -1682,7 +1682,7 @@ export default function App() {
       // première passe après un chargement "nouveau format" ne réécrive rien inutilement — seule
       // une migration depuis l'ancien bloc doit déclencher l'écriture individuelle de chaque alter.
       if (alterKeys.length > 0) {
-        alterRecordsRef.current = new Map(alters.map(a => [a.id, a]));
+        alterRecordsRef.current = new globalThis.Map(alters.map(a => [a.id, a]));
       }
       setSystemDataLoaded(true);
     })();
@@ -2067,7 +2067,7 @@ export default function App() {
     (async () => {
       const prevMap = alterRecordsRef.current;
       const currentIds = new Set(savedAlters.map(a => a.id));
-      const nextMap = new Map<string, SavedAlter>();
+      const nextMap = new globalThis.Map<string, SavedAlter>();
       for (const alter of savedAlters) {
         nextMap.set(alter.id, alter);
         if (prevMap.get(alter.id) !== alter) {
@@ -8553,7 +8553,7 @@ export default function App() {
       case Disorder.SLEEP_DISORDER: return <Moon className="w-4 h-4" />;
       case Disorder.PHOBIA: return <Skull className="w-4 h-4" />;
       case Disorder.PANIC_DISORDER: return <AlertTriangle className="w-4 h-4" />;
-      case Disorder.AGORAPHOBIA: return <MapIcon className="w-4 h-4" />;
+      case Disorder.AGORAPHOBIA: return <Map className="w-4 h-4" />;
       case Disorder.SOCIAL_ANXIETY: return <UserMinus className="w-4 h-4" />;
       case Disorder.SELECTIVE_MUTISM: return <MicOff className="w-4 h-4" />;
       case Disorder.SPD: return <Fingerprint className="w-4 h-4" />;
