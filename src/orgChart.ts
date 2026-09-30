@@ -99,6 +99,20 @@ export const BAND_META: Record<BandId, { fr: string; en: string; color: string }
   locked:      { fr: 'Fiches verrouillées',    en: 'Locked profiles',       color: '#6B7280' },
 };
 
+
+/** Libellés de toutes les familles (y compris statut et nature), pour l'UI du créateur. */
+export const FAMILY_LABEL: Record<RoleFamily, { fr: string; en: string }> = {
+  status:      { fr: 'Statut',            en: 'Status' },
+  protection:  { fr: BAND_META.protection.fr,  en: BAND_META.protection.en },
+  persecution: { fr: BAND_META.persecution.fr, en: BAND_META.persecution.en },
+  care:        { fr: BAND_META.care.fr,        en: BAND_META.care.en },
+  keeping:     { fr: BAND_META.keeping.fr,     en: BAND_META.keeping.en },
+  anchor:      { fr: BAND_META.anchor.fr,      en: BAND_META.anchor.en },
+  social:      { fr: BAND_META.social.fr,      en: BAND_META.social.en },
+  sexual:      { fr: BAND_META.sexual.fr,      en: BAND_META.sexual.en },
+  nature:      { fr: 'Nature (ignorée)',  en: 'Nature (ignored)' },
+};
+
 export interface OrgNode {
   alter: SavedAlter;
   /** Fiche protégée par son PIN individuel et pas déverrouillée : nom et rôles cachés. */
@@ -124,25 +138,59 @@ const isStandardRole = (key: string): key is AlterRole =>
   Object.prototype.hasOwnProperty.call(ROLE_FAMILY, key);
 
 /**
- * Rôles de l'alter dans l'ordre de priorité (le premier compte le plus).
- * Si `roleOrder` existe on le suit ; sinon on retombe sur [rôles fixes, rôles perso],
- * ce qui ne demande aucune migration des fiches existantes.
+ * Ordre de priorité final à partir d'un éventuel ordre mémorisé (`order`) et des rôles
+ * réellement attribués : on garde l'ordre mémorisé pour ceux qui y sont encore, puis on
+ * ajoute à la fin les rôles nouvellement attribués. Sans `order`, on retombe sur
+ * [rôles fixes, rôles perso], ce qui ne demande aucune migration des fiches existantes.
  */
-export function getRoleKeys(alter: SavedAlter): string[] {
-  const base: string[] = Array.from(new Set([
-    ...((alter.selectedRoles || []) as string[]),
-    ...(alter.customRoleIds || []),
-  ]));
-  if (!alter.roleOrder || alter.roleOrder.length === 0) return base;
-  const ordered = alter.roleOrder.filter(k => base.includes(k));
+export function reconcileRoleOrder(
+  order: string[] | undefined,
+  selectedRoles: readonly string[] | undefined,
+  customRoleIds: readonly string[] | undefined,
+): string[] {
+  const base: string[] = Array.from(new Set([...(selectedRoles || []), ...(customRoleIds || [])]));
+  if (!order || order.length === 0) return base;
+  const ordered = order.filter(k => base.includes(k));
   const rest = base.filter(k => !ordered.includes(k));
   return [...ordered, ...rest];
+}
+
+/** Rôles de l'alter dans l'ordre de priorité (le premier compte le plus). */
+export function getRoleKeys(alter: SavedAlter): string[] {
+  return reconcileRoleOrder(alter.roleOrder, alter.selectedRoles, alter.customRoleIds);
 }
 
 /** Famille d'un rôle fixe ou perso. Un rôle perso sans famille est traité comme « nature » (ignoré). */
 export function getRoleFamily(key: string, customRoles: CustomRole[]): RoleFamily {
   if (isStandardRole(key)) return ROLE_FAMILY[key];
   return customRoles.find(r => r.id === key)?.family ?? 'nature';
+}
+
+export type OrgLevel = 'host' | 'coHost' | FunctionFamily | 'other';
+
+export interface Placement {
+  level: OrgLevel;
+  /** Rôle (fixe ou id de rôle perso) qui décide du placement ; absent si aucun rôle de fonction. */
+  roleKey?: string;
+}
+
+/**
+ * Règle unique de placement, partagée par l'organigramme et par le créateur de fiches
+ * (qui affiche « Catégorie dans l'organigramme » en direct) :
+ *  1. le statut passe avant tout, quel que soit son rang : Hôte > Co-hôte > Front-Runner ;
+ *  2. sinon le premier rôle de fonction dans l'ordre de priorité décide de la bande ;
+ *  3. sinon « other » (aucun rôle de fonction).
+ */
+export function placeAlter(keys: string[], customRoles: CustomRole[]): Placement {
+  if (keys.includes(AlterRole.HOST)) return { level: 'host', roleKey: AlterRole.HOST };
+  if (keys.includes(AlterRole.CO_HOST)) return { level: 'coHost', roleKey: AlterRole.CO_HOST };
+  if (keys.includes(AlterRole.FRONT_RUNNER)) return { level: 'coHost', roleKey: AlterRole.FRONT_RUNNER };
+  for (const key of keys) {
+    const family = getRoleFamily(key, customRoles);
+    if (family === 'status' || family === 'nature') continue;
+    return { level: family, roleKey: key };
+  }
+  return { level: 'other' };
 }
 
 const byName = (a: OrgNode, b: OrgNode) =>
@@ -172,31 +220,11 @@ export function buildOrgChart(
       continue;
     }
 
-    const keys = getRoleKeys(alter);
-
-    // Le statut passe avant tout, quel que soit son rang dans la liste de rôles.
-    if (keys.includes(AlterRole.HOST)) {
-      hosts.push({ alter, locked: false, roleKey: AlterRole.HOST });
-      continue;
-    }
-    const coKey = keys.includes(AlterRole.CO_HOST)
-      ? AlterRole.CO_HOST
-      : keys.includes(AlterRole.FRONT_RUNNER) ? AlterRole.FRONT_RUNNER : null;
-    if (coKey) {
-      coHosts.push({ alter, locked: false, roleKey: coKey });
-      continue;
-    }
-
-    // Sinon : le premier rôle de fonction (dans l'ordre de priorité) décide de la bande.
-    let placed = false;
-    for (const key of keys) {
-      const family = getRoleFamily(key, customRoles);
-      if (family === 'status' || family === 'nature') continue;
-      push(family, { alter, locked: false, roleKey: key });
-      placed = true;
-      break;
-    }
-    if (!placed) push('other', { alter, locked: false });
+    const placement = placeAlter(getRoleKeys(alter), customRoles);
+    const node: OrgNode = { alter, locked: false, roleKey: placement.roleKey };
+    if (placement.level === 'host') hosts.push(node);
+    else if (placement.level === 'coHost') coHosts.push(node);
+    else push(placement.level, node);
   }
 
   hosts.sort(byName);

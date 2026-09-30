@@ -1,6 +1,7 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
 import OrgChartPage from './OrgChartPage';
+import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
@@ -1053,10 +1054,13 @@ export default function App() {
   const [frontStatus, setFrontStatus] = useState<string>('none');
   // Rôles personnalisés attribués à l'alter en cours d'édition
   const [selectedCustomRoleIds, setSelectedCustomRoleIds] = useState<string[]>([]);
+  // Ordre de priorité des rôles (fixes + perso mélangés) : le premier rôle de fonction décide de la catégorie dans l'organigramme. Vide = ordre par défaut.
+  const [roleOrder, setRoleOrder] = useState<string[]>([]);
   // Brouillon du formulaire de création/édition d'un rôle personnalisé (liste globale)
   const [customRoleDraftName, setCustomRoleDraftName] = useState('');
   const [customRoleDraftDefinition, setCustomRoleDraftDefinition] = useState('');
   const [customRoleDraftColor, setCustomRoleDraftColor] = useState('#8B5CF6');
+  const [customRoleDraftFamily, setCustomRoleDraftFamily] = useState<FunctionFamily | ''>('');
   const [editingCustomRoleId, setEditingCustomRoleId] = useState<string | null>(null);
   const [customRoleDeleteConfirmId, setCustomRoleDeleteConfirmId] = useState<string | null>(null);
   // Traits personnalisés attribués à l'alter en cours d'édition
@@ -6911,6 +6915,7 @@ export default function App() {
       descriptionImages: descriptionImages.length > 0 ? descriptionImages : undefined,
       internalNotesImages: internalNotesImages.length > 0 ? internalNotesImages : undefined,
       customRoleIds: selectedCustomRoleIds.length > 0 ? selectedCustomRoleIds : undefined,
+      roleOrder: roleOrder.length > 0 ? reconcileRoleOrder(roleOrder, cleanAlterRoles(selectedRoles), selectedCustomRoleIds) : undefined,
       customTraitIds: selectedCustomTraitIds.length > 0 ? selectedCustomTraitIds : undefined,
       customDisorderIds: selectedCustomDisorderIds.length > 0 ? selectedCustomDisorderIds : undefined,
       customGenderIds: selectedCustomGenderIds.length > 0 ? selectedCustomGenderIds : undefined,
@@ -6975,6 +6980,7 @@ export default function App() {
     setDescriptionImages(alter.descriptionImages || []);
     setInternalNotesImages(alter.internalNotesImages || []);
     setSelectedCustomRoleIds(alter.customRoleIds || []);
+    setRoleOrder(alter.roleOrder || []);
     setSelectedCustomTraitIds(alter.customTraitIds || []);
     setSelectedCustomDisorderIds(alter.customDisorderIds || []);
     setSelectedCustomGenderIds(alter.customGenderIds || []);
@@ -7056,6 +7062,7 @@ export default function App() {
     setDescriptionImages([]);
     setInternalNotesImages([]);
     setSelectedCustomRoleIds([]);
+    setRoleOrder([]);
     setSelectedCustomTraitIds([]);
     setSelectedCustomDisorderIds([]);
     setSelectedCustomGenderIds([]);
@@ -7926,11 +7933,23 @@ export default function App() {
     setTimeout(saveToHistory, 0);
   };
 
+  // Ordre de priorité actuel (rôles fixes + perso) et déplacement d'un rôle d'un cran
+  const orderedRoleKeys = reconcileRoleOrder(roleOrder, selectedRoles, selectedCustomRoleIds);
+  const moveRolePriority = (key: string, dir: -1 | 1) => {
+    const list = [...orderedRoleKeys];
+    const i = list.indexOf(key);
+    const j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    setRoleOrder(list);
+  };
+
   const resetCustomRoleDraft = () => {
     setEditingCustomRoleId(null);
     setCustomRoleDraftName('');
     setCustomRoleDraftDefinition('');
     setCustomRoleDraftColor('#8B5CF6');
+    setCustomRoleDraftFamily('');
   };
 
   // Crée un nouveau rôle personnalisé, ou enregistre les modifications si on est en mode édition
@@ -7939,7 +7958,7 @@ export default function App() {
     if (!name) return;
     if (editingCustomRoleId) {
       setCustomRoles(prev => prev.map(r => r.id === editingCustomRoleId
-        ? { ...r, name, definition: customRoleDraftDefinition.trim(), color: customRoleDraftColor }
+        ? { ...r, name, definition: customRoleDraftDefinition.trim(), color: customRoleDraftColor, family: customRoleDraftFamily || undefined }
         : r));
     } else {
       const newRole: CustomRole = {
@@ -7947,6 +7966,7 @@ export default function App() {
         name,
         definition: customRoleDraftDefinition.trim(),
         color: customRoleDraftColor,
+        family: customRoleDraftFamily || undefined,
       };
       setCustomRoles(prev => [...prev, newRole]);
       setSelectedCustomRoleIds(prev => [...prev, newRole.id]);
@@ -7959,6 +7979,7 @@ export default function App() {
     setCustomRoleDraftName(role.name);
     setCustomRoleDraftDefinition(role.definition);
     setCustomRoleDraftColor(role.color || '#8B5CF6');
+    setCustomRoleDraftFamily(role.family && role.family !== 'nature' && role.family !== 'status' ? role.family : '');
   };
 
   // Supprime un rôle personnalisé de la liste globale et le détache de tous les alters qui l'utilisaient
@@ -10344,6 +10365,21 @@ export default function App() {
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
+                      <label className="block space-y-1">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                          {lang === 'fr' ? "Catégorie dans l'organigramme" : 'Org chart category'}
+                        </span>
+                        <select
+                          value={customRoleDraftFamily}
+                          onChange={(e) => setCustomRoleDraftFamily(e.target.value as FunctionFamily | '')}
+                          className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text"
+                        >
+                          <option value="">{lang === 'fr' ? 'Aucune (ignoré dans l\'organigramme)' : 'None (ignored in the org chart)'}</option>
+                          {FAMILY_ORDER.map(f => (
+                            <option key={f} value={f}>{lang === 'fr' ? FAMILY_LABEL[f].fr : FAMILY_LABEL[f].en}</option>
+                          ))}
+                        </select>
+                      </label>
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
@@ -10367,6 +10403,70 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+
+                  {orderedRoleKeys.length > 1 && (() => {
+                    const placement = placeAlter(orderedRoleKeys, customRoles);
+                    const placementLabel =
+                      placement.level === 'host' ? (lang === 'fr' ? 'Hôte' : 'Host')
+                      : placement.level === 'coHost' ? (lang === 'fr' ? 'Co-hôte' : 'Co-host')
+                      : placement.level === 'other' ? (lang === 'fr' ? 'Aucune catégorie (pas de rôle de fonction)' : 'No category (no function role)')
+                      : `${lang === 'fr' ? BAND_META[placement.level].fr : BAND_META[placement.level].en}${placement.roleKey ? ` · ${getRoleDisplayName(placement.roleKey)}` : ''}`;
+                    return (
+                      <div className="pt-4 border-t border-app-border/25 space-y-3">
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
+                          {lang === 'fr' ? 'Ordre de priorité' : 'Priority order'}
+                        </div>
+                        <p className="text-[11px] text-app-muted px-1">
+                          {lang === 'fr'
+                            ? "Le premier rôle de fonction de la liste décide de la catégorie dans l'organigramme. Hôte et Co-hôte passent toujours avant."
+                            : 'The first function role in the list decides the category in the org chart. Host and Co-host always come first.'}
+                        </p>
+                        <div className="px-1 text-xs font-bold text-app-text">
+                          {lang === 'fr' ? 'Organigramme : ' : 'Org chart: '}{placementLabel}
+                        </div>
+                        <div className="space-y-1.5">
+                          {orderedRoleKeys.map((key, idx) => {
+                            const family = getRoleFamily(key, customRoles);
+                            const isDeciding = key === placement.roleKey;
+                            return (
+                              <div
+                                key={key}
+                                className="flex items-center gap-2 bg-app-card/40 p-2 rounded-xl border border-app-border/15"
+                                style={isDeciding ? { borderColor: getRoleDisplayColor(key) } : undefined}
+                              >
+                                <span className="w-4 text-[10px] font-mono text-app-muted text-center shrink-0">{idx + 1}</span>
+                                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: getRoleDisplayColor(key) }} />
+                                <span className="text-xs font-semibold truncate flex-1 min-w-0">{getRoleDisplayName(key)}</span>
+                                <span className="text-[10px] text-app-muted shrink-0 hidden sm:inline">
+                                  {lang === 'fr' ? FAMILY_LABEL[family].fr : FAMILY_LABEL[family].en}
+                                </span>
+                                <span className="flex items-center shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => moveRolePriority(key, -1)}
+                                    disabled={idx === 0}
+                                    aria-label={lang === 'fr' ? 'Monter' : 'Move up'}
+                                    className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-accent/10 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                                  >
+                                    <ChevronUp className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveRolePriority(key, 1)}
+                                    disabled={idx === orderedRoleKeys.length - 1}
+                                    aria-label={lang === 'fr' ? 'Descendre' : 'Move down'}
+                                    className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-accent/10 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+                                  >
+                                    <ChevronDown className="w-3.5 h-3.5" />
+                                  </button>
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {selectedRoles.length > 0 && (
                     <div className="pt-4 border-t border-app-border/25 space-y-3">
