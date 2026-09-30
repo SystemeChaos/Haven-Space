@@ -1,5 +1,6 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
+import OrgChartPage from './OrgChartPage';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
 import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
@@ -147,6 +148,7 @@ import {
   Send,
   ChevronRight,
   Wallet,
+  Network,
 } from 'lucide-react';
 import { AlterRole, Gender, Pronoun, Sexuality, Trait, PersonalityTrait, Disorder, ROLE_CONFIGS, GENDER_COLORS, PRONOUN_COLORS, SEXUALITY_COLORS, ShapeType, PatternType, PatternLayer, Decoration, GENDER_CATEGORIES, PRONOUN_CATEGORIES, SEXUALITY_CATEGORIES, TraitDecoration, Theme, SavedAlter, CustomField, CustomRole, CustomTrait, CustomDisorder, CustomGender, CustomPronoun, CustomSexuality, Subsystem, ParallelSystem, ChatMessage, DirectMessage, DirectConversation, SwitchLog, JournalEntry } from './types';
 import { translations } from './translations';
@@ -1639,7 +1641,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'innerworld' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'orgchart' | 'innerworld' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
   const [innerworldTargetAlterId, setInnerworldTargetAlterId] = useState<string | null>(null);
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
@@ -12195,6 +12197,7 @@ export default function App() {
             { value: 'creator',   label: t.menuCreator,    icon: Hammer,             desc: lang === 'fr' ? 'Créer ou modifier une fiche' : 'Create or edit a profile' },
             { value: 'switch',    label: t.menuSwitches,   icon: ArrowLeftRight,     desc: lang === 'fr' ? 'Registre des fronts et émotions' : 'Front log and emotions' },
             { value: 'mapping',   label: t.menuMapping,    icon: GitBranch,          desc: lang === 'fr' ? 'Visualiser le système' : 'Visualise the system' },
+            { value: 'orgchart',  label: lang === 'fr' ? 'Organigramme' : 'Org chart', icon: Network, desc: lang === 'fr' ? 'Hiérarchie du système par rôles' : 'System hierarchy by roles' },
             { value: 'innerworld', label: lang === 'fr' ? 'Innerworld' : 'Innerworld', icon: TreePine, desc: lang === 'fr' ? 'Le monde intérieur, lieu par lieu' : "The inner world, place by place" },
             { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: lang === 'fr' ? 'Discussion interne' : 'Internal discussion' },
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
@@ -14226,6 +14229,20 @@ export default function App() {
         {currentTab === 'mapping' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
             <MappingPage savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)} lang={lang} activeSystemId={activeSystemId} dek={dek} vaultActive={!!vaultMeta} />
+          </div>
+        )}
+
+        {/* --- ORG CHART VIEW --- */}
+        {currentTab === 'orgchart' && (
+          <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <OrgChartPage
+              savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)}
+              customRoles={customRoles}
+              unlockedAlterIds={unlockedAlterIds}
+              lang={lang}
+              getRoleName={getRoleDisplayName}
+              getRoleColor={getRoleDisplayColor}
+            />
           </div>
         )}
 

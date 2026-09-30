@@ -637,11 +637,25 @@ export interface CustomField {
   value: string;
 }
 
+// Famille d'un rôle pour l'organigramme : 'status' (Hôte/Co-hôte) et les fonctions créent des
+// niveaux/bandes ; 'nature' (fictif, non-humain, âge, porteur de…) est ignorée.
+export type RoleFamily =
+  | 'status'
+  | 'protection'
+  | 'persecution'
+  | 'care'
+  | 'keeping'
+  | 'anchor'
+  | 'social'
+  | 'sexual'
+  | 'nature';
+
 export interface CustomRole {
   id: string;
   name: string;
   definition: string;
   color: string;
+  family?: RoleFamily; // absent = traité comme 'nature' (ignoré dans l'organigramme)
 }
 
 export interface CustomTrait {
@@ -724,6 +738,7 @@ export interface SavedAlter {
   lockPinHash?: string;
   lockPinQuestion?: string;
   lockPinAnswerHash?: string;
+  roleOrder?: string[]; // ordre de priorité des rôles (valeurs d'AlterRole + ids de rôles perso mélangés) ; absent = [selectedRoles, customRoleIds]
 }
 
 export interface PollOption {
