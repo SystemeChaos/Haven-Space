@@ -12,7 +12,7 @@
  *  - « nature »  (Fictif, Non-humain, Little, Porteur de traumatisme, …) → ignorées ici
  */
 
-import { AlterRole, CustomRole, RoleFamily, SavedAlter } from './types';
+import { AlterRole, CustomRole, RoleFamily, SavedAlter, Subsystem } from './types';
 
 export type FunctionFamily = Exclude<RoleFamily, 'status' | 'nature'>;
 
@@ -121,19 +121,6 @@ export interface OrgNode {
   roleKey?: string;
 }
 
-export interface OrgBand {
-  id: BandId;
-  nodes: OrgNode[];
-}
-
-export interface OrgChart {
-  hosts: OrgNode[];
-  coHosts: OrgNode[];
-  bands: OrgBand[];
-  /** Nombre d'alters affichés (archivés exclus). */
-  total: number;
-}
-
 const isStandardRole = (key: string): key is AlterRole =>
   Object.prototype.hasOwnProperty.call(ROLE_FAMILY, key);
 
@@ -193,49 +180,173 @@ export function placeAlter(keys: string[], customRoles: CustomRole[]): Placement
   return { level: 'other' };
 }
 
+export type OrgMode = 'primary' | 'multi';
+
+export interface OrgBand {
+  id: BandId;
+  nodes: OrgNode[];
+}
+
+/** Un niveau de sous-système (ou la racine, `id === null`) avec ses bandes et ses sous-blocs. */
+export interface OrgBlock {
+  id: string | null;
+  name: string;
+  bands: OrgBand[];
+  children: OrgBlock[];
+  /** Alters distincts dans ce bloc et ses sous-blocs (hôtes et co-hôtes exclus : ils sont en haut). */
+  count: number;
+}
+
+export interface OrgChart {
+  hosts: OrgNode[];
+  coHosts: OrgNode[];
+  root: OrgBlock;
+  hasSubsystems: boolean;
+  /** Nombre d'alters distincts affichés (archivés exclus). */
+  total: number;
+}
+
+/**
+ * Mode « toutes les catégories » : une entrée par famille de fonction présente dans les rôles,
+ * avec le premier rôle (dans l'ordre de priorité) de chaque famille.
+ */
+export function getFunctionPlacements(
+  keys: string[],
+  customRoles: CustomRole[],
+): Array<{ family: FunctionFamily; roleKey: string }> {
+  const seen = new Set<FunctionFamily>();
+  const out: Array<{ family: FunctionFamily; roleKey: string }> = [];
+  for (const key of keys) {
+    const family = getRoleFamily(key, customRoles);
+    if (family === 'status' || family === 'nature' || seen.has(family)) continue;
+    seen.add(family);
+    out.push({ family, roleKey: key });
+  }
+  return out;
+}
+
 const byName = (a: OrgNode, b: OrgNode) =>
   (a.alter.alterName || '').localeCompare(b.alter.alterName || '');
 
+/**
+ * Construit l'organigramme.
+ *  - Hôtes et co-hôtes sont toujours en haut, pour tout le système (quel que soit leur sous-système).
+ *  - Le reste est rangé par sous-système (arbre `parentId`), puis par bande de fonction.
+ *  - mode 'primary' : un alter = une bande (son premier rôle de fonction).
+ *  - mode 'multi'   : un alter apparaît dans chaque bande dont il a un rôle ; les hôtes/co-hôtes
+ *                     apparaissent aussi dans les bandes de leurs rôles de fonction.
+ *  - Sous-systèmes : un parent inconnu, un parent = soi-même ou un cycle ne font rien disparaître,
+ *    le sous-système est simplement rattaché à la racine. Un alter dont le sous-système est
+ *    inconnu est rangé à la racine.
+ *  - Fiche verrouillée : toujours à la racine, dans la bande masquée (ni nom, ni rôle, ni sous-système).
+ */
 export function buildOrgChart(
   alters: SavedAlter[],
   customRoles: CustomRole[],
   unlockedAlterIds: string[] = [],
+  subsystems: Subsystem[] = [],
+  mode: OrgMode = 'primary',
 ): OrgChart {
   const hosts: OrgNode[] = [];
   const coHosts: OrgNode[] = [];
-  const byFamily = new Map<BandId, OrgNode[]>();
-  const push = (id: BandId, node: OrgNode) => {
-    const list = byFamily.get(id);
-    if (list) list.push(node); else byFamily.set(id, [node]);
+  const validIds = new Set(subsystems.map(sub => sub.id));
+
+  const bandsOf = new Map<string | null, Map<BandId, OrgNode[]>>();
+  const idsOf = new Map<string | null, Set<string>>();
+  const push = (blockId: string | null, band: BandId, node: OrgNode) => {
+    let m = bandsOf.get(blockId);
+    if (!m) { m = new Map(); bandsOf.set(blockId, m); }
+    const list = m.get(band);
+    if (list) list.push(node); else m.set(band, [node]);
+    let ids = idsOf.get(blockId);
+    if (!ids) { ids = new Set(); idsOf.set(blockId, ids); }
+    ids.add(node.alter.id);
   };
 
-  let total = 0;
+  const everyone = new Set<string>();
   for (const alter of alters) {
     if (alter.archived) continue;
-    total++;
+    everyone.add(alter.id);
 
-    // Fiche verrouillée : on ne révèle ni son nom ni son rôle, donc pas de placement.
     if (alter.lockPinHash && !unlockedAlterIds.includes(alter.id)) {
-      push('locked', { alter, locked: true });
+      push(null, 'locked', { alter, locked: true });
       continue;
     }
 
-    const placement = placeAlter(getRoleKeys(alter), customRoles);
-    const node: OrgNode = { alter, locked: false, roleKey: placement.roleKey };
-    if (placement.level === 'host') hosts.push(node);
-    else if (placement.level === 'coHost') coHosts.push(node);
-    else push(placement.level, node);
+    const keys = getRoleKeys(alter);
+    const blockId = alter.subsystemId && validIds.has(alter.subsystemId) ? alter.subsystemId : null;
+    const placement = placeAlter(keys, customRoles);
+    const isHost = placement.level === 'host';
+    const isCoHost = placement.level === 'coHost';
+    if (isHost || isCoHost) {
+      (isHost ? hosts : coHosts).push({ alter, locked: false, roleKey: placement.roleKey });
+    }
+
+    if (mode === 'multi') {
+      const places = getFunctionPlacements(keys, customRoles);
+      if (places.length > 0) {
+        for (const pl of places) push(blockId, pl.family, { alter, locked: false, roleKey: pl.roleKey });
+      } else if (!isHost && !isCoHost) {
+        push(blockId, 'other', { alter, locked: false });
+      }
+    } else if (placement.level !== 'host' && placement.level !== 'coHost') {
+      push(blockId, placement.level, { alter, locked: false, roleKey: placement.roleKey });
+    }
   }
 
   hosts.sort(byName);
   coHosts.sort(byName);
 
-  const bands: OrgBand[] = [];
-  const order: BandId[] = [...FAMILY_ORDER, 'other', 'locked'];
-  for (const id of order) {
-    const nodes = byFamily.get(id);
-    if (nodes && nodes.length > 0) bands.push({ id, nodes: nodes.sort(byName) });
+  // Arbre des sous-systèmes (parents invalides et cycles rattachés à la racine)
+  const childrenOf = new Map<string | null, Subsystem[]>();
+  for (const sub of subsystems) {
+    const parent = sub.parentId && sub.parentId !== sub.id && validIds.has(sub.parentId) ? sub.parentId : null;
+    const list = childrenOf.get(parent);
+    if (list) list.push(sub); else childrenOf.set(parent, [sub]);
+  }
+  const reached = new Set<string>();
+  const walk = (id: string | null) => {
+    for (const sub of childrenOf.get(id) || []) {
+      if (reached.has(sub.id)) continue;
+      reached.add(sub.id);
+      walk(sub.id);
+    }
+  };
+  walk(null);
+  for (const sub of subsystems) {
+    if (reached.has(sub.id)) continue;
+    const rootList = childrenOf.get(null);
+    if (rootList) rootList.push(sub); else childrenOf.set(null, [sub]);
+    reached.add(sub.id);
+    walk(sub.id);
   }
 
-  return { hosts, coHosts, bands, total };
+  const order: BandId[] = [...FAMILY_ORDER, 'other', 'locked'];
+  const makeBands = (id: string | null): OrgBand[] => {
+    const m = bandsOf.get(id);
+    const bands: OrgBand[] = [];
+    if (!m) return bands;
+    for (const bandId of order) {
+      const nodes = m.get(bandId);
+      if (nodes && nodes.length > 0) bands.push({ id: bandId, nodes: nodes.sort(byName) });
+    }
+    return bands;
+  };
+
+  const buildBlock = (id: string | null, name: string, path: Set<string>): { block: OrgBlock; ids: Set<string> } => {
+    const nextPath = id ? new Set(path).add(id) : path;
+    const kids = (childrenOf.get(id) || [])
+      .filter(sub => !nextPath.has(sub.id))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const built = kids.map(sub => buildBlock(sub.id, sub.name, nextPath));
+    const ids = new Set(idsOf.get(id) || []);
+    built.forEach(b => b.ids.forEach(x => ids.add(x)));
+    return {
+      block: { id, name, bands: makeBands(id), children: built.map(b => b.block), count: ids.size },
+      ids,
+    };
+  };
+
+  const root = buildBlock(null, '', new Set()).block;
+  return { hosts, coHosts, root, hasSubsystems: subsystems.length > 0, total: everyone.size };
 }

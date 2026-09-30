@@ -14338,8 +14338,14 @@ export default function App() {
             <OrgChartPage
               savedAlters={savedAlters.filter(a => (a.systemId || 'main') === activeSystemId)}
               customRoles={customRoles}
+              subsystems={activeSystemSubsystems}
               unlockedAlterIds={unlockedAlterIds}
               lang={lang}
+              systemName={parallelSystems.length > 0
+                ? (activeSystemId === 'main'
+                    ? (mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Main System'))
+                    : parallelSystems.find(s => s.id === activeSystemId)?.name)
+                : undefined}
               getRoleName={getRoleDisplayName}
               getRoleColor={getRoleDisplayColor}
             />
