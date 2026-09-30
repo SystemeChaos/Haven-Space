@@ -5,7 +5,7 @@ import {
   MessageCircle, MessageSquare, LifeBuoy, PhoneCall, Download, Link2, Palette,
   LayoutDashboard, Globe, Smartphone, Boxes, CalendarDays, LayoutGrid, Sparkles, Wind,
   HeartPulse, Languages, Wallet, TreePine, Bug, Upload, X, CheckCircle2, AlertCircle, Loader2,
-  Clock, MapPin, StickyNote, KeyRound,
+  Clock, MapPin, StickyNote, KeyRound, Network,
 } from 'lucide-react';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary' | 'roles' | 'functions';
@@ -13,11 +13,16 @@ export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary'
 interface LegalPagesProps {
   initialPage?: LegalPage;
   onBack?: () => void;
+  onPageChange?: (page: LegalPage) => void;
   lang: 'fr' | 'en';
 }
 
-export default function LegalPages({ initialPage = 'privacy', onBack, lang }: LegalPagesProps) {
+export default function LegalPages({ initialPage = 'privacy', onBack, onPageChange, lang }: LegalPagesProps) {
   const [currentPage, setCurrentPage] = useState<LegalPage>(initialPage);
+  const changePage = (page: LegalPage) => {
+    setCurrentPage(page);
+    onPageChange?.(page);
+  };
 
   const t = {
     fr: {
@@ -93,6 +98,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fY: '✦ Landing Notes',
       fZ: '✦ Confidentialité par fiche',
       fAA: '✦ Spectrum Tool (The Plural Association)',
+      fAB: '✦ Organigramme',
       openSourceTitle: 'Transparence',
       openSourceText: 'Cette application a été réalisée par une personne plurielle, avec l\'aide de l\'IA pour le codage — un outil parmi d\'autres, comme un traitement de texte ou un éditeur de code, pas un service auquel les données sont envoyées. Aucun compte, aucun serveur : toutes les données restent stockées localement, sur l\'appareil de la personne qui utilise l\'app, et rien n\'en sort jamais. Un chiffrement (protégé par un code personnel) peut en plus être activé pour protéger ces données même en cas d\'accès à l\'appareil. Haven Space est open source, gratuite et disponible librement pour la communauté — et continue d\'évoluer au fil des besoins.',
       thanksTitle: 'Merci à nos alpha & bêta testeur·euses',
@@ -122,6 +128,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g2Text: 'Regroupe tes alters en dossiers (par exemple par âge, par fonction, ou par petit groupe interne). Les sous-systèmes peuvent être imbriqués les uns dans les autres. En cas de suppression, tu choisis fiche par fiche où chacune doit aller (système principal ou un autre sous-système), avec possibilité de tout sélectionner d\'un coup — ou de tout supprimer d\'un bloc si tu préfères repartir de zéro.',
       g3Title: 'Cartographie des relations',
       g3Text: 'Visualise les liens entre tes alters sous forme de carte : partenaires, protecteur/protégé, fratrie, parent/enfant, ami·e, soignant, indifférence, tension, conflit, persécuteur, ou distance. Chaque relation ajoutée apparaît aussi automatiquement en bas de la fiche complète des deux alters concernés, mise à jour en temps réel.',
+      g34Title: 'Organigramme',
+      g34Text: 'Une vue hiérarchique de ton système, générée automatiquement à partir des rôles de tes alters : l\'hôte en haut, les co-hôtes en dessous, puis les autres rangés par catégorie (protecteurs, soignants, gardiens...). Dans chaque fiche, tu peux réordonner les rôles pour choisir la catégorie d\'un alter ; les sous-systèmes apparaissent en blocs imbriqués, et l\'ensemble s\'exporte en image PNG.',
       g29Title: 'Innerworld',
       g29Text: "Le monde intérieur du système, lieu par lieu : une tuile par alter (photo + nom) donne accès à sa page personnelle façon moodboard, avec des blocs modulables (bannière, texte libre, galerie photo, audio/playlist) et une source d'origine optionnelle. Un Front Room commun, épinglé en haut, sert d'espace partagé pour les transits ou l'inner commun. Une recherche avec autosuggestion permet de retrouver un alter ou de regrouper les pages par source. Accessible depuis le tableau de bord, avec un lien direct vers et depuis la fiche de chaque alter.",
       g4Title: 'Tags personnalisés',
@@ -256,6 +264,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       fY: '✦ Landing Notes',
       fZ: '✦ Per-Profile Privacy',
       fAA: '✦ Spectrum Tool (The Plural Association)',
+      fAB: '✦ Org Chart',
       openSourceTitle: 'Transparency',
       openSourceText: 'This app was built by a plural person, with AI assistance for coding — a tool used like a text editor or code editor, not a service that data gets sent to. No account, no server: all data stays stored locally, on the device of the person using the app, and none of it ever leaves. Encryption (protected by a personal code) can also be enabled to protect that data even if the device itself is accessed. Haven Space is open source, free, and freely available to the community — and keeps evolving alongside real needs.',
       thanksTitle: 'Thank you to our alpha & beta testers',
@@ -285,6 +294,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
       g2Text: 'Group your alters into folders (by age, function, or small internal group, for example). Subsystems can be nested inside one another. When deleting one, you choose per profile where each one should go (main system or another subsystem), with an option to select them all at once — or delete everything in one go if you\'d rather start fresh.',
       g3Title: 'Relationship Mapping',
       g3Text: 'Visualize the links between your alters as a map: partners, protector/protected, siblings, parent/child, friend, caretaker, indifference, tension, conflict, persecutor, or distance. Every relationship you add also automatically appears at the bottom of both alters\' full profiles, updated in real time.',
+      g34Title: 'Org Chart',
+      g34Text: 'A hierarchical view of your system, generated automatically from your alters\' roles: the host at the top, co-hosts below, then everyone else grouped by category (protectors, caregivers, keepers...). In each profile, you can reorder roles to choose an alter\'s category; subsystems appear as nested blocks, and the whole thing can be exported as a PNG image.',
       g29Title: 'Innerworld',
       g29Text: "The system's inner world, place by place: a tile per alter (photo + name) opens their personal moodboard-style page, with modular blocks (banner, free text, photo gallery, audio/playlist) and an optional origin source. A shared Front Room, pinned at the top, serves as a common space for transits or shared inner spaces. Search with autosuggest helps find an alter or group pages by source. Accessible from the dashboard, with a direct link to and from each alter's profile.",
       g4Title: 'Custom Tags',
@@ -484,7 +495,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
               <button
                 key={tab}
                 type="button"
-                onClick={() => setCurrentPage(tab)}
+                onClick={() => changePage(tab)}
                 className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                   isActive
                     ? 'bg-app-accent text-app-accent-text border border-transparent shadow-sm'
@@ -505,7 +516,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
             <button
               key={tab}
               type="button"
-              onClick={() => setCurrentPage(tab)}
+              onClick={() => changePage(tab)}
               className={`px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all whitespace-nowrap border ${
                 currentPage === tab
                   ? 'bg-app-text text-app-bg border-transparent'
@@ -531,6 +542,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
           { id: 'g6', icon: History, title: currentT.g6Title, text: currentT.g6Text },
           { id: 'g5', icon: Radio, title: currentT.g5Title, text: currentT.g5Text },
           { id: 'g3', icon: GitBranch, title: currentT.g3Title, text: currentT.g3Text },
+          { id: 'g34', icon: Network, title: currentT.g34Title, text: currentT.g34Text },
           { id: 'g29', icon: TreePine, title: currentT.g29Title, text: currentT.g29Text },
           { id: 'g8', icon: MessageCircle, title: currentT.g8Title, text: currentT.g8Text },
           { id: 'g9', icon: MessageSquare, title: currentT.g9Title, text: currentT.g9Text },
@@ -1275,6 +1287,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, lang }: Le
                 currentT.fA,
                 currentT.fB,
                 currentT.fC,
+                currentT.fAB,
                 currentT.fD,
                 currentT.fE,
                 currentT.fF,
