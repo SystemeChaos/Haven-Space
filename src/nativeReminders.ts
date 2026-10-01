@@ -19,6 +19,16 @@ export type ReminderTarget = 'planning' | 'health' | 'hydration' | 'backup';
 export type ReminderChannel = 'planning' | 'meds' | 'hydration' | 'backup';
 type Lang = 'fr' | 'en';
 
+/**
+ * Événement « les données qui alimentent les rappels ont changé » : à émettre après toute sauvegarde
+ * (Planning, export JSON…). App.tsx s'y abonne et resynchronise les rappels natifs aussitôt, sans
+ * attendre le prochain passage du minuteur.
+ */
+export const REMINDERS_DIRTY_EVENT = 'hs-reminders-dirty';
+export const notifyRemindersDirty = (): void => {
+  try { window.dispatchEvent(new Event(REMINDERS_DIRTY_EVENT)); } catch { /* hors navigateur : rien à notifier */ }
+};
+
 export const isNativeApp = (): boolean => {
   try {
     const cap = (window as any).Capacitor;
@@ -59,6 +69,8 @@ export interface ReminderPlanningEntry {
   time?: string | null;
   text: string;
   reminderMinutes?: number | null;
+  /** Clé BuJo ; une entrée « done » (Effectué) ne déclenche plus de rappel. */
+  type?: string;
 }
 export interface ReminderInput {
   lang: Lang;
@@ -185,6 +197,7 @@ export function buildReminders(input: ReminderInput): PlannedReminder[] {
 
   // Planning : une notification unique à (heure de l'entrée − délai de rappel), seulement dans le futur.
   for (const en of input.planning) {
+    if (en.type === 'done') continue; // déjà effectué : inutile de rappeler
     if (!en.time || !en.reminderMinutes || en.reminderMinutes <= 0) continue;
     const hm = parseHM(en.time);
     if (!hm) continue;

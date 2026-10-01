@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { SavedAlter } from './types';
 import { readMaybeEncrypted, writeMaybeEncrypted, migrateKeyIfNeeded } from './vaultStorage';
+import { notifyRemindersDirty } from './nativeReminders';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -79,6 +80,9 @@ export async function loadPlanning(systemId: string = 'main', dek: CryptoKey | n
 export async function savePlanning(data: PlanningEntry[], systemId: string = 'main', dek: CryptoKey | null = null, hasVaultActive: boolean = false): Promise<void> {
   const key = systemId === 'main' ? STORAGE_KEY : `${STORAGE_KEY}_${systemId}`;
   await writeMaybeEncrypted(key, data, dek, hasVaultActive);
+  // Les rappels natifs (app Android) sont programmés à l'avance : on les resynchronise dès que le
+  // planning est écrit, y compris pour les sauvegardes qui ne passent pas par cette page (import JSON).
+  notifyRemindersDirty();
 }
 
 // ─── Config des clés BuJo ───────────────────────────────────────────────────

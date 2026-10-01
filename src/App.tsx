@@ -4,7 +4,7 @@ import OrgChartPage from './OrgChartPage';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
-import { isNativeApp, buildReminders, reminderSignature, syncNativeReminders, cancelAllNativeReminders, getExactAlarmStatus, openExactAlarmSettings, ReminderTarget, ExactAlarmStatus } from './nativeReminders';
+import { isNativeApp, buildReminders, reminderSignature, syncNativeReminders, cancelAllNativeReminders, getExactAlarmStatus, openExactAlarmSettings, notifyRemindersDirty, REMINDERS_DIRTY_EVENT, ReminderTarget, ExactAlarmStatus } from './nativeReminders';
 import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
 import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -2682,7 +2682,7 @@ export default function App() {
       setJsonSuccess(lang === 'fr' ? "Fichier de sauvegarde exporté avec succès !" : "Backup file exported successfully!");
       setJsonError(null);
       localStorage.setItem('hs-last-json-export', String(Date.now()));
-      window.dispatchEvent(new Event('hs-reminders-dirty')); // rappels natifs : repart de zéro
+      notifyRemindersDirty(); // rappels natifs : le compteur de sauvegarde repart de zéro
     } catch (err: any) {
       setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
       setJsonSuccess(null);
@@ -4774,19 +4774,20 @@ export default function App() {
       }
     };
     run();
-    // Le Planning vit dans sa propre page : on le relit régulièrement (plus vite pendant qu'on l'édite),
-    // et dès que l'app passe en arrière-plan ou revient au premier plan.
-    const iv = setInterval(run, currentTab === 'planning' ? 15000 : 60000);
+    // Resynchronisation immédiate dès que le Planning est sauvegardé (savePlanning émet l'événement) ou
+    // qu'un export JSON est fait, et quand l'app passe en arrière-plan / revient au premier plan.
+    // Le minuteur d'une minute n'est qu'un filet de sécurité.
+    const iv = setInterval(run, 60000);
     const trigger = () => { run(); };
     document.addEventListener('visibilitychange', trigger);
-    window.addEventListener('hs-reminders-dirty', trigger);
+    window.addEventListener(REMINDERS_DIRTY_EVENT, trigger);
     return () => {
       cancelled = true;
       clearInterval(iv);
       document.removeEventListener('visibilitychange', trigger);
-      window.removeEventListener('hs-reminders-dirty', trigger);
+      window.removeEventListener(REMINDERS_DIRTY_EVENT, trigger);
     };
-  }, [notifBrowser, notifDetails, medications, healthDataLoaded, hydroReminderOn, hydroIntervalMinutes, savedAlters.length, parallelSystems, vaultMeta, dek, lang, currentTab]);
+  }, [notifBrowser, notifDetails, medications, healthDataLoaded, hydroReminderOn, hydroIntervalMinutes, savedAlters.length, parallelSystems, vaultMeta, dek, lang]);
 
   const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>([]);
   useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-history', healthHistory, dek, !!vaultMeta); }, [healthHistory]);
