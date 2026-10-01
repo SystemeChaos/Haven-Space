@@ -4,6 +4,7 @@ import OrgChartPage from './OrgChartPage';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
+import { isNativeApp, buildReminders, reminderSignature, syncNativeReminders, cancelAllNativeReminders, getExactAlarmStatus, openExactAlarmSettings, ReminderTarget, ExactAlarmStatus } from './nativeReminders';
 import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
 import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -1253,12 +1254,29 @@ export default function App() {
     const isNative = typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.();
     if (!isNative) return;
     let handle: { remove: () => void } | undefined;
+    const openReminderTarget = (target?: ReminderTarget) => {
+      if (target === 'planning') setCurrentTab('planning');
+      else if (target === 'health') setCurrentTab('health');
+      else if (target === 'hydration') {
+        setCurrentTab('relax');
+        setActiveRelaxTool('eco-system');
+        setEcoBackground('jardin');
+      } else if (target === 'backup') {
+        setCurrentTab('pluralkit');
+        setTimeout(() => {
+          document.getElementById('json-backup-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 150);
+      }
+    };
     (async () => {
       try {
         const { LocalNotifications } = await import('@capacitor/local-notifications');
         handle = await LocalNotifications.addListener('localNotificationActionPerformed', (action: any) => {
           const cb = pendingNotificationClicksRef.current.get(action.notification.id);
-          cb?.();
+          if (cb) { cb(); return; }
+          // Rappel programmé (Planning, Traitement, Hydratation, Sauvegarde) : la destination est portée par
+          // `extra`, car la mémoire des clics ci-dessus est vide quand l'app a été fermée entre-temps.
+          openReminderTarget(action.notification?.extra?.hsTarget as ReminderTarget | undefined);
         });
       } catch (e) {
         console.warn('[Haven Space] Écoute des clics de notification native impossible :', e);
@@ -2189,8 +2207,9 @@ export default function App() {
   }, [dmToast, lastSeenMsgIdByConv]);
 
   // Vérifie toutes les 30s si un rappel de planning doit se déclencher — au niveau racine de l'app,
-  // pour continuer à fonctionner même quand on n'est pas sur l'onglet Planning.
+  // pour continuer à fonctionner même quand on n'est pas sur l'onglet Planning. (Web/PWA uniquement.)
   useEffect(() => {
+    if (isNativeApp()) return; // app native : rappels programmés par le système (voir nativeReminders.ts)
     const check = async () => {
       if (!notifBrowser) return;
       const now = Date.now();
@@ -2663,6 +2682,7 @@ export default function App() {
       setJsonSuccess(lang === 'fr' ? "Fichier de sauvegarde exporté avec succès !" : "Backup file exported successfully!");
       setJsonError(null);
       localStorage.setItem('hs-last-json-export', String(Date.now()));
+      window.dispatchEvent(new Event('hs-reminders-dirty')); // rappels natifs : repart de zéro
     } catch (err: any) {
       setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
       setJsonSuccess(null);
@@ -4585,6 +4605,7 @@ export default function App() {
   // rappel de planning : réguliers (chaque jour) ou ponctuels (une seule date, une seule fois).
   const MED_REMINDED_STORAGE_KEY = 'hs-med-reminded';
   useEffect(() => {
+    if (isNativeApp()) return; // app native : rappels programmés par le système (voir nativeReminders.ts)
     const check = () => {
       if (!notifBrowser) return;
       const now = new Date();
@@ -4626,6 +4647,7 @@ export default function App() {
   const HYDRO_WAKE_START_HOUR = 8;
   const HYDRO_WAKE_END_HOUR = 22;
   useEffect(() => {
+    if (isNativeApp()) return; // app native : rappels programmés par le système (voir nativeReminders.ts)
     const check = () => {
       if (!notifBrowser || !hydroReminderOn) return;
       const now = new Date();
@@ -4660,6 +4682,7 @@ export default function App() {
   // sauvegarde. On rappelle au plus une fois par jour si ça fait trop longtemps (7 jours).
   const EXPORT_REMINDER_DAYS = 7;
   useEffect(() => {
+    if (isNativeApp()) return; // app native : rappels programmés par le système (voir nativeReminders.ts)
     const check = () => {
       if (!notifBrowser) return;
       if (savedAlters.length === 0) return; // rien à sauvegarder pour l'instant
@@ -4689,6 +4712,81 @@ export default function App() {
     const exportInterval = setInterval(check, 60 * 60 * 1000); // vérifie toutes les heures
     return () => clearInterval(exportInterval);
   }, [notifBrowser, savedAlters.length, lang]);
+
+  // --- Rappels programmés nativement (app Android/iOS Capacitor) -----------------------------------------
+  // Planning, Traitement, Hydratation et Sauvegarde sont prévisibles à l'avance : on les confie au système
+  // (AlarmManager), qui les déclenche même app fermée depuis des jours. Les 4 vérifications setInterval
+  // ci-dessus ne servent donc plus que sur le web/PWA. Voir nativeReminders.ts.
+  //
+  // Vie privée : le texte d'un rappel programmé est conservé en clair par le système (hors coffre chiffré)
+  // et s'affiche sur l'écran verrouillé. « Détails » = nom du traitement / texte du planning dans la
+  // notification. Par défaut masqués si un coffre est activé, affichés sinon ; le choix explicite prime.
+  const [notifDetailsPref, setNotifDetailsPref] = useState<boolean | null>(() => {
+    const v = localStorage.getItem('hs-notif-details');
+    return v === null ? null : v === 'true';
+  });
+  const notifDetails = notifDetailsPref ?? !vaultMeta;
+  const toggleNotifDetails = () => {
+    const next = !notifDetails;
+    setNotifDetailsPref(next);
+    localStorage.setItem('hs-notif-details', String(next));
+  };
+  const [exactAlarmStatus, setExactAlarmStatus] = useState<ExactAlarmStatus>('granted');
+  const nativeSyncSigRef = useRef('');
+
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    let cancelled = false;
+    const run = async () => {
+      // Coffre verrouillé, ou données pas encore chargées : on ne touche à RIEN. Les rappels déjà programmés
+      // continuent de sonner ; reprogrammer maintenant à partir de données illisibles les effacerait tous.
+      if ((vaultMeta && !dek) || !healthDataLoaded) return;
+      try {
+        if (!notifBrowser) {
+          if (nativeSyncSigRef.current !== 'off') {
+            await cancelAllNativeReminders();
+            nativeSyncSigRef.current = 'off';
+          }
+          return;
+        }
+        // Planning de TOUS les systèmes : sinon changer de système actif désarmerait les rappels des autres.
+        const systemIds = ['main', ...parallelSystems.map(s => s.id)];
+        const planning = (await Promise.all(systemIds.map(id => loadPlanning(id, dek)))).flat();
+        if (cancelled) return;
+        const reminders = buildReminders({
+          lang,
+          showDetails: notifDetails,
+          now: Date.now(),
+          planning,
+          medications,
+          hydration: { on: hydroReminderOn, intervalMinutes: hydroIntervalMinutes },
+          backup: { hasData: savedAlters.length > 0, lastExportMs: Number(localStorage.getItem('hs-last-json-export') || '0') },
+        });
+        const sig = reminderSignature(reminders);
+        if (sig !== nativeSyncSigRef.current) {
+          const res = await syncNativeReminders(reminders, lang);
+          if (res.permission) nativeSyncSigRef.current = sig;
+        }
+        const exact = await getExactAlarmStatus();
+        if (!cancelled) setExactAlarmStatus(exact);
+      } catch (e) {
+        console.warn('[Haven Space] Synchronisation des rappels natifs impossible :', e);
+      }
+    };
+    run();
+    // Le Planning vit dans sa propre page : on le relit régulièrement (plus vite pendant qu'on l'édite),
+    // et dès que l'app passe en arrière-plan ou revient au premier plan.
+    const iv = setInterval(run, currentTab === 'planning' ? 15000 : 60000);
+    const trigger = () => { run(); };
+    document.addEventListener('visibilitychange', trigger);
+    window.addEventListener('hs-reminders-dirty', trigger);
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      document.removeEventListener('visibilitychange', trigger);
+      window.removeEventListener('hs-reminders-dirty', trigger);
+    };
+  }, [notifBrowser, notifDetails, medications, healthDataLoaded, hydroReminderOn, hydroIntervalMinutes, savedAlters.length, parallelSystems, vaultMeta, dek, lang, currentTab]);
 
   const [healthHistory, setHealthHistory] = useState<HealthHistoryEntry[]>([]);
   useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-history', healthHistory, dek, !!vaultMeta); }, [healthHistory]);
@@ -9495,6 +9593,48 @@ export default function App() {
                               ))}
                             </div>
                           </div>
+                        )}
+                        {isNativeApp() && (
+                          <>
+                            {/* Détails dans les rappels programmés (texte conservé en clair par le système) */}
+                            <button
+                              onClick={toggleNotifDetails}
+                              className="flex items-center justify-between gap-3 px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
+                            >
+                              <div className="flex flex-col items-start flex-1 min-w-0">
+                                <span className="text-xs font-bold text-app-text text-left">
+                                  {lang === 'fr' ? 'Détails dans les rappels' : 'Details in reminders'}
+                                </span>
+                                <span className="text-[10px] text-app-muted text-left">
+                                  {lang === 'fr'
+                                    ? "Nom du traitement, texte du planning. Ces rappels sont programmés à l'avance : leur texte est conservé en clair par le système et visible sur l'écran verrouillé."
+                                    : 'Medication name, planning text. These reminders are scheduled in advance: their text is stored in clear by the system and visible on the lock screen.'}
+                                </span>
+                              </div>
+                              <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${notifDetails ? 'bg-app-accent' : 'bg-app-border'}`}>
+                                <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifDetails ? 'left-[18px]' : 'left-0.5'}`} />
+                              </div>
+                            </button>
+                            {/* Android 12+ : sans « Alarmes et rappels », les rappels peuvent être retardés */}
+                            {notifBrowser && exactAlarmStatus !== 'granted' && exactAlarmStatus !== 'unsupported' && (
+                              <button
+                                onClick={openExactAlarmSettings}
+                                className="flex items-center justify-between gap-3 px-3 py-2 bg-amber-500/10 border border-amber-500/30 hover:border-amber-500/60 transition-colors rounded-xl text-left"
+                              >
+                                <div className="flex flex-col items-start flex-1 min-w-0">
+                                  <span className="text-xs font-bold text-app-text">
+                                    {lang === 'fr' ? 'Rappels à l\'heure exacte' : 'Reminders on the exact minute'}
+                                  </span>
+                                  <span className="text-[10px] text-app-muted">
+                                    {lang === 'fr'
+                                      ? "Autorise « Alarmes et rappels » pour Haven Space, sinon Android peut retarder les rappels de plusieurs minutes."
+                                      : 'Allow "Alarms & reminders" for Haven Space, otherwise Android may delay reminders by several minutes.'}
+                                  </span>
+                                </div>
+                                <ChevronRight className="w-3.5 h-3.5 text-app-muted flex-shrink-0" />
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
 
