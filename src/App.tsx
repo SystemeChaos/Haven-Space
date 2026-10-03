@@ -1,6 +1,7 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
 import OrgChartPage from './OrgChartPage';
+import HealthSupportTabs, { HealthProvider, HealthAid } from './HealthSupportTabs';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
@@ -1508,7 +1509,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'kalimbaSequences', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'kalimbaSequences', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'hs-health-providers', 'hs-health-aids', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower', 'haven_alter_'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -2680,6 +2681,8 @@ export default function App() {
         eisenhowerTasks: await loadEisenhower(activeSystemId, dek),
         medications,
         healthHistory,
+        healthProviders,
+        healthAids,
         emergencyInfo,
         mappingData: await loadMapping('main', dek),
         walletEntries,
@@ -2752,7 +2755,7 @@ export default function App() {
         const journalsCount = Array.isArray(parsed.journalEntries) ? parsed.journalEntries.length : 0;
         const parallelSystemsCount = Array.isArray(parsed.parallelSystems) ? parsed.parallelSystems.length : 0;
         const directMessagesCount = Array.isArray(parsed.directMessages) ? parsed.directMessages.length : 0;
-        const healthCount = (Array.isArray(parsed.medications) ? parsed.medications.length : 0) + (Array.isArray(parsed.healthHistory) ? parsed.healthHistory.length : 0);
+        const healthCount = (Array.isArray(parsed.medications) ? parsed.medications.length : 0) + (Array.isArray(parsed.healthHistory) ? parsed.healthHistory.length : 0) + (Array.isArray(parsed.healthProviders) ? parsed.healthProviders.length : 0) + (Array.isArray(parsed.healthAids) ? parsed.healthAids.length : 0);
         const walletCount = Array.isArray(parsed.walletEntries) ? parsed.walletEntries.length : 0;
         const ecoCount = parsed.ecoSystem && typeof parsed.ecoSystem === 'object'
           ? (Array.isArray(parsed.ecoSystem.elements) ? parsed.ecoSystem.elements.length : 0)
@@ -2887,6 +2890,8 @@ export default function App() {
       if (data.emergencyInfo && typeof data.emergencyInfo === 'object') {
         setEmergencyInfo(data.emergencyInfo);
       }
+      setHealthProviders(Array.isArray(data.healthProviders) ? data.healthProviders : []);
+      setHealthAids(Array.isArray(data.healthAids) ? data.healthAids : []);
 
       if (Array.isArray(data.planningEntries)) {
         await savePlanning(data.planningEntries, activeSystemId, dek, !!vaultMeta);
@@ -3150,6 +3155,17 @@ export default function App() {
         });
         setEmergencyInfo(mergedEmergency);
       }
+
+      const mergeById = <T extends { id: string }>(current: T[], incoming: unknown): T[] => {
+        const result = [...current];
+        (Array.isArray(incoming) ? incoming : []).forEach((item: T) => {
+          const i = result.findIndex(x => x.id === item.id);
+          if (i > -1) result[i] = { ...result[i], ...item }; else result.push(item);
+        });
+        return result;
+      };
+      setHealthProviders(mergeById(healthProviders, data.healthProviders));
+      setHealthAids(mergeById(healthAids, data.healthAids));
 
       // 10. Planning : fusion des entrées uniques par id
       const incomingPlanningEntries = Array.isArray(data.planningEntries) ? data.planningEntries : [];
@@ -4610,8 +4626,12 @@ export default function App() {
       const meds = await readMaybeEncrypted<Medication[]>('hs-health-meds', dek, []);
       const hist = await readMaybeEncrypted<HealthHistoryEntry[]>('hs-health-history', dek, []);
       const emerg = await readMaybeEncrypted<EmergencyInfo>('hs-health-emergency', dek, { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false });
+      const providers = await readMaybeEncrypted<HealthProvider[]>('hs-health-providers', dek, []);
+      const aids = await readMaybeEncrypted<HealthAid[]>('hs-health-aids', dek, []);
       if (cancelled) return;
       setMedications(meds);
+      setHealthProviders(providers);
+      setHealthAids(aids);
       setHealthHistory(hist);
       setEmergencyInfo(emerg);
       setHealthDataLoaded(true);
@@ -4625,6 +4645,10 @@ export default function App() {
         if (rawHist && !rawHist.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-history', hist, dek, true);
         const rawEmerg = localStorage.getItem('hs-health-emergency');
         if (rawEmerg && !rawEmerg.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-emergency', emerg, dek, true);
+        const rawProv = localStorage.getItem('hs-health-providers');
+        if (rawProv && !rawProv.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-providers', providers, dek, true);
+        const rawAids = localStorage.getItem('hs-health-aids');
+        if (rawAids && !rawAids.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-aids', aids, dek, true);
       }
     })();
     return () => { cancelled = true; };
@@ -4826,7 +4850,13 @@ export default function App() {
   const [emergencyInfo, setEmergencyInfo] = useState<EmergencyInfo>({ conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false });
   useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-emergency', emergencyInfo, dek, !!vaultMeta); }, [emergencyInfo]);
 
-  const [healthSubTab, setHealthSubTab] = useState<'traitements' | 'antecedents' | 'urgence'>('traitements');
+  // Intervenants (professionnels) et aides / stratégies d'adaptation : mêmes règles que les antécédents (coffre chiffré, export JSON).
+  const [healthProviders, setHealthProviders] = useState<HealthProvider[]>([]);
+  useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-providers', healthProviders, dek, !!vaultMeta); }, [healthProviders]);
+  const [healthAids, setHealthAids] = useState<HealthAid[]>([]);
+  useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-aids', healthAids, dek, !!vaultMeta); }, [healthAids]);
+
+  const [healthSubTab, setHealthSubTab] = useState<'traitements' | 'antecedents' | 'intervenants' | 'aides' | 'urgence'>('traitements');
   const [medFormOpen, setMedFormOpen] = useState(false);
   const [editingMedId, setEditingMedId] = useState<string | null>(null);
   const [medDraftName, setMedDraftName] = useState('');
@@ -12491,7 +12521,7 @@ export default function App() {
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
             { value: 'planning',  label: t.menuPlanning,  icon: CalendarDays, desc: lang === 'fr' ? 'Planning façon Bullet Journal' : 'Bullet Journal style planning' },
-            { value: 'health',    label: lang === 'fr' ? 'Santé' : 'Health', icon: HeartPulse, desc: lang === 'fr' ? 'Traitements, antécédents, urgence' : 'Treatments, history, emergency' },
+            { value: 'health',    label: lang === 'fr' ? 'Santé' : 'Health', icon: HeartPulse, desc: lang === 'fr' ? 'Traitements, antécédents, intervenants, urgence' : 'Treatments, history, providers, emergency' },
             { value: 'wallet',    label: lang === 'fr' ? 'Portefeuille' : 'Wallet', icon: Wallet, desc: lang === 'fr' ? 'Dépenses par alter et budget commun' : 'Per-alter expenses and shared budget' },
             { value: 'relax',     label: lang === 'fr' ? 'Détente' : 'Relax', icon: Wind, desc: lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools' },
             { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
@@ -16119,6 +16149,8 @@ export default function App() {
                 {[
                   { id: 'traitements', label: lang === 'fr' ? 'Traitements' : 'Treatments' },
                   { id: 'antecedents', label: lang === 'fr' ? 'Antécédents' : 'History' },
+                  { id: 'intervenants', label: lang === 'fr' ? 'Intervenants' : 'Providers' },
+                  { id: 'aides', label: lang === 'fr' ? 'Aides et stratégies' : 'Aids & strategies' },
                   { id: 'urgence', label: lang === 'fr' ? 'Urgence' : 'Emergency' },
                 ].map(tab => (
                   <button
@@ -16331,6 +16363,18 @@ export default function App() {
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* --- Intervenants / Aides et stratégies --- */}
+              {(healthSubTab === 'intervenants' || healthSubTab === 'aides') && (
+                <HealthSupportTabs
+                  tab={healthSubTab}
+                  lang={lang}
+                  providers={healthProviders}
+                  onProvidersChange={setHealthProviders}
+                  aids={healthAids}
+                  onAidsChange={setHealthAids}
+                />
               )}
 
               {/* --- Urgence --- */}
@@ -18497,7 +18541,7 @@ export default function App() {
                       <div><strong className="text-app-text">{journalEntries.length}</strong> {lang === 'fr' ? 'notes de journal' : 'journals'}</div>
                       <div><strong className="text-app-text">{planningCounts.planning}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
                       <div><strong className="text-app-text">{planningCounts.eisenhower}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
-                      <div><strong className="text-app-text">{medications.length + healthHistory.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
+                      <div><strong className="text-app-text">{medications.length + healthHistory.length + healthProviders.length + healthAids.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
                       <div><strong className="text-app-text">{walletEntries.length}</strong> {lang === 'fr' ? 'entrées de portefeuille' : 'wallet entries'}</div>
                       <div><strong className="text-app-text">{innerworldPageCount}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>
                       <div><strong className="text-app-text">{Object.values(spectrumBySystem).reduce((sum, criteria) => sum + criteria.length, 0)}</strong> {lang === 'fr' ? 'critères Spectrum Tool' : 'Spectrum Tool criteria'}</div>

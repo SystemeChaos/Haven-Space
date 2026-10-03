@@ -34,7 +34,9 @@
 - Rappels programmés par entrée (délai au choix avant l'heure), avec notification native
 
 ### 🩺 Santé
-- Suivi des traitements, antécédents médicaux et contacts d'urgence
+- Suivi des traitements, antécédents médicaux et informations d'urgence
+- **Intervenants** : professionnels de santé et d'accompagnement (rôle, téléphone avec lien d'appel direct, note)
+- **Aides et stratégies** : aides matérielles (canne, casque anti-bruit…) et stratégies d'adaptation
 - Rappels de prise de traitement (quotidiens ou ponctuels) avec notification native
 
 ### 🧘 Détente
