@@ -852,7 +852,8 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
 import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted, listVaultKeys, deleteVaultKey, migrateKeyIfNeeded } from './vaultStorage';
 
 export default function App() {
-  const [lang, setLang] = useState<'fr' | 'en'>('fr');
+  const [lang, setLang] = useState<'fr' | 'en'>(() => (localStorage.getItem('hs-lang') === 'en' ? 'en' : 'fr'));
+  useEffect(() => { localStorage.setItem('hs-lang', lang); }, [lang]);
 
   // Demande un stockage "persistant" au navigateur — ça n'empêche pas une suppression
   // manuelle (via les réglages du navigateur), mais réduit fortement le risque que le
@@ -1795,6 +1796,30 @@ export default function App() {
     { id: 'overt', name: 'Ouvert ("visible")', color: '#60a5fa', score: 0 },
     { id: 'pride', name: 'Pride', color: '#e879f9', score: 0 },
   ];
+  // Les noms par défaut sont stockés en français dans les données ; on les traduit seulement à l'affichage.
+  // Un critère que l'utilisateur a renommé garde son nom tel quel, dans les deux langues.
+  const SPECTRUM_DEFAULT_NAMES_EN: Record<string, string> = {
+    'shared-memories': 'Shared memories',
+    'cooperation': 'Cooperation',
+    'system-stability': 'System stability',
+    'internal-communication': 'Internal communication',
+    'switching-ability': 'Ability to switch',
+    'co-consciousness': 'Co-consciousness',
+    'elaboration': 'Elaboration',
+    'overt': 'Overt ("visible")',
+    'pride': 'Pride',
+  };
+  const translateSpectrumCriteria = (criteria: SpectrumCriterion[]): SpectrumCriterion[] =>
+    lang !== 'en' ? criteria : criteria.map(c => {
+      const frName = DEFAULT_SPECTRUM_CRITERIA.find(d => d.id === c.id)?.name;
+      return frName && c.name === frName && SPECTRUM_DEFAULT_NAMES_EN[c.id] ? { ...c, name: SPECTRUM_DEFAULT_NAMES_EN[c.id] } : c;
+    });
+  // À l'enregistrement, on remet le nom français d'origine : changer de langue ne fige pas l'anglais dans les données.
+  const canonicalizeSpectrumCriteria = (criteria: SpectrumCriterion[]): SpectrumCriterion[] =>
+    criteria.map(c => {
+      const frName = DEFAULT_SPECTRUM_CRITERIA.find(d => d.id === c.id)?.name;
+      return frName && SPECTRUM_DEFAULT_NAMES_EN[c.id] === c.name ? { ...c, name: frName } : c;
+    });
   const [spectrumBySystem, setSpectrumBySystem] = useState<Record<string, SpectrumCriterion[]>>({});
   const [spectrumDataLoaded, setSpectrumDataLoaded] = useState(false);
 
@@ -13153,8 +13178,8 @@ export default function App() {
               </div>
 
               <SpectrumTool
-                criteria={spectrumBySystem[activeSystemId] || DEFAULT_SPECTRUM_CRITERIA}
-                onChange={criteria => setSpectrumBySystem(prev => ({ ...prev, [activeSystemId]: criteria }))}
+                criteria={translateSpectrumCriteria(spectrumBySystem[activeSystemId] || DEFAULT_SPECTRUM_CRITERIA)}
+                onChange={criteria => setSpectrumBySystem(prev => ({ ...prev, [activeSystemId]: canonicalizeSpectrumCriteria(criteria) }))}
                 lang={lang}
               />
 
