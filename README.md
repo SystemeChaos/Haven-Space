@@ -2,7 +2,7 @@
 
 > Outil de gestion de système TDI/DID — projet personnel
 
-**Haven Space** est une application web progressive (PWA) conçue pour les personnes vivant avec un Trouble Dissociatif de l'Identité (TDI/DID). Elle centralise la gestion du système en un seul endroit : fiches d'alters, registre des switchs, journal, chat interne, et plus encore.
+**Haven Space** est une application web progressive (PWA), également disponible en application native Android, conçue pour les personnes vivant avec un Trouble Dissociatif de l'Identité (TDI/DID). Elle centralise la gestion du système en un seul endroit : fiches d'alters, registre des switchs, journal, chat interne, et plus encore.
 
 ---
 
@@ -14,6 +14,7 @@
 - **Filtres par rôle** dans Mon Système pour retrouver rapidement les alters
 - **Créateur de fiche** avec prévisualisation en temps réel et sélection du système/sous-système
 - **Mapping** du système (visualisation graphique des alters)
+- **Organigramme** généré automatiquement à partir des rôles : hôte en haut, co-hôtes en dessous, puis les alters rangés par catégorie (protecteurs, persécuteurs, soignants, gardiens et gestion, ancres et médiateurs, social, alters sexuels). Un panneau « Ordre de priorité » dans la fiche décide de la catégorie d'un alter (le premier rôle de fonction compte), les rôles personnalisés peuvent avoir leur propre catégorie, un mode « Toutes » place chaque alter dans toutes ses catégories, les sous-systèmes apparaissent en blocs imbriqués, et l'ensemble s'exporte en PNG
 
 ### 🔄 Registre des switchs
 - Déclaration de fronts avec statut (co-front, fronteur principal, dormant…)
@@ -25,15 +26,16 @@
 ### 📓 Journal de bord
 - Entrées en markdown avec support des images (syntaxe `![alt](url)`)
 - Lightbox intégrée pour visualiser les images
+- **Notes par alter** : une note peut être liée à un ou plusieurs alters (auto-suggestion sous le titre) ; le journal est classé en dossiers — un par alter, plus « Commun » pour les notes générales. La recherche trouve aussi une note par le nom de son alter
 
 ### 📅 Planning (Bullet Journal)
 - Planning façon Bullet Journal : vues journalière, hebdomadaire et mensuelle
 - **Matrice d'Eisenhower** pour prioriser les tâches
-- Rappels programmés par entrée, avec notification native au moment choisi
+- Rappels programmés par entrée (délai au choix avant l'heure), avec notification native
 
 ### 🩺 Santé
 - Suivi des traitements, antécédents médicaux et contacts d'urgence
-- Rappels de prise de traitement avec notification native
+- Rappels de prise de traitement (quotidiens ou ponctuels) avec notification native
 
 ### 🧘 Détente
 Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
@@ -44,12 +46,18 @@ Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 - **Éphémère** — bulles de tailles variées qui montent à l'écran, à éclater avant qu'elles n'atteignent le haut ; chaque taille correspond à une note d'un handpan (gamme D Kurd) pour un son doux et onirique
 - **Éco-Système** — 4 paysages (Aquarium, Serre, Ciel nocturne, Jardin) avec présences et décors illustrés en aquarelle, cycle lumineux à 4 phases (aube/jour/crépuscule/nuit) suivant l'heure réelle
 
-### 🔔 Notifications push
-- Notifications navigateur natives (opt-in, avec demande de permission) pour : nouveaux messages privés, rappels de planning, rappels de traitement, rappel de sauvegarde JSON (si aucun export récent)
+### 🔔 Notifications
+- Notifications (opt-in, avec demande de permission) pour : nouveaux messages privés, rappels de planning, rappels de traitement, rappels d'hydratation et rappel de sauvegarde JSON (si aucun export depuis plus de 7 jours)
+- **App native Android : rappels programmés par le système.** Planning, traitements, hydratation et sauvegarde sont prévisibles à l'avance, donc programmés nativement : ils se déclenchent même app fermée depuis des jours. Ils sont recalculés automatiquement à chaque modification (planning, traitement, export, réglages)
+  - Hydratation : créneaux fixes tous les jours entre 8h et 22h
+  - Réglage « Détails dans les rappels » : un rappel programmé est conservé en clair par le système (hors coffre chiffré) et visible écran verrouillé ; par défaut, le nom du traitement et le texte du planning sont donc masqués si un coffre est activé
+  - Android 12+ : autoriser « Alarmes et rappels » pour des rappels à la minute près
+- **Web / PWA** : rappels vérifiés tant que l'app est ouverte (le navigateur ne peut pas programmer de notifications à l'avance)
 - Cliquer sur une notification ouvre l'app directement sur la section concernée
 
 ### 🔐 Sécurité locale
 - Verrouillage par code PIN (optionnel), avec verrouillage automatique quand l'app repasse en arrière-plan
+- **Chiffrement local** des données (coffre, optionnel) : une fois activé, les données sont stockées chiffrées sur l'appareil
 - Question de sécurité personnalisée pour la récupération du PIN
 - **Confidentialité par fiche** : chaque alter peut protéger sa propre fiche avec un code facultatif et indépendant du PIN principal ; déverrouillage valable pour la session en cours
 
@@ -82,7 +90,8 @@ Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 - **Tailwind CSS**
 - **Vite**
 - **PWA** (installable sur mobile et desktop)
-- Données stockées en **localStorage** (aucun serveur, aucune donnée envoyée)
+- **Capacitor** pour l'application native Android (notifications programmées par le système)
+- Données stockées localement dans le navigateur (**IndexedDB**, chiffrées si le coffre est activé ; **localStorage** pour les préférences d'affichage) : aucun serveur, aucune donnée envoyée
 - Déployé sur **GitHub Pages**
 
 ---

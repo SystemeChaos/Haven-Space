@@ -4,6 +4,7 @@ import OrgChartPage from './OrgChartPage';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
+import { buildJournalFolders, isAlterLocked, alterFolderKey, folderAlterId } from './journalFolders';
 import { isNativeApp, buildReminders, reminderSignature, syncNativeReminders, cancelAllNativeReminders, getExactAlarmStatus, openExactAlarmSettings, notifyRemindersDirty, REMINDERS_DIRTY_EVENT, ReminderTarget, ExactAlarmStatus } from './nativeReminders';
 import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
 import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
@@ -1151,6 +1152,11 @@ export default function App() {
   const [journalContentInput, setJournalContentInput] = useState('');
   const [journalImages, setJournalImages] = useState<string[]>([]);
   const [journalSearch, setJournalSearch] = useState('');
+  // Notes par alter : alters liés à la note en cours, saisie de l'auto-suggestion, et dossier affiché
+  // ('all' | 'common' | `alter:<id>`). Une note sans alter est « Commune ».
+  const [journalAuthorIds, setJournalAuthorIds] = useState<string[]>([]);
+  const [journalAuthorInput, setJournalAuthorInput] = useState('');
+  const [journalFolder, setJournalFolder] = useState<string>('all');
   const [journalSubTab, setJournalSubTab] = useState<'notes' | 'habits'>('notes');
 
   // --- PluralKit & Navigation Dropdown States ---
@@ -7625,11 +7631,15 @@ export default function App() {
       content: journalContentInput.trim(),
       timestamp: Date.now(),
       images: journalImages,
+      authorAlterIds: journalAuthorIds.length > 0 ? journalAuthorIds : undefined,
     };
     setJournalEntries(prev => [newEntry, ...prev]);
     setJournalTitleInput('');
     setJournalContentInput('');
     setJournalImages([]);
+    setJournalAuthorInput('');
+    // On reste dans le dossier courant : la prochaine note y est préremplie (comme au clic sur le dossier).
+    setJournalAuthorIds(folderAlterId(journalFolder) ? [folderAlterId(journalFolder) as string] : []);
   };
 
   const handleEditJournalEntry = (entry: JournalEntry) => {
@@ -7637,19 +7647,31 @@ export default function App() {
     setJournalTitleInput(entry.title);
     setJournalContentInput(entry.content);
     setJournalImages(entry.images || []);
+    setJournalAuthorIds((entry.authorAlterIds || []).filter(id => savedAlters.some(al => al.id === id)));
+    setJournalAuthorInput('');
   };
 
   const handleUpdateJournalEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingJournalId) return;
     setJournalEntries(prev => prev.map(j => j.id === editingJournalId
-      ? { ...j, title: journalTitleInput.trim() || (lang === 'fr' ? 'Note sans titre' : 'Untitled Note'), content: journalContentInput.trim(), images: journalImages }
+      ? { ...j, title: journalTitleInput.trim() || (lang === 'fr' ? 'Note sans titre' : 'Untitled Note'), content: journalContentInput.trim(), images: journalImages, authorAlterIds: journalAuthorIds.length > 0 ? journalAuthorIds : undefined }
       : j
     ));
     setEditingJournalId(null);
     setJournalTitleInput('');
     setJournalContentInput('');
     setJournalImages([]);
+    setJournalAuthorInput('');
+    setJournalAuthorIds(folderAlterId(journalFolder) ? [folderAlterId(journalFolder) as string] : []);
+  };
+
+  // Clic sur un dossier : filtre la liste, et préremplit l'alter d'une nouvelle note si l'éditeur est vide.
+  const selectJournalFolder = (folder: string) => {
+    setJournalFolder(folder);
+    if (!editingJournalId && !journalTitleInput.trim() && !journalContentInput.trim()) {
+      setJournalAuthorIds(folderAlterId(folder) ? [folderAlterId(folder) as string] : []);
+    }
   };
 
   const handleDeleteJournalEntry = (id: string) => {
@@ -14593,7 +14615,7 @@ export default function App() {
                     <span>{editingJournalId ? (lang === 'fr' ? 'Modifier la Note' : 'Edit Note') : (lang === 'fr' ? 'Rédiger une Note' : 'Compose Note')}</span>
                   </h3>
                   {editingJournalId && (
-                    <button type="button" onClick={() => { setEditingJournalId(null); setJournalTitleInput(''); setJournalContentInput(''); setJournalImages([]); }}
+                    <button type="button" onClick={() => { setEditingJournalId(null); setJournalTitleInput(''); setJournalContentInput(''); setJournalImages([]); setJournalAuthorInput(''); setJournalAuthorIds(folderAlterId(journalFolder) ? [folderAlterId(journalFolder) as string] : []); }}
                       className="text-[10px] text-app-muted hover:text-app-text font-bold uppercase tracking-wider transition-colors">
                       {lang === 'fr' ? 'Annuler' : 'Cancel'}
                     </button>
@@ -14610,6 +14632,77 @@ export default function App() {
                       className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
                     />
                   </div>
+
+                  {/* Alter(s) concerné(s) — auto-suggestion ; vide = note commune */}
+                  {(() => {
+                    const isLockedAlter = (al: SavedAlter) => isAlterLocked(al, unlockedAlterIds);
+                    const q = journalAuthorInput.trim().toLowerCase();
+                    const authorSuggestions = q
+                      ? savedAlters
+                          .filter(al => !al.archived && !isLockedAlter(al) && !journalAuthorIds.includes(al.id) && (al.alterName || '').toLowerCase().includes(q))
+                          .slice(0, 6)
+                      : [];
+                    const addAuthor = (id: string) => { setJournalAuthorIds(prev => [...prev, id]); setJournalAuthorInput(''); };
+                    return (
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-app-muted" />
+                          <input
+                            type="text"
+                            value={journalAuthorInput}
+                            onChange={(e) => setJournalAuthorInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              // Entrée ne doit jamais enregistrer la note : on est dans le formulaire.
+                              if (e.key === 'Enter') { e.preventDefault(); if (authorSuggestions.length > 0) addAuthor(authorSuggestions[0].id); }
+                              if (e.key === 'Escape') setJournalAuthorInput('');
+                            }}
+                            placeholder={lang === 'fr' ? 'Alter concerné… (vide = Commun)' : 'Which alter?… (empty = Shared)'}
+                            className="w-full bg-app-bg border border-app-border rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold focus:outline-none text-app-text placeholder:text-app-muted"
+                          />
+                          {authorSuggestions.length > 0 && (
+                            <div className="absolute top-full left-0 right-0 mt-1 bg-app-card border border-app-border/40 rounded-xl shadow-lg z-20 overflow-hidden">
+                              {authorSuggestions.map(al => (
+                                <button
+                                  key={al.id}
+                                  type="button"
+                                  onClick={() => addAuthor(al.id)}
+                                  className="w-full text-left px-4 py-2 text-xs font-semibold hover:bg-app-bg flex items-center gap-2 transition-colors"
+                                >
+                                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: al.alterColor || '#9CA3AF' }} />
+                                  {al.alterName}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        {journalAuthorIds.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {journalAuthorIds.map(id => {
+                              const al = savedAlters.find(x => x.id === id);
+                              if (!al) return null;
+                              const locked = isLockedAlter(al);
+                              const c = al.alterColor || '#9CA3AF';
+                              return (
+                                <button
+                                  key={id}
+                                  type="button"
+                                  onClick={() => setJournalAuthorIds(prev => prev.filter(x => x !== id))}
+                                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border text-app-text transition-colors hover:opacity-70"
+                                  style={locked ? undefined : { backgroundColor: `${c}15`, borderColor: `${c}40` }}
+                                >
+                                  {locked
+                                    ? <Lock className="w-2.5 h-2.5" />
+                                    : <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c }} />}
+                                  {locked ? (lang === 'fr' ? 'Fiche verrouillée' : 'Locked profile') : al.alterName}
+                                  <X className="w-2.5 h-2.5" />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-1">
                     <MarkdownEditor
@@ -14671,25 +14764,72 @@ export default function App() {
               {/* Journal Logs */}
               <div className="lg:col-span-12 md:col-span-12 lg:col-span-8 space-y-6">
                 {(() => {
-                  const filteredEntries = journalEntries.filter(entry => 
-                    entry.title.toLowerCase().includes(journalSearch.toLowerCase()) || 
-                    entry.content.toLowerCase().includes(journalSearch.toLowerCase())
+                  const { authorsOf, commonCount, countByAlter, folderAlters, activeFolder, filtered: filteredEntries } =
+                    buildJournalFolders(journalEntries, savedAlters, unlockedAlterIds, journalFolder, journalSearch);
+                  const isLockedAlter = (al: SavedAlter) => isAlterLocked(al, unlockedAlterIds);
+                  const folderBtn = (key: string, label: string, count: number, color?: string) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => selectJournalFolder(key)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                        activeFolder === key
+                          ? 'bg-app-accent text-white shadow-sm'
+                          : 'bg-app-card text-app-text border border-app-border hover:border-app-accent/25'
+                      }`}
+                    >
+                      {color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+                      {label}
+                      <span className="opacity-60">{count}</span>
+                    </button>
+                  );
+                  const folderChips = (
+                    <div className="flex flex-wrap gap-2">
+                      {folderBtn('all', lang === 'fr' ? 'Toutes' : 'All', journalEntries.length)}
+                      {folderBtn('common', lang === 'fr' ? 'Commun' : 'Shared', commonCount)}
+                      {folderAlters.map(al => folderBtn(alterFolderKey(al.id), al.alterName, countByAlter.get(al.id) || 0, al.alterColor))}
+                    </div>
                   );
 
                   if (filteredEntries.length === 0) {
                     return (
-                      <div className="text-center p-14 bg-app-card/35 rounded-2xl border border-app-border/20 text-app-muted uppercase tracking-widest text-[10px]">
-                        {t.noJournalEntries}
+                      <div className="space-y-4">
+                        {folderChips}
+                        <div className="text-center p-14 bg-app-card/35 rounded-2xl border border-app-border/20 text-app-muted uppercase tracking-widest text-[10px]">
+                          {t.noJournalEntries}
+                        </div>
                       </div>
                     );
                   }
 
                   return (
+                    <div className="space-y-4">
+                    {folderChips}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-h-[580px] overflow-y-auto pr-2">
                       {filteredEntries.map(entry => (
                         <div key={entry.id} className="p-5.5 bg-app-card/65 hover:bg-app-card/85 transition-colors border border-app-border/35 rounded-2xl shadow-sm space-y-4 flex flex-col justify-between">
                           <div className="space-y-2">
                             <h4 className="font-extrabold text-sm text-app-text">{entry.title}</h4>
+                            {authorsOf(entry).length > 0 && (
+                              <div className="flex flex-wrap gap-1.5">
+                                {authorsOf(entry).map(al => {
+                                  const locked = isLockedAlter(al);
+                                  const c = al.alterColor || '#9CA3AF';
+                                  return (
+                                    <span
+                                      key={al.id}
+                                      className="flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide border text-app-text"
+                                      style={locked ? undefined : { backgroundColor: `${c}15`, borderColor: `${c}40` }}
+                                    >
+                                      {locked
+                                        ? <Lock className="w-2.5 h-2.5" />
+                                        : <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c }} />}
+                                      {locked ? (lang === 'fr' ? 'Fiche verrouillée' : 'Locked profile') : al.alterName}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            )}
                             <div className="text-xs leading-relaxed select-text space-y-1">
                               {renderMarkdown(entry.content, setLightboxImage)}
                             </div>
@@ -14733,6 +14873,7 @@ export default function App() {
                           </div>
                         </div>
                       ))}
+                    </div>
                     </div>
                   );
                 })()}
