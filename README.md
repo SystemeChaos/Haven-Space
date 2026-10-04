@@ -18,10 +18,11 @@
 
 ### 🔄 Registre des switchs
 - Déclaration de fronts avec statut (co-front, fronteur principal, dormant…)
+- **Entrée et sortie** de chaque switch en date et heure, **rétrodatage** possible, **modification** d'un switch existant, et « Flou / Blend » réglable comme un switch normal. Un switch rétrodaté ne change pas qui est au front maintenant
 - **Théorie des cuillères** (Spoon Theory) — suivi de l'énergie disponible
 - **Roue des émotions** interactive (28 émotions sur axes énergie/valence) avec historique par alter
 - Tags d'états du moment (lucide, dissocié·e, anxieux·se…)
-- **Analytics** : chronologie ribbon, fréquence des switchs sur 7 jours, parts de front, analyse des émotions par alter
+- **Analytics** : chronologie ribbon, fréquence des switchs sur 7 jours, parts de front, analyse des émotions par alter, et **calendrier de front** (une colonne par alter, plage de dates, zoom, clic sur une barre pour modifier le switch)
 
 ### 📓 Journal de bord
 - Entrées en markdown avec support des images (syntaxe `![alt](url)`)

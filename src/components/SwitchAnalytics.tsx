@@ -13,18 +13,23 @@ import {
   ArrowRight
 } from 'lucide-react';
 import { SwitchLog, SavedAlter } from '../types';
+import SwitchCalendar from './SwitchCalendar';
 
 interface SwitchAnalyticsProps {
   switchLogs: SwitchLog[];
   savedAlters: SavedAlter[];
   lang: 'fr' | 'en';
   t: any;
+  /** Pour masquer les alters verrouillés dans le calendrier. */
+  unlockedAlterIds?: string[];
+  /** Clic sur « Modifier ce switch » dans le calendrier. */
+  onEditLog?: (log: SwitchLog) => void;
 }
 
 type FilterRange = '24h' | '3d' | '7d';
 
-export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lang, t }: SwitchAnalyticsProps) {
-  const [activeTab, setActiveTab] = useState<'timeline' | 'frequency' | 'ratio'>('timeline');
+export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lang, t, unlockedAlterIds = [], onEditLog }: SwitchAnalyticsProps) {
+  const [activeTab, setActiveTab] = useState<'timeline' | 'frequency' | 'ratio' | 'calendar'>('timeline');
   const [timelineRange, setTimelineRange] = useState<FilterRange>('3d');
   const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
   const [activeTooltipIndex, setActiveTooltipIndex] = useState<number | null>(null);
@@ -289,6 +294,16 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
             }`}
           >
             {lang === 'fr' ? 'Parts de front' : 'Front Share'}
+          </button>
+          <button
+            onClick={() => setActiveTab('calendar')}
+            className={`flex-1 md:flex-none px-3.5 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer select-none border border-transparent ${
+              activeTab === 'calendar'
+                ? 'bg-white text-[#273F4F] shadow-sm font-black'
+                : 'text-[#273F4F]/70 hover:text-[#273F4F]'
+            }`}
+          >
+            {lang === 'fr' ? 'Calendrier' : 'Calendar'}
           </button>
         </div>
       </div>
@@ -697,6 +712,24 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                     })
                   )}
                 </div>
+              </motion.div>
+            )}
+            {activeTab === 'calendar' && (
+              <motion.div
+                key="calendar-tab"
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                transition={{ duration: 0.15 }}
+              >
+                <SwitchCalendar
+                  switchLogs={switchLogs}
+                  savedAlters={savedAlters}
+                  unlockedAlterIds={unlockedAlterIds}
+                  lang={lang}
+                  t={t}
+                  onEditLog={onEditLog}
+                />
               </motion.div>
             )}
           </AnimatePresence>

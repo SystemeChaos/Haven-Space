@@ -1,6 +1,7 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
 import OrgChartPage from './OrgChartPage';
+import { toDateTimeLocal, isCurrentFront, checkSwitchTimes } from './switchLogic';
 import HealthSupportTabs, { HealthProvider, HealthAid } from './HealthSupportTabs';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
@@ -1144,6 +1145,11 @@ export default function App() {
   const [switchNotes, setSwitchNotes] = useState('');
   const [switchSpoons, setSwitchSpoons] = useState<number>(12);
   const [switchMoods, setSwitchMoods] = useState<string[]>([]);
+  // « Flou / Blend » est maintenant un choix du formulaire (comme sélectionner un alter) et non plus un enregistrement
+  // immédiat : on peut régler début et fin avant d'enregistrer. editingSwitchLogId : switch en cours de modification.
+  const [switchIsBlend, setSwitchIsBlend] = useState(false);
+  const [editingSwitchLogId, setEditingSwitchLogId] = useState<string | null>(null);
+  const [switchFormError, setSwitchFormError] = useState<string | null>(null);
   const [wheelEmotion, setWheelEmotion] = useState<{name: string; color: string; desc: string; intensity: number} | null>(null);
   const [wheelHistory, setWheelHistory] = useState<{name: string; color: string; intensity: number; time: string; alter: string; date: string}[]>([]);
   const [wheelDotPos, setWheelDotPos] = useState<{x: number; y: number} | null>(null);
@@ -7508,78 +7514,89 @@ export default function App() {
     setDeleteConfirmClearChat(false);
   };
 
-  const handleLogSwitch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (switchSelectedAlterIds.length === 0) return;
-    const finalTimestamp = switchRetroDate ? new Date(switchRetroDate).getTime() : Date.now();
-    const finalEndTimestamp = switchEndDate ? new Date(switchEndDate).getTime() : undefined;
-    const newLog: SwitchLog = {
-      id: Math.random().toString(36).substring(2, 11),
-      alterIds: switchSelectedAlterIds,
-      timestamp: finalTimestamp,
-      endTimestamp: finalEndTimestamp,
-      notes: switchNotes.trim() || undefined,
-      status: switchSelectedStatus,
-      spoons: switchSpoons,
-      moods: switchMoods.length > 0 ? switchMoods : undefined,
-    };
-    
-    // Update switch logs list
-    setSwitchLogs(prev => [newLog, ...prev].sort((a,b) => b.timestamp - a.timestamp));
-
-    // Automatically update the fronting status of the selected alters in the savedAlters state
-    setSavedAlters(prev => prev.map(a => {
-      if (switchSelectedAlterIds.includes(a.id)) {
-        return {
-          ...a,
-          frontStatus: switchSelectedStatus
-        };
-      }
-      return a;
-    }));
-
-    // Fire notifications
-    const alterNames = switchSelectedAlterIds.map(id => savedAlters.find(a => a.id === id)?.alterName || id);
-    const firstAvatar = savedAlters.find(a => a.id === switchSelectedAlterIds[0])?.profileImage;
-    fireSwitchNotifications(alterNames, switchSelectedStatus, firstAvatar);
-    setSystemInBlend(false); // des alters précis sont identifiés au front : le flou est levé
-
-    // Clear form inputs
+  const resetSwitchForm = () => {
     setSwitchSelectedAlterIds([]);
+    setSwitchIsBlend(false);
     setSwitchRetroDate('');
     setSwitchEndDate('');
     setSwitchNotes('');
     setSwitchSpoons(12);
     setSwitchMoods([]);
+    setEditingSwitchLogId(null);
+    setSwitchFormError(null);
   };
 
-  // Log direct d'un switch "Flou / Blend" sans nécessiter de sélectionner d'alter précis —
-  // le flou représente justement l'absence d'identité claire au front à ce moment-là.
-  const handleLogBlendSwitch = () => {
-    const finalTimestamp = switchRetroDate ? new Date(switchRetroDate).getTime() : Date.now();
-    const finalEndTimestamp = switchEndDate ? new Date(switchEndDate).getTime() : undefined;
-    const newLog: SwitchLog = {
-      id: Math.random().toString(36).substring(2, 11),
-      alterIds: [],
-      timestamp: finalTimestamp,
-      endTimestamp: finalEndTimestamp,
+  // Enregistre un switch : création, modification d'une entrée existante, ou flou (sans alter précis).
+  const handleSubmitSwitch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!switchIsBlend && switchSelectedAlterIds.length === 0) return;
+    const now = Date.now();
+    const startTs = switchRetroDate ? new Date(switchRetroDate).getTime() : now;
+    const endTs = switchEndDate ? new Date(switchEndDate).getTime() : undefined;
+    const timeCheck = checkSwitchTimes(startTs, endTs);
+    if (timeCheck === 'invalid') {
+      setSwitchFormError(lang === 'fr' ? 'Date ou heure invalide.' : 'Invalid date or time.');
+      return;
+    }
+    if (timeCheck === 'end-before-start') {
+      setSwitchFormError(lang === 'fr' ? 'La sortie doit être après l\'entrée.' : 'The end must be after the start.');
+      return;
+    }
+
+    const status = switchIsBlend ? 'blend' : switchSelectedStatus;
+    const alterIds = switchIsBlend ? [] : switchSelectedAlterIds;
+    const payload = {
+      alterIds,
+      timestamp: startTs,
+      endTimestamp: endTs,
       notes: switchNotes.trim() || undefined,
-      status: 'blend',
+      status,
       spoons: switchSpoons,
       moods: switchMoods.length > 0 ? switchMoods : undefined,
     };
 
-    setSwitchLogs(prev => [newLog, ...prev].sort((a, b) => b.timestamp - a.timestamp));
-    fireSwitchNotifications([lang === 'fr' ? 'Flou / Blend' : 'Blur / Blend'], 'blend', undefined);
-    setSystemInBlend(true);
+    // Modification : on met l'entrée à jour sur place. L'état « qui est au front maintenant » n'est pas touché :
+    // corriger un switch passé ne doit pas bouger le front actuel.
+    if (editingSwitchLogId) {
+      setSwitchLogs(prev => prev.map(l => (l.id === editingSwitchLogId ? { ...l, ...payload } : l)).sort((x, y) => y.timestamp - x.timestamp));
+      resetSwitchForm();
+      return;
+    }
 
-    // Clear form inputs
-    setSwitchSelectedAlterIds([]);
-    setSwitchRetroDate('');
-    setSwitchEndDate('');
-    setSwitchNotes('');
-    setSwitchSpoons(12);
-    setSwitchMoods([]);
+    const newLog: SwitchLog = { id: Math.random().toString(36).substring(2, 11), ...payload };
+    // Un switch rétrodaté (antérieur au dernier enregistré) ou déjà terminé est de l'historique : il ne doit pas
+    // écraser le front actuel ni déclencher de notification « switch ».
+    const isCurrent = isCurrentFront(switchLogs, startTs, endTs, now);
+    setSwitchLogs(prev => [newLog, ...prev].sort((x, y) => y.timestamp - x.timestamp));
+
+    if (isCurrent) {
+      if (switchIsBlend) {
+        fireSwitchNotifications([lang === 'fr' ? 'Flou / Blend' : 'Blur / Blend'], 'blend', undefined);
+        setSystemInBlend(true);
+      } else {
+        setSavedAlters(prev => prev.map(al => (switchSelectedAlterIds.includes(al.id) ? { ...al, frontStatus: switchSelectedStatus } : al)));
+        const alterNames = switchSelectedAlterIds.map(id => savedAlters.find(al => al.id === id)?.alterName || id);
+        const firstAvatar = savedAlters.find(al => al.id === switchSelectedAlterIds[0])?.profileImage;
+        fireSwitchNotifications(alterNames, switchSelectedStatus, firstAvatar);
+        setSystemInBlend(false); // des alters précis sont identifiés au front : le flou est levé
+      }
+    }
+    resetSwitchForm();
+  };
+
+  // Charge un switch existant dans le formulaire pour le modifier.
+  const handleEditSwitchLog = (log: SwitchLog) => {
+    setEditingSwitchLogId(log.id);
+    setSwitchIsBlend(log.status === 'blend' && log.alterIds.length === 0);
+    setSwitchSelectedAlterIds(log.alterIds.filter(id => savedAlters.some(al => al.id === id)));
+    if (log.status && log.status !== 'blend') setSwitchSelectedStatus(log.status);
+    setSwitchRetroDate(toDateTimeLocal(log.timestamp));
+    setSwitchEndDate(log.endTimestamp ? toDateTimeLocal(log.endTimestamp) : '');
+    setSwitchNotes(log.notes || '');
+    setSwitchSpoons(log.spoons ?? 12);
+    setSwitchMoods(log.moods || []);
+    setSwitchFormError(null);
+    setTimeout(() => document.getElementById('switch-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const handleDeleteSwitchLog = (logId: string) => {
@@ -7589,6 +7606,7 @@ export default function App() {
   const executeDeleteSwitchLog = (logId: string) => {
     setSwitchLogs(prev => prev.filter(l => l.id !== logId));
     setDeleteConfirmSwitchLogId(null);
+    if (editingSwitchLogId === logId) resetSwitchForm(); // on ne modifie pas une entrée qu'on vient de supprimer
   };
 
   // Retire un alter du front en un clic depuis le dashboard : met à jour son statut
@@ -13902,13 +13920,22 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-10">
               
               {/* Log Switch Form */}
-              <div className="md:col-span-12 lg:col-span-5 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-6">
+              <div id="switch-form" className="md:col-span-12 lg:col-span-5 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-6 scroll-mt-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
                   <UserCheck className="w-4 h-4" />
-                  <span>{lang === 'fr' ? 'Déclarer un Front' : 'Declare Front'}</span>
+                  <span>{editingSwitchLogId ? (lang === 'fr' ? 'Modifier un switch' : 'Edit a switch') : (lang === 'fr' ? 'Déclarer un Front' : 'Declare Front')}</span>
                 </h3>
 
-                <form onSubmit={handleLogSwitch} className="space-y-5">
+                {editingSwitchLogId && (
+                  <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-app-accent/10 border border-app-accent/30 text-[11px] font-bold text-app-text">
+                    <span>{lang === 'fr' ? 'Tu modifies un switch existant. Le front actuel ne change pas.' : 'You are editing an existing switch. The current front is unchanged.'}</span>
+                    <button type="button" onClick={resetSwitchForm} className="shrink-0 underline underline-offset-2 text-app-muted hover:text-app-text">
+                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                    </button>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmitSwitch} className="space-y-5">
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
                       {lang === 'fr' ? '1. Sélectionner l\'alter / les alters :' : '1. Select the alter(s):'}
@@ -13960,6 +13987,7 @@ export default function App() {
                                       if (!switchSelectedAlterIds.includes(a.id)) {
                                         setSwitchSelectedAlterIds(prev => [...prev, a.id]);
                                       }
+                                      setSwitchIsBlend(false);
                                       setSwitchAlterSearch('');
                                     }}
                                     className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${switchSelectedAlterIds.includes(a.id) ? 'opacity-40' : ''}`}
@@ -13990,7 +14018,7 @@ export default function App() {
                       <span>{t.frontStatusLabel}</span>
                     </label>
                     {FRONT_STATUS_CATEGORIES.map(category => (
-                      <div key={category.key} className="space-y-1.5">
+                      <div key={category.key} className={`space-y-1.5 transition-opacity ${switchIsBlend ? 'opacity-40' : ''}`}>
                         <span className="text-[9px] font-black uppercase tracking-widest text-app-muted/70">
                           {lang === 'fr' ? category.labelFr : category.labelEn}
                         </span>
@@ -14001,9 +14029,10 @@ export default function App() {
                               type="button"
                               onClick={() => {
                                 setSwitchSelectedStatus(statusKey);
+                                setSwitchIsBlend(false);
                               }}
                               className={`py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center select-none leading-normal ${
-                                switchSelectedStatus === statusKey
+                                !switchIsBlend && switchSelectedStatus === statusKey
                                   ? 'bg-app-accent border-transparent text-white shadow-sm active:scale-95'
                                   : 'bg-app-bg border-app-border/45 text-app-text/75 hover:border-app-accent/30'
                               }`}
@@ -14016,39 +14045,70 @@ export default function App() {
                     ))}
                     <button
                       type="button"
-                      onClick={handleLogBlendSwitch}
-                      className="w-full py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border border-fuchsia-500/30 text-fuchsia-500 hover:opacity-80 active:scale-95 text-center select-none"
+                      aria-pressed={switchIsBlend}
+                      onClick={() => {
+                        if (!switchIsBlend) setSwitchSelectedAlterIds([]); // flou = personne de précis
+                        setSwitchIsBlend(prev => !prev);
+                      }}
+                      className={`w-full py-2.5 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border text-center select-none ${
+                        switchIsBlend ? 'border-fuchsia-500 text-fuchsia-500 ring-2 ring-fuchsia-500/30' : 'border-fuchsia-500/30 text-fuchsia-500 hover:opacity-80'
+                      }`}
                       style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' }}
                     >
-                      {lang === 'fr' ? '✦ Flou / Blend — sans sélectionner personne' : '✦ Blur / Blend — without selecting anyone'}
+                      {switchIsBlend ? '✓ ' : ''}{lang === 'fr' ? '✦ Flou / Blend — sans sélectionner personne' : '✦ Blur / Blend — without selecting anyone'}
                     </button>
                   </div>
 
-                  {/* Retro-dating input field */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
-                      <Timer className="w-3.5 h-3.5" />
-                      <span>{t.retrodateLabel}</span>
-                    </label>
-                    {/* End time input */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
-                      <Timer className="w-3.5 h-3.5" />
-                      <span>{lang === 'fr' ? 'Heure de sortie (optionnel)' : 'End time (optional)'}</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={switchEndDate}
-                      onChange={(e) => setSwitchEndDate(e.target.value)}
-                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                    />
-                  </div>
-                    <input
-                      type="datetime-local"
-                      value={switchRetroDate}
-                      onChange={(e) => setSwitchRetroDate(e.target.value)}
-                      className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
-                    />
+                  {/* Entrée et sortie du switch (rétrodatage possible) */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
+                        <Timer className="w-3.5 h-3.5" />
+                        <span>{lang === 'fr' ? 'Entrée : date et heure' : 'Start: date and time'}</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="datetime-local"
+                          value={switchRetroDate}
+                          onChange={(e) => { setSwitchRetroDate(e.target.value); setSwitchFormError(null); }}
+                          className="min-w-0 flex-1 bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setSwitchRetroDate(toDateTimeLocal(Date.now()))}
+                          className="shrink-0 px-3 rounded-xl bg-app-bg border border-app-border text-[10px] font-black uppercase tracking-wider text-app-muted hover:text-app-text transition-colors"
+                        >
+                          {lang === 'fr' ? 'Maintenant' : 'Now'}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-app-muted">
+                        {lang === 'fr' ? 'Laisse vide pour « maintenant ». Choisis une date passée pour rétrodater.' : 'Leave empty for "now". Pick a past date to backdate.'}
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
+                        <Timer className="w-3.5 h-3.5" />
+                        <span>{lang === 'fr' ? 'Sortie : date et heure (optionnel)' : 'End: date and time (optional)'}</span>
+                      </label>
+                      <div className="flex gap-2">
+                        <input
+                          type="datetime-local"
+                          value={switchEndDate}
+                          onChange={(e) => { setSwitchEndDate(e.target.value); setSwitchFormError(null); }}
+                          className="min-w-0 flex-1 bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
+                        />
+                        {switchEndDate && (
+                          <button
+                            type="button"
+                            onClick={() => setSwitchEndDate('')}
+                            className="shrink-0 px-3 rounded-xl bg-app-bg border border-app-border text-[10px] font-black uppercase tracking-wider text-app-muted hover:text-app-text transition-colors"
+                          >
+                            {lang === 'fr' ? 'Effacer' : 'Clear'}
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
                   {/* Notes fields */}
@@ -14065,12 +14125,16 @@ export default function App() {
                     />
                   </div>
 
+                  {switchFormError && (
+                    <p role="alert" className="text-xs font-bold text-red-500">{switchFormError}</p>
+                  )}
+
                   <button
                     type="submit"
-                    disabled={switchSelectedAlterIds.length === 0}
+                    disabled={!switchIsBlend && switchSelectedAlterIds.length === 0}
                     className="w-full py-3.5 bg-app-accent hover:opacity-90 disabled:opacity-20 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                   >
-                    {t.logSwitchButton}
+                    {editingSwitchLogId ? (lang === 'fr' ? 'Enregistrer les modifications' : 'Save changes') : t.logSwitchButton}
                   </button>
                 </form>
               </div>
@@ -14379,12 +14443,24 @@ export default function App() {
 
                           {/* Delete switch log or duration bubble */}
                           <div className="flex flex-col justify-between items-end shrink-0 select-none">
-                            <button
-                              onClick={() => handleDeleteSwitchLog(log.id)}
-                              className="p-1 hover:bg-app-bg text-app-muted hover:text-red-500 rounded transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={() => handleEditSwitchLog(log)}
+                                title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                                aria-label={lang === 'fr' ? 'Modifier ce switch' : 'Edit this switch'}
+                                className="p-1 hover:bg-app-bg text-app-muted hover:text-app-accent rounded transition-colors"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteSwitchLog(log.id)}
+                                title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                                aria-label={lang === 'fr' ? 'Supprimer ce switch' : 'Delete this switch'}
+                                className="p-1 hover:bg-app-bg text-app-muted hover:text-red-500 rounded transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
 
                             {durationStr && (
                               <span className="text-[9px] font-black uppercase tracking-widest bg-app-accent/15 text-app-accent px-2 py-1 rounded-full border border-app-accent/20">
@@ -14404,7 +14480,7 @@ export default function App() {
             </div>
 
             {/* Diagramme continu quotidien/hebdomadaire des switchs */}
-            <SwitchAnalytics switchLogs={switchLogs} savedAlters={savedAlters} lang={lang} t={t} />
+            <SwitchAnalytics switchLogs={switchLogs} savedAlters={savedAlters} lang={lang} t={t} unlockedAlterIds={unlockedAlterIds} onEditLog={handleEditSwitchLog} />
 
             {/* Analyse des émotions */}
             {wheelHistory.length > 0 && (() => {
