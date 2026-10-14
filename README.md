@@ -84,6 +84,7 @@ Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 - Choix de la **police** d'affichage
 - Support **français / anglais**
 - Export et import des données en JSON (sauvegarde locale)
+  - À l'import, un aperçu compare le fichier à ton système actuel et avertit s'il contient moins de données (mauvais fichier, vieille sauvegarde) ; « Écraser » ne remplace que les sections présentes dans le fichier et conserve les autres
 
 ---
 

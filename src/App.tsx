@@ -1,6 +1,7 @@
 import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, MappingData, RELATION_CONFIG } from './MappingPage';
 import InnerworldPage from './InnerworldPage';
 import OrgChartPage from './OrgChartPage';
+import { compareBackup, missingSectionLabels, countSpectrumCriteria } from './importCompare';
 import { toDateTimeLocal, isCurrentFront, checkSwitchTimes } from './switchLogic';
 import HealthSupportTabs, { HealthProvider, HealthAid } from './HealthSupportTabs';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
@@ -2745,7 +2746,7 @@ export default function App() {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
         const parsed = JSON.parse(text);
@@ -2781,9 +2782,21 @@ export default function App() {
           );
         }
 
+        // Comparaison avec ton système actuel : un fichier plus pauvre (mauvais fichier, vieille sauvegarde) est signalé.
+        const currentInnerworldPlaces = (await listVaultKeys('haven_innerworld_place_')).length;
+        const rows = compareBackup(parsed, {
+          savedAlters, subsystems, chatMessages, switchLogs, journalEntries,
+          medications, healthHistory, healthProviders, healthAids, walletEntries,
+          innerworldPlaces: currentInnerworldPlaces,
+          spectrumCriteria: countSpectrumCriteria(spectrumBySystem),
+        });
+
         setImportPreview({
           data: parsed,
           fileName: file.name,
+          rows,
+          missingLabels: missingSectionLabels(parsed, lang),
+          exportedAt: typeof parsed.exportedAt === 'number' ? parsed.exportedAt : undefined,
           altersCount,
           subsystemsCount,
           chatsCount,
@@ -2839,65 +2852,41 @@ export default function App() {
       }
       
       // Système (alters) : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
-      const importedAlters = Array.isArray(data.savedAlters) ? data.savedAlters : [];
-      setSavedAlters(importedAlters);
-
-      const importedSubsystems = Array.isArray(data.subsystems) ? data.subsystems : [];
-      setSubsystems(importedSubsystems);
-
-      const importedChat = Array.isArray(data.chatMessages) ? data.chatMessages : [];
-      setChatMessages(importedChat);
-
-      const importedSwitches = Array.isArray(data.switchLogs) ? data.switchLogs : [];
-      setSwitchLogs(importedSwitches);
+      // Règle de l'écrasement : une section présente dans le fichier REMPLACE la tienne (même vide) ; une section
+      // absente du fichier est conservée telle quelle (une sauvegarde plus ancienne que telle fonctionnalité
+      // ne doit pas la vider).
+      if (Array.isArray(data.savedAlters)) setSavedAlters(data.savedAlters);
+      if (Array.isArray(data.subsystems)) setSubsystems(data.subsystems);
+      if (Array.isArray(data.chatMessages)) setChatMessages(data.chatMessages);
+      if (Array.isArray(data.switchLogs)) setSwitchLogs(data.switchLogs);
 
       // Journal : pas d'écriture directe ici, l'effet de sauvegarde du coffre s'en charge
-      const importedJournals = Array.isArray(data.journalEntries) ? data.journalEntries : [];
-      setJournalEntries(importedJournals);
+      if (Array.isArray(data.journalEntries)) setJournalEntries(data.journalEntries);
       if (Array.isArray(data.habits)) setHabits(data.habits);
       if (Array.isArray(data.habitLogs)) setHabitLogs(data.habitLogs);
 
-      const importedParallelSystems = Array.isArray(data.parallelSystems) ? data.parallelSystems : [];
-      setParallelSystems(importedParallelSystems);
-
-      const importedCustomRoles = Array.isArray(data.customRoles) ? data.customRoles : [];
-      setCustomRoles(importedCustomRoles);
-
-      const importedCustomTraits = Array.isArray(data.customTraits) ? data.customTraits : [];
-      setCustomTraits(importedCustomTraits);
-
-      const importedCustomDisorders = Array.isArray(data.customDisorders) ? data.customDisorders : [];
-      setCustomDisorders(importedCustomDisorders);
-
-      const importedCustomGenders = Array.isArray(data.customGenders) ? data.customGenders : [];
-      setCustomGenders(importedCustomGenders);
-      const importedCustomPronouns = Array.isArray(data.customPronouns) ? data.customPronouns : [];
-      setCustomPronouns(importedCustomPronouns);
-
-      const importedCustomSexualities = Array.isArray(data.customSexualities) ? data.customSexualities : [];
-      setCustomSexualities(importedCustomSexualities);
-
-      const importedConversations = Array.isArray(data.conversations) ? data.conversations : [];
-      setConversations(importedConversations);
-
-      const importedDirectMessages = Array.isArray(data.directMessages) ? data.directMessages : [];
-      setDirectMessages(importedDirectMessages);
+      if (Array.isArray(data.parallelSystems)) setParallelSystems(data.parallelSystems);
+      if (Array.isArray(data.customRoles)) setCustomRoles(data.customRoles);
+      if (Array.isArray(data.customTraits)) setCustomTraits(data.customTraits);
+      if (Array.isArray(data.customDisorders)) setCustomDisorders(data.customDisorders);
+      if (Array.isArray(data.customGenders)) setCustomGenders(data.customGenders);
+      if (Array.isArray(data.customPronouns)) setCustomPronouns(data.customPronouns);
+      if (Array.isArray(data.customSexualities)) setCustomSexualities(data.customSexualities);
+      if (Array.isArray(data.conversations)) setConversations(data.conversations);
+      if (Array.isArray(data.directMessages)) setDirectMessages(data.directMessages);
 
       // Santé : pas d'écriture directe dans localStorage ici — le coffre chiffré s'en charge
       // via son propre effet de sauvegarde (déclenché par setMedications/setHealthHistory/
       // setEmergencyInfo ci-dessous), pour ne jamais écrire ces données en clair par-dessus
       // une version chiffrée.
-      const importedMedications = Array.isArray(data.medications) ? data.medications : [];
-      setMedications(importedMedications);
-
-      const importedHealthHistory = Array.isArray(data.healthHistory) ? data.healthHistory : [];
-      setHealthHistory(importedHealthHistory);
+      if (Array.isArray(data.medications)) setMedications(data.medications);
+      if (Array.isArray(data.healthHistory)) setHealthHistory(data.healthHistory);
 
       if (data.emergencyInfo && typeof data.emergencyInfo === 'object') {
         setEmergencyInfo(data.emergencyInfo);
       }
-      setHealthProviders(Array.isArray(data.healthProviders) ? data.healthProviders : []);
-      setHealthAids(Array.isArray(data.healthAids) ? data.healthAids : []);
+      if (Array.isArray(data.healthProviders)) setHealthProviders(data.healthProviders);
+      if (Array.isArray(data.healthAids)) setHealthAids(data.healthAids);
 
       if (Array.isArray(data.planningEntries)) {
         await savePlanning(data.planningEntries, activeSystemId, dek, !!vaultMeta);
@@ -2910,19 +2899,16 @@ export default function App() {
         await saveMapping(data.mappingData, 'main', dek, !!vaultMeta);
       }
 
-      const importedWalletEntries = Array.isArray(data.walletEntries) ? data.walletEntries : [];
-      setWalletEntries(importedWalletEntries);
-
-      const importedWalletCategories = Array.isArray(data.walletCustomCategories) ? data.walletCustomCategories : [];
-      setWalletCustomCategories(importedWalletCategories);
+      if (Array.isArray(data.walletEntries)) setWalletEntries(data.walletEntries);
+      if (Array.isArray(data.walletCustomCategories)) setWalletCustomCategories(data.walletCustomCategories);
 
       if (data.spectrumBySystem && typeof data.spectrumBySystem === 'object') {
         setSpectrumBySystem(data.spectrumBySystem);
       }
 
-      const importedEcoSystem = data.ecoSystem && typeof data.ecoSystem === 'object' ? data.ecoSystem : {};
-      const importedEcoElements = Array.isArray(importedEcoSystem.elements) ? importedEcoSystem.elements : [];
-      setEcoElements(importedEcoElements);
+      if (data.ecoSystem && typeof data.ecoSystem === 'object') {
+      const importedEcoSystem = data.ecoSystem;
+      if (Array.isArray(importedEcoSystem.elements)) setEcoElements(importedEcoSystem.elements);
       if (importedEcoSystem.background === 'aquarium' || importedEcoSystem.background === 'greenhouse' || importedEcoSystem.background === 'night' || importedEcoSystem.background === 'jardin') {
         setEcoBackground(importedEcoSystem.background);
       }
@@ -2933,6 +2919,7 @@ export default function App() {
         try {
           localStorage.setItem(WATER_LOG_KEY, JSON.stringify(importedEcoSystem.waterLog));
         } catch { /* ignore */ }
+      }
       }
 
       if (data.innerworldData && typeof data.innerworldData === 'object') {
@@ -2949,9 +2936,15 @@ export default function App() {
         }
       }
 
+      const keptLabels: string[] = importPreview.missingLabels || [];
+      const keptNote = keptLabels.length > 0
+        ? (lang === 'fr'
+            ? ` Sections absentes du fichier, conservées telles quelles : ${keptLabels.join(', ')}.`
+            : ` Sections missing from the file, kept as they were: ${keptLabels.join(', ')}.`)
+        : '';
       setJsonSuccess(lang === 'fr' 
-        ? "Toutes vos données ont été remplacées par la sauvegarde !" 
-        : "Successfully replaced all local data with the backup!"
+        ? `Les données du fichier ont remplacé les vôtres !${keptNote}` 
+        : `The backup data replaced yours!${keptNote}`
       );
       setJsonError(null);
       setImportPreview(null);
@@ -18711,40 +18704,62 @@ export default function App() {
 
                   <div className="space-y-3">
                     <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Contenu compatible détecté :' : 'Detected compatible content :'}</h5>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.altersCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Alters' : 'Alters'}</div>
+                    {importPreview.exportedAt && (
+                      <p className="text-[11px] text-app-muted">
+                        {lang === 'fr' ? 'Sauvegarde du ' : 'Backup from '}
+                        <strong className="text-app-text">{new Date(importPreview.exportedAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeStyle: 'short' })}</strong>
+                        {' '}({Math.max(0, Math.floor((Date.now() - importPreview.exportedAt) / 86400000))}{lang === 'fr' ? ' j' : ' d'})
+                      </p>
+                    )}
+
+                    {/* Fichier plus pauvre que ton système : on le dit avant d'écraser */}
+                    {(importPreview.rows || []).some((r: any) => r.lower) && (
+                      <div role="alert" className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 space-y-2">
+                        <p className="text-xs font-black text-app-text">
+                          {lang === 'fr' ? '⚠ Ce fichier contient moins de données que ton système actuel.' : '⚠ This file contains less data than your current system.'}
+                        </p>
+                        <p className="text-[11px] text-app-text/90 leading-relaxed">
+                          {(importPreview.rows as any[]).filter(r => r.lower).map(r => `${r.label[lang]} : ${r.incoming} ${lang === 'fr' ? 'au lieu de' : 'instead of'} ${r.current}`).join(' · ')}
+                          {'. '}
+                          {lang === 'fr'
+                            ? '« Écraser » ferait perdre la différence. Si ce n\'est pas voulu, vérifie que c\'est le bon fichier, ou exporte ton état actuel avant.'
+                            : '"Overwrite" would lose the difference. If that is not intended, check that this is the right file, or export your current state first.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleExportJSON}
+                          className="px-3 py-2 rounded-xl bg-app-card border border-amber-500/40 text-[10px] font-black uppercase tracking-widest text-app-text hover:border-amber-500 transition-colors"
+                        >
+                          {lang === 'fr' ? 'Exporter mon état actuel d\'abord' : 'Export my current state first'}
+                        </button>
                       </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.subsystemsCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Sous-systèmes' : 'Subsystems'}</div>
-                      </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.chatsCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Mini-chats' : 'Chats'}</div>
-                      </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.switchesCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Switchs' : 'Switches'}</div>
-                      </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.journalsCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Notes Journal' : 'Journal'}</div>
-                      </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.walletCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Portefeuille' : 'Wallet'}</div>
-                      </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.innerworldCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Innerworld' : 'Innerworld'}</div>
-                      </div>
-                      <div className="p-3 bg-app-card border border-app-border/60 rounded-xl text-center space-y-0.5 shadow-sm">
-                        <div className="text-sm font-black text-app-text">{importPreview.spectrumCount}</div>
-                        <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{lang === 'fr' ? 'Spectrum Tool' : 'Spectrum Tool'}</div>
-                      </div>
+                    )}
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+                      {(importPreview.rows || []).map((r: any) => (
+                        <div
+                          key={r.key}
+                          className={`p-3 bg-app-card border rounded-xl text-center space-y-0.5 shadow-sm ${r.lower ? 'border-amber-500/60' : 'border-app-border/60'}`}
+                        >
+                          <div className={`text-sm font-black ${r.present ? (r.lower ? 'text-amber-600' : 'text-app-text') : 'text-app-muted'}`}>
+                            {r.present ? r.incoming : '—'}
+                          </div>
+                          <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{r.label[lang]}</div>
+                          <div className="text-[9px] text-app-muted">
+                            {r.present
+                              ? `${lang === 'fr' ? 'actuellement' : 'currently'} ${r.current}`
+                              : (lang === 'fr' ? 'absent · conservé' : 'absent · kept')}
+                          </div>
+                        </div>
+                      ))}
                     </div>
+
+                    {(importPreview.missingLabels || []).length > 0 && (
+                      <p className="text-[11px] text-app-muted leading-relaxed">
+                        {lang === 'fr' ? 'Absent du fichier (conservé tel quel si tu écrases) : ' : 'Missing from the file (kept as is if you overwrite): '}
+                        {(importPreview.missingLabels as string[]).join(', ')}.
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-4 border-t border-app-border/15 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -18752,8 +18767,8 @@ export default function App() {
                       <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Méthode de Restauration' : 'Restoration Method'}</h5>
                       <p className="text-[11px] text-app-text/90 leading-relaxed">
                         {lang === 'fr'
-                          ? 'Choisissez "Écraser" pour vider vos données locales actuelles et utiliser uniquement la sauvegarde. Choisissez "Fusionner" pour combiner de manière sécurisée sans aucune perte.'
-                          : 'Choose "Overwrite" to discard existing local data and load the backup exclusively. Choose "Merge" to combine items securely.'}
+                          ? 'Choisissez "Écraser" pour remplacer vos données actuelles par celles du fichier (les sections absentes du fichier sont conservées). Choisissez "Fusionner" pour combiner de manière sécurisée sans aucune perte.'
+                          : 'Choose "Overwrite" to replace your current data with the file\'s (sections missing from the file are kept). Choose "Merge" to combine items securely.'}
                       </p>
                     </div>
 
