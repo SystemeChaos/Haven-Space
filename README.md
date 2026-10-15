@@ -85,6 +85,7 @@ Boîte à outils anti-dissociation, accessible en un clic depuis n'importe où :
 - Support **français / anglais**
 - Export et import des données en JSON (sauvegarde locale)
   - À l'import, un aperçu compare le fichier à ton système actuel et avertit s'il contient moins de données (mauvais fichier, vieille sauvegarde) ; « Écraser » ne remplace que les sections présentes dans le fichier et conserve les autres
+  - **Point de restauration** : juste avant un import qui remplace tes données, l'app garde une photo complète de ton système (chiffrée si le coffre est activé) ; « Restaurer » annule l'import d'un clic, et l'état d'avant la restauration devient à son tour le point de restauration. Retour arrière automatique si l'import plante en cours de route
 
 ---
 

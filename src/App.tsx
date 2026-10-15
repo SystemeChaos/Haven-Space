@@ -2,6 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import OrgChartPage from './OrgChartPage';
 import { compareBackup, missingSectionLabels, countSpectrumCriteria } from './importCompare';
+import { RestorePointMeta, readRestorePointMeta, saveRestorePoint, loadRestorePoint, deleteRestorePoint, encryptRestorePointIfNeeded, createVaultRestoreStore } from './restorePoint';
 import { toDateTimeLocal, isCurrentFront, checkSwitchTimes } from './switchLogic';
 import HealthSupportTabs, { HealthProvider, HealthAid } from './HealthSupportTabs';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
@@ -1520,6 +1521,9 @@ export default function App() {
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower', 'haven_alter_'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
+    // Le point de restauration (photo complète, potentiellement lourde) n'est pas ré-écrit en clair : on le supprime.
+    await deleteRestorePoint(createVaultRestoreStore(currentDek, true));
+    setRestorePointMeta(null);
     const flatten = async (key: string) => {
       const value = await readMaybeEncrypted<unknown>(key, currentDek, undefined);
       if (value !== undefined) {
@@ -2662,9 +2666,21 @@ export default function App() {
     return data;
   };
 
-  const handleExportJSON = async () => {
-    try {
-      const dataToExport = {
+  // --- Point de restauration (voir restorePoint.ts) -----------------------------------------------------------
+  const [restorePointMeta, setRestorePointMeta] = useState<RestorePointMeta | null>(() => readRestorePointMeta());
+  const [restoreBusy, setRestoreBusy] = useState(false);
+  const restoreStore = () => createVaultRestoreStore(dek, !!vaultMeta);
+
+  // Un point créé avant l'activation du coffre est en clair : dès que le coffre est déverrouillé, on le réécrit chiffré.
+  useEffect(() => {
+    if (!dek || !vaultMeta || !restorePointMeta || restorePointMeta.encrypted) return;
+    encryptRestorePointIfNeeded(createVaultRestoreStore(dek, true))
+      .then(next => { if (next) setRestorePointMeta(next); })
+      .catch(e => console.warn('[Haven Space] Chiffrement du point de restauration impossible :', e));
+  }, [dek, vaultMeta, restorePointMeta]);
+
+  // Construit l'objet de sauvegarde (même format que le fichier d'export JSON) : partagé par l'export et le point de restauration.
+  const buildBackupData = async () => ({
         version: 1,
         exportedAt: Date.now(),
         mainSystemName: mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
@@ -2710,7 +2726,11 @@ export default function App() {
           })(),
         },
         innerworldData: await collectInnerworldData()
-      };
+  });
+
+  const handleExportJSON = async () => {
+    try {
+      const dataToExport = await buildBackupData();
 
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dataToExport, null, 2));
       const downloadAnchor = document.createElement('a');
@@ -2842,11 +2862,9 @@ export default function App() {
     }
   };
 
-  const handleApplyImportOverwrite = async () => {
-    if (!importPreview) return;
-    const { data } = importPreview;
-
-    try {
+  // Applique une sauvegarde : une section présente REMPLACE la tienne, une section absente est conservée.
+  // Utilisée par l'import « Écraser », par la restauration du point de restauration et par le retour arrière automatique.
+  const applyBackupData = async (data: any, planningSystemId: string) => {
       if (data.mainSystemName) {
         setMainSystemName(data.mainSystemName);
       }
@@ -2889,10 +2907,10 @@ export default function App() {
       if (Array.isArray(data.healthAids)) setHealthAids(data.healthAids);
 
       if (Array.isArray(data.planningEntries)) {
-        await savePlanning(data.planningEntries, activeSystemId, dek, !!vaultMeta);
+        await savePlanning(data.planningEntries, planningSystemId, dek, !!vaultMeta);
       }
       if (Array.isArray(data.eisenhowerTasks)) {
-        await saveEisenhower(data.eisenhowerTasks, activeSystemId, dek, !!vaultMeta);
+        await saveEisenhower(data.eisenhowerTasks, planningSystemId, dek, !!vaultMeta);
       }
 
       if (data.mappingData && typeof data.mappingData === 'object') {
@@ -2935,21 +2953,130 @@ export default function App() {
           }
         }
       }
+  };
 
+  const confirmText = (fr: string, en: string) => window.confirm(lang === 'fr' ? fr : en);
+
+  // Import qui remplace : photo de sécurité AVANT, retour arrière automatique si ça plante en cours de route.
+  const handleApplyImportOverwrite = async () => {
+    if (!importPreview || restoreBusy) return;
+    const { data } = importPreview;
+    setRestoreBusy(true);
+    setJsonError(null);
+    setJsonSuccess(null);
+
+    let snapshot: any = null;
+    try {
+      snapshot = await buildBackupData();
+      setRestorePointMeta(await saveRestorePoint(snapshot, { store: restoreStore(), encrypted: !!dek, planningSystemId: activeSystemId, reason: 'import' }));
+    } catch (e) {
+      snapshot = null;
+      console.warn('[Haven Space] Point de restauration impossible :', e);
+      const proceed = confirmText(
+        "Impossible de créer le point de restauration (stockage plein ou indisponible). Continuer l'import SANS pouvoir l'annuler ?",
+        'Could not create the restore point (storage full or unavailable). Continue the import WITHOUT being able to undo it?',
+      );
+      if (!proceed) { setRestoreBusy(false); return; }
+    }
+
+    try {
+      await applyBackupData(data, activeSystemId);
       const keptLabels: string[] = importPreview.missingLabels || [];
       const keptNote = keptLabels.length > 0
         ? (lang === 'fr'
             ? ` Sections absentes du fichier, conservées telles quelles : ${keptLabels.join(', ')}.`
             : ` Sections missing from the file, kept as they were: ${keptLabels.join(', ')}.`)
         : '';
-      setJsonSuccess(lang === 'fr' 
-        ? `Les données du fichier ont remplacé les vôtres !${keptNote}` 
-        : `The backup data replaced yours!${keptNote}`
-      );
+      const undoNote = snapshot
+        ? (lang === 'fr' ? ' Un point de restauration a été créé : tu peux annuler cet import juste en dessous.' : ' A restore point was created: you can undo this import just below.')
+        : '';
+      setJsonSuccess(lang === 'fr'
+        ? `Les données du fichier ont remplacé les vôtres !${keptNote}${undoNote}`
+        : `The backup data replaced yours!${keptNote}${undoNote}`);
       setJsonError(null);
       setImportPreview(null);
     } catch (err: any) {
-      setJsonError(lang === 'fr' ? `Échec du remplacement : ${err.message}` : `Overwrite failed: ${err.message}`);
+      let rolledBack = false;
+      if (snapshot) {
+        try { await applyBackupData(snapshot, activeSystemId); rolledBack = true; } catch (e2) { console.error('[Haven Space] Retour arrière impossible :', e2); }
+      }
+      const tail = rolledBack
+        ? (lang === 'fr' ? " Tes données d'avant ont été remises automatiquement." : ' Your previous data was put back automatically.')
+        : (snapshot
+            ? (lang === 'fr' ? " Le retour arrière automatique a échoué : utilise « Restaurer » dans le point de restauration." : ' The automatic rollback failed: use "Restore" in the restore point.')
+            : '');
+      setJsonError((lang === 'fr' ? `Échec du remplacement : ${err.message}` : `Overwrite failed: ${err.message}`) + tail);
+    } finally {
+      setRestoreBusy(false);
+    }
+  };
+
+  // Restaure le point de restauration. L'état actuel devient le nouveau point : on peut donc revenir en arrière à son tour.
+  const handleRestoreFromRestorePoint = async () => {
+    if (restoreBusy) return;
+    setRestoreBusy(true);
+    setJsonError(null);
+    setJsonSuccess(null);
+    try {
+      const rec = await loadRestorePoint(restoreStore());
+      if (!rec) {
+        setRestorePointMeta(null);
+        setJsonError(lang === 'fr' ? 'Le point de restauration est introuvable ou illisible.' : 'The restore point is missing or unreadable.');
+        return;
+      }
+      const when = new Date(rec.meta.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeStyle: 'short' });
+      if (!confirmText(
+        `Restaurer l'état du ${when} ? Tes données actuelles seront remplacées, mais gardées comme nouveau point de restauration : tu pourras revenir en arrière.`,
+        `Restore the state from ${when}? Your current data will be replaced but kept as the new restore point, so you can go back.`,
+      )) return;
+
+      const current = await buildBackupData();
+      let swapMeta: RestorePointMeta;
+      try {
+        swapMeta = await saveRestorePoint(current, { store: restoreStore(), encrypted: !!dek, planningSystemId: activeSystemId, reason: 'restore' });
+      } catch (e) {
+        console.warn('[Haven Space] Point de restauration impossible :', e);
+        setJsonError(lang === 'fr' ? "Impossible de sauvegarder l'état actuel avant de restaurer : rien n'a été modifié." : 'Could not save the current state before restoring: nothing was changed.');
+        return;
+      }
+      try {
+        await applyBackupData(rec.data, rec.meta.planningSystemId);
+        setRestorePointMeta(swapMeta);
+        setJsonSuccess(lang === 'fr'
+          ? `État du ${when} restauré. Ton état d'avant est gardé comme nouveau point de restauration.`
+          : `State from ${when} restored. Your previous state is kept as the new restore point.`);
+      } catch (err: any) {
+        let rolledBack = false;
+        try { await applyBackupData(current, activeSystemId); rolledBack = true; } catch (e2) { console.error('[Haven Space] Retour arrière impossible :', e2); }
+        setRestorePointMeta(swapMeta);
+        setJsonError((lang === 'fr' ? `Échec de la restauration : ${err.message}` : `Restore failed: ${err.message}`)
+          + (rolledBack ? (lang === 'fr' ? " Tes données d'avant ont été remises." : ' Your previous data was put back.') : ''));
+      }
+    } finally {
+      setRestoreBusy(false);
+    }
+  };
+
+  const handleDeleteRestorePoint = async () => {
+    if (!confirmText('Supprimer le point de restauration ? Tu ne pourras plus annuler le dernier import.', 'Delete the restore point? You will no longer be able to undo the last import.')) return;
+    await deleteRestorePoint(restoreStore());
+    setRestorePointMeta(null);
+  };
+
+  // Télécharge le point de restauration (même format que l'export : réimportable tel quel).
+  const handleDownloadRestorePoint = async () => {
+    try {
+      const rec = await loadRestorePoint(restoreStore());
+      if (!rec) { setJsonError(lang === 'fr' ? 'Le point de restauration est introuvable ou illisible.' : 'The restore point is missing or unreadable.'); return; }
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(rec.data, null, 2));
+      const link = document.createElement('a');
+      link.setAttribute('href', dataStr);
+      link.setAttribute('download', `heaven_space_restore_point_${new Date(rec.meta.createdAt).toISOString().split('T')[0]}.json`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err: any) {
+      setJsonError(lang === 'fr' ? `Téléchargement impossible : ${err.message}` : `Download failed: ${err.message}`);
     }
   };
 
@@ -18684,6 +18811,45 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Point de restauration : photo automatique avant un import qui remplace tes données */}
+              {restorePointMeta && (
+                <div className="mt-6 p-5 bg-app-card/65 border border-app-border/40 rounded-2xl space-y-3">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
+                    <RotateCcw className="w-4 h-4" />
+                    {lang === 'fr' ? 'Point de restauration' : 'Restore point'}
+                  </h4>
+                  <p className="text-xs text-app-text/90 leading-relaxed">
+                    {lang === 'fr' ? 'Photo de ton système du ' : 'Snapshot of your system from '}
+                    <strong>{new Date(restorePointMeta.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeStyle: 'short' })}</strong>
+                    {lang === 'fr'
+                      ? ` (${restorePointMeta.counts.alters} alters, ${restorePointMeta.counts.journals} notes, ${restorePointMeta.counts.switches} switchs), `
+                      : ` (${restorePointMeta.counts.alters} alters, ${restorePointMeta.counts.journals} notes, ${restorePointMeta.counts.switches} switches), `}
+                    {restorePointMeta.reason === 'import'
+                      ? (lang === 'fr' ? 'prise juste avant un import qui remplaçait tes données.' : 'taken right before an import that replaced your data.')
+                      : (lang === 'fr' ? 'prise juste avant une restauration.' : 'taken right before a restore.')}
+                  </p>
+                  <p className="text-[11px] text-app-muted leading-relaxed">
+                    {lang === 'fr'
+                      ? "« Restaurer » remet cet état ; ton état actuel devient alors le nouveau point, donc tu peux revenir en arrière. Ça protège d'une erreur d'import, pas de la perte du téléphone : garde aussi un fichier exporté ailleurs."
+                      : '"Restore" puts that state back; your current state then becomes the new point, so you can go back. It protects against an import mistake, not against losing your phone: also keep an exported file elsewhere.'}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={handleRestoreFromRestorePoint} disabled={restoreBusy}
+                      className="px-4 py-2.5 rounded-xl bg-app-accent text-white text-[10px] font-extrabold uppercase tracking-widest hover:opacity-90 disabled:opacity-40 transition-opacity">
+                      {restoreBusy ? '…' : (lang === 'fr' ? 'Restaurer' : 'Restore')}
+                    </button>
+                    <button type="button" onClick={handleDownloadRestorePoint} disabled={restoreBusy}
+                      className="px-4 py-2.5 rounded-xl bg-app-card border border-app-border text-[10px] font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 disabled:opacity-40 transition-colors">
+                      {lang === 'fr' ? 'Télécharger' : 'Download'}
+                    </button>
+                    <button type="button" onClick={handleDeleteRestorePoint} disabled={restoreBusy}
+                      className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-red-500 disabled:opacity-40 transition-colors">
+                      {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Import Preview Information Card */}
               {importPreview && (
                 <div className="mt-8 p-6 bg-app-accent/5 border border-app-accent/20 rounded-2xl space-y-6 animate-fade-in shadow-inner">
@@ -18783,7 +18949,8 @@ export default function App() {
                       <button
                         type="button"
                         onClick={handleApplyImportOverwrite}
-                        className="flex-1 lg:flex-none px-5 py-3 bg-red-500 hover:bg-red-600 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer border-none"
+                        disabled={restoreBusy}
+                        className="flex-1 lg:flex-none px-5 py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer border-none"
                       >
                         {lang === 'fr' ? 'Écraser et Remplacer' : 'Overwrite Current'}
                       </button>
