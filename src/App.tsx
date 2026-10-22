@@ -9128,7 +9128,15 @@ export default function App() {
 
       {/* Onboarding — carrousel de bienvenue (premier lancement) */}
       {showOnboarding && !isLocked && (() => {
-        const slides = [
+        const slides: Array<{ icon: any; title: string; text: string; kind?: 'language' }> = [
+          {
+            icon: Languages,
+            kind: 'language',
+            title: 'Langue · Language',
+            text: lang === 'fr'
+              ? "Choisis la langue de l'app. Tu pourras la changer plus tard dans les Paramètres."
+              : 'Choose the app language. You can change it later in Settings.',
+          },
           {
             icon: Shield,
             title: lang === 'fr' ? 'Bienvenue sur Haven Space' : 'Welcome to Haven Space',
@@ -9201,6 +9209,26 @@ export default function App() {
                 <h2 className="text-lg font-black text-app-text">{slide.title}</h2>
                 <p className="text-sm text-app-muted leading-relaxed">{slide.text}</p>
               </div>
+
+              {slide.kind === 'language' && (
+                <div className="grid grid-cols-2 gap-3" role="group" aria-label="Langue · Language">
+                  {([['fr', 'Français'], ['en', 'English']] as const).map(([code, label]) => (
+                    <button
+                      key={code}
+                      type="button"
+                      onClick={() => setLang(code)}
+                      aria-pressed={lang === code}
+                      className={`py-3 rounded-xl text-sm font-black transition-all border ${
+                        lang === code
+                          ? 'bg-app-accent text-white border-transparent shadow-sm'
+                          : 'bg-app-bg text-app-text border-app-border hover:border-app-accent/40'
+                      }`}
+                    >
+                      {lang === code ? '✓ ' : ''}{label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="flex items-center justify-center gap-1.5 py-1">
                 {slides.map((_, i) => (
