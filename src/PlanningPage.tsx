@@ -14,6 +14,7 @@ import {
 import { SavedAlter } from './types';
 import { readMaybeEncrypted, writeMaybeEncrypted, migrateKeyIfNeeded } from './vaultStorage';
 import { notifyRemindersDirty } from './nativeReminders';
+import { tr, type Lang, trf, weekdayNamesOf, monthNamesOf } from './i18n';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July
 
 interface PlanningPageProps {
   savedAlters: SavedAlter[];
-  lang: 'fr' | 'en';
+  lang: Lang;
   activeSystemId?: string;
   onRequestNotifPermission?: () => Promise<boolean>;
   dek?: CryptoKey | null;
@@ -264,7 +265,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
           id: `bday-${alter.id}-${y}`,
           date: `${y}-${mm}-${dd}`,
           type: 'birthday',
-          text: lang === 'fr' ? `Anniversaire de ${alter.alterName}` : `${alter.alterName}'s birthday`,
+          text: trf(lang, `Anniversaire de {0}`, `{0}'s birthday`, [alter.alterName]),
           alterIds: [alter.id],
           createdAt: 0,
         });
@@ -331,9 +332,9 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
     localStorage.setItem(REMINDED_STORAGE_KEY, JSON.stringify(remindedIds));
   }, [remindedIds]);
 
-  const t = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const weekdayNames = lang === 'fr' ? WEEKDAYS_FR : WEEKDAYS_EN;
-  const monthNames = lang === 'fr' ? MONTHS_FR : MONTHS_EN;
+  const t = (fr: string, en: string) => tr(lang, fr, en);
+  const weekdayNames = lang === 'fr' ? WEEKDAYS_FR : lang === 'en' ? WEEKDAYS_EN : weekdayNamesOf(lang);
+  const monthNames = lang === 'fr' ? MONTHS_FR : lang === 'en' ? MONTHS_EN : monthNamesOf(lang);
 
   // ─── Navigation de date ───────────────────────────────────────────────────
   const shiftDate = (dir: 1 | -1) => {
@@ -480,7 +481,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
           <div className="flex items-center gap-1 flex-shrink-0">
             {isAutoBirthday ? (
               <span className="text-[8px] font-bold uppercase tracking-wide text-app-muted italic px-1">
-                {lang === 'fr' ? 'Auto' : 'Auto'}
+                {tr(lang, 'Auto', 'Auto')}
               </span>
             ) : (
               <>
@@ -653,8 +654,8 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
             <div key={q} className="bg-app-card border-2 rounded-2xl p-4 space-y-3" style={{ borderColor: `${cfg.color}40` }}>
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-sm font-black" style={{ color: cfg.color }}>{lang === 'fr' ? cfg.label : cfg.labelEn}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-app-muted">{lang === 'fr' ? cfg.subLabel : cfg.subLabelEn}</p>
+                  <p className="text-sm font-black" style={{ color: cfg.color }}>{tr(lang, cfg.label, cfg.labelEn)}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-app-muted">{tr(lang, cfg.subLabel, cfg.subLabelEn)}</p>
                 </div>
                 <button
                   onClick={() => openNewEisenhowerTask(q)}
@@ -741,7 +742,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
               <span className="flex items-center justify-center flex-shrink-0" style={{ width: 16, height: 16 }}>
                 <BuJoBullet type={type} size={16} />
               </span>
-              <span className="text-[10px] font-bold text-app-text">{lang === 'fr' ? BUJO_CONFIG[type].label : BUJO_CONFIG[type].labelEn}</span>
+              <span className="text-[10px] font-bold text-app-text">{tr(lang, BUJO_CONFIG[type].label, BUJO_CONFIG[type].labelEn)}</span>
             </div>
           ))}
           <div className="col-span-2 sm:col-span-3 md:col-span-4 text-[10px] text-app-muted leading-relaxed pt-1 border-t border-app-border/30 mt-1">
@@ -815,7 +816,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                     className={`flex flex-col items-center justify-center gap-1.5 py-2.5 px-1 min-h-[4.5rem] rounded-xl border transition-colors ${formType === type ? 'border-app-accent bg-app-accent/10' : 'border-app-border/40 hover:border-app-accent/30'}`}
                   >
                     <BuJoBullet type={type} size={16} />
-                    <span className="text-[8.5px] font-bold text-app-muted leading-tight text-center break-words">{lang === 'fr' ? BUJO_CONFIG[type].label : BUJO_CONFIG[type].labelEn}</span>
+                    <span className="text-[8.5px] font-bold text-app-muted leading-tight text-center break-words">{tr(lang, BUJO_CONFIG[type].label, BUJO_CONFIG[type].labelEn)}</span>
                   </button>
                 ))}
               </div>
@@ -870,7 +871,7 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                 >
                   <option value="">{t('Aucun rappel', 'No reminder')}</option>
                   {REMINDER_OPTIONS.map(opt => (
-                    <option key={opt.value} value={opt.value}>{lang === 'fr' ? opt.label : opt.labelEn}</option>
+                    <option key={opt.value} value={opt.value}>{tr(lang, opt.label, opt.labelEn)}</option>
                   ))}
                 </select>
                 <p className="text-[9px] text-app-muted">
@@ -1038,8 +1039,8 @@ export default function PlanningPage({ savedAlters, lang, activeSystemId = 'main
                       className={`p-2.5 rounded-xl border-2 text-left transition-colors ${eisenhowerQuadrant === q ? 'bg-app-accent/10' : 'hover:bg-app-bg'}`}
                       style={{ borderColor: eisenhowerQuadrant === q ? cfg.color : 'var(--color-app-border)' }}
                     >
-                      <p className="text-[11px] font-black" style={{ color: cfg.color }}>{lang === 'fr' ? cfg.label : cfg.labelEn}</p>
-                      <p className="text-[9px] text-app-muted">{lang === 'fr' ? cfg.subLabel : cfg.subLabelEn}</p>
+                      <p className="text-[11px] font-black" style={{ color: cfg.color }}>{tr(lang, cfg.label, cfg.labelEn)}</p>
+                      <p className="text-[9px] text-app-muted">{tr(lang, cfg.subLabel, cfg.subLabelEn)}</p>
                     </button>
                   );
                 })}

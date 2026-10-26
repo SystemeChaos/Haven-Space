@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { SavedAlter } from './types';
 import { readMaybeEncrypted, writeMaybeEncrypted, HS_ENCRYPTED_MARKER } from './vaultStorage';
+import { tr, type Lang } from './i18n';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -161,7 +162,7 @@ function compressImageFiles(files: FileList | null): Promise<string[]> {
 
 interface InnerworldPageProps {
   savedAlters: SavedAlter[];
-  lang: 'fr' | 'en';
+  lang: Lang;
   activeSystemId?: string;
   /** Alter dont on veut ouvrir directement la page (arrivée depuis la fiche alter). */
   initialAlterId?: string | null;
@@ -196,45 +197,45 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
   const [urlDraft, setUrlDraft] = useState('');
 
   const t = {
-    title: lang === 'fr' ? 'Innerworld' : 'Innerworld',
-    subtitle: lang === 'fr' ? "Le monde intérieur du système, lieu par lieu." : "The system's inner world, place by place.",
-    tabAlters: lang === 'fr' ? 'Alters' : 'Alters',
-    tabSources: lang === 'fr' ? 'Sources' : 'Sources',
-    frontRoom: lang === 'fr' ? 'Front Room' : 'Front Room',
-    frontRoomDesc: lang === 'fr' ? 'Transits, espace commun, inner partagé…' : 'Transits, shared space, common inner…',
-    noAlters: lang === 'fr' ? "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici." : 'No alters saved. Create alter cards to see them here.',
-    back: lang === 'fr' ? 'Retour' : 'Back',
-    viewFiche: lang === 'fr' ? 'Voir la fiche' : 'View profile',
-    source: lang === 'fr' ? 'Source (univers d\u2019origine, optionnel)' : 'Source (origin universe, optional)',
-    sourcePlaceholder: lang === 'fr' ? 'ex : Univers de [Jeu/Série]' : 'e.g. [Show/Game] universe',
-    addBlock: lang === 'fr' ? 'Ajouter un bloc' : 'Add a block',
-    empty: lang === 'fr' ? "Cette page est vide pour l'instant. Ajoute un bloc pour commencer à la personnaliser." : 'This page is empty for now. Add a block to start customizing it.',
-    noSource: lang === 'fr' ? 'Sans source' : 'No source',
-    sourcesHint: lang === 'fr' ? "Renseigne une source sur la page d'un alter pour le voir apparaître ici, groupé par univers." : "Set a source on an alter's page to see it appear here, grouped by universe.",
-    visitors: lang === 'fr' ? 'Alters qui fréquentent cet espace' : 'Alters who frequent this space',
-    addVisitor: lang === 'fr' ? 'Ajouter' : 'Add',
-    imgUrl: lang === 'fr' ? "URL de l'image" : 'Image URL',
-    textPlaceholder: lang === 'fr' ? 'Souvenirs, ambiance, description…' : 'Memories, mood, description…',
-    galleryPlaceholder: lang === 'fr' ? 'Une URL d\u2019image ou de GIF par ligne' : 'One image or GIF URL per line',
-    audioPlaceholder: lang === 'fr' ? 'Lien (playlist, morceau…)' : 'Link (playlist, track…)',
-    blockTitlePlaceholder: lang === 'fr' ? 'Titre du bloc (optionnel)' : 'Block title (optional)',
-    open: lang === 'fr' ? 'Ouvrir' : 'Open',
-    uploadFromDevice: lang === 'fr' ? 'Depuis l\u2019appareil' : 'From device',
-    or: lang === 'fr' ? 'ou' : 'or',
-    searchAlterPlaceholder: lang === 'fr' ? 'Rechercher un alter…' : 'Search an alter…',
-    searchSourcePlaceholder: lang === 'fr' ? 'Rechercher une source…' : 'Search a source…',
-    noResults: lang === 'fr' ? 'Aucun résultat' : 'No results',
-    addPhotos: lang === 'fr' ? 'Ajouter des photos' : 'Add photos',
-    addPhoto: lang === 'fr' ? 'Ajouter une photo' : 'Add a photo',
-    addByUrl: lang === 'fr' ? 'Ajouter par URL' : 'Add by URL',
-    replace: lang === 'fr' ? 'Remplacer' : 'Replace',
-    urlInputPlaceholder: lang === 'fr' ? 'Coller un lien d\u2019image…' : 'Paste an image link…',
-    add: lang === 'fr' ? 'Ajouter' : 'Add',
-    cancel: lang === 'fr' ? 'Annuler' : 'Cancel',
-    noPhotosYet: lang === 'fr' ? 'Aucune photo pour l\u2019instant.' : 'No photos yet.',
-    audioEmptyPlaceholder: lang === 'fr' ? 'Colle un lien Spotify, YouTube, SoundCloud, Suno…' : 'Paste a Spotify, YouTube, SoundCloud, Suno link…',
-    edit: lang === 'fr' ? 'Modifier' : 'Edit',
-    remove: lang === 'fr' ? 'Retirer' : 'Remove',
+    title: tr(lang, 'Innerworld', 'Innerworld'),
+    subtitle: tr(lang, "Le monde intérieur du système, lieu par lieu.", "The system's inner world, place by place."),
+    tabAlters: tr(lang, 'Alters', 'Alters'),
+    tabSources: tr(lang, 'Sources', 'Sources'),
+    frontRoom: tr(lang, 'Front Room', 'Front Room'),
+    frontRoomDesc: tr(lang, 'Transits, espace commun, inner partagé…', 'Transits, shared space, common inner…'),
+    noAlters: tr(lang, "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici.", 'No alters saved. Create alter cards to see them here.'),
+    back: tr(lang, 'Retour', 'Back'),
+    viewFiche: tr(lang, 'Voir la fiche', 'View profile'),
+    source: tr(lang, 'Source (univers d\u2019origine, optionnel)', 'Source (origin universe, optional)'),
+    sourcePlaceholder: tr(lang, 'ex : Univers de [Jeu/Série]', 'e.g. [Show/Game] universe'),
+    addBlock: tr(lang, 'Ajouter un bloc', 'Add a block'),
+    empty: tr(lang, "Cette page est vide pour l'instant. Ajoute un bloc pour commencer à la personnaliser.", 'This page is empty for now. Add a block to start customizing it.'),
+    noSource: tr(lang, 'Sans source', 'No source'),
+    sourcesHint: tr(lang, "Renseigne une source sur la page d'un alter pour le voir apparaître ici, groupé par univers.", "Set a source on an alter's page to see it appear here, grouped by universe."),
+    visitors: tr(lang, 'Alters qui fréquentent cet espace', 'Alters who frequent this space'),
+    addVisitor: tr(lang, 'Ajouter', 'Add'),
+    imgUrl: tr(lang, "URL de l'image", 'Image URL'),
+    textPlaceholder: tr(lang, 'Souvenirs, ambiance, description…', 'Memories, mood, description…'),
+    galleryPlaceholder: tr(lang, 'Une URL d\u2019image ou de GIF par ligne', 'One image or GIF URL per line'),
+    audioPlaceholder: tr(lang, 'Lien (playlist, morceau…)', 'Link (playlist, track…)'),
+    blockTitlePlaceholder: tr(lang, 'Titre du bloc (optionnel)', 'Block title (optional)'),
+    open: tr(lang, 'Ouvrir', 'Open'),
+    uploadFromDevice: tr(lang, 'Depuis l\u2019appareil', 'From device'),
+    or: tr(lang, 'ou', 'or'),
+    searchAlterPlaceholder: tr(lang, 'Rechercher un alter…', 'Search an alter…'),
+    searchSourcePlaceholder: tr(lang, 'Rechercher une source…', 'Search a source…'),
+    noResults: tr(lang, 'Aucun résultat', 'No results'),
+    addPhotos: tr(lang, 'Ajouter des photos', 'Add photos'),
+    addPhoto: tr(lang, 'Ajouter une photo', 'Add a photo'),
+    addByUrl: tr(lang, 'Ajouter par URL', 'Add by URL'),
+    replace: tr(lang, 'Remplacer', 'Replace'),
+    urlInputPlaceholder: tr(lang, 'Coller un lien d\u2019image…', 'Paste an image link…'),
+    add: tr(lang, 'Ajouter', 'Add'),
+    cancel: tr(lang, 'Annuler', 'Cancel'),
+    noPhotosYet: tr(lang, 'Aucune photo pour l\u2019instant.', 'No photos yet.'),
+    audioEmptyPlaceholder: tr(lang, 'Colle un lien Spotify, YouTube, SoundCloud, Suno…', 'Paste a Spotify, YouTube, SoundCloud, Suno link…'),
+    edit: tr(lang, 'Modifier', 'Edit'),
+    remove: tr(lang, 'Retirer', 'Remove'),
   };
 
   useEffect(() => {
@@ -940,7 +941,7 @@ export default function InnerworldPage({ savedAlters, lang, activeSystemId = 'ma
                     className="w-full flex items-center gap-2.5 px-4 py-3 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
                   >
                     <Icon className="w-4 h-4 text-app-accent shrink-0" />
-                    {lang === 'fr' ? bt.label : bt.labelEn}
+                    {tr(lang, bt.label, bt.labelEn)}
                   </button>
                 );
               })}

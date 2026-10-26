@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Pencil, Plus, Trash2, Lock, Unlock } from 'lucide-react';
+import { tr, type Lang } from '../i18n';
 
 export interface SpectrumCriterion {
   id: string;
@@ -11,7 +12,7 @@ export interface SpectrumCriterion {
 interface SpectrumToolProps {
   criteria: SpectrumCriterion[];
   onChange: (criteria: SpectrumCriterion[]) => void;
-  lang: 'fr' | 'en';
+  lang: Lang;
 }
 
 const CX = 260;
@@ -55,7 +56,7 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
   const addCriterion = () => {
     if (locked) return;
     const id = `spectrum-${Date.now()}`;
-    onChange([...criteria, { id, name: lang === 'fr' ? 'Nouveau critère' : 'New criterion', color: '#2b8cbe', score: 0 }]);
+    onChange([...criteria, { id, name: tr(lang, 'Nouveau critère', 'New criterion'), color: '#2b8cbe', score: 0 }]);
     setActiveId(id);
     setEditingId(id);
   };
@@ -154,8 +155,8 @@ export default function SpectrumTool({ criteria, onChange, lang }: SpectrumToolP
                   <span className="min-w-0 flex-1 truncate text-xs font-semibold">{criterion.name}</span>
                 )}
                 <span className="w-7 text-center text-xs font-black text-app-muted">{criterion.score}</span>
-                <button onClick={() => setEditingId(criterion.id)} disabled={locked} className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={lang === 'fr' ? 'Renommer' : 'Rename'}><Pencil className="w-3.5 h-3.5" /></button>
-                <button onClick={() => removeCriterion(criterion.id)} disabled={locked} className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={lang === 'fr' ? 'Supprimer' : 'Delete'}><Trash2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setEditingId(criterion.id)} disabled={locked} className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-bg disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={tr(lang, 'Renommer', 'Rename')}><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => removeCriterion(criterion.id)} disabled={locked} className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent" title={tr(lang, 'Supprimer', 'Delete')}><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             ))}
           </div>

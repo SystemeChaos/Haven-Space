@@ -17,7 +17,7 @@
 
 export type ReminderTarget = 'planning' | 'health' | 'hydration' | 'backup';
 export type ReminderChannel = 'planning' | 'meds' | 'hydration' | 'backup';
-type Lang = 'fr' | 'en';
+import { tr, type Lang } from './i18n';
 
 /**
  * Événement « les données qui alimentent les rappels ont changé » : à émettre après toute sauvegarde
@@ -277,7 +277,7 @@ export function syncNativeReminders(reminders: PlannedReminder[], lang: Lang): P
     const okChannels = new Set<ReminderChannel>();
     for (const c of Object.keys(CHANNEL_META) as ReminderChannel[]) {
       try {
-        await LN.createChannel({ id: channelId(c), name: CHANNEL_META[c][lang], importance: 4, vibration: true });
+        await LN.createChannel({ id: channelId(c), name: tr(lang, CHANNEL_META[c].fr, CHANNEL_META[c].en), importance: 4, vibration: true });
         okChannels.add(c);
       } catch { /* iOS/web : pas de canaux, c'est normal */ }
     }

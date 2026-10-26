@@ -8,7 +8,7 @@
  *    l'arrivée d'une fonctionnalité ne doit pas vider cette fonctionnalité).
  */
 
-type Lang = 'fr' | 'en';
+import { tr, type Lang } from './i18n';
 type Kind = 'array' | 'object';
 
 const isPresent = (data: any, field: string, kind: Kind): boolean => {
@@ -50,7 +50,7 @@ export const BACKUP_SECTIONS: SectionDef[] = [
 export function missingSectionLabels(data: any, lang: Lang): string[] {
   return BACKUP_SECTIONS
     .filter(s => s.fields.every(([field, kind]) => !isPresent(data, field, kind)))
-    .map(s => s.label[lang]);
+    .map(s => tr(lang, s.label.fr, s.label.en));
 }
 
 // --- Comparaison fichier / système actuel ----------------------------------------------------------

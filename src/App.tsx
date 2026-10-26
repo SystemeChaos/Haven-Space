@@ -855,10 +855,14 @@ const cleanAlterRoles = (roles?: Array<AlterRole | string>): AlterRole[] => {
 // Stockage chiffré (coffre) : voir vaultStorage.ts — extrait pour être partagé avec
 // les pages annexes (Mapping, Planning, Innerworld) qui ont aussi besoin d'y accéder.
 import { HS_ENCRYPTED_MARKER, readMaybeEncrypted, writeMaybeEncrypted, listVaultKeys, deleteVaultKey, migrateKeyIfNeeded } from './vaultStorage';
+import { tr, trf, localeOf, readStoredLang, LANGUAGES, type Lang } from './i18n';
 
 export default function App() {
-  const [lang, setLang] = useState<'fr' | 'en'>(() => (localStorage.getItem('hs-lang') === 'en' ? 'en' : 'fr'));
-  useEffect(() => { localStorage.setItem('hs-lang', lang); }, [lang]);
+  const [lang, setLang] = useState<Lang>(() => readStoredLang());
+  useEffect(() => {
+    localStorage.setItem('hs-lang', lang);
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   // Demande un stockage "persistant" au navigateur — ça n'empêche pas une suppression
   // manuelle (via les réglages du navigateur), mais réduit fortement le risque que le
@@ -1401,7 +1405,7 @@ export default function App() {
 
   const confirmPinSetup = () => {
     if (pinSetupValue.length < 4) {
-      setPinSetupError(lang === 'fr' ? 'Le code doit faire au moins 4 chiffres.' : 'The code must be at least 4 digits.');
+      setPinSetupError(tr(lang, 'Le code doit faire au moins 4 chiffres.', 'The code must be at least 4 digits.'));
       return;
     }
     setPinSetupStep('confirm');
@@ -1410,7 +1414,7 @@ export default function App() {
 
   const validatePinConfirm = () => {
     if (pinSetupConfirm !== pinSetupValue) {
-      setPinSetupError(lang === 'fr' ? 'Les deux codes ne correspondent pas.' : "The two codes don't match.");
+      setPinSetupError(tr(lang, 'Les deux codes ne correspondent pas.', "The two codes don't match."));
       setPinSetupConfirm('');
       return;
     }
@@ -1420,7 +1424,7 @@ export default function App() {
 
   const finalizePinSetup = () => {
     if (!pinSetupQuestion.trim() || !pinSetupAnswer.trim()) {
-      setPinSetupError(lang === 'fr' ? "Renseigne une question et une réponse." : 'Please fill in a question and an answer.');
+      setPinSetupError(tr(lang, "Renseigne une question et une réponse.", 'Please fill in a question and an answer.'));
       return;
     }
     const hash = simpleHash(pinSetupValue);
@@ -1616,14 +1620,14 @@ export default function App() {
         }
       })();
     } else {
-      setLockError(lang === 'fr' ? 'Code incorrect.' : 'Incorrect code.');
+      setLockError(tr(lang, 'Code incorrect.', 'Incorrect code.'));
       setLockPinInput('');
     }
   };
 
   const confirmVaultMigration = () => {
     if (simpleHash(vaultMigrationAnswer.trim().toLowerCase()) !== pinAnswerHash) {
-      setVaultMigrationError(lang === 'fr' ? 'Réponse incorrecte.' : 'Incorrect answer.');
+      setVaultMigrationError(tr(lang, 'Réponse incorrecte.', 'Incorrect answer.'));
       return;
     }
     const answerValue = vaultMigrationAnswer.trim();
@@ -1636,7 +1640,7 @@ export default function App() {
         setVaultMigrationAnswer('');
         setVaultMigrationError('');
       } catch {
-        setVaultMigrationError(lang === 'fr' ? "Une erreur est survenue, réessaie." : 'Something went wrong, try again.');
+        setVaultMigrationError(tr(lang, "Une erreur est survenue, réessaie.", 'Something went wrong, try again.'));
       }
     })();
   };
@@ -1667,7 +1671,7 @@ export default function App() {
         disablePin();
       })();
     } else {
-      setLockError(lang === 'fr' ? 'Réponse incorrecte.' : 'Incorrect answer.');
+      setLockError(tr(lang, 'Réponse incorrecte.', 'Incorrect answer.'));
       setForgotPinAnswer('');
     }
   };
@@ -1827,16 +1831,18 @@ export default function App() {
     'overt': 'Overt ("visible")',
     'pride': 'Pride',
   };
+  // Nom affiché d'un critère par défaut dans la langue courante (français = nom stocké ; es/de/it : catalogue, sinon anglais).
+  const spectrumDisplayName = (id: string, frName: string) => tr(lang, frName, SPECTRUM_DEFAULT_NAMES_EN[id] ?? frName);
   const translateSpectrumCriteria = (criteria: SpectrumCriterion[]): SpectrumCriterion[] =>
-    lang !== 'en' ? criteria : criteria.map(c => {
+    lang === 'fr' ? criteria : criteria.map(c => {
       const frName = DEFAULT_SPECTRUM_CRITERIA.find(d => d.id === c.id)?.name;
-      return frName && c.name === frName && SPECTRUM_DEFAULT_NAMES_EN[c.id] ? { ...c, name: SPECTRUM_DEFAULT_NAMES_EN[c.id] } : c;
+      return frName && c.name === frName && SPECTRUM_DEFAULT_NAMES_EN[c.id] ? { ...c, name: spectrumDisplayName(c.id, frName) } : c;
     });
-  // À l'enregistrement, on remet le nom français d'origine : changer de langue ne fige pas l'anglais dans les données.
+  // À l'enregistrement, on remet le nom français d'origine : changer de langue ne fige pas la traduction dans les données.
   const canonicalizeSpectrumCriteria = (criteria: SpectrumCriterion[]): SpectrumCriterion[] =>
-    criteria.map(c => {
+    lang === 'fr' ? criteria : criteria.map(c => {
       const frName = DEFAULT_SPECTRUM_CRITERIA.find(d => d.id === c.id)?.name;
-      return frName && SPECTRUM_DEFAULT_NAMES_EN[c.id] === c.name ? { ...c, name: frName } : c;
+      return frName && SPECTRUM_DEFAULT_NAMES_EN[c.id] && c.name === spectrumDisplayName(c.id, frName) ? { ...c, name: frName } : c;
     });
   const [spectrumBySystem, setSpectrumBySystem] = useState<Record<string, SpectrumCriterion[]>>({});
   const [spectrumDataLoaded, setSpectrumDataLoaded] = useState(false);
@@ -2078,7 +2084,7 @@ export default function App() {
         readMaybeEncrypted<SwitchLog[]>('switchLogs', dek, []),
         readMaybeEncrypted<typeof trustedContacts>('trustedContacts', dek, []),
         readMaybeEncrypted<typeof wheelHistory>('wheelHistory', dek, []),
-        readMaybeEncrypted<string>('mainSystemName', dek, lang === 'fr' ? 'Système Principal' : 'Primary System'),
+        readMaybeEncrypted<string>('mainSystemName', dek, tr(lang, 'Système Principal', 'Primary System')),
         readMaybeEncrypted<string>('pk_token', dek, ''),
         readMaybeEncrypted<Record<string, string>>('hs-dm-last-seen', dek, {}),
       ]);
@@ -2265,7 +2271,7 @@ export default function App() {
         const target = new Date(`${en.date}T${en.time}:00`).getTime();
         const triggerAt = target - en.reminderMinutes * 60000;
         if (now >= triggerAt && now < target) {
-          fireLocalNotification(lang === 'fr' ? '✦ Rappel de planning' : '✦ Planning reminder', `${en.time} — ${en.text}`, {
+          fireLocalNotification(tr(lang, '✦ Rappel de planning', '✦ Planning reminder'), `${en.time} — ${en.text}`, {
             onClick: () => setCurrentTab('planning'),
           });
           remindedIds.push(en.id);
@@ -2296,7 +2302,7 @@ export default function App() {
         }
       });
       if (!sysResponse.ok) {
-        throw new Error(lang === 'fr' ? 'Jeton PluralKit invalide ou expiré.' : 'Invalid or expired PluralKit token.');
+        throw new Error(tr(lang, 'Jeton PluralKit invalide ou expiré.', 'Invalid or expired PluralKit token.'));
       }
       const sysData = await sysResponse.json();
       setPkSystem(sysData);
@@ -2307,7 +2313,7 @@ export default function App() {
         }
       });
       if (!memResponse.ok) {
-        throw new Error(lang === 'fr' ? 'Impossible de récupérer les membres.' : 'Could not retrieve PluralKit members.');
+        throw new Error(tr(lang, 'Impossible de récupérer les membres.', 'Could not retrieve PluralKit members.'));
       }
       const memData = await memResponse.json();
       setPkMembers(memData);
@@ -2341,8 +2347,8 @@ export default function App() {
       cleanDescription: '',
     };
 
-    // Construire des maps inversés label → clé enum pour FR et EN
-    const allTranslations = [translations.fr, translations.en];
+    // Construire des maps inversés label → clé enum, pour TOUTES les langues de l'app
+    const allLangs = Object.keys(translations) as Lang[];
 
     const buildReverseMap = (obj: Record<string, string>) =>
       Object.entries(obj).reduce((acc, [k, v]) => {
@@ -2350,22 +2356,25 @@ export default function App() {
         return acc;
       }, {} as Record<string, string>);
 
-    const roleMapFR = buildReverseMap(translations.fr.roleNames as Record<string,string>);
-    const roleMapEN = buildReverseMap(translations.en.roleNames as Record<string,string>);
-    const genderMapFR = buildReverseMap(translations.fr.genders as Record<string,string>);
-    const genderMapEN = buildReverseMap(translations.en.genders as Record<string,string>);
-    const sexMapFR = buildReverseMap(translations.fr.sexualityNames as Record<string,string>);
-    const sexMapEN = buildReverseMap(translations.en.sexualityNames as Record<string,string>);
-    const traitMapFR = buildReverseMap(translations.fr.personalityTraits as Record<string,string>);
-    const traitMapEN = buildReverseMap(translations.en.personalityTraits as Record<string,string>);
-    const disorderMapFR = buildReverseMap(translations.fr.disorders as Record<string,string>);
-    const disorderMapEN = buildReverseMap(translations.en.disorders as Record<string,string>);
+    const reverseMapsOf = (field: 'roleNames' | 'genders' | 'sexualityNames' | 'personalityTraits' | 'disorders') =>
+      allLangs.map(l => buildReverseMap(translations[l][field] as Record<string, string>));
+    const lookupIn = (maps: Record<string, string>[], s: string) => {
+      const key = s.toLowerCase().trim();
+      for (const m of maps) if (m[key]) return m[key];
+      return null;
+    };
 
-    const lookupRole = (s: string) => roleMapFR[s.toLowerCase().trim()] || roleMapEN[s.toLowerCase().trim()] || null;
-    const lookupGender = (s: string) => genderMapFR[s.toLowerCase().trim()] || genderMapEN[s.toLowerCase().trim()] || null;
-    const lookupSex = (s: string) => sexMapFR[s.toLowerCase().trim()] || sexMapEN[s.toLowerCase().trim()] || null;
-    const lookupTrait = (s: string) => traitMapFR[s.toLowerCase().trim()] || traitMapEN[s.toLowerCase().trim()] || null;
-    const lookupDisorder = (s: string) => disorderMapFR[s.toLowerCase().trim()] || disorderMapEN[s.toLowerCase().trim()] || null;
+    const roleMaps = reverseMapsOf('roleNames');
+    const genderMaps = reverseMapsOf('genders');
+    const sexMaps = reverseMapsOf('sexualityNames');
+    const traitMaps = reverseMapsOf('personalityTraits');
+    const disorderMaps = reverseMapsOf('disorders');
+
+    const lookupRole = (s: string) => lookupIn(roleMaps, s);
+    const lookupGender = (s: string) => lookupIn(genderMaps, s);
+    const lookupSex = (s: string) => lookupIn(sexMaps, s);
+    const lookupTrait = (s: string) => lookupIn(traitMaps, s);
+    const lookupDisorder = (s: string) => lookupIn(disorderMaps, s);
 
     const roles: string[] = existingAlter?.selectedRoles ? [...existingAlter.selectedRoles] : [];
     const genders: string[] = existingAlter?.selectedGenders ? [...existingAlter.selectedGenders] : [];
@@ -2489,9 +2498,7 @@ export default function App() {
       return updated;
     });
 
-    setPkSuccess(lang === 'fr'
-      ? 'Profils synchronisés ! Rôles, genre, sexualité et traits extraits automatiquement.'
-      : 'Profiles synced! Roles, gender, sexuality and traits extracted automatically.');
+    setPkSuccess(tr(lang, 'Profils synchronisés ! Rôles, genre, sexualité et traits extraits automatiquement.', 'Profiles synced! Roles, gender, sexuality and traits extracted automatically.'));
   };
 
   const exportAlterToPluralKit = async (alter: SavedAlter) => {
@@ -2525,7 +2532,7 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error(lang === 'fr' ? 'Erreur de mise à jour sur PluralKit. Jeton invalide ou expiré.' : 'PluralKit update failed. Token might be invalid/expired.');
+        throw new Error(tr(lang, 'Erreur de mise à jour sur PluralKit. Jeton invalide ou expiré.', 'PluralKit update failed. Token might be invalid/expired.'));
       }
 
       // Re-fetch members to keep sync fresh
@@ -2539,7 +2546,7 @@ export default function App() {
         setPkMembers(memData);
       }
 
-      setPkSuccess(lang === 'fr' ? `Membre ${alter.alterName} mis à jour sur PluralKit !` : `Member ${alter.alterName} successfully updated on PluralKit!`);
+      setPkSuccess(trf(lang, `Membre {0} mis à jour sur PluralKit !`, `Member {0} successfully updated on PluralKit!`, [alter.alterName]));
     } catch (err: any) {
       setPkError(err.message || 'Error exporting to PluralKit');
     } finally {
@@ -2618,13 +2625,9 @@ export default function App() {
 
     setPkPushAllProgress(null);
     if (failedCount === 0) {
-      setPkSuccess(lang === 'fr'
-        ? `Terminé ! ${createdCount} fiche(s) créée(s) et ${updatedCount} mise(s) à jour sur PluralKit. Tape pk;export sur Discord pour récupérer le fichier à importer ailleurs.`
-        : `Done! ${createdCount} card(s) created and ${updatedCount} updated on PluralKit. Run pk;export on Discord to get the file to import elsewhere.`);
+      setPkSuccess(trf(lang, `Terminé ! {0} fiche(s) créée(s) et {1} mise(s) à jour sur PluralKit. Tape pk;export sur Discord pour récupérer le fichier à importer ailleurs.`, `Done! {0} card(s) created and {1} updated on PluralKit. Run pk;export on Discord to get the file to import elsewhere.`, [createdCount, updatedCount]));
     } else {
-      setPkError(lang === 'fr'
-        ? `${createdCount + updatedCount} fiche(s) envoyée(s), mais ${failedCount} ont échoué (jeton expiré ou limite de l'API). Réessaie dans une minute.`
-        : `${createdCount + updatedCount} card(s) sent, but ${failedCount} failed (expired token or API limit). Try again in a minute.`);
+      setPkError(trf(lang, `{0} fiche(s) envoyée(s), mais {1} ont échoué (jeton expiré ou limite de l'API). Réessaie dans une minute.`, `{0} card(s) sent, but {1} failed (expired token or API limit). Try again in a minute.`, [createdCount + updatedCount, failedCount]));
     }
   };
 
@@ -2683,7 +2686,7 @@ export default function App() {
   const buildBackupData = async () => ({
         version: 1,
         exportedAt: Date.now(),
-        mainSystemName: mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Primary System'),
+        mainSystemName: mainSystemName || (tr(lang, 'Système Principal', 'Primary System')),
         savedAlters,
         subsystems,
         parallelSystems,
@@ -2740,12 +2743,12 @@ export default function App() {
       downloadAnchor.click();
       downloadAnchor.remove();
 
-      setJsonSuccess(lang === 'fr' ? "Fichier de sauvegarde exporté avec succès !" : "Backup file exported successfully!");
+      setJsonSuccess(tr(lang, "Fichier de sauvegarde exporté avec succès !", "Backup file exported successfully!"));
       setJsonError(null);
       localStorage.setItem('hs-last-json-export', String(Date.now()));
       notifyRemindersDirty(); // rappels natifs : le compteur de sauvegarde repart de zéro
     } catch (err: any) {
-      setJsonError(lang === 'fr' ? `Erreur lors de l'exportation : ${err.message}` : `Export error: ${err.message}`);
+      setJsonError(trf(lang, `Erreur lors de l'exportation : {0}`, `Export error: {0}`, [err.message]));
       setJsonSuccess(null);
     }
   };
@@ -2758,9 +2761,7 @@ export default function App() {
     // Some systems export JSON with standard type or raw file system extensions
     const isJsonFile = file.type === "application/json" || file.name.endsWith('.json');
     if (!isJsonFile) {
-      setJsonError(lang === 'fr' 
-        ? "Format de fichier invalide. Veuillez importer un fichier .json de sauvegarde." 
-        : "Invalid file format. Please import a .json backup file."
+      setJsonError(tr(lang, "Format de fichier invalide. Veuillez importer un fichier .json de sauvegarde.", "Invalid file format. Please import a .json backup file.")
       );
       return;
     }
@@ -2772,7 +2773,7 @@ export default function App() {
         const parsed = JSON.parse(text);
 
         if (!parsed || typeof parsed !== 'object') {
-          throw new Error(lang === 'fr' ? "Le fichier n'contient pas un objet JSON valide." : "The file does not contain a valid JSON object.");
+          throw new Error(tr(lang, "Le fichier n'contient pas un objet JSON valide.", "The file does not contain a valid JSON object."));
         }
 
         const altersCount = Array.isArray(parsed.savedAlters) ? parsed.savedAlters.length : 0;
@@ -2796,9 +2797,7 @@ export default function App() {
 
         if (altersCount === 0 && subsystemsCount === 0 && chatsCount === 0 && switchesCount === 0 && journalsCount === 0
           && parallelSystemsCount === 0 && directMessagesCount === 0 && healthCount === 0 && walletCount === 0 && ecoCount === 0 && innerworldCount === 0 && spectrumCount === 0) {
-          throw new Error(lang === 'fr' 
-            ? "Le fichier ne contient aucune donnée compatible ou aucune donnée de système." 
-            : "The file contains no compatible system data."
+          throw new Error(tr(lang, "Le fichier ne contient aucune donnée compatible ou aucune donnée de système.", "The file contains no compatible system data.")
           );
         }
 
@@ -2825,14 +2824,14 @@ export default function App() {
           walletCount,
           innerworldCount,
           spectrumCount,
-          systemName: parsed.mainSystemName || (lang === 'fr' ? 'Système Importé' : 'Imported System')
+          systemName: parsed.mainSystemName || (tr(lang, 'Système Importé', 'Imported System'))
         });
       } catch (err: any) {
-        setJsonError(lang === 'fr' ? `Erreur de lecture du JSON : ${err.message}` : `JSON Error parsing: ${err.message}`);
+        setJsonError(trf(lang, `Erreur de lecture du JSON : {0}`, `JSON Error parsing: {0}`, [err.message]));
       }
     };
     reader.onerror = () => {
-      setJsonError(lang === 'fr' ? "Erreur de lecture du fichier." : "File read error.");
+      setJsonError(tr(lang, "Erreur de lecture du fichier.", "File read error."));
     };
     reader.readAsText(file);
   };
@@ -2955,7 +2954,7 @@ export default function App() {
       }
   };
 
-  const confirmText = (fr: string, en: string) => window.confirm(lang === 'fr' ? fr : en);
+  const confirmText = (fr: string, en: string) => window.confirm(tr(lang, fr, en));
 
   // Import qui remplace : photo de sécurité AVANT, retour arrière automatique si ça plante en cours de route.
   const handleApplyImportOverwrite = async () => {
@@ -2983,16 +2982,12 @@ export default function App() {
       await applyBackupData(data, activeSystemId);
       const keptLabels: string[] = importPreview.missingLabels || [];
       const keptNote = keptLabels.length > 0
-        ? (lang === 'fr'
-            ? ` Sections absentes du fichier, conservées telles quelles : ${keptLabels.join(', ')}.`
-            : ` Sections missing from the file, kept as they were: ${keptLabels.join(', ')}.`)
+        ? (trf(lang, ` Sections absentes du fichier, conservées telles quelles : {0}.`, ` Sections missing from the file, kept as they were: {0}.`, [keptLabels.join(', ')]))
         : '';
       const undoNote = snapshot
-        ? (lang === 'fr' ? ' Un point de restauration a été créé : tu peux annuler cet import juste en dessous.' : ' A restore point was created: you can undo this import just below.')
+        ? (tr(lang, ' Un point de restauration a été créé : tu peux annuler cet import juste en dessous.', ' A restore point was created: you can undo this import just below.'))
         : '';
-      setJsonSuccess(lang === 'fr'
-        ? `Les données du fichier ont remplacé les vôtres !${keptNote}${undoNote}`
-        : `The backup data replaced yours!${keptNote}${undoNote}`);
+      setJsonSuccess(trf(lang, `Les données du fichier ont remplacé les vôtres !{0}{1}`, `The backup data replaced yours!{0}{1}`, [keptNote, undoNote]));
       setJsonError(null);
       setImportPreview(null);
     } catch (err: any) {
@@ -3001,11 +2996,11 @@ export default function App() {
         try { await applyBackupData(snapshot, activeSystemId); rolledBack = true; } catch (e2) { console.error('[Haven Space] Retour arrière impossible :', e2); }
       }
       const tail = rolledBack
-        ? (lang === 'fr' ? " Tes données d'avant ont été remises automatiquement." : ' Your previous data was put back automatically.')
+        ? (tr(lang, " Tes données d'avant ont été remises automatiquement.", ' Your previous data was put back automatically.'))
         : (snapshot
-            ? (lang === 'fr' ? " Le retour arrière automatique a échoué : utilise « Restaurer » dans le point de restauration." : ' The automatic rollback failed: use "Restore" in the restore point.')
+            ? (tr(lang, " Le retour arrière automatique a échoué : utilise « Restaurer » dans le point de restauration.", ' The automatic rollback failed: use "Restore" in the restore point.'))
             : '');
-      setJsonError((lang === 'fr' ? `Échec du remplacement : ${err.message}` : `Overwrite failed: ${err.message}`) + tail);
+      setJsonError((trf(lang, `Échec du remplacement : {0}`, `Overwrite failed: {0}`, [err.message])) + tail);
     } finally {
       setRestoreBusy(false);
     }
@@ -3021,10 +3016,10 @@ export default function App() {
       const rec = await loadRestorePoint(restoreStore());
       if (!rec) {
         setRestorePointMeta(null);
-        setJsonError(lang === 'fr' ? 'Le point de restauration est introuvable ou illisible.' : 'The restore point is missing or unreadable.');
+        setJsonError(tr(lang, 'Le point de restauration est introuvable ou illisible.', 'The restore point is missing or unreadable.'));
         return;
       }
-      const when = new Date(rec.meta.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeStyle: 'short' });
+      const when = new Date(rec.meta.createdAt).toLocaleString(localeOf(lang), { dateStyle: 'long', timeStyle: 'short' });
       if (!confirmText(
         `Restaurer l'état du ${when} ? Tes données actuelles seront remplacées, mais gardées comme nouveau point de restauration : tu pourras revenir en arrière.`,
         `Restore the state from ${when}? Your current data will be replaced but kept as the new restore point, so you can go back.`,
@@ -3036,21 +3031,19 @@ export default function App() {
         swapMeta = await saveRestorePoint(current, { store: restoreStore(), encrypted: !!dek, planningSystemId: activeSystemId, reason: 'restore' });
       } catch (e) {
         console.warn('[Haven Space] Point de restauration impossible :', e);
-        setJsonError(lang === 'fr' ? "Impossible de sauvegarder l'état actuel avant de restaurer : rien n'a été modifié." : 'Could not save the current state before restoring: nothing was changed.');
+        setJsonError(tr(lang, "Impossible de sauvegarder l'état actuel avant de restaurer : rien n'a été modifié.", 'Could not save the current state before restoring: nothing was changed.'));
         return;
       }
       try {
         await applyBackupData(rec.data, rec.meta.planningSystemId);
         setRestorePointMeta(swapMeta);
-        setJsonSuccess(lang === 'fr'
-          ? `État du ${when} restauré. Ton état d'avant est gardé comme nouveau point de restauration.`
-          : `State from ${when} restored. Your previous state is kept as the new restore point.`);
+        setJsonSuccess(trf(lang, `État du {0} restauré. Ton état d'avant est gardé comme nouveau point de restauration.`, `State from {0} restored. Your previous state is kept as the new restore point.`, [when]));
       } catch (err: any) {
         let rolledBack = false;
         try { await applyBackupData(current, activeSystemId); rolledBack = true; } catch (e2) { console.error('[Haven Space] Retour arrière impossible :', e2); }
         setRestorePointMeta(swapMeta);
-        setJsonError((lang === 'fr' ? `Échec de la restauration : ${err.message}` : `Restore failed: ${err.message}`)
-          + (rolledBack ? (lang === 'fr' ? " Tes données d'avant ont été remises." : ' Your previous data was put back.') : ''));
+        setJsonError((trf(lang, `Échec de la restauration : {0}`, `Restore failed: {0}`, [err.message]))
+          + (rolledBack ? (tr(lang, " Tes données d'avant ont été remises.", ' Your previous data was put back.')) : ''));
       }
     } finally {
       setRestoreBusy(false);
@@ -3067,7 +3060,7 @@ export default function App() {
   const handleDownloadRestorePoint = async () => {
     try {
       const rec = await loadRestorePoint(restoreStore());
-      if (!rec) { setJsonError(lang === 'fr' ? 'Le point de restauration est introuvable ou illisible.' : 'The restore point is missing or unreadable.'); return; }
+      if (!rec) { setJsonError(tr(lang, 'Le point de restauration est introuvable ou illisible.', 'The restore point is missing or unreadable.')); return; }
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(rec.data, null, 2));
       const link = document.createElement('a');
       link.setAttribute('href', dataStr);
@@ -3076,7 +3069,7 @@ export default function App() {
       link.click();
       link.remove();
     } catch (err: any) {
-      setJsonError(lang === 'fr' ? `Téléchargement impossible : ${err.message}` : `Download failed: ${err.message}`);
+      setJsonError(trf(lang, `Téléchargement impossible : {0}`, `Download failed: {0}`, [err.message]));
     }
   };
 
@@ -3416,14 +3409,12 @@ export default function App() {
         }
       }
 
-      setJsonSuccess(lang === 'fr' 
-        ? "Les données ont été fusionnées avec vos données existantes avec succès !" 
-        : "Backup data successfully merged with your current local data!"
+      setJsonSuccess(tr(lang, "Les données ont été fusionnées avec vos données existantes avec succès !", "Backup data successfully merged with your current local data!")
       );
       setJsonError(null);
       setImportPreview(null);
     } catch (err: any) {
-      setJsonError(lang === 'fr' ? `Échec de la fusion : ${err.message}` : `Merge failed: ${err.message}`);
+      setJsonError(trf(lang, `Échec de la fusion : {0}`, `Merge failed: {0}`, [err.message]));
     }
   };
 
@@ -3578,7 +3569,7 @@ export default function App() {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        alert(lang === 'fr' ? 'L\'image est trop grande (max 5Mo)' : 'Image is too large (max 5MB)');
+        alert(tr(lang, 'L\'image est trop grande (max 5Mo)', 'Image is too large (max 5MB)'));
         return;
       }
       const reader = new FileReader();
@@ -3678,9 +3669,7 @@ export default function App() {
       document.body.removeChild(link);
     } catch (err) {
       console.error('oops, something went wrong!', err);
-      alert(lang === 'fr'
-        ? "Le téléchargement a échoué. Réessaie, et si ça persiste, vérifie qu'aucune extension du navigateur (bloqueur de pubs, etc.) ne bloque le téléchargement."
-        : "The download failed. Try again, and if it keeps happening, check that no browser extension (ad blocker, etc.) is blocking the download.");
+      alert(tr(lang, "Le téléchargement a échoué. Réessaie, et si ça persiste, vérifie qu'aucune extension du navigateur (bloqueur de pubs, etc.) ne bloque le téléchargement.", "The download failed. Try again, and if it keeps happening, check that no browser extension (ad blocker, etc.) is blocking the download."));
     } finally {
       setIsDownloading(false);
     }
@@ -4806,7 +4795,7 @@ export default function App() {
           const diffMs = now.getTime() - target.getTime();
           if (diffMs >= 0 && diffMs < 60000) {
             fireLocalNotification(
-              lang === 'fr' ? '✦ Rappel de traitement' : '✦ Medication reminder',
+              tr(lang, '✦ Rappel de traitement', '✦ Medication reminder'),
               med.dosage ? `${med.name} — ${med.dosage}` : med.name,
               { onClick: () => setCurrentTab('health') }
             );
@@ -4839,10 +4828,8 @@ export default function App() {
       if (now.getTime() - lastWater < intervalMs) return;
       if (now.getTime() - lastReminded < intervalMs) return;
       fireLocalNotification(
-        lang === 'fr' ? '✦ Rappel d\'hydratation' : '✦ Hydration reminder',
-        lang === 'fr'
-          ? "Ton jardin a soif — et toi, tu as bu récemment ? Va arroser une graine 💧"
-          : 'Your garden is thirsty — have you had water lately? Go water a seed 💧',
+        tr(lang, '✦ Rappel d\'hydratation', '✦ Hydration reminder'),
+        tr(lang, "Ton jardin a soif — et toi, tu as bu récemment ? Va arroser une graine 💧", 'Your garden is thirsty — have you had water lately? Go water a seed 💧'),
         {
           tag: 'hs-hydro-reminder',
           onClick: () => {
@@ -4873,10 +4860,8 @@ export default function App() {
       const todayStr = new Date().toISOString().slice(0, 10);
       if (localStorage.getItem('hs-export-reminded-day') === todayStr) return;
       fireLocalNotification(
-        lang === 'fr' ? '✦ Pense à sauvegarder' : '✦ Backup reminder',
-        lang === 'fr'
-          ? "Ça fait un moment que tu n'as pas exporté ton système en JSON — c'est ta seule sauvegarde."
-          : "It's been a while since your last JSON export — it's your only backup.",
+        tr(lang, '✦ Pense à sauvegarder', '✦ Backup reminder'),
+        tr(lang, "Ça fait un moment que tu n'as pas exporté ton système en JSON — c'est ta seule sauvegarde.", "It's been a while since your last JSON export — it's your only backup."),
         {
           tag: 'hs-export-reminder',
           onClick: () => {
@@ -6903,7 +6888,7 @@ export default function App() {
     const nextIndex = kalimbaSequences.length + 1;
     setKalimbaSequences(prev => [...prev, {
       id: Math.random().toString(36).substring(2, 11),
-      name: lang === 'fr' ? `Séquence ${nextIndex}` : `Sequence ${nextIndex}`,
+      name: trf(lang, `Séquence {0}`, `Sequence {0}`, [nextIndex]),
       notes,
       createdAt: Date.now(),
     }]);
@@ -7082,9 +7067,9 @@ export default function App() {
     if (notifBrowser) {
       const isViewingConv = currentTab === 'messaging' && activeConvId === conv.id && !document.hidden;
       if (!isViewingConv) {
-        const senderName = allAlters.find(a => a.id === msgSenderId)?.alterName || (lang === 'fr' ? 'Un alter' : 'An alter');
+        const senderName = allAlters.find(a => a.id === msgSenderId)?.alterName || (tr(lang, 'Un alter', 'An alter'));
         fireLocalNotification(
-          lang === 'fr' ? `✦ Message de ${senderName}` : `✦ Message from ${senderName}`,
+          trf(lang, `✦ Message de {0}`, `✦ Message from {0}`, [senderName]),
           msg.text.length > 120 ? msg.text.slice(0, 120) + '…' : msg.text,
           {
             tag: `hs-dm-${conv.id}`,
@@ -7107,7 +7092,7 @@ export default function App() {
   const activeSystemAlters = savedAlters.filter(a => (a.systemId || 'main') === activeSystemId);
   const activeSystemSubsystems = subsystems.filter(s => (s.systemId || 'main') === activeSystemId);
   const activeSystemName = activeSystemId === 'main'
-    ? (mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Main System'))
+    ? (mainSystemName || (tr(lang, 'Système Principal', 'Main System')))
     : (parallelSystems.find(s => s.id === activeSystemId)?.name || '');
 
   const handleCreateParallelSystem = () => {
@@ -7140,7 +7125,7 @@ export default function App() {
   // ────────────────────────────────────────────────────────────────────────────
 
   const handleSaveAlter = (forceTargetId: string | null = null, forceNew: boolean = false) => {
-    const trimmedName = alterName.trim() || (lang === 'fr' ? 'Anonyme' : 'Anonymous');
+    const trimmedName = alterName.trim() || (tr(lang, 'Anonyme', 'Anonymous'));
     
     // Check if we already have an existing alter with the SAME name (case-insensitive, trimmed)
     // but a different ID.
@@ -7479,7 +7464,7 @@ export default function App() {
     const newMsg: ChatMessage = {
       id: Math.random().toString(36).substring(2, 11),
       senderAlterId: chatSpeakerId,
-      text: `${lang === 'fr' ? 'Sondage :' : 'Poll :'} ${pollQuestion.trim()}`,
+      text: `${tr(lang, 'Sondage :', 'Poll :')} ${pollQuestion.trim()}`,
       timestamp: Date.now(),
       poll: {
         question: pollQuestion.trim(),
@@ -7543,18 +7528,18 @@ export default function App() {
     const getRemainingTimeText = (expiresAt: number) => {
       const diffMs = expiresAt - Date.now();
       if (diffMs <= 0) {
-        return lang === 'fr' ? 'Sondage clos' : 'Poll closed';
+        return tr(lang, 'Sondage clos', 'Poll closed');
       }
       const diffMins = Math.ceil(diffMs / (60 * 1000));
       if (diffMins < 60) {
-        return lang === 'fr' ? `Ferme dans ${diffMins} min` : `Closes in ${diffMins} min`;
+        return trf(lang, `Ferme dans {0} min`, `Closes in {0} min`, [diffMins]);
       }
       const diffHours = Math.ceil(diffMins / 60);
       if (diffHours < 24) {
-        return lang === 'fr' ? `Ferme dans ${diffHours} h` : `Closes in ${diffHours} h`;
+        return trf(lang, `Ferme dans {0} h`, `Closes in {0} h`, [diffHours]);
       }
       const diffDays = Math.ceil(diffHours / 24);
-      return lang === 'fr' ? `Ferme dans ${diffDays} j` : `Closes in ${diffDays} d`;
+      return trf(lang, `Ferme dans {0} j`, `Closes in {0} d`, [diffDays]);
     };
 
     return (
@@ -7562,7 +7547,7 @@ export default function App() {
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-[9px] text-app-muted font-black uppercase tracking-widest">
             <BarChart3 className="w-3.5 h-3.5 text-app-accent" />
-            <span>{lang === 'fr' ? 'Sondage interne' : 'Internal Poll'}</span>
+            <span>{tr(lang, 'Sondage interne', 'Internal Poll')}</span>
           </div>
           <h4 className="text-sm font-black text-app-text leading-tight w-full break-words select-text">
             {poll.question}
@@ -7571,7 +7556,7 @@ export default function App() {
             <Clock className="w-3.5 h-3.5" />
             <span>{getRemainingTimeText(poll.expiresAt)}</span>
             <span>•</span>
-            <span>{totalVotes} {totalVotes > 1 ? (lang === 'fr' ? 'votes' : 'votes') : (lang === 'fr' ? 'vote' : 'vote')}</span>
+            <span>{totalVotes} {totalVotes > 1 ? (tr(lang, 'votes', 'votes')) : (tr(lang, 'vote', 'vote'))}</span>
           </div>
         </div>
 
@@ -7583,7 +7568,7 @@ export default function App() {
             
             // Get names of alters who voted
             const voterNames = opt.votes.map(vId => {
-              if (vId === 'external') return lang === 'fr' ? 'Hôte' : 'Host';
+              if (vId === 'external') return tr(lang, 'Hôte', 'Host');
               return savedAlters.find(a => a.id === vId)?.alterName || 'Alter';
             }).join(', ');
 
@@ -7614,7 +7599,7 @@ export default function App() {
                 
                 {opt.votes.length > 0 && (
                   <div className="px-1 text-[9px] text-app-muted font-bold uppercase tracking-wider truncate">
-                    {lang === 'fr' ? 'Voté par :' : 'Voted by :'} <span className="text-app-text/90 normal-case font-semibold">{voterNames}</span>
+                    {tr(lang, 'Voté par :', 'Voted by :')} <span className="text-app-text/90 normal-case font-semibold">{voterNames}</span>
                   </div>
                 )}
               </div>
@@ -7655,11 +7640,11 @@ export default function App() {
     const endTs = switchEndDate ? new Date(switchEndDate).getTime() : undefined;
     const timeCheck = checkSwitchTimes(startTs, endTs);
     if (timeCheck === 'invalid') {
-      setSwitchFormError(lang === 'fr' ? 'Date ou heure invalide.' : 'Invalid date or time.');
+      setSwitchFormError(tr(lang, 'Date ou heure invalide.', 'Invalid date or time.'));
       return;
     }
     if (timeCheck === 'end-before-start') {
-      setSwitchFormError(lang === 'fr' ? 'La sortie doit être après l\'entrée.' : 'The end must be after the start.');
+      setSwitchFormError(tr(lang, 'La sortie doit être après l\'entrée.', 'The end must be after the start.'));
       return;
     }
 
@@ -7691,7 +7676,7 @@ export default function App() {
 
     if (isCurrent) {
       if (switchIsBlend) {
-        fireSwitchNotifications([lang === 'fr' ? 'Flou / Blend' : 'Blur / Blend'], 'blend', undefined);
+        fireSwitchNotifications([tr(lang, 'Flou / Blend', 'Blur / Blend')], 'blend', undefined);
         setSystemInBlend(true);
       } else {
         setSavedAlters(prev => prev.map(al => (switchSelectedAlterIds.includes(al.id) ? { ...al, frontStatus: switchSelectedStatus } : al)));
@@ -7795,7 +7780,7 @@ export default function App() {
     if (!journalContentInput.trim() && !journalTitleInput.trim() && journalImages.length === 0) return;
     const newEntry: JournalEntry = {
       id: Math.random().toString(36).substring(2, 11),
-      title: journalTitleInput.trim() || (lang === 'fr' ? 'Note sans titre' : 'Untitled Note'),
+      title: journalTitleInput.trim() || (tr(lang, 'Note sans titre', 'Untitled Note')),
       content: journalContentInput.trim(),
       timestamp: Date.now(),
       images: journalImages,
@@ -7823,7 +7808,7 @@ export default function App() {
     e.preventDefault();
     if (!editingJournalId) return;
     setJournalEntries(prev => prev.map(j => j.id === editingJournalId
-      ? { ...j, title: journalTitleInput.trim() || (lang === 'fr' ? 'Note sans titre' : 'Untitled Note'), content: journalContentInput.trim(), images: journalImages, authorAlterIds: journalAuthorIds.length > 0 ? journalAuthorIds : undefined }
+      ? { ...j, title: journalTitleInput.trim() || (tr(lang, 'Note sans titre', 'Untitled Note')), content: journalContentInput.trim(), images: journalImages, authorAlterIds: journalAuthorIds.length > 0 ? journalAuthorIds : undefined }
       : j
     ));
     setEditingJournalId(null);
@@ -7875,7 +7860,7 @@ export default function App() {
           type="button"
           onClick={() => handleLoadAlter(alter)}
           className="relative shrink-0 group/tile"
-          title={lang === 'fr' ? 'Charger cette fiche' : 'Load this card'}
+          title={tr(lang, 'Charger cette fiche', 'Load this card')}
         >
           {alter.profileImage ? (
             <img
@@ -7892,7 +7877,7 @@ export default function App() {
           {isLocked && (
             <span
               className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-app-bg border border-app-border/40 flex items-center justify-center shadow-sm"
-              title={lang === 'fr' ? 'Fiche verrouillée par PIN' : 'PIN-locked card'}
+              title={tr(lang, 'Fiche verrouillée par PIN', 'PIN-locked card')}
             >
               <Lock className="w-3 h-3 text-amber-500" />
             </span>
@@ -7915,7 +7900,7 @@ export default function App() {
             type="button"
             onClick={(e) => { e.stopPropagation(); setInnerworldTargetAlterId(alter.id); setCurrentTab('innerworld'); }}
             className="p-1 text-app-muted hover:text-app-accent transition-colors"
-            title={lang === 'fr' ? 'Voir son Innerworld' : 'View Innerworld'}
+            title={tr(lang, 'Voir son Innerworld', 'View Innerworld')}
           >
             <TreePine className="w-3.5 h-3.5" />
           </button>
@@ -7923,7 +7908,7 @@ export default function App() {
             type="button"
             onClick={(e) => { e.stopPropagation(); setSavedAlters(prev => prev.map(a => a.id === alter.id ? { ...a, archived: !a.archived } : a)); }}
             className="p-1 text-app-muted hover:text-amber-500 transition-colors"
-            title={alter.archived ? (lang === 'fr' ? 'Desarchiver' : 'Unarchive') : (lang === 'fr' ? 'Archiver' : 'Archive')}
+            title={alter.archived ? (tr(lang, 'Desarchiver', 'Unarchive')) : (tr(lang, 'Archiver', 'Archive'))}
           >
             <Archive className="w-3.5 h-3.5" />
           </button>
@@ -7931,7 +7916,7 @@ export default function App() {
             type="button"
             onClick={(e) => { e.stopPropagation(); handleDeleteAlter(alter.id); }}
             className="p-1 text-app-muted hover:text-red-400 transition-colors"
-            title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+            title={tr(lang, 'Supprimer', 'Delete')}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -7974,21 +7959,21 @@ export default function App() {
               <span className="text-sm font-black uppercase tracking-wider text-app-text">{sub.name}</span>
             )}
             <span className="text-[10px] text-app-muted font-bold block mt-0.5">
-              {totalAlters} alters{childSubs.length > 0 && ` · ${childSubs.length} ${lang === 'fr' ? 'sous-systèmes' : 'subsystems'}`}
+              {totalAlters} alters{childSubs.length > 0 && ` · ${childSubs.length} ${tr(lang, 'sous-systèmes', 'subsystems')}`}
             </span>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={e => { e.stopPropagation(); setEditingSubsystemNameId(subId); setEditingSubsystemNameValue(sub.name); }}
               className="p-1.5 hover:bg-app-bg text-app-muted hover:text-app-accent rounded-lg transition-colors"
-              title={lang === 'fr' ? 'Renommer' : 'Rename'}
+              title={tr(lang, 'Renommer', 'Rename')}
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={e => { e.stopPropagation(); handleDeleteSubsystem(sub.id); }}
               className="p-1.5 hover:bg-app-bg text-app-muted hover:text-red-500 rounded-lg transition-colors"
-              title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+              title={tr(lang, 'Supprimer', 'Delete')}
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -8217,10 +8202,10 @@ export default function App() {
     const yesterday = new Date(now);
     yesterday.setDate(now.getDate() - 1);
     const isYesterday = d.toDateString() === yesterday.toDateString();
-    const timeStr = d.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+    const timeStr = d.toLocaleTimeString(localeOf(lang), { hour: '2-digit', minute: '2-digit' });
     if (isToday) return timeStr;
-    if (isYesterday) return `${lang === 'fr' ? 'Hier' : 'Yesterday'} ${timeStr}`;
-    const dateStr = d.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    if (isYesterday) return `${tr(lang, 'Hier', 'Yesterday')} ${timeStr}`;
+    const dateStr = d.toLocaleDateString(localeOf(lang), {
       day: 'numeric',
       month: 'short',
       year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
@@ -9009,10 +8994,10 @@ export default function App() {
             </div>
             <div>
               <h2 className="text-lg font-black uppercase tracking-wider text-app-text">
-                {lang === 'fr' ? 'Système verrouillé' : 'System locked'}
+                {tr(lang, 'Système verrouillé', 'System locked')}
               </h2>
               <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
-                {lang === 'fr' ? 'Entre ton code pour continuer' : 'Enter your code to continue'}
+                {tr(lang, 'Entre ton code pour continuer', 'Enter your code to continue')}
               </p>
             </div>
 
@@ -9036,14 +9021,14 @@ export default function App() {
                   className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:opacity-60"
                 >
                   {isUnlocking
-                    ? (lang === 'fr' ? 'Déverrouillage...' : 'Unlocking...')
-                    : (lang === 'fr' ? 'Déverrouiller' : 'Unlock')}
+                    ? (tr(lang, 'Déverrouillage...', 'Unlocking...'))
+                    : (tr(lang, 'Déverrouiller', 'Unlock'))}
                 </button>
                 <button
                   onClick={() => { setForgotPinMode(true); setLockError(''); }}
                   className="text-[11px] text-app-muted hover:text-app-text underline underline-offset-2 transition-colors"
                 >
-                  {lang === 'fr' ? 'Code oublié ?' : 'Forgot your code?'}
+                  {tr(lang, 'Code oublié ?', 'Forgot your code?')}
                 </button>
               </>
             ) : (
@@ -9056,25 +9041,23 @@ export default function App() {
                   onChange={e => { setForgotPinAnswer(e.target.value); setLockError(''); }}
                   onKeyDown={e => { if (e.key === 'Enter') attemptForgotPinUnlock(); }}
                   className="w-full text-center bg-app-card border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-app-accent transition-colors"
-                  placeholder={lang === 'fr' ? 'Ta réponse' : 'Your answer'}
+                  placeholder={tr(lang, 'Ta réponse', 'Your answer')}
                 />
                 {lockError && <p className="text-xs text-red-500 font-bold">{lockError}</p>}
                 <p className="text-[10px] text-app-muted italic">
-                  {lang === 'fr'
-                    ? 'Une bonne réponse retire le verrou — tu pourras en redéfinir un nouveau dans les paramètres.'
-                    : "A correct answer removes the lock — you'll be able to set a new one in settings."}
+                  {tr(lang, 'Une bonne réponse retire le verrou — tu pourras en redéfinir un nouveau dans les paramètres.', "A correct answer removes the lock — you'll be able to set a new one in settings.")}
                 </p>
                 <button
                   onClick={attemptForgotPinUnlock}
                   className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
                 >
-                  {lang === 'fr' ? 'Valider' : 'Confirm'}
+                  {tr(lang, 'Valider', 'Confirm')}
                 </button>
                 <button
                   onClick={() => { setForgotPinMode(false); setLockError(''); setForgotPinAnswer(''); }}
                   className="text-[11px] text-app-muted hover:text-app-text underline underline-offset-2 transition-colors"
                 >
-                  {lang === 'fr' ? 'Retour au code' : 'Back to code'}
+                  {tr(lang, 'Retour au code', 'Back to code')}
                 </button>
               </>
             )}
@@ -9091,12 +9074,10 @@ export default function App() {
             </div>
             <div>
               <h2 className="text-lg font-black uppercase tracking-wider text-app-text">
-                {lang === 'fr' ? 'Sécuriser tes données ?' : 'Secure your data?'}
+                {tr(lang, 'Sécuriser tes données ?', 'Secure your data?')}
               </h2>
               <p className="text-xs text-app-muted leading-relaxed mt-2">
-                {lang === 'fr'
-                  ? "Ton code protège déjà l'accès à l'app. On peut aussi t'en servir pour chiffrer réellement tes données sensibles. Confirme ta réponse de sécurité pour l'activer."
-                  : "Your code already protects access to the app. We can also use it to actually encrypt your sensitive data. Confirm your security answer to enable it."}
+                {tr(lang, "Ton code protège déjà l'accès à l'app. On peut aussi t'en servir pour chiffrer réellement tes données sensibles. Confirme ta réponse de sécurité pour l'activer.", "Your code already protects access to the app. We can also use it to actually encrypt your sensitive data. Confirm your security answer to enable it.")}
               </p>
             </div>
             <p className="text-xs text-app-text font-semibold">{pinQuestion}</p>
@@ -9107,20 +9088,20 @@ export default function App() {
               onChange={e => { setVaultMigrationAnswer(e.target.value); setVaultMigrationError(''); }}
               onKeyDown={e => { if (e.key === 'Enter') confirmVaultMigration(); }}
               className="w-full text-center bg-app-card border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-app-accent transition-colors"
-              placeholder={lang === 'fr' ? 'Ta réponse' : 'Your answer'}
+              placeholder={tr(lang, 'Ta réponse', 'Your answer')}
             />
             {vaultMigrationError && <p className="text-xs text-red-500 font-bold">{vaultMigrationError}</p>}
             <button
               onClick={confirmVaultMigration}
               className="w-full py-3 bg-app-accent text-app-accent-text rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
             >
-              {lang === 'fr' ? 'Activer le chiffrement' : 'Enable encryption'}
+              {tr(lang, 'Activer le chiffrement', 'Enable encryption')}
             </button>
             <button
               onClick={skipVaultMigration}
               className="text-[11px] text-app-muted hover:text-app-text underline underline-offset-2 transition-colors"
             >
-              {lang === 'fr' ? 'Plus tard' : 'Later'}
+              {tr(lang, 'Plus tard', 'Later')}
             </button>
           </div>
         </div>
@@ -9133,58 +9114,42 @@ export default function App() {
             icon: Languages,
             kind: 'language',
             title: 'Langue · Language',
-            text: lang === 'fr'
-              ? "Choisis la langue de l'app. Tu pourras la changer plus tard dans les Paramètres."
-              : 'Choose the app language. You can change it later in Settings.',
+            text: tr(lang, "Choisis la langue de l'app. Tu pourras la changer plus tard dans les Paramètres.", 'Choose the app language. You can change it later in Settings.'),
           },
           {
             icon: Shield,
-            title: lang === 'fr' ? 'Bienvenue sur Haven Space' : 'Welcome to Haven Space',
-            text: lang === 'fr'
-              ? 'Tout ce que tu ajoutes ici reste sur ton appareil. Rien n\'est envoyé sur un serveur, il n\'y a pas de compte à créer.'
-              : "Everything you add here stays on your device. Nothing is sent to a server, there's no account to create.",
+            title: tr(lang, 'Bienvenue sur Haven Space', 'Welcome to Haven Space'),
+            text: tr(lang, 'Tout ce que tu ajoutes ici reste sur ton appareil. Rien n\'est envoyé sur un serveur, il n\'y a pas de compte à créer.', "Everything you add here stays on your device. Nothing is sent to a server, there's no account to create."),
           },
           {
             icon: Users,
-            title: lang === 'fr' ? 'Ton système' : 'Your system',
-            text: lang === 'fr'
-              ? 'Chaque membre du système a sa propre fiche (alter) : nom, rôle, apparence, notes... Tu peux en créer autant que besoin, et les organiser en sous-systèmes.'
-              : 'Each system member has their own profile (alter): name, role, appearance, notes... Create as many as you need, and organize them into subsystems.',
+            title: tr(lang, 'Ton système', 'Your system'),
+            text: tr(lang, 'Chaque membre du système a sa propre fiche (alter) : nom, rôle, apparence, notes... Tu peux en créer autant que besoin, et les organiser en sous-systèmes.', 'Each system member has their own profile (alter): name, role, appearance, notes... Create as many as you need, and organize them into subsystems.'),
           },
           {
             icon: LayoutDashboard,
-            title: lang === 'fr' ? 'Le tableau de bord' : 'The dashboard',
-            text: lang === 'fr'
-              ? "C'est ton point de départ : accès rapide au planning, à la santé, à la détente, à la messagerie interne et à bien plus."
-              : "It's your starting point: quick access to planning, health, relax tools, internal messaging, and more.",
+            title: tr(lang, 'Le tableau de bord', 'The dashboard'),
+            text: tr(lang, "C'est ton point de départ : accès rapide au planning, à la santé, à la détente, à la messagerie interne et à bien plus.", "It's your starting point: quick access to planning, health, relax tools, internal messaging, and more."),
           },
           {
             icon: Repeat,
-            title: lang === 'fr' ? 'Le switch' : 'Switching',
-            text: lang === 'fr'
-              ? "Indique qui est aux commandes à tout moment, et garde un historique des passages. C'est le cœur du suivi au quotidien."
-              : "Track who's fronting at any moment, with a history of past switches. It's the core of day-to-day tracking.",
+            title: tr(lang, 'Le switch', 'Switching'),
+            text: tr(lang, "Indique qui est aux commandes à tout moment, et garde un historique des passages. C'est le cœur du suivi au quotidien.", "Track who's fronting at any moment, with a history of past switches. It's the core of day-to-day tracking."),
           },
           {
             icon: Download,
-            title: lang === 'fr' ? 'Pense à sauvegarder' : 'Remember to back up',
-            text: lang === 'fr'
-              ? "Comme il n'y a pas de compte ni de cloud, exporte régulièrement ton système (JSON) depuis les Paramètres — c'est ta seule sauvegarde en cas de souci."
-              : "Since there's no account or cloud, regularly export your system (JSON) from Settings — it's your only backup if something goes wrong.",
+            title: tr(lang, 'Pense à sauvegarder', 'Remember to back up'),
+            text: tr(lang, "Comme il n'y a pas de compte ni de cloud, exporte régulièrement ton système (JSON) depuis les Paramètres — c'est ta seule sauvegarde en cas de souci.", "Since there's no account or cloud, regularly export your system (JSON) from Settings — it's your only backup if something goes wrong."),
           },
           {
             icon: AlertTriangle,
-            title: lang === 'fr' ? 'Le bouton SOS' : 'The SOS button',
-            text: lang === 'fr'
-              ? 'Toujours visible en haut de l\'écran : il t\'amène direct vers l\'Ancrage en cas de coup dur. Repère-le dès maintenant, avant d\'en avoir besoin.'
-              : "Always visible at the top of the screen: it takes you straight to Grounding when things get hard. Spot it now, before you need it.",
+            title: tr(lang, 'Le bouton SOS', 'The SOS button'),
+            text: tr(lang, 'Toujours visible en haut de l\'écran : il t\'amène direct vers l\'Ancrage en cas de coup dur. Repère-le dès maintenant, avant d\'en avoir besoin.', "Always visible at the top of the screen: it takes you straight to Grounding when things get hard. Spot it now, before you need it."),
           },
           {
             icon: HelpCircle,
-            title: lang === 'fr' ? 'Un doute ? Le Guide est là' : 'Not sure? Check the Guide',
-            text: lang === 'fr'
-              ? 'Toutes les fonctionnalités sont réexpliquées dans le Guide, accessible à tout moment. Tu peux aussi revoir cette visite depuis les Paramètres.'
-              : 'Every feature is explained in the Guide, accessible any time. You can also replay this tour from Settings.',
+            title: tr(lang, 'Un doute ? Le Guide est là', 'Not sure? Check the Guide'),
+            text: tr(lang, 'Toutes les fonctionnalités sont réexpliquées dans le Guide, accessible à tout moment. Tu peux aussi revoir cette visite depuis les Paramètres.', 'Every feature is explained in the Guide, accessible any time. You can also replay this tour from Settings.'),
           },
         ];
         const isLast = onboardingStep === slides.length - 1;
@@ -9197,7 +9162,7 @@ export default function App() {
                 onClick={closeOnboarding}
                 className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors"
               >
-                <span className="sr-only">{lang === 'fr' ? 'Passer' : 'Skip'}</span>
+                <span className="sr-only">{tr(lang, 'Passer', 'Skip')}</span>
                 <X className="w-4 h-4" />
               </button>
 
@@ -9211,13 +9176,14 @@ export default function App() {
               </div>
 
               {slide.kind === 'language' && (
-                <div className="grid grid-cols-2 gap-3" role="group" aria-label="Langue · Language">
-                  {([['fr', 'Français'], ['en', 'English']] as const).map(([code, label]) => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3" role="group" aria-label="Langue · Language">
+                  {LANGUAGES.map(({ code, native: label, beta }) => (
                     <button
                       key={code}
                       type="button"
                       onClick={() => setLang(code)}
                       aria-pressed={lang === code}
+                      lang={code}
                       className={`py-3 rounded-xl text-sm font-black transition-all border ${
                         lang === code
                           ? 'bg-app-accent text-white border-transparent shadow-sm'
@@ -9225,6 +9191,7 @@ export default function App() {
                       }`}
                     >
                       {lang === code ? '✓ ' : ''}{label}
+                      {beta && <span className="block text-[9px] font-bold uppercase tracking-widest opacity-70">beta</span>}
                     </button>
                   ))}
                 </div>
@@ -9242,7 +9209,7 @@ export default function App() {
                     onClick={closeOnboarding}
                     className="text-xs font-bold text-app-muted hover:text-app-text transition-colors px-2"
                   >
-                    {lang === 'fr' ? 'Passer' : 'Skip'}
+                    {tr(lang, 'Passer', 'Skip')}
                   </button>
                   <div className="flex items-center gap-2">
                     {onboardingStep > 0 && (
@@ -9250,14 +9217,14 @@ export default function App() {
                         onClick={() => setOnboardingStep(s => s - 1)}
                         className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-xs font-bold text-app-text transition-colors"
                       >
-                        {lang === 'fr' ? 'Retour' : 'Back'}
+                        {tr(lang, 'Retour', 'Back')}
                       </button>
                     )}
                     <button
                       onClick={() => setOnboardingStep(s => s + 1)}
                       className="px-5 py-2.5 bg-app-accent text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
                     >
-                      {lang === 'fr' ? 'Suivant' : 'Next'}
+                      {tr(lang, 'Suivant', 'Next')}
                     </button>
                   </div>
                 </div>
@@ -9267,13 +9234,13 @@ export default function App() {
                     onClick={() => { closeOnboarding(); handleResetCreator(); }}
                     className="w-full py-3 bg-app-accent text-white rounded-xl text-xs font-black uppercase tracking-widest transition-all hover:opacity-90"
                   >
-                    {lang === 'fr' ? 'Créer mon premier alter' : 'Create my first alter'}
+                    {tr(lang, 'Créer mon premier alter', 'Create my first alter')}
                   </button>
                   <button
                     onClick={closeOnboarding}
                     className="w-full py-3 bg-app-bg border border-app-border rounded-xl text-xs font-bold text-app-text transition-colors"
                   >
-                    {lang === 'fr' ? 'Explorer par moi-même' : 'Explore on my own'}
+                    {tr(lang, 'Explorer par moi-même', 'Explore on my own')}
                   </button>
                 </div>
               )}
@@ -9306,7 +9273,7 @@ export default function App() {
               if (parent && !parent.querySelector('.lightbox-error-msg')) {
                 const msg = document.createElement('p');
                 msg.className = 'lightbox-error-msg text-white/70 text-sm text-center px-6';
-                msg.textContent = lang === 'fr' ? "Impossible de charger cette image (lien cassé ou indisponible)." : "Couldn't load this image (broken or unavailable link).";
+                msg.textContent = tr(lang, "Impossible de charger cette image (lien cassé ou indisponible).", "Couldn't load this image (broken or unavailable link).");
                 parent.appendChild(msg);
               }
             }}
@@ -9448,9 +9415,9 @@ export default function App() {
                   value={activeSystemId}
                   onChange={e => setActiveSystemId(e.target.value)}
                   className="pl-3 pr-8 py-2 bg-app-card border border-app-border rounded-xl text-xs font-black uppercase tracking-widest text-app-text focus:outline-none focus:ring-2 focus:ring-app-accent/20 cursor-pointer appearance-none"
-                  title={lang === 'fr' ? 'Système actif' : 'Active system'}
+                  title={tr(lang, 'Système actif', 'Active system')}
                 >
-                  <option value="main">{mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Main System')}</option>
+                  <option value="main">{mainSystemName || (tr(lang, 'Système Principal', 'Main System'))}</option>
                   {parallelSystems.map(s => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -9465,7 +9432,7 @@ export default function App() {
             <button
               onClick={() => { setSosMode(true); setCurrentTab('grounding'); }}
               className="p-3 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 rounded-full transition-all flex items-center justify-center shadow-sm"
-              title={lang === 'fr' ? 'Mode crise — Accès rapide Ancrage' : 'Crisis mode — Quick access Grounding'}
+              title={tr(lang, 'Mode crise — Accès rapide Ancrage', 'Crisis mode — Quick access Grounding')}
             >
               <AlertTriangle className="w-5 h-5 text-red-500" />
             </button>
@@ -9475,7 +9442,7 @@ export default function App() {
               <button
                 onClick={() => { setCurrentTab('health'); setHealthSubTab('urgence'); }}
                 className="p-3 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/60 rounded-full transition-all flex items-center justify-center shadow-sm"
-                title={lang === 'fr' ? "Infos d'urgence" : 'Emergency info'}
+                title={tr(lang, "Infos d'urgence", 'Emergency info')}
               >
                 <HeartPulse className="w-5 h-5 text-red-500" />
               </button>
@@ -9486,7 +9453,7 @@ export default function App() {
               <button
                 onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
                 className="p-3 bg-app-card border border-app-border hover:border-app-accent hover:text-app-text rounded-full transition-all text-app-text shadow-sm flex items-center justify-center cursor-pointer"
-                title={lang === 'fr' ? 'Paramètres' : 'Settings'}
+                title={tr(lang, 'Paramètres', 'Settings')}
               >
                 <Settings2 className={`w-5 h-5 text-app-text transition-transform duration-500 ${settingsMenuOpen ? 'rotate-90' : ''}`} />
               </button>
@@ -9508,23 +9475,26 @@ export default function App() {
                       <div className="border-b border-app-border/20 pb-2 flex items-center gap-2">
                         <Settings2 className="w-4 h-4 text-app-accent animate-spin" style={{ animationDuration: '4s' }} />
                         <span className="text-[10px] font-black uppercase tracking-wider text-app-muted">
-                          {lang === 'fr' ? 'Paramètres de l\'app' : 'App Settings'}
+                          {tr(lang, 'Paramètres de l\'app', 'App Settings')}
                         </span>
                       </div>
 
                       {/* Language Selection Section */}
                       <div className="space-y-1.5">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
-                          {lang === 'fr' ? 'Langue' : 'Language'}
+                          {tr(lang, 'Langue', 'Language')}
                         </span>
                         <div className="relative">
                           <select 
                             value={lang}
-                            onChange={(e) => setLang(e.target.value as 'fr' | 'en')}
+                            onChange={(e) => setLang(e.target.value as Lang)}
                             className="w-full bg-app-bg text-app-text border border-app-border/45 rounded-xl px-3 py-2.5 text-xs font-semibold focus:outline-none focus:border-app-accent focus:ring-1 focus:ring-app-accent/25 transition-all outline-none appearance-none cursor-pointer"
                           >
-                            <option value="fr" className="bg-app-card text-app-text">Français</option>
-                            <option value="en" className="bg-app-card text-app-text">English</option>
+                            {LANGUAGES.map(l => (
+                              <option key={l.code} value={l.code} className="bg-app-card text-app-text">
+                                {l.native}{l.beta ? ' (beta)' : ''}
+                              </option>
+                            ))}
                           </select>
                           <ChevronDown className="w-3.5 h-3.5 text-app-muted absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                         </div>
@@ -9580,7 +9550,7 @@ export default function App() {
                       {/* Accessibilité — taille du texte */}
                       <div className="space-y-1.5">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
-                          {lang === 'fr' ? 'Taille du texte' : 'Text size'}
+                          {tr(lang, 'Taille du texte', 'Text size')}
                         </span>
                         <div className="grid grid-cols-4 gap-1.5">
                           {([
@@ -9656,7 +9626,7 @@ export default function App() {
                         >
                           <span className="flex items-center gap-1.5">
                             <Palette className="w-3.5 h-3.5" />
-                            {lang === 'fr' ? 'Thème personnalisé' : 'Custom theme'}
+                            {tr(lang, 'Thème personnalisé', 'Custom theme')}
                             {customThemeColors && <span className="w-1.5 h-1.5 rounded-full bg-app-accent" />}
                           </span>
                           <ChevronDown className={`w-3.5 h-3.5 text-app-muted transition-transform duration-300 ${settingsCustomThemeOpen ? 'rotate-180' : ''}`} />
@@ -9666,11 +9636,11 @@ export default function App() {
                           {settingsCustomThemeOpen && (() => {
                             const preset = getThemeStyles() as Record<string, string>;
                             const fields: { key: 'accent' | 'bg' | 'card' | 'text' | 'border'; label: string; presetVar: string }[] = [
-                              { key: 'accent', label: lang === 'fr' ? "Couleur d'accent" : 'Accent color', presetVar: '--color-app-accent' },
-                              { key: 'bg', label: lang === 'fr' ? 'Couleur de fond principale' : 'Main background color', presetVar: '--color-app-bg' },
-                              { key: 'card', label: lang === 'fr' ? 'Couleur des cartes' : 'Card color', presetVar: '--color-app-card' },
-                              { key: 'text', label: lang === 'fr' ? 'Couleur du texte' : 'Text color', presetVar: '--color-app-text' },
-                              { key: 'border', label: lang === 'fr' ? 'Couleur des bordures' : 'Border color', presetVar: '--color-app-border' },
+                              { key: 'accent', label: tr(lang, "Couleur d'accent", 'Accent color'), presetVar: '--color-app-accent' },
+                              { key: 'bg', label: tr(lang, 'Couleur de fond principale', 'Main background color'), presetVar: '--color-app-bg' },
+                              { key: 'card', label: tr(lang, 'Couleur des cartes', 'Card color'), presetVar: '--color-app-card' },
+                              { key: 'text', label: tr(lang, 'Couleur du texte', 'Text color'), presetVar: '--color-app-text' },
+                              { key: 'border', label: tr(lang, 'Couleur des bordures', 'Border color'), presetVar: '--color-app-border' },
                             ];
                             return (
                               <motion.div
@@ -9681,9 +9651,7 @@ export default function App() {
                               >
                                 <div className="p-3 space-y-3">
                                   <p className="text-[10px] text-app-muted leading-relaxed">
-                                    {lang === 'fr'
-                                      ? "Ajustez ces couleurs pour créer votre propre variante par-dessus le thème actif. Elles sont sauvegardées automatiquement."
-                                      : 'Adjust these colors to build your own variant on top of the active theme. They are saved automatically.'}
+                                    {tr(lang, "Ajustez ces couleurs pour créer votre propre variante par-dessus le thème actif. Elles sont sauvegardées automatiquement.", 'Adjust these colors to build your own variant on top of the active theme. They are saved automatically.')}
                                   </p>
                                   {fields.map(f => {
                                     const current = customThemeColors?.[f.key] || cssColorToHex(preset[f.presetVar] || '#000000');
@@ -9754,7 +9722,7 @@ export default function App() {
                                     className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-app-border text-[11px] font-bold text-app-muted hover:text-app-text hover:border-app-accent/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                                   >
                                     <RotateCcw className="w-3 h-3" />
-                                    {lang === 'fr' ? 'Réinitialiser' : 'Reset'}
+                                    {tr(lang, 'Réinitialiser', 'Reset')}
                                   </button>
                                 </div>
                               </motion.div>
@@ -9766,7 +9734,7 @@ export default function App() {
                       {/* Notifications section */}
                       <div className="pt-3 border-t border-app-border/20 flex flex-col gap-2">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
-                          {lang === 'fr' ? 'Notifications' : 'Notifications'}
+                          {tr(lang, 'Notifications', 'Notifications')}
                         </span>
                         {/* Toast toggle */}
                         <button
@@ -9774,7 +9742,7 @@ export default function App() {
                           className="flex items-center justify-between gap-3 px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                         >
                           <span className="text-xs font-bold text-app-text flex-1 min-w-0 text-left">
-                            {lang === 'fr' ? "Notifications dans l'app" : 'In-app notifications'}
+                            {tr(lang, "Notifications dans l'app", 'In-app notifications')}
                           </span>
                           <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${notifToast ? 'bg-app-accent' : 'bg-app-border'}`}>
                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${notifToast ? 'left-[18px]' : 'left-0.5'}`} />
@@ -9787,16 +9755,16 @@ export default function App() {
                         >
                           <div className="flex flex-col items-start flex-1 min-w-0">
                             <span className="text-xs font-bold text-app-text text-left">
-                              {lang === 'fr' ? 'Notifications navigateur' : 'Browser notifications'}
+                              {tr(lang, 'Notifications navigateur', 'Browser notifications')}
                             </span>
                             <span className="text-[10px] text-app-muted text-left">
-                              {lang === 'fr' ? 'Messages, rappels de planning, traitements, hydratation et sauvegarde' : 'Messages, planning, medication, hydration and backup reminders'}
+                              {tr(lang, 'Messages, rappels de planning, traitements, hydratation et sauvegarde', 'Messages, planning, medication, hydration and backup reminders')}
                             </span>
                             {!('Notification' in window) && (
-                              <span className="text-[10px] text-app-muted">{lang === 'fr' ? 'Non supporté' : 'Not supported'}</span>
+                              <span className="text-[10px] text-app-muted">{tr(lang, 'Non supporté', 'Not supported')}</span>
                             )}
                             {('Notification' in window) && Notification.permission === 'denied' && (
-                              <span className="text-[10px] text-red-400">{lang === 'fr' ? 'Bloqué — à autoriser dans le navigateur' : 'Blocked — allow in browser settings'}</span>
+                              <span className="text-[10px] text-red-400">{tr(lang, 'Bloqué — à autoriser dans le navigateur', 'Blocked — allow in browser settings')}</span>
                             )}
                           </div>
                           <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${notifBrowser ? 'bg-app-accent' : 'bg-app-border'}`}>
@@ -9810,10 +9778,10 @@ export default function App() {
                         >
                           <div className="flex flex-col items-start flex-1 min-w-0">
                             <span className="text-xs font-bold text-app-text text-left">
-                              💧 {lang === 'fr' ? "Rappel d'hydratation (Jardin)" : 'Hydration reminder (Garden)'}
+                              💧 {tr(lang, "Rappel d'hydratation (Jardin)", 'Hydration reminder (Garden)')}
                             </span>
                             <span className="text-[10px] text-app-muted text-left">
-                              {lang === 'fr' ? 'Un rappel pour boire, entre 8h et 22h' : 'A reminder to drink water, between 8am and 10pm'}
+                              {tr(lang, 'Un rappel pour boire, entre 8h et 22h', 'A reminder to drink water, between 8am and 10pm')}
                             </span>
                           </div>
                           <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${hydroReminderOn ? 'bg-app-accent' : 'bg-app-border'}`}>
@@ -9823,7 +9791,7 @@ export default function App() {
                         {hydroReminderOn && (
                           <div className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 rounded-xl">
                             <span className="text-[10px] font-bold text-app-muted uppercase tracking-wide">
-                              {lang === 'fr' ? 'Toutes les' : 'Every'}
+                              {tr(lang, 'Toutes les', 'Every')}
                             </span>
                             <div className="flex flex-wrap justify-end gap-1">
                               {[15, 30, 60, 120, 180, 240, 360].map(m => (
@@ -9847,12 +9815,10 @@ export default function App() {
                             >
                               <div className="flex flex-col items-start flex-1 min-w-0">
                                 <span className="text-xs font-bold text-app-text text-left">
-                                  {lang === 'fr' ? 'Détails dans les rappels' : 'Details in reminders'}
+                                  {tr(lang, 'Détails dans les rappels', 'Details in reminders')}
                                 </span>
                                 <span className="text-[10px] text-app-muted text-left">
-                                  {lang === 'fr'
-                                    ? "Nom du traitement, texte du planning. Ces rappels sont programmés à l'avance : leur texte est conservé en clair par le système et visible sur l'écran verrouillé."
-                                    : 'Medication name, planning text. These reminders are scheduled in advance: their text is stored in clear by the system and visible on the lock screen.'}
+                                  {tr(lang, "Nom du traitement, texte du planning. Ces rappels sont programmés à l'avance : leur texte est conservé en clair par le système et visible sur l'écran verrouillé.", 'Medication name, planning text. These reminders are scheduled in advance: their text is stored in clear by the system and visible on the lock screen.')}
                                 </span>
                               </div>
                               <div className={`w-8 h-4 rounded-full transition-colors relative flex-shrink-0 ${notifDetails ? 'bg-app-accent' : 'bg-app-border'}`}>
@@ -9867,12 +9833,10 @@ export default function App() {
                               >
                                 <div className="flex flex-col items-start flex-1 min-w-0">
                                   <span className="text-xs font-bold text-app-text">
-                                    {lang === 'fr' ? 'Rappels à l\'heure exacte' : 'Reminders on the exact minute'}
+                                    {tr(lang, 'Rappels à l\'heure exacte', 'Reminders on the exact minute')}
                                   </span>
                                   <span className="text-[10px] text-app-muted">
-                                    {lang === 'fr'
-                                      ? "Autorise « Alarmes et rappels » pour Haven Space, sinon Android peut retarder les rappels de plusieurs minutes."
-                                      : 'Allow "Alarms & reminders" for Haven Space, otherwise Android may delay reminders by several minutes.'}
+                                    {tr(lang, "Autorise « Alarmes et rappels » pour Haven Space, sinon Android peut retarder les rappels de plusieurs minutes.", 'Allow "Alarms & reminders" for Haven Space, otherwise Android may delay reminders by several minutes.')}
                                   </span>
                                 </div>
                                 <ChevronRight className="w-3.5 h-3.5 text-app-muted flex-shrink-0" />
@@ -9889,7 +9853,7 @@ export default function App() {
                           className="w-full flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                         >
                           <span className="text-xs font-bold text-app-text">
-                            {lang === 'fr' ? 'Revoir la visite guidée' : 'Replay the welcome tour'}
+                            {tr(lang, 'Revoir la visite guidée', 'Replay the welcome tour')}
                           </span>
                           <Sparkles className="w-3.5 h-3.5 text-app-muted" />
                         </button>
@@ -9898,7 +9862,7 @@ export default function App() {
                       {/* Verrouillage PIN */}
                       <div className="pt-3 border-t border-app-border/20 flex flex-col gap-2">
                         <span className="block text-[9px] font-black uppercase tracking-widest text-app-muted">
-                          {lang === 'fr' ? 'Verrouillage' : 'Lock'}
+                          {tr(lang, 'Verrouillage', 'Lock')}
                         </span>
 
                         {!pinEnabled && pinSetupStep === 'idle' && (
@@ -9907,7 +9871,7 @@ export default function App() {
                             className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-app-accent/30 transition-colors rounded-xl"
                           >
                             <span className="text-xs font-bold text-app-text">
-                              {lang === 'fr' ? "Protéger l'accès avec un code" : 'Protect access with a code'}
+                              {tr(lang, "Protéger l'accès avec un code", 'Protect access with a code')}
                             </span>
                             <Lock className="w-3.5 h-3.5 text-app-muted" />
                           </button>
@@ -9919,7 +9883,7 @@ export default function App() {
                             className="flex items-center justify-between px-3 py-2 bg-app-bg/50 border border-app-border/10 hover:border-red-500/30 transition-colors rounded-xl"
                           >
                             <span className="text-xs font-bold text-app-text">
-                              {lang === 'fr' ? 'Désactiver le code' : 'Disable the code'}
+                              {tr(lang, 'Désactiver le code', 'Disable the code')}
                             </span>
                             <div className="w-8 h-4 rounded-full transition-colors relative bg-app-accent">
                               <div className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all left-[18px]" />
@@ -9930,9 +9894,7 @@ export default function App() {
                         {pinEnabled && pinSetupStep === 'idle' && pinDisableConfirming && (
                           <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-xl space-y-2">
                             <p className="text-[11px] text-app-text leading-relaxed">
-                              {lang === 'fr'
-                                ? "Ça va déchiffrer toutes tes données pour qu'elles restent accessibles sans code. Pense à avoir un export JSON récent au cas où."
-                                : "This will decrypt all your data so it stays accessible without a code. Make sure you have a recent JSON export just in case."}
+                              {tr(lang, "Ça va déchiffrer toutes tes données pour qu'elles restent accessibles sans code. Pense à avoir un export JSON récent au cas où.", "This will decrypt all your data so it stays accessible without a code. Make sure you have a recent JSON export just in case.")}
                             </p>
                             <div className="flex gap-2">
                               <button
@@ -9940,7 +9902,7 @@ export default function App() {
                                 disabled={pinDisableInProgress}
                                 className="flex-1 py-2 bg-app-bg border border-app-border/20 rounded-lg text-[10px] font-black uppercase tracking-widest text-app-text disabled:opacity-50"
                               >
-                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                                {tr(lang, 'Annuler', 'Cancel')}
                               </button>
                               <button
                                 onClick={handleConfirmDisablePin}
@@ -9948,8 +9910,8 @@ export default function App() {
                                 className="flex-1 py-2 bg-red-500 text-white rounded-lg text-[10px] font-black uppercase tracking-widest disabled:opacity-50"
                               >
                                 {pinDisableInProgress
-                                  ? (lang === 'fr' ? 'Déchiffrement…' : 'Decrypting…')
-                                  : (lang === 'fr' ? 'Confirmer' : 'Confirm')}
+                                  ? (tr(lang, 'Déchiffrement…', 'Decrypting…'))
+                                  : (tr(lang, 'Confirmer', 'Confirm'))}
                               </button>
                             </div>
                           </div>
@@ -9960,12 +9922,12 @@ export default function App() {
                             {vaultMeta ? (
                               <>
                                 <Lock className="w-3 h-3 text-app-accent" />
-                                {lang === 'fr' ? 'Coffre chiffré actif' : 'Encrypted vault active'}
+                                {tr(lang, 'Coffre chiffré actif', 'Encrypted vault active')}
                               </>
                             ) : (
                               <>
                                 <Lock className="w-3 h-3 opacity-40" />
-                                {lang === 'fr' ? "Coffre pas encore activé (proposé au prochain déverrouillage)" : 'Vault not enabled yet (offered at next unlock)'}
+                                {tr(lang, "Coffre pas encore activé (proposé au prochain déverrouillage)", 'Vault not enabled yet (offered at next unlock)')}
                               </>
                             )}
                           </p>
@@ -9974,7 +9936,7 @@ export default function App() {
                         {pinSetupStep === 'enter' && (
                           <div className="space-y-2 p-3 bg-app-bg/50 border border-app-border/10 rounded-xl">
                             <p className="text-[10px] text-app-muted font-bold">
-                              {lang === 'fr' ? 'Choisis un code (4 à 6 chiffres)' : 'Choose a code (4 to 6 digits)'}
+                              {tr(lang, 'Choisis un code (4 à 6 chiffres)', 'Choose a code (4 to 6 digits)')}
                             </p>
                             <input
                               type="password"
@@ -9990,7 +9952,7 @@ export default function App() {
                               onClick={confirmPinSetup}
                               className="w-full py-2 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest"
                             >
-                              {lang === 'fr' ? 'Continuer' : 'Continue'}
+                              {tr(lang, 'Continuer', 'Continue')}
                             </button>
                           </div>
                         )}
@@ -9998,7 +9960,7 @@ export default function App() {
                         {pinSetupStep === 'confirm' && (
                           <div className="space-y-2 p-3 bg-app-bg/50 border border-app-border/10 rounded-xl">
                             <p className="text-[10px] text-app-muted font-bold">
-                              {lang === 'fr' ? 'Confirme le code' : 'Confirm the code'}
+                              {tr(lang, 'Confirme le code', 'Confirm the code')}
                             </p>
                             <input
                               type="password"
@@ -10014,7 +9976,7 @@ export default function App() {
                               onClick={validatePinConfirm}
                               className="w-full py-2 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest"
                             >
-                              {lang === 'fr' ? 'Continuer' : 'Continue'}
+                              {tr(lang, 'Continuer', 'Continue')}
                             </button>
                           </div>
                         )}
@@ -10022,35 +9984,31 @@ export default function App() {
                         {pinSetupStep === 'question' && (
                           <div className="space-y-2 p-3 bg-app-bg/50 border border-app-border/10 rounded-xl">
                             <p className="text-[10px] text-app-muted font-bold">
-                              {lang === 'fr'
-                                ? 'Question de secours (si tu oublies ton code — choisis un truc simple, pas sensible)'
-                                : "Backup question (if you forget your code — pick something simple, not sensitive)"}
+                              {tr(lang, 'Question de secours (si tu oublies ton code — choisis un truc simple, pas sensible)', "Backup question (if you forget your code — pick something simple, not sensitive)")}
                             </p>
                             <input
                               type="text"
                               value={pinSetupQuestion}
                               onChange={e => setPinSetupQuestion(e.target.value)}
                               className="w-full bg-app-card border border-app-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-app-accent"
-                              placeholder={lang === 'fr' ? 'Ex : couleur préférée ?' : 'Ex: favorite color?'}
+                              placeholder={tr(lang, 'Ex : couleur préférée ?', 'Ex: favorite color?')}
                             />
                             <input
                               type="text"
                               value={pinSetupAnswer}
                               onChange={e => setPinSetupAnswer(e.target.value)}
                               className="w-full bg-app-card border border-app-border rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-app-accent"
-                              placeholder={lang === 'fr' ? 'Réponse' : 'Answer'}
+                              placeholder={tr(lang, 'Réponse', 'Answer')}
                             />
                             {pinSetupError && <p className="text-[10px] text-red-500 font-bold">{pinSetupError}</p>}
                             <p className="text-[10px] text-app-muted italic">
-                              {lang === 'fr'
-                                ? "⚠️ Sans récupération classique (pas d'e-mail, pas de serveur) : pense à faire un export JSON régulier de ton système."
-                                : "⚠️ No classic recovery (no email, no server): remember to export your system as JSON regularly."}
+                              {tr(lang, "⚠️ Sans récupération classique (pas d'e-mail, pas de serveur) : pense à faire un export JSON régulier de ton système.", "⚠️ No classic recovery (no email, no server): remember to export your system as JSON regularly.")}
                             </p>
                             <button
                               onClick={finalizePinSetup}
                               className="w-full py-2 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest"
                             >
-                              {lang === 'fr' ? 'Activer le verrouillage' : 'Enable lock'}
+                              {tr(lang, 'Activer le verrouillage', 'Enable lock')}
                             </button>
                           </div>
                         )}
@@ -10132,14 +10090,14 @@ export default function App() {
                 <ChevronRight className="w-4 h-4 text-app-text rotate-180" />
                 <span>
                   {currentTab === 'creator' && creatorReturnTab
-                    ? (lang === 'fr' ? 'Retour' : 'Back')
-                    : (lang === 'fr' ? 'Tableau de bord' : 'Dashboard')}
+                    ? (tr(lang, 'Retour', 'Back'))
+                    : (tr(lang, 'Tableau de bord', 'Dashboard'))}
                 </span>
               </button>
             ) : (
               <div className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-app-accent text-white text-xs font-black uppercase tracking-widest shadow-md select-none">
                 <LayoutDashboard className="w-4 h-4" />
-                <span>{lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}</span>
+                <span>{tr(lang, 'Tableau de bord', 'Dashboard')}</span>
               </div>
             )}
           </div>
@@ -10177,14 +10135,14 @@ export default function App() {
           {parallelSystems.length > 0 && (
             <section className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
-                <Shield className="w-3 h-3" /> {lang === 'fr' ? "Système" : "System"}
+                <Shield className="w-3 h-3" /> {tr(lang, "Système", "System")}
               </label>
               <select
                 value={creatorSystemId || activeSystemId}
                 onChange={e => { setCreatorSystemId(e.target.value); setCreatorSubsystemId(''); }}
                 className="w-full bg-app-card border border-app-border rounded-2xl px-5 py-3.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all appearance-none cursor-pointer"
               >
-                <option value="main">{lang === 'fr' ? "Système principal" : "Main system"}</option>
+                <option value="main">{tr(lang, "Système principal", "Main system")}</option>
                 {parallelSystems.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -10196,14 +10154,14 @@ export default function App() {
           {activeSystemSubsystems.length > 0 && (
             <section className="space-y-3">
               <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
-                <Layers className="w-3 h-3" /> {lang === 'fr' ? "Sous-système" : "Subsystem"}
+                <Layers className="w-3 h-3" /> {tr(lang, "Sous-système", "Subsystem")}
               </label>
               <select
                 value={creatorSubsystemId}
                 onChange={e => setCreatorSubsystemId(e.target.value)}
                 className="w-full bg-app-card border border-app-border rounded-2xl px-5 py-3.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 transition-all appearance-none cursor-pointer"
               >
-                <option value="">{lang === 'fr' ? "Système principal" : "Main system"}</option>
+                <option value="">{tr(lang, "Système principal", "Main system")}</option>
                 {activeSystemSubsystems.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -10334,12 +10292,10 @@ export default function App() {
           {/* Confidentialité — PIN individuel et facultatif, propre à cette fiche */}
           <section className="space-y-3 p-4 bg-app-card border border-app-border/40 rounded-2xl">
             <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
-              <Lock className="w-3 h-3" /> {lang === 'fr' ? 'Confidentialité de la fiche' : 'Card privacy'}
+              <Lock className="w-3 h-3" /> {tr(lang, 'Confidentialité de la fiche', 'Card privacy')}
             </label>
             <p className="text-[11px] text-app-muted leading-relaxed">
-              {lang === 'fr'
-                ? "Protège cette fiche avec un code propre à elle, différent du code de l'app. Facultatif, à activer si tu veux la garder privée même si quelqu'un d'autre a le code principal."
-                : "Protect this card with its own code, separate from the app's main code. Optional — turn it on to keep it private even from someone who has the main code."}
+              {tr(lang, "Protège cette fiche avec un code propre à elle, différent du code de l'app. Facultatif, à activer si tu veux la garder privée même si quelqu'un d'autre a le code principal.", "Protect this card with its own code, separate from the app's main code. Optional — turn it on to keep it private even from someone who has the main code.")}
             </p>
             <label className="flex items-center gap-2 cursor-pointer">
               <input
@@ -10356,14 +10312,14 @@ export default function App() {
                 }}
                 className="w-4 h-4 accent-app-accent"
               />
-              <span className="text-sm text-app-text">{lang === 'fr' ? 'Protéger cette fiche avec un code' : 'Protect this card with a code'}</span>
+              <span className="text-sm text-app-text">{tr(lang, 'Protéger cette fiche avec un code', 'Protect this card with a code')}</span>
             </label>
 
             {alterLockEnabled && (
               <div className="space-y-2 pt-1">
                 {alterLockPinHash && !alterLockNewPin && (
                   <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold">
-                    {lang === 'fr' ? '✓ Code déjà défini' : '✓ Code already set'}
+                    {tr(lang, '✓ Code déjà défini', '✓ Code already set')}
                   </p>
                 )}
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -10372,7 +10328,7 @@ export default function App() {
                     inputMode="numeric"
                     value={alterLockNewPin}
                     onChange={e => { setAlterLockNewPin(e.target.value.replace(/\D/g, '').slice(0, 8)); setAlterLockSetupError(''); }}
-                    placeholder={lang === 'fr' ? (alterLockPinHash ? 'Nouveau code (4-8 chiffres)' : 'Code (4-8 chiffres)') : (alterLockPinHash ? 'New code (4-8 digits)' : 'Code (4-8 digits)')}
+                    placeholder={alterLockPinHash ? tr(lang, 'Nouveau code (4-8 chiffres)', 'New code (4-8 digits)') : tr(lang, 'Code (4-8 chiffres)', 'Code (4-8 digits)')}
                     className="flex-1 min-w-0 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                   <input
@@ -10380,7 +10336,7 @@ export default function App() {
                     inputMode="numeric"
                     value={alterLockNewPinConfirm}
                     onChange={e => { setAlterLockNewPinConfirm(e.target.value.replace(/\D/g, '').slice(0, 8)); setAlterLockSetupError(''); }}
-                    placeholder={lang === 'fr' ? 'Confirme le code' : 'Confirm code'}
+                    placeholder={tr(lang, 'Confirme le code', 'Confirm code')}
                     className="flex-1 min-w-0 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                 </div>
@@ -10388,7 +10344,7 @@ export default function App() {
                   type="text"
                   value={alterLockPinQuestion}
                   onChange={e => setAlterLockPinQuestion(e.target.value)}
-                  placeholder={lang === 'fr' ? "Question de récupération (facultatif)" : 'Recovery question (optional)'}
+                  placeholder={tr(lang, "Question de récupération (facultatif)", 'Recovery question (optional)')}
                   className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                 />
                 {alterLockPinQuestion && (
@@ -10396,7 +10352,7 @@ export default function App() {
                     type="text"
                     value={alterLockNewAnswer}
                     onChange={e => { setAlterLockNewAnswer(e.target.value); setAlterLockSetupError(''); }}
-                    placeholder={lang === 'fr' ? 'Réponse' : 'Answer'}
+                    placeholder={tr(lang, 'Réponse', 'Answer')}
                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                 )}
@@ -10406,11 +10362,11 @@ export default function App() {
                     type="button"
                     onClick={() => {
                       if (alterLockNewPin.length < 4) {
-                        setAlterLockSetupError(lang === 'fr' ? 'Le code doit faire au moins 4 chiffres.' : 'Code must be at least 4 digits.');
+                        setAlterLockSetupError(tr(lang, 'Le code doit faire au moins 4 chiffres.', 'Code must be at least 4 digits.'));
                         return;
                       }
                       if (alterLockNewPin !== alterLockNewPinConfirm) {
-                        setAlterLockSetupError(lang === 'fr' ? 'Les deux codes ne correspondent pas.' : "The two codes don't match.");
+                        setAlterLockSetupError(tr(lang, 'Les deux codes ne correspondent pas.', "The two codes don't match."));
                         return;
                       }
                       setAlterLockPinHash(simpleHash(alterLockNewPin));
@@ -10422,7 +10378,7 @@ export default function App() {
                     }}
                     className="px-4 py-2 bg-app-accent text-white rounded-xl text-xs font-bold"
                   >
-                    {lang === 'fr' ? 'Valider le code' : 'Set code'}
+                    {tr(lang, 'Valider le code', 'Set code')}
                   </button>
                 )}
               </div>
@@ -10437,20 +10393,20 @@ export default function App() {
             >
               <div className="flex items-center gap-2">
                 <Tag className="w-3 h-3" />
-                <span>{lang === 'fr' ? "Informations de l'alter" : 'Alter Information'}</span>
+                <span>{tr(lang, "Informations de l'alter", 'Alter Information')}</span>
               </div>
               {(openSections as any).predefined ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
             {(openSections as any).predefined && (
               <div className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Age' : 'Age'}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Age', 'Age')}</label>
                   <input type="text" value={alterAge} onChange={e => setAlterAge(e.target.value)}
-                    placeholder={lang === 'fr' ? 'Ex: 17, inconnu...' : 'E.g. 17, unknown...'}
+                    placeholder={tr(lang, 'Ex: 17, inconnu...', 'E.g. 17, unknown...')}
                     className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Couleur associee' : 'Associated Color'}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Couleur associee', 'Associated Color')}</label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {['#ef4444','#f97316','#eab308','#22c55e','#14b8a6','#3b82f6','#8b5cf6','#ec4899','#f43f5e','#84cc16','#06b6d4','#a855f7','#6366f1','#e11d48','#1d4ed8','#ffffff','#94a3b8','#1e293b'].map(c => (
                       <button key={c} type="button" onClick={() => setAlterColor(c)}
@@ -10472,25 +10428,25 @@ export default function App() {
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black px-1.5 py-0.5 rounded-md bg-emerald-500/15 text-emerald-500 border border-emerald-500/20">+</span>
                       <input type="text" value={triggersPositive} onChange={e => setTriggersPositive(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Musique, nature...' : 'Music, nature...'}
+                        placeholder={tr(lang, 'Musique, nature...', 'Music, nature...')}
                         className="w-full bg-app-card border border-app-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 text-app-text placeholder:text-app-muted" />
                     </div>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[9px] font-black px-1.5 py-0.5 rounded-md bg-red-500/15 text-red-500 border border-red-500/20">-</span>
                       <input type="text" value={triggersNegative} onChange={e => setTriggersNegative(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Conflits, foule...' : 'Conflicts, crowds...'}
+                        placeholder={tr(lang, 'Conflits, foule...', 'Conflicts, crowds...')}
                         className="w-full bg-app-card border border-app-border rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 text-app-text placeholder:text-app-muted" />
                     </div>
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Langues parlees' : 'Languages'}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Langues parlees', 'Languages')}</label>
                   <input type="text" value={alterLanguages} onChange={e => setAlterLanguages(e.target.value)}
-                    placeholder={lang === 'fr' ? 'Francais, Anglais...' : 'French, English...'}
+                    placeholder={tr(lang, 'Francais, Anglais...', 'French, English...')}
                     className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? "Date d'anniversaire" : 'Birthday'}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, "Date d'anniversaire", 'Birthday')}</label>
                   {(() => {
                     const rebuildBirthday = (year: string, month: string, day: string) => {
                       if (!month.trim() || !day.trim()) {
@@ -10504,19 +10460,19 @@ export default function App() {
                     return (
                       <div className="grid grid-cols-3 gap-2">
                         <div className="space-y-1">
-                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Jour' : 'Day'}</span>
+                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{tr(lang, 'Jour', 'Day')}</span>
                           <input type="number" min={1} max={31} value={alterBirthdayDay} placeholder="JJ"
                             onChange={e => { setAlterBirthdayDay(e.target.value); rebuildBirthday(alterBirthdayYear, alterBirthdayMonth, e.target.value); }}
                             className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Mois' : 'Month'}</span>
+                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{tr(lang, 'Mois', 'Month')}</span>
                           <input type="number" min={1} max={12} value={alterBirthdayMonth} placeholder="MM"
                             onChange={e => { setAlterBirthdayMonth(e.target.value); rebuildBirthday(alterBirthdayYear, e.target.value, alterBirthdayDay); }}
                             className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                         </div>
                         <div className="space-y-1">
-                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{lang === 'fr' ? 'Année (optionnel)' : 'Year (optional)'}</span>
+                          <span className="text-[8px] text-app-muted uppercase tracking-wider">{tr(lang, 'Année (optionnel)', 'Year (optional)')}</span>
                           <input type="number" min={1} max={9999} value={alterBirthdayYear} placeholder="AAAA"
                             onChange={e => { setAlterBirthdayYear(e.target.value); rebuildBirthday(e.target.value, alterBirthdayMonth, alterBirthdayDay); }}
                             className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
@@ -10525,17 +10481,17 @@ export default function App() {
                     );
                   })()}
                   <p className="text-[9px] text-app-muted italic">
-                    {lang === 'fr' ? "L'année est facultative — jour et mois seuls suffisent. Apparaîtra automatiquement chaque année dans le Planning." : 'Year is optional — day and month alone are enough. Will automatically appear every year in Planning.'}
+                    {tr(lang, "L'année est facultative — jour et mois seuls suffisent. Apparaîtra automatiquement chaque année dans le Planning.", 'Year is optional — day and month alone are enough. Will automatically appear every year in Planning.')}
                   </p>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? "Source de l'alter" : 'Alter Source'}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, "Source de l'alter", 'Alter Source')}</label>
                   <input type="text" value={alterOriginWorld} onChange={e => setAlterOriginWorld(e.target.value)}
-                    placeholder={lang === 'fr' ? 'Fictif ou factif' : 'Fictitious or factual'}
+                    placeholder={tr(lang, 'Fictif ou factif', 'Fictitious or factual')}
                     className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted" />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Tags personnalisés' : 'Custom tags'}</label>
+                  <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Tags personnalisés', 'Custom tags')}</label>
                   <input
                     type="text"
                     value={alterTagInput}
@@ -10550,7 +10506,7 @@ export default function App() {
                         setAlterTagInput('');
                       }
                     }}
-                    placeholder={lang === 'fr' ? 'Tape un tag et appuie sur Entrée...' : 'Type a tag and press Enter...'}
+                    placeholder={tr(lang, 'Tape un tag et appuie sur Entrée...', 'Type a tag and press Enter...')}
                     className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted"
                   />
                   {alterTags.length > 0 && (
@@ -10580,7 +10536,7 @@ export default function App() {
             >
               <div className="flex items-center gap-2">
                 <Plus className="w-3 h-3" />
-                <span>{lang === 'fr' ? 'Champs personnalises' : 'Custom Fields'}</span>
+                <span>{tr(lang, 'Champs personnalises', 'Custom Fields')}</span>
               </div>
               {(openSections as any).customFields ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
             </button>
@@ -10608,7 +10564,7 @@ export default function App() {
                   onClick={() => setCustomFields(prev => [...prev, { id: Math.random().toString(36).substring(2, 9), label: '', value: '' }])}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-dashed border-app-border hover:border-app-accent/40 text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors">
                   <Plus className="w-3 h-3" />
-                  {lang === 'fr' ? 'Ajouter un champ' : 'Add a field'}
+                  {tr(lang, 'Ajouter un champ', 'Add a field')}
                 </button>
               </div>
             )}
@@ -10653,7 +10609,7 @@ export default function App() {
                   {/* Rôles personnalisés */}
                   <div className="pt-4 border-t border-app-border/25 space-y-3">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                      {lang === 'fr' ? 'Rôles personnalisés' : 'Custom roles'}
+                      {tr(lang, 'Rôles personnalisés', 'Custom roles')}
                     </div>
 
                     {customRoles.length > 0 && (
@@ -10702,9 +10658,7 @@ export default function App() {
                     {customRoleDeleteConfirmId && (
                       <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                         <span className="text-xs text-app-text">
-                          {lang === 'fr'
-                            ? `Supprimer « ${customRoles.find(r => r.id === customRoleDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
-                            : `Delete "${customRoles.find(r => r.id === customRoleDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                          {trf(lang, `Supprimer « {0} » ? Il sera retiré de tous les alters concernés.`, `Delete "{0}"? It will be removed from every alter using it.`, [customRoles.find(r => r.id === customRoleDeleteConfirmId)?.name || ''])}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -10712,14 +10666,14 @@ export default function App() {
                             onClick={() => deleteCustomRoleDefinition(customRoleDeleteConfirmId)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
                           >
-                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            {tr(lang, 'Supprimer', 'Delete')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setCustomRoleDeleteConfirmId(null)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                       </div>
@@ -10738,29 +10692,29 @@ export default function App() {
                           type="text"
                           value={customRoleDraftName}
                           onChange={(e) => setCustomRoleDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom du rôle...' : 'Role name...'}
+                          placeholder={tr(lang, 'Nom du rôle...', 'Role name...')}
                           className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
                         />
                       </div>
                       <textarea
                         value={customRoleDraftDefinition}
                         onChange={(e) => setCustomRoleDraftDefinition(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Définition de ce rôle...' : 'Definition of this role...'}
+                        placeholder={tr(lang, 'Définition de ce rôle...', 'Definition of this role...')}
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
                       <label className="block space-y-1">
                         <span className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                          {lang === 'fr' ? "Catégorie dans l'organigramme" : 'Org chart category'}
+                          {tr(lang, "Catégorie dans l'organigramme", 'Org chart category')}
                         </span>
                         <select
                           value={customRoleDraftFamily}
                           onChange={(e) => setCustomRoleDraftFamily(e.target.value as FunctionFamily | '')}
                           className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text"
                         >
-                          <option value="">{lang === 'fr' ? 'Aucune (ignoré dans l\'organigramme)' : 'None (ignored in the org chart)'}</option>
+                          <option value="">{tr(lang, 'Aucune (ignoré dans l\'organigramme)', 'None (ignored in the org chart)')}</option>
                           {FAMILY_ORDER.map(f => (
-                            <option key={f} value={f}>{lang === 'fr' ? FAMILY_LABEL[f].fr : FAMILY_LABEL[f].en}</option>
+                            <option key={f} value={f}>{tr(lang, FAMILY_LABEL[f].fr, FAMILY_LABEL[f].en)}</option>
                           ))}
                         </select>
                       </label>
@@ -10772,8 +10726,8 @@ export default function App() {
                           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                         >
                           {editingCustomRoleId
-                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
-                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un rôle' : 'Add a role'}</>}
+                            ? <><Check className="w-3 h-3" /> {tr(lang, 'Enregistrer', 'Save')}</>
+                            : <><Plus className="w-3 h-3" /> {tr(lang, 'Ajouter un rôle', 'Add a role')}</>}
                         </button>
                         {editingCustomRoleId && (
                           <button
@@ -10781,7 +10735,7 @@ export default function App() {
                             onClick={resetCustomRoleDraft}
                             className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         )}
                       </div>
@@ -10791,22 +10745,20 @@ export default function App() {
                   {orderedRoleKeys.length > 1 && (() => {
                     const placement = placeAlter(orderedRoleKeys, customRoles);
                     const placementLabel =
-                      placement.level === 'host' ? (lang === 'fr' ? 'Hôte' : 'Host')
-                      : placement.level === 'coHost' ? (lang === 'fr' ? 'Co-hôte' : 'Co-host')
-                      : placement.level === 'other' ? (lang === 'fr' ? 'Aucune catégorie (pas de rôle de fonction)' : 'No category (no function role)')
-                      : `${lang === 'fr' ? BAND_META[placement.level].fr : BAND_META[placement.level].en}${placement.roleKey ? ` · ${getRoleDisplayName(placement.roleKey)}` : ''}`;
+                      placement.level === 'host' ? (tr(lang, 'Hôte', 'Host'))
+                      : placement.level === 'coHost' ? (tr(lang, 'Co-hôte', 'Co-host'))
+                      : placement.level === 'other' ? (tr(lang, 'Aucune catégorie (pas de rôle de fonction)', 'No category (no function role)'))
+                      : `${tr(lang, BAND_META[placement.level].fr, BAND_META[placement.level].en)}${placement.roleKey ? ` · ${getRoleDisplayName(placement.roleKey)}` : ''}`;
                     return (
                       <div className="pt-4 border-t border-app-border/25 space-y-3">
                         <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                          {lang === 'fr' ? 'Ordre de priorité' : 'Priority order'}
+                          {tr(lang, 'Ordre de priorité', 'Priority order')}
                         </div>
                         <p className="text-[11px] text-app-muted px-1">
-                          {lang === 'fr'
-                            ? "Le premier rôle de fonction de la liste décide de la catégorie dans l'organigramme. Hôte et Co-hôte passent toujours avant."
-                            : 'The first function role in the list decides the category in the org chart. Host and Co-host always come first.'}
+                          {tr(lang, "Le premier rôle de fonction de la liste décide de la catégorie dans l'organigramme. Hôte et Co-hôte passent toujours avant.", 'The first function role in the list decides the category in the org chart. Host and Co-host always come first.')}
                         </p>
                         <div className="px-1 text-xs font-bold text-app-text">
-                          {lang === 'fr' ? 'Organigramme : ' : 'Org chart: '}{placementLabel}
+                          {tr(lang, 'Organigramme : ', 'Org chart: ')}{placementLabel}
                         </div>
                         <div className="space-y-1.5">
                           {orderedRoleKeys.map((key, idx) => {
@@ -10822,14 +10774,14 @@ export default function App() {
                                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: getRoleDisplayColor(key) }} />
                                 <span className="text-xs font-semibold truncate flex-1 min-w-0">{getRoleDisplayName(key)}</span>
                                 <span className="text-[10px] text-app-muted shrink-0 hidden sm:inline">
-                                  {lang === 'fr' ? FAMILY_LABEL[family].fr : FAMILY_LABEL[family].en}
+                                  {tr(lang, FAMILY_LABEL[family].fr, FAMILY_LABEL[family].en)}
                                 </span>
                                 <span className="flex items-center shrink-0">
                                   <button
                                     type="button"
                                     onClick={() => moveRolePriority(key, -1)}
                                     disabled={idx === 0}
-                                    aria-label={lang === 'fr' ? 'Monter' : 'Move up'}
+                                    aria-label={tr(lang, 'Monter', 'Move up')}
                                     className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-accent/10 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                                   >
                                     <ChevronUp className="w-3.5 h-3.5" />
@@ -10838,7 +10790,7 @@ export default function App() {
                                     type="button"
                                     onClick={() => moveRolePriority(key, 1)}
                                     disabled={idx === orderedRoleKeys.length - 1}
-                                    aria-label={lang === 'fr' ? 'Descendre' : 'Move down'}
+                                    aria-label={tr(lang, 'Descendre', 'Move down')}
                                     className="p-1.5 rounded-lg text-app-muted hover:text-app-text hover:bg-app-accent/10 transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
                                   >
                                     <ChevronDown className="w-3.5 h-3.5" />
@@ -10977,7 +10929,7 @@ export default function App() {
                   {/* Pronoms personnalisés */}
                   <div className="pt-4 border-t border-app-border/25 space-y-3">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                      {lang === 'fr' ? 'Pronoms personnalisés' : 'Custom pronouns'}
+                      {tr(lang, 'Pronoms personnalisés', 'Custom pronouns')}
                     </div>
 
                     {customPronouns.length > 0 && (
@@ -11025,9 +10977,7 @@ export default function App() {
                     {customPronounDeleteConfirmId && (
                       <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                         <span className="text-xs text-app-text">
-                          {lang === 'fr'
-                            ? `Supprimer « ${customPronouns.find(p => p.id === customPronounDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
-                            : `Delete "${customPronouns.find(p => p.id === customPronounDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                          {trf(lang, `Supprimer « {0} » ? Il sera retiré de tous les alters concernés.`, `Delete "{0}"? It will be removed from every alter using it.`, [customPronouns.find(p => p.id === customPronounDeleteConfirmId)?.name || ''])}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -11035,14 +10985,14 @@ export default function App() {
                             onClick={() => deleteCustomPronounDefinition(customPronounDeleteConfirmId)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
                           >
-                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            {tr(lang, 'Supprimer', 'Delete')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setCustomPronounDeleteConfirmId(null)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                       </div>
@@ -11060,14 +11010,14 @@ export default function App() {
                           type="text"
                           value={customPronounDraftName}
                           onChange={(e) => setCustomPronounDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Pronom personnalisé...' : 'Custom pronoun...'}
+                          placeholder={tr(lang, 'Pronom personnalisé...', 'Custom pronoun...')}
                           className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
                         />
                       </div>
                       <textarea
                         value={customPronounDraftDefinition}
                         onChange={(e) => setCustomPronounDraftDefinition(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Précision (facultatif)...' : 'Note (optional)...'}
+                        placeholder={tr(lang, 'Précision (facultatif)...', 'Note (optional)...')}
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
@@ -11079,8 +11029,8 @@ export default function App() {
                           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                         >
                           {editingCustomPronounId
-                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
-                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un pronom' : 'Add a pronoun'}</>}
+                            ? <><Check className="w-3 h-3" /> {tr(lang, 'Enregistrer', 'Save')}</>
+                            : <><Plus className="w-3 h-3" /> {tr(lang, 'Ajouter un pronom', 'Add a pronoun')}</>}
                         </button>
                         {editingCustomPronounId && (
                           <button
@@ -11088,7 +11038,7 @@ export default function App() {
                             onClick={resetCustomPronounDraft}
                             className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         )}
                       </div>
@@ -11184,7 +11134,7 @@ export default function App() {
                   {/* Genres personnalisés */}
                   <div className="pt-4 border-t border-app-border/25 space-y-3">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                      {lang === 'fr' ? 'Genres personnalisés' : 'Custom genders'}
+                      {tr(lang, 'Genres personnalisés', 'Custom genders')}
                     </div>
 
                     {customGenders.length > 0 && (
@@ -11232,9 +11182,7 @@ export default function App() {
                     {customGenderDeleteConfirmId && (
                       <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                         <span className="text-xs text-app-text">
-                          {lang === 'fr'
-                            ? `Supprimer « ${customGenders.find(g => g.id === customGenderDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
-                            : `Delete "${customGenders.find(g => g.id === customGenderDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                          {trf(lang, `Supprimer « {0} » ? Il sera retiré de tous les alters concernés.`, `Delete "{0}"? It will be removed from every alter using it.`, [customGenders.find(g => g.id === customGenderDeleteConfirmId)?.name || ''])}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -11242,14 +11190,14 @@ export default function App() {
                             onClick={() => deleteCustomGenderDefinition(customGenderDeleteConfirmId)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
                           >
-                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            {tr(lang, 'Supprimer', 'Delete')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setCustomGenderDeleteConfirmId(null)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                       </div>
@@ -11267,14 +11215,14 @@ export default function App() {
                           type="text"
                           value={customGenderDraftName}
                           onChange={(e) => setCustomGenderDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom du genre...' : 'Gender name...'}
+                          placeholder={tr(lang, 'Nom du genre...', 'Gender name...')}
                           className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
                         />
                       </div>
                       <textarea
                         value={customGenderDraftDefinition}
                         onChange={(e) => setCustomGenderDraftDefinition(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Définition de ce genre...' : 'Definition of this gender...'}
+                        placeholder={tr(lang, 'Définition de ce genre...', 'Definition of this gender...')}
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
@@ -11286,8 +11234,8 @@ export default function App() {
                           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                         >
                           {editingCustomGenderId
-                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
-                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un genre' : 'Add a gender'}</>}
+                            ? <><Check className="w-3 h-3" /> {tr(lang, 'Enregistrer', 'Save')}</>
+                            : <><Plus className="w-3 h-3" /> {tr(lang, 'Ajouter un genre', 'Add a gender')}</>}
                         </button>
                         {editingCustomGenderId && (
                           <button
@@ -11295,7 +11243,7 @@ export default function App() {
                             onClick={resetCustomGenderDraft}
                             className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         )}
                       </div>
@@ -11391,7 +11339,7 @@ export default function App() {
                   {/* Sexualités personnalisées */}
                   <div className="pt-4 border-t border-app-border/25 space-y-3">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                      {lang === 'fr' ? 'Sexualités personnalisées' : 'Custom sexualities'}
+                      {tr(lang, 'Sexualités personnalisées', 'Custom sexualities')}
                     </div>
 
                     {customSexualities.length > 0 && (
@@ -11439,9 +11387,7 @@ export default function App() {
                     {customSexualityDeleteConfirmId && (
                       <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                         <span className="text-xs text-app-text">
-                          {lang === 'fr'
-                            ? `Supprimer « ${customSexualities.find(s => s.id === customSexualityDeleteConfirmId)?.name || ''} » ? Elle sera retirée de tous les alters concernés.`
-                            : `Delete "${customSexualities.find(s => s.id === customSexualityDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                          {trf(lang, `Supprimer « {0} » ? Elle sera retirée de tous les alters concernés.`, `Delete "{0}"? It will be removed from every alter using it.`, [customSexualities.find(s => s.id === customSexualityDeleteConfirmId)?.name || ''])}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -11449,14 +11395,14 @@ export default function App() {
                             onClick={() => deleteCustomSexualityDefinition(customSexualityDeleteConfirmId)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
                           >
-                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            {tr(lang, 'Supprimer', 'Delete')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setCustomSexualityDeleteConfirmId(null)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                       </div>
@@ -11474,14 +11420,14 @@ export default function App() {
                           type="text"
                           value={customSexualityDraftName}
                           onChange={(e) => setCustomSexualityDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom de la sexualité...' : 'Sexuality name...'}
+                          placeholder={tr(lang, 'Nom de la sexualité...', 'Sexuality name...')}
                           className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
                         />
                       </div>
                       <textarea
                         value={customSexualityDraftDefinition}
                         onChange={(e) => setCustomSexualityDraftDefinition(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Définition de cette sexualité...' : 'Definition of this sexuality...'}
+                        placeholder={tr(lang, 'Définition de cette sexualité...', 'Definition of this sexuality...')}
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
@@ -11493,8 +11439,8 @@ export default function App() {
                           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                         >
                           {editingCustomSexualityId
-                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
-                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter une sexualité' : 'Add a sexuality'}</>}
+                            ? <><Check className="w-3 h-3" /> {tr(lang, 'Enregistrer', 'Save')}</>
+                            : <><Plus className="w-3 h-3" /> {tr(lang, 'Ajouter une sexualité', 'Add a sexuality')}</>}
                         </button>
                         {editingCustomSexualityId && (
                           <button
@@ -11502,7 +11448,7 @@ export default function App() {
                             onClick={resetCustomSexualityDraft}
                             className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         )}
                       </div>
@@ -11560,7 +11506,7 @@ export default function App() {
                   {/* Traits personnalisés */}
                   <div className="pt-4 border-t border-app-border/25 space-y-3">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                      {lang === 'fr' ? 'Traits personnalisés' : 'Custom traits'}
+                      {tr(lang, 'Traits personnalisés', 'Custom traits')}
                     </div>
 
                     {customTraits.length > 0 && (
@@ -11608,9 +11554,7 @@ export default function App() {
                     {customTraitDeleteConfirmId && (
                       <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                         <span className="text-xs text-app-text">
-                          {lang === 'fr'
-                            ? `Supprimer « ${customTraits.find(tr => tr.id === customTraitDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
-                            : `Delete "${customTraits.find(tr => tr.id === customTraitDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                          {trf(lang, `Supprimer « {0} » ? Il sera retiré de tous les alters concernés.`, `Delete "{0}"? It will be removed from every alter using it.`, [customTraits.find(tr => tr.id === customTraitDeleteConfirmId)?.name || ''])}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -11618,14 +11562,14 @@ export default function App() {
                             onClick={() => deleteCustomTraitDefinition(customTraitDeleteConfirmId)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
                           >
-                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            {tr(lang, 'Supprimer', 'Delete')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setCustomTraitDeleteConfirmId(null)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                       </div>
@@ -11643,14 +11587,14 @@ export default function App() {
                           type="text"
                           value={customTraitDraftName}
                           onChange={(e) => setCustomTraitDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom du trait...' : 'Trait name...'}
+                          placeholder={tr(lang, 'Nom du trait...', 'Trait name...')}
                           className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
                         />
                       </div>
                       <textarea
                         value={customTraitDraftDefinition}
                         onChange={(e) => setCustomTraitDraftDefinition(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Définition de ce trait...' : 'Definition of this trait...'}
+                        placeholder={tr(lang, 'Définition de ce trait...', 'Definition of this trait...')}
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
@@ -11662,8 +11606,8 @@ export default function App() {
                           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                         >
                           {editingCustomTraitId
-                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
-                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un trait' : 'Add a trait'}</>}
+                            ? <><Check className="w-3 h-3" /> {tr(lang, 'Enregistrer', 'Save')}</>
+                            : <><Plus className="w-3 h-3" /> {tr(lang, 'Ajouter un trait', 'Add a trait')}</>}
                         </button>
                         {editingCustomTraitId && (
                           <button
@@ -11671,7 +11615,7 @@ export default function App() {
                             onClick={resetCustomTraitDraft}
                             className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         )}
                       </div>
@@ -11727,7 +11671,7 @@ export default function App() {
                   {/* Troubles personnalisés */}
                   <div className="pt-4 border-t border-app-border/25 space-y-3">
                     <div className="text-[10px] font-bold uppercase tracking-widest text-app-muted/80 px-1 font-mono">
-                      {lang === 'fr' ? 'Troubles personnalisés' : 'Custom disorders'}
+                      {tr(lang, 'Troubles personnalisés', 'Custom disorders')}
                     </div>
 
                     {customDisorders.length > 0 && (
@@ -11775,9 +11719,7 @@ export default function App() {
                     {customDisorderDeleteConfirmId && (
                       <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                         <span className="text-xs text-app-text">
-                          {lang === 'fr'
-                            ? `Supprimer « ${customDisorders.find(d => d.id === customDisorderDeleteConfirmId)?.name || ''} » ? Il sera retiré de tous les alters concernés.`
-                            : `Delete "${customDisorders.find(d => d.id === customDisorderDeleteConfirmId)?.name || ''}"? It will be removed from every alter using it.`}
+                          {trf(lang, `Supprimer « {0} » ? Il sera retiré de tous les alters concernés.`, `Delete "{0}"? It will be removed from every alter using it.`, [customDisorders.find(d => d.id === customDisorderDeleteConfirmId)?.name || ''])}
                         </span>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <button
@@ -11785,14 +11727,14 @@ export default function App() {
                             onClick={() => deleteCustomDisorderDefinition(customDisorderDeleteConfirmId)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors"
                           >
-                            {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            {tr(lang, 'Supprimer', 'Delete')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setCustomDisorderDeleteConfirmId(null)}
                             className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                       </div>
@@ -11810,14 +11752,14 @@ export default function App() {
                           type="text"
                           value={customDisorderDraftName}
                           onChange={(e) => setCustomDisorderDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom du trouble...' : 'Disorder name...'}
+                          placeholder={tr(lang, 'Nom du trouble...', 'Disorder name...')}
                           className="flex-1 min-w-0 bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted font-bold"
                         />
                       </div>
                       <textarea
                         value={customDisorderDraftDefinition}
                         onChange={(e) => setCustomDisorderDraftDefinition(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Définition de ce trouble...' : 'Definition of this disorder...'}
+                        placeholder={tr(lang, 'Définition de ce trouble...', 'Definition of this disorder...')}
                         rows={2}
                         className="w-full bg-app-card border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 text-app-text placeholder:text-app-muted resize-none"
                       />
@@ -11829,8 +11771,8 @@ export default function App() {
                           className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-app-text text-app-bg text-xs font-bold uppercase tracking-widest transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90"
                         >
                           {editingCustomDisorderId
-                            ? <><Check className="w-3 h-3" /> {lang === 'fr' ? 'Enregistrer' : 'Save'}</>
-                            : <><Plus className="w-3 h-3" /> {lang === 'fr' ? 'Ajouter un trouble' : 'Add a disorder'}</>}
+                            ? <><Check className="w-3 h-3" /> {tr(lang, 'Enregistrer', 'Save')}</>
+                            : <><Plus className="w-3 h-3" /> {tr(lang, 'Ajouter un trouble', 'Add a disorder')}</>}
                         </button>
                         {editingCustomDisorderId && (
                           <button
@@ -11838,7 +11780,7 @@ export default function App() {
                             onClick={resetCustomDisorderDraft}
                             className="px-3 py-2 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-bold uppercase tracking-widest transition-colors"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         )}
                       </div>
@@ -11870,13 +11812,13 @@ export default function App() {
                     <div className="space-y-3 min-w-0 flex-1">
                       <div className="space-y-1">
                         <div className="text-[10px] font-bold uppercase tracking-widest text-app-accent">
-                          {lang === 'fr' ? "Fiche d'Alter" : "Alter Profile"}
+                          {tr(lang, "Fiche d'Alter", "Alter Profile")}
                         </div>
                         <h2 
                           className={`text-xl font-black tracking-tight leading-none uppercase ${font}`}
                           style={{ wordBreak: 'break-word', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}
                         >
-                          {alterName || (lang === 'fr' ? 'Anonyme' : 'Anonymous')}
+                          {alterName || (tr(lang, 'Anonyme', 'Anonymous'))}
                         </h2>
                       </div>
 
@@ -11884,7 +11826,7 @@ export default function App() {
                       {(selectedRoles.length > 0 || selectedCustomRoleIds.length > 0) && (
                         <div className="space-y-1">
                           <div className="text-[8px] font-bold uppercase tracking-widest opacity-50 px-0.5">
-                            {lang === 'fr' ? 'Rôles' : 'Roles'}
+                            {tr(lang, 'Rôles', 'Roles')}
                           </div>
                           <div className={`flex flex-wrap gap-1 pr-1 ${
                             isDownloading ? 'max-h-none overflow-visible' : 'max-h-[85px] overflow-y-auto'
@@ -11940,7 +11882,7 @@ export default function App() {
                           {(selectedGenders.length > 0 || selectedCustomGenderIds.length > 0) && (
                             <div className="flex flex-col gap-1">
                               <span className="text-[8px] font-black uppercase tracking-widest opacity-50 px-0.5">
-                                {lang === 'fr' ? 'Genres' : 'Genders'}
+                                {tr(lang, 'Genres', 'Genders')}
                               </span>
                               <div className="flex flex-wrap gap-1">
                                 {selectedGenders.map(g => (
@@ -12022,7 +11964,7 @@ export default function App() {
                           {(selectedSexualities.length > 0 || selectedCustomSexualityIds.length > 0) && (
                             <div className="flex flex-col gap-1">
                               <span className="text-[8px] font-black uppercase tracking-widest opacity-50 px-0.5">
-                                {lang === 'fr' ? 'Orientations sexuelles' : 'Sexual Orientations'}
+                                {tr(lang, 'Orientations sexuelles', 'Sexual Orientations')}
                               </span>
                               <div className="flex flex-wrap gap-1">
                                 {selectedSexualities.map(s => (
@@ -12091,14 +12033,14 @@ export default function App() {
                             {!isDownloading && (
                               <div className="absolute inset-0 bg-black/50 opacity-0 group-hover/avatar:opacity-100 flex flex-col items-center justify-center gap-0.5 text-[8px] text-white font-extrabold tracking-widest uppercase transition-opacity">
                                 <Upload className="w-3.5 h-3.5" />
-                                <span>{lang === 'fr' ? 'Modifier' : 'Change'}</span>
+                                <span>{tr(lang, 'Modifier', 'Change')}</span>
                               </div>
                             )}
                           </>
                         ) : (
                           <div className={`w-full h-full flex flex-col items-center justify-center gap-1 border-2 border-dashed border-app-border/20 rounded-2xl p-1 text-app-muted ${isDownloading ? '' : 'group-hover/avatar:border-app-accent/30'}`}>
                             <User className={`w-9 h-9 opacity-40 ${isDownloading ? '' : 'group-hover/avatar:text-app-accent group-hover/avatar:opacity-75 transition-all'}`} />
-                            <span className="text-[7.5px] font-black uppercase tracking-widest opacity-40">{lang === 'fr' ? 'Photo' : 'Photo'}</span>
+                            <span className="text-[7.5px] font-black uppercase tracking-widest opacity-40">{tr(lang, 'Photo', 'Photo')}</span>
                           </div>
                         )}
                       </div>
@@ -12107,7 +12049,7 @@ export default function App() {
                       {profileImage && !isDownloading && (
                         <button
                           onClick={removeProfileImage}
-                          title={lang === 'fr' ? "Supprimer l'image" : "Remove image"}
+                          title={tr(lang, "Supprimer l'image", "Remove image")}
                           className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-red-500/95 hover:bg-red-500 text-white shadow-sm transition-all hover:scale-110 z-10"
                         >
                           <X className="w-3 h-3" />
@@ -12129,18 +12071,18 @@ export default function App() {
                       {(alterAge || alterColor || triggersPositive || triggersNegative || alterLanguages || alterOriginWorld || alterTags.length > 0) && (
                         <div className="space-y-1.5">
                           <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
-                            {lang === 'fr' ? 'Informations' : 'Information'}
+                            {tr(lang, 'Informations', 'Information')}
                           </div>
                           <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 space-y-1.5">
                             {alterAge && (
                               <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Age' : 'Age'}</span>
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{tr(lang, 'Age', 'Age')}</span>
                                 <span className="text-app-text/85">{alterAge}</span>
                               </div>
                             )}
                             {alterColor && (
                               <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Couleur' : 'Color'}</span>
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{tr(lang, 'Couleur', 'Color')}</span>
                                 <span className="w-4 h-4 rounded-md border border-app-border/20 inline-block shrink-0" style={{ backgroundColor: alterColor }} />
                                 <span className="font-mono text-app-text/85">{alterColor}</span>
                                 <span className="text-app-text/60 normal-case font-sans">({getClosestColorName(alterColor, bigColorNames)})</span>
@@ -12165,19 +12107,19 @@ export default function App() {
                             )}
                             {alterLanguages && (
                               <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Langues' : 'Languages'}</span>
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{tr(lang, 'Langues', 'Languages')}</span>
                                 <span className="text-app-text/85">{alterLanguages}</span>
                               </div>
                             )}
                             {alterOriginWorld && (
                               <div className="flex items-center gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{lang === 'fr' ? 'Source' : 'Source'}</span>
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0">{tr(lang, 'Source', 'Source')}</span>
                                 <span className="text-app-text/85">{alterOriginWorld}</span>
                               </div>
                             )}
                             {alterTags.length > 0 && (
                               <div className="flex items-start gap-2 text-[10px]">
-                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0 pt-0.5">{lang === 'fr' ? 'Tags' : 'Tags'}</span>
+                                <span className="font-black uppercase tracking-widest text-app-muted w-20 shrink-0 pt-0.5">{tr(lang, 'Tags', 'Tags')}</span>
                                 <div className="flex flex-wrap gap-1">
                                   {alterTags.map(t2 => (
                                     <span key={t2} className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide border border-app-accent/30 bg-app-accent/10 text-app-accent">
@@ -12195,7 +12137,7 @@ export default function App() {
                       {(traitDecorations.length > 0 || selectedCustomTraitIds.length > 0 || selectedCustomDisorderIds.length > 0) && (
                         <div className="space-y-4">
                           <div className="text-[10px] font-bold uppercase tracking-widest text-app-text animate-pulse">
-                            {lang === 'fr' ? 'Traits & Troubles' : 'Traits & Conditions'}
+                            {tr(lang, 'Traits & Troubles', 'Traits & Conditions')}
                           </div>
 
                           {/* Personality Traits Sub-section */}
@@ -12352,7 +12294,7 @@ export default function App() {
                       {customFields.filter(f => f.label || f.value).length > 0 && (
                         <div className="space-y-1.5">
                           <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono">
-                            {lang === 'fr' ? 'Champs personnalises' : 'Custom Fields'}
+                            {tr(lang, 'Champs personnalises', 'Custom Fields')}
                           </div>
                           <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 space-y-1.5">
                             {customFields.filter(f => f.label || f.value).map(f => (
@@ -12378,7 +12320,7 @@ export default function App() {
                           <div className="space-y-1.5 animate-fade-in">
                             <div className="text-[9px] font-black uppercase tracking-widest text-app-accent/80 px-1 font-mono flex items-center gap-1.5">
                               <GitBranch className="w-2.5 h-2.5" />
-                              {lang === 'fr' ? 'Relations' : 'Relations'}
+                              {tr(lang, 'Relations', 'Relations')}
                             </div>
                             <div className="px-3 py-2.5 bg-app-card/30 rounded-2xl border border-app-border/10 flex flex-wrap gap-1.5">
                               {rels.map(r => {
@@ -12399,7 +12341,7 @@ export default function App() {
                                   >
                                     <span className="normal-case tracking-normal font-black">{other.alterName}</span>
                                     <span className="opacity-70">·</span>
-                                    {lang === 'fr' ? cfg.label : cfg.labelEn}
+                                    {tr(lang, cfg.label, cfg.labelEn)}
                                   </span>
                                 );
                               })}
@@ -12412,7 +12354,7 @@ export default function App() {
                         <div className="flex flex-col items-center justify-center p-6 text-center border border-dashed border-app-border/25 rounded-2xl bg-app-card/20 h-[270px]">
                           <Sparkles className="w-5 h-5 opacity-30 text-app-accent mb-1.5" />
                           <p className="text-[9px] font-bold uppercase tracking-widest opacity-45">
-                            {lang === 'fr' ? 'Aucun trait ou texte saisi' : 'No traits or text entered'}
+                            {tr(lang, 'Aucun trait ou texte saisi', 'No traits or text entered')}
                           </p>
                         </div>
                       )}
@@ -12451,7 +12393,7 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <Link2 className="w-3.5 h-3.5 text-green-500 animate-pulse" />
                         <span className="font-extrabold uppercase tracking-widest text-[9px] text-green-500">
-                          {lang === 'fr' ? 'Lié à PluralKit' : 'Linked to PluralKit'}
+                          {tr(lang, 'Lié à PluralKit', 'Linked to PluralKit')}
                         </span>
                       </div>
                       <button
@@ -12477,12 +12419,12 @@ export default function App() {
                 <button
                   onClick={() => {
                     handleSaveAlter();
-                    const trimmedName = alterName.trim() || (lang === 'fr' ? 'Anonyme' : 'Anonymous');
+                    const trimmedName = alterName.trim() || (tr(lang, 'Anonyme', 'Anonymous'));
                     const hasConflict = savedAlters.some(
                       a => a.id !== editingAlterId && a.alterName.toLowerCase().trim() === trimmedName.toLowerCase().trim()
                     );
                     if (!hasConflict) {
-                      alert(lang === 'fr' ? 'Fiche enregistrée avec succès !' : 'Card successfully saved!');
+                      alert(tr(lang, 'Fiche enregistrée avec succès !', 'Card successfully saved!'));
                     }
                   }}
                   className="flex-1 flex items-center justify-center gap-2.5 py-4 px-5 bg-app-accent hover:opacity-90 active:scale-[0.99] text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-all shadow-md select-none border border-transparent"
@@ -12494,7 +12436,7 @@ export default function App() {
                   <button
                     onClick={handleResetCreator}
                     className="px-4 bg-app-card border border-app-border/40 hover:border-red-500/35 hover:text-red-500 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center"
-                    title={lang === 'fr' ? 'Créer une nouvelle fiche' : 'Create new card'}
+                    title={tr(lang, 'Créer une nouvelle fiche', 'Create new card')}
                   >
                     <UserPlus className="w-4 h-4" />
                   </button>
@@ -12510,22 +12452,22 @@ export default function App() {
                 aria-expanded={showMeaningCard}
               >
                 <Info className="w-4 h-4 text-app-accent" />
-                {lang === 'fr' ? 'Résumé de la fiche' : 'Card summary'}
+                {tr(lang, 'Résumé de la fiche', 'Card summary')}
               </button>
               <button
                 type="button"
                 onClick={handleDownload}
                 disabled={isDownloading}
                 className="flex items-center justify-center gap-2.5 px-6 py-3 bg-app-card border border-app-border/45 rounded-2xl text-xs font-black uppercase tracking-widest text-app-text hover:bg-app-bg hover:border-app-accent/40 active:scale-98 transition-all shadow-sm select-none disabled:opacity-50"
-                title={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
-                aria-label={lang === 'fr' ? 'Télécharger en PNG' : 'Download as PNG'}
+                title={tr(lang, 'Télécharger en PNG', 'Download as PNG')}
+                aria-label={tr(lang, 'Télécharger en PNG', 'Download as PNG')}
               >
                 {isDownloading ? (
                   <div className="w-4 h-4 border-2 border-app-accent/30 border-t-app-accent rounded-full animate-spin" />
                 ) : (
                   <Download className="w-4 h-4 text-app-accent" />
                 )}
-                {lang === 'fr' ? 'Télécharger' : 'Download'}
+                {tr(lang, 'Télécharger', 'Download')}
               </button>
             </div>
 
@@ -12557,7 +12499,7 @@ export default function App() {
                           type="button"
                           onClick={() => setShowMeaningCard(false)}
                           className="p-2 hover:bg-app-bg rounded-lg transition-colors text-app-muted hover:text-app-text"
-                          aria-label={lang === 'fr' ? 'Fermer le résumé' : 'Close summary'}
+                          aria-label={tr(lang, 'Fermer le résumé', 'Close summary')}
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -12677,27 +12619,27 @@ export default function App() {
         {/* --- DASHBOARD (HOME) VIEW --- */}
         {currentTab === 'home' && (() => {
           const dashItems = [
-            { value: 'system',    label: t.menuMySystem,   icon: Users,              desc: lang === 'fr' ? 'Gérer vos alters et sous-systèmes' : 'Manage your alters and subsystems' },
-            { value: 'creator',   label: t.menuCreator,    icon: Hammer,             desc: lang === 'fr' ? 'Créer ou modifier une fiche' : 'Create or edit a profile' },
-            { value: 'switch',    label: t.menuSwitches,   icon: ArrowLeftRight,     desc: lang === 'fr' ? 'Registre des fronts et émotions' : 'Front log and emotions' },
-            { value: 'mapping',   label: t.menuMapping,    icon: GitBranch,          desc: lang === 'fr' ? 'Visualiser le système' : 'Visualise the system' },
-            { value: 'orgchart',  label: lang === 'fr' ? 'Organigramme' : 'Org chart', icon: Network, desc: lang === 'fr' ? 'Hiérarchie du système par rôles' : 'System hierarchy by roles' },
-            { value: 'innerworld', label: lang === 'fr' ? 'Innerworld' : 'Innerworld', icon: TreePine, desc: lang === 'fr' ? 'Le monde intérieur, lieu par lieu' : "The inner world, place by place" },
-            { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: lang === 'fr' ? 'Discussion interne' : 'Internal discussion' },
-            { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: lang === 'fr' ? 'Messages directs entre alters' : 'Direct messages between alters' },
-            { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: lang === 'fr' ? 'Journal de bord du système' : 'System journal' },
-            { value: 'planning',  label: t.menuPlanning,  icon: CalendarDays, desc: lang === 'fr' ? 'Planning façon Bullet Journal' : 'Bullet Journal style planning' },
-            { value: 'health',    label: lang === 'fr' ? 'Santé' : 'Health', icon: HeartPulse, desc: lang === 'fr' ? 'Traitements, antécédents, intervenants, urgence' : 'Treatments, history, providers, emergency' },
-            { value: 'wallet',    label: lang === 'fr' ? 'Portefeuille' : 'Wallet', icon: Wallet, desc: lang === 'fr' ? 'Dépenses par alter et budget commun' : 'Per-alter expenses and shared budget' },
-            { value: 'relax',     label: lang === 'fr' ? 'Détente' : 'Relax', icon: Wind, desc: lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools' },
-            { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: lang === 'fr' ? 'Synchronisation PluralKit' : 'PluralKit synchronization' },
+            { value: 'system',    label: t.menuMySystem,   icon: Users,              desc: tr(lang, 'Gérer vos alters et sous-systèmes', 'Manage your alters and subsystems') },
+            { value: 'creator',   label: t.menuCreator,    icon: Hammer,             desc: tr(lang, 'Créer ou modifier une fiche', 'Create or edit a profile') },
+            { value: 'switch',    label: t.menuSwitches,   icon: ArrowLeftRight,     desc: tr(lang, 'Registre des fronts et émotions', 'Front log and emotions') },
+            { value: 'mapping',   label: t.menuMapping,    icon: GitBranch,          desc: tr(lang, 'Visualiser le système', 'Visualise the system') },
+            { value: 'orgchart',  label: tr(lang, 'Organigramme', 'Org chart'), icon: Network, desc: tr(lang, 'Hiérarchie du système par rôles', 'System hierarchy by roles') },
+            { value: 'innerworld', label: tr(lang, 'Innerworld', 'Innerworld'), icon: TreePine, desc: tr(lang, 'Le monde intérieur, lieu par lieu', "The inner world, place by place") },
+            { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: tr(lang, 'Discussion interne', 'Internal discussion') },
+            { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: tr(lang, 'Messages directs entre alters', 'Direct messages between alters') },
+            { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: tr(lang, 'Journal de bord du système', 'System journal') },
+            { value: 'planning',  label: t.menuPlanning,  icon: CalendarDays, desc: tr(lang, 'Planning façon Bullet Journal', 'Bullet Journal style planning') },
+            { value: 'health',    label: tr(lang, 'Santé', 'Health'), icon: HeartPulse, desc: tr(lang, 'Traitements, antécédents, intervenants, urgence', 'Treatments, history, providers, emergency') },
+            { value: 'wallet',    label: tr(lang, 'Portefeuille', 'Wallet'), icon: Wallet, desc: tr(lang, 'Dépenses par alter et budget commun', 'Per-alter expenses and shared budget') },
+            { value: 'relax',     label: tr(lang, 'Détente', 'Relax'), icon: Wind, desc: tr(lang, 'Outils anti-dissociation', 'Anti-dissociation tools') },
+            { value: 'pluralkit', label: t.menuPluralKit,  icon: Link2,              desc: tr(lang, 'Synchronisation PluralKit', 'PluralKit synchronization') },
           ];
           return (
             <div className="space-y-8 max-w-4xl mx-auto w-full animate-fade-in duration-300">
               {/* Header */}
               <div>
                 <h2 className="text-2xl font-black uppercase tracking-wider">
-                  {lang === 'fr' ? 'Tableau de bord' : 'Dashboard'}
+                  {tr(lang, 'Tableau de bord', 'Dashboard')}
                 </h2>
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
                 </p>
@@ -12710,15 +12652,13 @@ export default function App() {
                     <Lock className="w-4 h-4" />
                   </div>
                   <p className="text-xs text-app-text flex-1">
-                    {lang === 'fr'
-                      ? "Protège l'accès à ton système avec un code."
-                      : 'Protect access to your system with a code.'}
+                    {tr(lang, "Protège l'accès à ton système avec un code.", 'Protect access to your system with a code.')}
                   </p>
                   <button
                     onClick={() => { startPinSetup(); setSettingsMenuOpen(true); dismissPinBanner(); }}
                     className="px-3 py-1.5 bg-app-accent text-app-accent-text rounded-lg text-[10px] font-black uppercase tracking-widest shrink-0"
                   >
-                    {lang === 'fr' ? 'Activer' : 'Enable'}
+                    {tr(lang, 'Activer', 'Enable')}
                   </button>
                   <button
                     onClick={dismissPinBanner}
@@ -12771,7 +12711,7 @@ export default function App() {
                 return (
                   <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                      {lang === 'fr' ? 'Actuellement en front' : 'Currently fronting'}
+                      {tr(lang, 'Actuellement en front', 'Currently fronting')}
                     </p>
                     <div className="space-y-3">
                       {/* Indicateur système "Flou / Blend" — état global, pas lié à un alter précis */}
@@ -12788,10 +12728,10 @@ export default function App() {
                               className="flex items-center gap-2 border rounded-full pl-3 pr-1 py-1 text-xs font-bold text-fuchsia-500 border-fuchsia-500/30"
                               style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.08), rgba(236,72,153,0.08), rgba(99,102,241,0.08))' }}
                             >
-                              <span>✦ {lang === 'fr' ? 'Système en flou' : 'System in blend'}</span>
+                              <span>✦ {tr(lang, 'Système en flou', 'System in blend')}</span>
                               <button
                                 onClick={() => setSystemInBlend(false)}
-                                title={lang === 'fr' ? 'Sortir du flou' : 'Exit blend'}
+                                title={tr(lang, 'Sortir du flou', 'Exit blend')}
                                 className="w-5 h-5 rounded-full flex items-center justify-center hover:bg-fuchsia-500/10 transition-colors flex-shrink-0"
                               >
                                 <X className="w-3 h-3" />
@@ -12825,7 +12765,7 @@ export default function App() {
                                 </button>
                                 <button
                                   onClick={() => handleRemoveFromFront(a.id)}
-                                  title={lang === 'fr' ? 'Retirer du front' : 'Remove from front'}
+                                  title={tr(lang, 'Retirer du front', 'Remove from front')}
                                   className="w-5 h-5 rounded-full flex items-center justify-center text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
                                 >
                                   <X className="w-3 h-3" />
@@ -12862,7 +12802,7 @@ export default function App() {
                     type="text"
                     value={systemSearch}
                     onChange={e => setSystemSearch(e.target.value)}
-                    placeholder={lang === 'fr' ? 'Rechercher...' : 'Search...'}
+                    placeholder={tr(lang, 'Rechercher...', 'Search...')}
                     className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-48 text-app-text placeholder:text-app-muted"
                   />
                   {systemSearch && (
@@ -12903,7 +12843,7 @@ export default function App() {
                       }
                       if (e.key === 'Escape') { setRoleFilterInput(''); setRoleFilterSuggestions([]); }
                     }}
-                    placeholder={lang === 'fr' ? 'Filtrer par rôle...' : 'Filter by role...'}
+                    placeholder={tr(lang, 'Filtrer par rôle...', 'Filter by role...')}
                     className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full text-app-text placeholder:text-app-muted"
                   />
                   {/* Suggestions */}
@@ -12925,7 +12865,7 @@ export default function App() {
                 {/* Tags actifs */}
                 {roleFilter.length > 0 && (
                   <div className="flex flex-wrap gap-1.5 items-center">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Rôles :' : 'Roles:'}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Rôles :', 'Roles:')}</span>
                     {roleFilter.map(r => (
                       <button
                         key={r}
@@ -12938,7 +12878,7 @@ export default function App() {
                       </button>
                     ))}
                     <button onClick={() => setRoleFilter([])} className="text-[10px] text-app-muted hover:text-app-text font-bold underline underline-offset-2 transition-colors">
-                      {lang === 'fr' ? 'Tout effacer' : 'Clear all'}
+                      {tr(lang, 'Tout effacer', 'Clear all')}
                     </button>
                   </div>
                 )}
@@ -12976,7 +12916,7 @@ export default function App() {
                           }
                           if (e.key === 'Escape') { setTagFilterInput(''); setTagFilterSuggestions([]); }
                         }}
-                        placeholder={lang === 'fr' ? 'Filtrer par tags...' : 'Filter by tags...'}
+                        placeholder={tr(lang, 'Filtrer par tags...', 'Filter by tags...')}
                         className="bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-app-accent/20 w-full text-app-text placeholder:text-app-muted"
                       />
                       {/* Suggestions */}
@@ -12998,7 +12938,7 @@ export default function App() {
                     {/* Tags actifs */}
                     {tagFilter.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 items-center">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Tags :' : 'Tags:'}</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Tags :', 'Tags:')}</span>
                         {tagFilter.map(tg => (
                           <button
                             key={tg}
@@ -13010,7 +12950,7 @@ export default function App() {
                           </button>
                         ))}
                         <button onClick={() => setTagFilter([])} className="text-[10px] text-app-muted hover:text-app-text font-bold underline underline-offset-2 transition-colors">
-                          {lang === 'fr' ? 'Tout effacer' : 'Clear all'}
+                          {tr(lang, 'Tout effacer', 'Clear all')}
                         </button>
                       </div>
                     )}
@@ -13048,7 +12988,7 @@ export default function App() {
                       className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors"
                     >
                       <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                      {lang === 'fr' ? 'Mon Système' : 'My System'}
+                      {tr(lang, 'Mon Système', 'My System')}
                     </button>
                     <div className="flex items-center gap-3 pb-4 border-b border-app-border/30">
                       <div className="w-10 h-10 rounded-xl bg-app-accent/10 border border-app-accent/20 flex items-center justify-center text-app-accent">
@@ -13074,13 +13014,13 @@ export default function App() {
                           </button>
                         )}
                         <p className="text-[10px] text-app-muted uppercase font-bold tracking-widest">
-                          {subAlters.length} alters{childSubs.length > 0 && ` · ${childSubs.length} ${lang === 'fr' ? 'sous-systèmes' : 'subsystems'}`}
+                          {subAlters.length} alters{childSubs.length > 0 && ` · ${childSubs.length} ${tr(lang, 'sous-systèmes', 'subsystems')}`}
                         </p>
                       </div>
                     </div>
                     {childSubs.length > 0 && (
                       <div className="space-y-2">
-                        <p className="text-[10px] font-black uppercase tracking-widest text-app-muted px-1">{lang === 'fr' ? 'Sous-systèmes' : 'Subsystems'}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-app-muted px-1">{tr(lang, 'Sous-systèmes', 'Subsystems')}</p>
                         {childSubs.map(c => renderSubsystemNode(c.id))}
                       </div>
                     )}
@@ -13091,7 +13031,7 @@ export default function App() {
                     ) : (
                       <div className="p-8 text-center bg-app-card/30 rounded-2xl border border-app-border/20">
                         <p className="text-sm text-app-muted uppercase tracking-wider font-semibold">
-                          {lang === 'fr' ? 'Aucun alter dans ce sous-système' : 'No alters in this subsystem'}
+                          {tr(lang, 'Aucun alter dans ce sous-système', 'No alters in this subsystem')}
                         </p>
                       </div>
                     )}
@@ -13119,8 +13059,8 @@ export default function App() {
                         </h3>
                         <p className="text-[10px] text-app-muted uppercase font-bold tracking-widest">
                           {activeSystemId === 'main'
-                            ? (lang === 'fr' ? 'Système Parent Principal' : 'Primary Parent System')
-                            : (lang === 'fr' ? 'Système Parallèle' : 'Parallel System')}
+                            ? (tr(lang, 'Système Parent Principal', 'Primary Parent System'))
+                            : (tr(lang, 'Système Parallèle', 'Parallel System'))}
                         </p>
                       </div>
                     </div>
@@ -13157,7 +13097,7 @@ export default function App() {
                   className="flex items-center gap-3 px-5 py-4 bg-app-card/65 border border-app-border/30 rounded-2xl text-sm font-bold hover:bg-app-card hover:border-app-accent/40 transition-all group"
                 >
                   <Archive className="w-4 h-4 text-app-muted group-hover:text-app-accent transition-colors" />
-                  <span className="text-app-text">{lang === 'fr' ? 'Alters archivés' : 'Archived Alters'}</span>
+                  <span className="text-app-text">{tr(lang, 'Alters archivés', 'Archived Alters')}</span>
                   {savedAlters.some(a => a.archived) && (
                     <span className="ml-1 px-2 py-0.5 rounded-full bg-app-bg border border-app-border/30 text-[10px] font-black text-app-muted">
                       {savedAlters.filter(a => a.archived).length}
@@ -13181,7 +13121,7 @@ export default function App() {
                       <div className="flex items-center gap-3">
                         <Archive className="w-5 h-5 text-app-accent" />
                         <h2 className="text-base font-black uppercase tracking-widest text-app-text">
-                          {lang === 'fr' ? 'Alters archivés' : 'Archived Alters'}
+                          {tr(lang, 'Alters archivés', 'Archived Alters')}
                         </h2>
                         {savedAlters.some(a => a.archived) && (
                           <span className="px-2 py-0.5 rounded-full bg-app-card border border-app-border/30 text-[10px] font-black text-app-muted">
@@ -13205,7 +13145,7 @@ export default function App() {
                           type="text"
                           value={archivesSearch}
                           onChange={e => setArchivesSearch(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Rechercher un alter archivé...' : 'Search archived alter...'}
+                          placeholder={tr(lang, 'Rechercher un alter archivé...', 'Search archived alter...')}
                           className="w-full bg-app-card border border-app-border/30 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                         />
                       </div>
@@ -13217,7 +13157,7 @@ export default function App() {
                         <div className="flex flex-col items-center justify-center py-16 text-app-muted gap-3">
                           <Archive className="w-10 h-10 opacity-20" />
                           <p className="text-sm font-semibold opacity-50">
-                            {lang === 'fr' ? 'Aucun alter archivé' : 'No archived alters'}
+                            {tr(lang, 'Aucun alter archivé', 'No archived alters')}
                           </p>
                         </div>
                       ) : (() => {
@@ -13229,7 +13169,7 @@ export default function App() {
                           <div className="flex flex-col items-center justify-center py-16 text-app-muted gap-3">
                             <Search className="w-10 h-10 opacity-20" />
                             <p className="text-sm font-semibold opacity-50">
-                              {lang === 'fr' ? 'Aucun résultat' : 'No results'}
+                              {tr(lang, 'Aucun résultat', 'No results')}
                             </p>
                           </div>
                         ) : (
@@ -13286,7 +13226,7 @@ export default function App() {
                         onChange={(e) => setNewSubParentId(e.target.value)}
                         className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none"
                       >
-                        <option value="">{lang === 'fr' ? `Sous : ${mainSystemName} (Principal)` : `Under: ${mainSystemName} (Primary)`}</option>
+                        <option value="">{trf(lang, `Sous : {0} (Principal)`, `Under: {0} (Primary)`, [mainSystemName])}</option>
                         {activeSystemSubsystems.map(s => (
                           <option key={s.id} value={s.id}>{s.name}</option>
                         ))}
@@ -13297,7 +13237,7 @@ export default function App() {
                       type="submit"
                       className="w-full py-3 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors"
                     >
-                      {lang === 'fr' ? 'Créer le sous-système' : 'Create subsystem'}
+                      {tr(lang, 'Créer le sous-système', 'Create subsystem')}
                     </button>
                   </form>
                 </div>
@@ -13306,12 +13246,10 @@ export default function App() {
                 <div className="p-6 bg-app-card/65 rounded-2xl border border-app-border/30 space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-wider text-app-text flex items-center gap-2">
                     <GitBranch className="w-4 h-4" />
-                    <span>{lang === 'fr' ? 'Systèmes Parallèles' : 'Parallel Systems'}</span>
+                    <span>{tr(lang, 'Systèmes Parallèles', 'Parallel Systems')}</span>
                   </h3>
                   <p className="text-[10px] text-app-muted leading-relaxed">
-                    {lang === 'fr'
-                      ? 'Un système parallèle est indépendant du système principal — il a ses propres alters, ses propres sous-systèmes et son propre mapping.'
-                      : 'A parallel system is independent from the main system — it has its own alters, subsystems and mapping.'}
+                    {tr(lang, 'Un système parallèle est indépendant du système principal — il a ses propres alters, ses propres sous-systèmes et son propre mapping.', 'A parallel system is independent from the main system — it has its own alters, subsystems and mapping.')}
                   </p>
 
                   {/* Liste des systèmes parallèles */}
@@ -13326,7 +13264,7 @@ export default function App() {
                             {activeSystemId === sys.id && <span className="mr-1.5 text-app-accent">✦</span>}
                             {sys.name}
                             <span className="ml-2 text-app-muted font-normal text-[10px]">
-                              ({savedAlters.filter(a => a.systemId === sys.id).length} {lang === 'fr' ? 'alters' : 'alters'})
+                              ({savedAlters.filter(a => a.systemId === sys.id).length} {tr(lang, 'alters', 'alters')})
                             </span>
                           </button>
                           <button
@@ -13336,19 +13274,17 @@ export default function App() {
                               setShowParallelSystemForm(true);
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-app-card text-app-muted hover:text-app-text transition-all"
-                            title={lang === 'fr' ? 'Renommer' : 'Rename'}
+                            title={tr(lang, 'Renommer', 'Rename')}
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
                           <button
                             onClick={() => {
-                              if (window.confirm(lang === 'fr'
-                                ? `Supprimer "${sys.name}" et tous ses alters ? Cette action est irréversible.`
-                                : `Delete "${sys.name}" and all its alters? This cannot be undone.`
+                              if (window.confirm(trf(lang, `Supprimer "{0}" et tous ses alters ? Cette action est irréversible.`, `Delete "{0}" and all its alters? This cannot be undone.`, [sys.name])
                               )) handleDeleteParallelSystem(sys.id);
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all"
-                            title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                            title={tr(lang, 'Supprimer', 'Delete')}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -13364,7 +13300,7 @@ export default function App() {
                         type="text"
                         value={parallelSystemFormName}
                         onChange={e => setParallelSystemFormName(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Nom du système parallèle...' : 'Parallel system name...'}
+                        placeholder={tr(lang, 'Nom du système parallèle...', 'Parallel system name...')}
                         className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                         autoFocus
                       />
@@ -13374,8 +13310,8 @@ export default function App() {
                           className="flex-1 py-2.5 bg-app-accent hover:opacity-90 text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors"
                         >
                           {editingParallelSystemId
-                            ? (lang === 'fr' ? 'Renommer' : 'Rename')
-                            : (lang === 'fr' ? 'Créer' : 'Create')}
+                            ? (tr(lang, 'Renommer', 'Rename'))
+                            : (tr(lang, 'Créer', 'Create'))}
                         </button>
                         <button
                           onClick={() => { setShowParallelSystemForm(false); setEditingParallelSystemId(null); setParallelSystemFormName(''); }}
@@ -13389,7 +13325,7 @@ export default function App() {
                       className="w-full py-3 bg-app-card border border-dashed border-app-border hover:border-app-accent hover:text-app-accent rounded-xl text-xs font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      {lang === 'fr' ? 'Ajouter un système parallèle' : 'Add a parallel system'}
+                      {tr(lang, 'Ajouter un système parallèle', 'Add a parallel system')}
                     </button>
                   )}
                 </div>
@@ -13419,7 +13355,7 @@ export default function App() {
                   onClick={handleClearChat}
                   className="px-4 py-2 bg-app-card border border-app-border hover:border-red-500 hover:text-red-500 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors animate-pulse"
                 >
-                  {lang === 'fr' ? 'Effacer la conversation' : 'Clear Chat'}
+                  {tr(lang, 'Effacer la conversation', 'Clear Chat')}
                 </button>
               )}
             </div>
@@ -13438,11 +13374,11 @@ export default function App() {
                 {/* Recherche alter */}
                 {(() => {
                   const filtered = [
-                    {id: 'external', alterName: lang === 'fr' ? 'Hôte / Système' : 'Host / System', profileImage: null as string|null|undefined},
+                    {id: 'external', alterName: tr(lang, 'Hôte / Système', 'Host / System'), profileImage: null as string|null|undefined},
                     ...[...savedAlters].sort((a,b) => (a.alterName||'').localeCompare(b.alterName||'', lang))
                   ].filter(a => !chatSpeakerSearch || (a.alterName||'').toLowerCase().includes(chatSpeakerSearch.toLowerCase()));
                   const current = chatSpeakerId === 'external'
-                    ? {id:'external', alterName: lang==='fr' ? 'Hôte / Système' : 'Host / System', profileImage: null}
+                    ? {id:'external', alterName: tr(lang, 'Hôte / Système', 'Host / System'), profileImage: null}
                     : savedAlters.find(a => a.id === chatSpeakerId);
                   return (
                     <div className="relative">
@@ -13467,7 +13403,7 @@ export default function App() {
                                 type="text"
                                 value={chatSpeakerSearch}
                                 onChange={e => setChatSpeakerSearch(e.target.value)}
-                                placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                placeholder={tr(lang, 'Rechercher un alter…', 'Search alter…')}
                                 className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                 onClick={e => e.stopPropagation()}
                               />
@@ -13520,12 +13456,12 @@ export default function App() {
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-app-text/80 flex items-center gap-2">
                     <Hash className="w-4 h-4 text-app-text" />
-                    {lang === 'fr' ? 'Salons' : 'Channels'}
+                    {tr(lang, 'Salons', 'Channels')}
                   </label>
                   <button
                     onClick={() => { setEditingSalonId(null); setSalonFormName(''); setSalonFormEmoji('💬'); setShowSalonForm(v => !v); }}
                     className="p-1 rounded-lg hover:bg-app-accent/10 text-app-accent transition-colors"
-                    title={lang === 'fr' ? 'Créer un salon' : 'Create channel'}
+                    title={tr(lang, 'Créer un salon', 'Create channel')}
                   >
                     <Plus className="w-3.5 h-3.5" />
                   </button>
@@ -13548,7 +13484,7 @@ export default function App() {
                         value={salonFormName}
                         onChange={e => setSalonFormName(e.target.value)}
                         className="flex-1 bg-app-bg border border-app-border rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-app-accent/20 outline-none"
-                        placeholder={lang === 'fr' ? 'Nom du salon...' : 'Channel name...'}
+                        placeholder={tr(lang, 'Nom du salon...', 'Channel name...')}
                       />
                     </div>
                     <div className="flex gap-2">
@@ -13572,7 +13508,7 @@ export default function App() {
                         }}
                         className="flex-1 py-1.5 bg-app-accent text-white rounded-lg text-xs font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
                       >
-                        {editingSalonId ? (lang === 'fr' ? 'Modifier' : 'Update') : (lang === 'fr' ? 'Créer' : 'Create')}
+                        {editingSalonId ? (tr(lang, 'Modifier', 'Update')) : (tr(lang, 'Créer', 'Create'))}
                       </button>
                       <button
                         onClick={() => { setShowSalonForm(false); setEditingSalonId(null); }}
@@ -13619,7 +13555,7 @@ export default function App() {
                             className={`opacity-0 group-hover:opacity-100 p-1.5 rounded-lg transition-all shrink-0 ${
                               rightsOpen ? 'opacity-100 bg-app-accent/10 text-app-accent' : 'hover:bg-app-bg text-app-muted hover:text-app-accent'
                             }`}
-                            title={lang === 'fr' ? "Droits d'accès" : 'Access rights'}
+                            title={tr(lang, "Droits d'accès", 'Access rights')}
                           >
                             <Shield className="w-3 h-3" />
                           </button>
@@ -13633,7 +13569,7 @@ export default function App() {
                               setShowSalonForm(true);
                             }}
                             className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-app-bg text-app-muted hover:text-app-text transition-all shrink-0"
-                            title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                            title={tr(lang, 'Modifier', 'Edit')}
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
@@ -13646,7 +13582,7 @@ export default function App() {
                                 if (activeSalonId === salon.id) setActiveSalonId(chatSalons.find(s => s.id !== salon.id)?.id || DEFAULT_SALON_ID);
                               }}
                               className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all shrink-0"
-                              title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                              title={tr(lang, 'Supprimer', 'Delete')}
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
@@ -13664,7 +13600,7 @@ export default function App() {
                                   isBlacklist ? 'bg-app-accent text-white' : 'bg-app-card text-app-muted hover:text-app-text'
                                 }`}
                               >
-                                {lang === 'fr' ? 'Bloquer' : 'Block'}
+                                {tr(lang, 'Bloquer', 'Block')}
                               </button>
                               <button
                                 onClick={() => setChatSalons(prev => prev.map(s => s.id === salon.id ? { ...s, accessMode: 'whitelist' } : s))}
@@ -13672,19 +13608,19 @@ export default function App() {
                                   !isBlacklist ? 'bg-app-accent text-white' : 'bg-app-card text-app-muted hover:text-app-text'
                                 }`}
                               >
-                                {lang === 'fr' ? 'Autoriser' : 'Allow'}
+                                {tr(lang, 'Autoriser', 'Allow')}
                               </button>
                             </div>
                             <p className="text-app-muted text-[10px] leading-tight">
                               {isBlacklist
-                                ? (lang === 'fr' ? 'Les alters cochés sont bloqués.' : 'Checked alters are blocked.')
-                                : (lang === 'fr' ? 'Seuls les alters cochés ont accès.' : 'Only checked alters can access.')
+                                ? (tr(lang, 'Les alters cochés sont bloqués.', 'Checked alters are blocked.'))
+                                : (tr(lang, 'Seuls les alters cochés ont accès.', 'Only checked alters can access.'))
                               }
                             </p>
                             {/* Liste des alters */}
                             <div className="space-y-1 max-h-40 overflow-y-auto">
                               {savedAlters.length === 0 && (
-                                <p className="text-app-muted italic">{lang === 'fr' ? 'Aucun alter enregistré.' : 'No alters saved.'}</p>
+                                <p className="text-app-muted italic">{tr(lang, 'Aucun alter enregistré.', 'No alters saved.')}</p>
                               )}
                               {[...savedAlters].sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang)).map(alter => {
                                 const checked = ids.includes(alter.id);
@@ -13740,8 +13676,8 @@ export default function App() {
                   {salonIds.length > 0 && (
                     <span className="ml-auto text-[10px] text-app-muted font-bold">
                       {salonIsBlacklist
-                        ? `${salonIds.length} ${lang === 'fr' ? 'bloqué(s)' : 'blocked'}`
-                        : `${salonIds.length} ${lang === 'fr' ? 'autorisé(s)' : 'allowed'}`}
+                        ? `${salonIds.length} ${tr(lang, 'bloqué(s)', 'blocked')}`
+                        : `${salonIds.length} ${tr(lang, 'autorisé(s)', 'allowed')}`}
                     </span>
                   )}
                 </div>
@@ -13751,12 +13687,10 @@ export default function App() {
                     <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
                       <Lock className="w-10 h-10 text-app-muted opacity-40" />
                       <p className="text-xs text-app-muted uppercase tracking-widest font-black">
-                        {lang === 'fr' ? 'Accès refusé à ce salon.' : 'Access denied to this channel.'}
+                        {tr(lang, 'Accès refusé à ce salon.', 'Access denied to this channel.')}
                       </p>
                       <p className="text-[10px] text-app-muted opacity-70">
-                        {lang === 'fr'
-                          ? `${savedAlters.find(a => a.id === chatSpeakerId)?.alterName || ''} n'a pas accès à ce salon.`
-                          : `${savedAlters.find(a => a.id === chatSpeakerId)?.alterName || ''} cannot access this channel.`}
+                        {trf(lang, `{0} n'a pas accès à ce salon.`, `{0} cannot access this channel.`, [savedAlters.find(a => a.id === chatSpeakerId)?.alterName || ''])}
                       </p>
                     </div>
                   ) : (
@@ -13765,7 +13699,7 @@ export default function App() {
                     <div className="h-full flex flex-col justify-center items-center text-center p-8 space-y-3">
                       <MessageSquareQuote className="w-10 h-10 text-app-muted opacity-30 animate-bounce" />
                       <p className="text-xs text-app-muted uppercase tracking-widest font-black">
-                        {lang === 'fr' ? 'Aucun message interne.' : 'No internal messages logged.'}
+                        {tr(lang, 'Aucun message interne.', 'No internal messages logged.')}
                       </p>
                     </div>
                   )}
@@ -13786,7 +13720,7 @@ export default function App() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-extrabold text-xs text-app-text">
-                              {isSystem ? (lang === 'fr' ? 'Hôte / Système' : 'Host / System') : matchedAlter?.alterName}
+                              {isSystem ? (tr(lang, 'Hôte / Système', 'Host / System')) : matchedAlter?.alterName}
                             </span>
                             <span className="text-[9px] text-app-muted font-bold font-mono">
                               {formatMessageTimestamp(msg.timestamp)}
@@ -13828,7 +13762,7 @@ export default function App() {
                         <div className="flex items-center gap-2">
                           <BarChart3 className="w-4.5 h-4.5 text-app-accent animate-pulse" />
                           <h4 className="text-xs font-black uppercase tracking-widest text-app-text">
-                            {lang === 'fr' ? 'Créer un sondage' : 'Create Poll'}
+                            {tr(lang, 'Créer un sondage', 'Create Poll')}
                           </h4>
                         </div>
                         <button 
@@ -13843,14 +13777,14 @@ export default function App() {
                       <form onSubmit={handleSendChatPoll} className="space-y-3.5">
                         <div className="space-y-1">
                           <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
-                            {lang === 'fr' ? 'Question du sondage' : 'Poll Question'}
+                            {tr(lang, 'Question du sondage', 'Poll Question')}
                           </label>
                           <input
                             type="text"
                             required
                             value={pollQuestion}
                             onChange={(e) => setPollQuestion(e.target.value)}
-                            placeholder={lang === 'fr' ? "Qu'allons-nous décider ?" : "What should we decide?"}
+                            placeholder={tr(lang, "Qu'allons-nous décider ?", "What should we decide?")}
                             className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-xs focus:ring-1 focus:ring-app-accent focus:outline-none"
                           />
                         </div>
@@ -13871,7 +13805,7 @@ export default function App() {
                                     updated[idx] = e.target.value;
                                     setPollOptions(updated);
                                   }}
-                                  placeholder={`${lang === 'fr' ? 'Option' : 'Option'} ${idx + 1}`}
+                                  placeholder={`${tr(lang, 'Option', 'Option')} ${idx + 1}`}
                                   className="flex-1 bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-xs focus:ring-1 focus:ring-app-accent focus:outline-none"
                                 />
                                 {pollOptions.length > 2 && (
@@ -13893,7 +13827,7 @@ export default function App() {
                             className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-app-accent bg-app-accent/10 px-3 py-1.5 rounded-lg hover:bg-app-accent/15 transition-all text-xs border border-transparent"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                            {lang === 'fr' ? 'Ajouter une option' : 'Add option'}
+                            {tr(lang, 'Ajouter une option', 'Add option')}
                           </button>
                         </div>
 
@@ -13901,7 +13835,7 @@ export default function App() {
                         <div className="grid grid-cols-2 gap-3 pb-2">
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
-                              {lang === 'fr' ? 'Durée du timer' : 'Timer Duration'}
+                              {tr(lang, 'Durée du timer', 'Timer Duration')}
                             </label>
                             <input
                               type="number"
@@ -13914,16 +13848,16 @@ export default function App() {
                           </div>
                           <div className="space-y-1">
                             <label className="text-[9px] font-black uppercase tracking-widest text-app-muted block">
-                              {lang === 'fr' ? 'Unité de temps' : 'Time Unit'}
+                              {tr(lang, 'Unité de temps', 'Time Unit')}
                             </label>
                             <select
                               value={pollDurationUnit}
                               onChange={(e) => setPollDurationUnit(e.target.value as any)}
                               className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-xs focus:outline-none"
                             >
-                              <option value="minutes">{lang === 'fr' ? 'Minutes' : 'Minutes'}</option>
-                              <option value="hours">{lang === 'fr' ? 'Heures' : 'Hours'}</option>
-                              <option value="days">{lang === 'fr' ? 'Jours' : 'Days'}</option>
+                              <option value="minutes">{tr(lang, 'Minutes', 'Minutes')}</option>
+                              <option value="hours">{tr(lang, 'Heures', 'Hours')}</option>
+                              <option value="days">{tr(lang, 'Jours', 'Days')}</option>
                             </select>
                           </div>
                         </div>
@@ -13938,13 +13872,13 @@ export default function App() {
                             }}
                             className="px-4 py-2 bg-app-bg border border-app-border text-[9px] font-black uppercase tracking-widest text-app-text rounded-xl hover:bg-app-accent/5 transition-all"
                           >
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                           <button
                             type="submit"
                             className="px-5 py-2 bg-app-text text-app-bg hover:opacity-90 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
                           >
-                            {lang === 'fr' ? 'Créer le Sondage' : 'Create Poll'}
+                            {tr(lang, 'Créer le Sondage', 'Create Poll')}
                           </button>
                         </div>
                       </form>
@@ -13966,7 +13900,7 @@ export default function App() {
                         autoFocus
                         value={chatImageUrlInput}
                         onChange={e => setChatImageUrlInput(e.target.value)}
-                        placeholder={lang === 'fr' ? 'Colle le lien de l\'image ici…' : 'Paste the image link here…'}
+                        placeholder={tr(lang, 'Colle le lien de l\'image ici…', 'Paste the image link here…')}
                         className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/25"
                       />
                       <button
@@ -13978,7 +13912,7 @@ export default function App() {
                         }}
                         className="px-3 py-2 bg-app-text text-app-bg rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 shrink-0"
                       >
-                        {lang === 'fr' ? 'Insérer' : 'Insert'}
+                        {tr(lang, 'Insérer', 'Insert')}
                       </button>
                       <button
                         type="button"
@@ -13995,7 +13929,7 @@ export default function App() {
                 <form onSubmit={handleSendChatMessage} className="p-4 border-t border-app-border/30 bg-app-card/65 flex gap-3 items-center">
                   <label
                     className="shrink-0 p-3.5 border border-app-border rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
-                    title={lang === 'fr' ? 'Importer une image ou un GIF' : 'Upload an image or GIF'}
+                    title={tr(lang, 'Importer une image ou un GIF', 'Upload an image or GIF')}
                   >
                     <Upload className="w-4 h-4" />
                     <input
@@ -14015,7 +13949,7 @@ export default function App() {
                     type="button"
                     onClick={() => setChatImageUrlInput(chatImageUrlInput === null ? '' : null)}
                     className={`shrink-0 p-3.5 border rounded-xl transition-colors ${chatImageUrlInput !== null ? 'text-app-accent border-app-accent/40 bg-app-accent/5' : 'text-app-muted border-app-border hover:text-app-accent hover:border-app-accent/40'}`}
-                    title={lang === 'fr' ? 'Insérer une image ou un GIF par URL' : 'Insert an image or GIF by URL'}
+                    title={tr(lang, 'Insérer une image ou un GIF par URL', 'Insert an image or GIF by URL')}
                   >
                     <ImageIcon className="w-4 h-4" />
                   </button>
@@ -14030,7 +13964,7 @@ export default function App() {
                     type="submit"
                     className="shrink-0 px-4 sm:px-6 py-3.5 bg-app-text text-app-bg hover:opacity-90 rounded-xl font-bold text-xs uppercase tracking-widest transition-opacity"
                   >
-                    {lang === 'fr' ? 'Envoyer' : 'Send'}
+                    {tr(lang, 'Envoyer', 'Send')}
                   </button>
                 </form>
 
@@ -14044,10 +13978,10 @@ export default function App() {
                         ? 'bg-app-accent text-white border-transparent' 
                         : 'bg-app-bg/50 border-app-border hover:bg-app-bg text-app-text'
                     }`}
-                    title={lang === 'fr' ? 'Créer un sondage' : 'Create a poll'}
+                    title={tr(lang, 'Créer un sondage', 'Create a poll')}
                   >
                     <BarChart3 className="w-4 h-4" />
-                    <span>{lang === 'fr' ? 'Créer un sondage' : 'Create Poll'}</span>
+                    <span>{tr(lang, 'Créer un sondage', 'Create Poll')}</span>
                   </button>
                 </div>
               </div>
@@ -14071,14 +14005,14 @@ export default function App() {
               <div id="switch-form" className="md:col-span-12 lg:col-span-5 p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-6 scroll-mt-4">
                 <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
                   <UserCheck className="w-4 h-4" />
-                  <span>{editingSwitchLogId ? (lang === 'fr' ? 'Modifier un switch' : 'Edit a switch') : (lang === 'fr' ? 'Déclarer un Front' : 'Declare Front')}</span>
+                  <span>{editingSwitchLogId ? (tr(lang, 'Modifier un switch', 'Edit a switch')) : (tr(lang, 'Déclarer un Front', 'Declare Front'))}</span>
                 </h3>
 
                 {editingSwitchLogId && (
                   <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-app-accent/10 border border-app-accent/30 text-[11px] font-bold text-app-text">
-                    <span>{lang === 'fr' ? 'Tu modifies un switch existant. Le front actuel ne change pas.' : 'You are editing an existing switch. The current front is unchanged.'}</span>
+                    <span>{tr(lang, 'Tu modifies un switch existant. Le front actuel ne change pas.', 'You are editing an existing switch. The current front is unchanged.')}</span>
                     <button type="button" onClick={resetSwitchForm} className="shrink-0 underline underline-offset-2 text-app-muted hover:text-app-text">
-                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      {tr(lang, 'Annuler', 'Cancel')}
                     </button>
                   </div>
                 )}
@@ -14086,11 +14020,11 @@ export default function App() {
                 <form onSubmit={handleSubmitSwitch} className="space-y-5">
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'fr' ? '1. Sélectionner l\'alter / les alters :' : '1. Select the alter(s):'}
+                      {tr(lang, '1. Sélectionner l\'alter / les alters :', '1. Select the alter(s):')}
                     </label>
                     
                     {savedAlters.length === 0 ? (
-                      <p className="text-xs text-app-muted">{lang === 'fr' ? "Aucun alter disponible. Créez des fiches d'abord !" : 'No alters available. Create cards first!'}</p>
+                      <p className="text-xs text-app-muted">{tr(lang, "Aucun alter disponible. Créez des fiches d'abord !", 'No alters available. Create cards first!')}</p>
                     ) : (
                       <div className="space-y-2">
                         {/* Tags des alters sélectionnés */}
@@ -14118,7 +14052,7 @@ export default function App() {
                             type="text"
                             value={switchAlterSearch}
                             onChange={e => setSwitchAlterSearch(e.target.value)}
-                            placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                            placeholder={tr(lang, 'Rechercher un alter…', 'Search alter…')}
                             className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                           />
                           {switchAlterSearch.trim().length > 0 && (
@@ -14150,7 +14084,7 @@ export default function App() {
                                 ))
                               }
                               {[...savedAlters].filter(a => (a.alterName||'').toLowerCase().includes(switchAlterSearch.toLowerCase())).length === 0 && (
-                                <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                <p className="px-4 py-3 text-xs text-app-muted">{tr(lang, 'Aucun résultat', 'No results')}</p>
                               )}
                             </div>
                           )}
@@ -14168,7 +14102,7 @@ export default function App() {
                     {FRONT_STATUS_CATEGORIES.map(category => (
                       <div key={category.key} className={`space-y-1.5 transition-opacity ${switchIsBlend ? 'opacity-40' : ''}`}>
                         <span className="text-[9px] font-black uppercase tracking-widest text-app-muted/70">
-                          {lang === 'fr' ? category.labelFr : category.labelEn}
+                          {tr(lang, category.labelFr, category.labelEn)}
                         </span>
                         <div className="grid grid-cols-2 gap-2.5">
                           {category.statuses.map((statusKey) => (
@@ -14203,7 +14137,7 @@ export default function App() {
                       }`}
                       style={{ background: 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.12), rgba(99,102,241,0.12))' }}
                     >
-                      {switchIsBlend ? '✓ ' : ''}{lang === 'fr' ? '✦ Flou / Blend — sans sélectionner personne' : '✦ Blur / Blend — without selecting anyone'}
+                      {switchIsBlend ? '✓ ' : ''}{tr(lang, '✦ Flou / Blend — sans sélectionner personne', '✦ Blur / Blend — without selecting anyone')}
                     </button>
                   </div>
 
@@ -14212,7 +14146,7 @@ export default function App() {
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
                         <Timer className="w-3.5 h-3.5" />
-                        <span>{lang === 'fr' ? 'Entrée : date et heure' : 'Start: date and time'}</span>
+                        <span>{tr(lang, 'Entrée : date et heure', 'Start: date and time')}</span>
                       </label>
                       <div className="flex gap-2">
                         <input
@@ -14226,18 +14160,18 @@ export default function App() {
                           onClick={() => setSwitchRetroDate(toDateTimeLocal(Date.now()))}
                           className="shrink-0 px-3 rounded-xl bg-app-bg border border-app-border text-[10px] font-black uppercase tracking-wider text-app-muted hover:text-app-text transition-colors"
                         >
-                          {lang === 'fr' ? 'Maintenant' : 'Now'}
+                          {tr(lang, 'Maintenant', 'Now')}
                         </button>
                       </div>
                       <p className="text-[10px] text-app-muted">
-                        {lang === 'fr' ? 'Laisse vide pour « maintenant ». Choisis une date passée pour rétrodater.' : 'Leave empty for "now". Pick a past date to backdate.'}
+                        {tr(lang, 'Laisse vide pour « maintenant ». Choisis une date passée pour rétrodater.', 'Leave empty for "now". Pick a past date to backdate.')}
                       </p>
                     </div>
 
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted flex items-center gap-1.5">
                         <Timer className="w-3.5 h-3.5" />
-                        <span>{lang === 'fr' ? 'Sortie : date et heure (optionnel)' : 'End: date and time (optional)'}</span>
+                        <span>{tr(lang, 'Sortie : date et heure (optionnel)', 'End: date and time (optional)')}</span>
                       </label>
                       <div className="flex gap-2">
                         <input
@@ -14252,7 +14186,7 @@ export default function App() {
                             onClick={() => setSwitchEndDate('')}
                             className="shrink-0 px-3 rounded-xl bg-app-bg border border-app-border text-[10px] font-black uppercase tracking-wider text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Effacer' : 'Clear'}
+                            {tr(lang, 'Effacer', 'Clear')}
                           </button>
                         )}
                       </div>
@@ -14262,12 +14196,12 @@ export default function App() {
                   {/* Notes fields */}
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-app-muted">
-                      {lang === 'fr' ? 'Notes du Switch (optionnel)' : 'Switch Notes (optional)'}
+                      {tr(lang, 'Notes du Switch (optionnel)', 'Switch Notes (optional)')}
                     </label>
                     <textarea
                       value={switchNotes}
                       onChange={(e) => setSwitchNotes(e.target.value)}
-                      placeholder={lang === 'fr' ? 'Triggers, contexte, observations...' : 'Triggers, context, markers...'}
+                      placeholder={tr(lang, 'Triggers, contexte, observations...', 'Triggers, context, markers...')}
                       rows={3}
                       className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none text-app-text"
                     />
@@ -14282,7 +14216,7 @@ export default function App() {
                     disabled={!switchIsBlend && switchSelectedAlterIds.length === 0}
                     className="w-full py-3.5 bg-app-accent hover:opacity-90 disabled:opacity-20 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                   >
-                    {editingSwitchLogId ? (lang === 'fr' ? 'Enregistrer les modifications' : 'Save changes') : t.logSwitchButton}
+                    {editingSwitchLogId ? (tr(lang, 'Enregistrer les modifications', 'Save changes')) : t.logSwitchButton}
                   </button>
                 </form>
               </div>
@@ -14294,7 +14228,7 @@ export default function App() {
                 <div className="p-6 bg-app-card/65 border border-app-border/30 rounded-2xl space-y-4">
                   <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
                     <HeartPulse className="w-4 h-4" />
-                    <span>{lang === 'fr' ? 'Énergie & État du moment' : 'Energy & Current State'}</span>
+                    <span>{tr(lang, 'Énergie & État du moment', 'Energy & Current State')}</span>
                   </h3>
                   <MoodSpoonWidget
                     spoons={switchSpoons}
@@ -14308,44 +14242,44 @@ export default function App() {
                   {(() => {
                     const EMOTIONS = [
                       // Quadrant haut-droit : énergie haute + agréable
-                      {name: lang==='fr'?'Excité·e':'Excited',      x:.78,y:.15,color:'#ef9f27',desc:lang==='fr'?'Énergie débordante, très positif':'High energy, very positive'},
-                      {name: lang==='fr'?'Euphorique':'Euphoric',    x:.88,y:.25,color:'#f4c430',desc:lang==='fr'?'Exaltation intense':'Intense elation'},
-                      {name: lang==='fr'?'Enthousiaste':'Enthusiastic',x:.82,y:.32,color:'#d4a800',desc:lang==='fr'?'Élan, envie de faire':'Drive, eagerness'},
-                      {name: lang==='fr'?'Joyeux·se':'Joyful',      x:.85,y:.42,color:'#63991a',desc:lang==='fr'?'Humeur positive, légèreté':'Positive mood, lightness'},
-                      {name: lang==='fr'?'Confiant·e':'Confident',   x:.78,y:.52,color:'#1d9e75',desc:lang==='fr'?'Sûr·e de soi, stable':'Self-assured, stable'},
-                      {name: lang==='fr'?'Fier·e':'Proud',           x:.72,y:.38,color:'#2db87a',desc:lang==='fr'?'Satisfaction de soi':'Self-satisfaction'},
+                      {name: tr(lang, 'Excité·e', 'Excited'),      x:.78,y:.15,color:'#ef9f27',desc:tr(lang, 'Énergie débordante, très positif', 'High energy, very positive')},
+                      {name: tr(lang, 'Euphorique', 'Euphoric'),    x:.88,y:.25,color:'#f4c430',desc:tr(lang, 'Exaltation intense', 'Intense elation')},
+                      {name: tr(lang, 'Enthousiaste', 'Enthusiastic'),x:.82,y:.32,color:'#d4a800',desc:tr(lang, 'Élan, envie de faire', 'Drive, eagerness')},
+                      {name: tr(lang, 'Joyeux·se', 'Joyful'),      x:.85,y:.42,color:'#63991a',desc:tr(lang, 'Humeur positive, légèreté', 'Positive mood, lightness')},
+                      {name: tr(lang, 'Confiant·e', 'Confident'),   x:.78,y:.52,color:'#1d9e75',desc:tr(lang, 'Sûr·e de soi, stable', 'Self-assured, stable')},
+                      {name: tr(lang, 'Fier·e', 'Proud'),           x:.72,y:.38,color:'#2db87a',desc:tr(lang, 'Satisfaction de soi', 'Self-satisfaction')},
                       // Quadrant bas-droit : énergie basse + agréable
-                      {name: lang==='fr'?'Serein·e':'Serene',        x:.68,y:.68,color:'#0f8060',desc:lang==='fr'?'Calme profond, bien-être':'Deep calm, well-being'},
-                      {name: lang==='fr'?'Détendu·e':'Relaxed',      x:.55,y:.82,color:'#076e52',desc:lang==='fr'?'Relâché·e, sans tension':'Released, no tension'},
-                      {name: lang==='fr'?'Reconnaissant·e':'Grateful',x:.72,y:.75,color:'#1a7a4a',desc:lang==='fr'?'Gratitude, chaleur intérieure':'Gratitude, inner warmth'},
-                      {name: lang==='fr'?'Nostalgique':'Nostalgic',   x:.60,y:.72,color:'#5b8fa8',desc:lang==='fr'?'Doux souvenir, mélancolie douce':'Sweet memory, gentle melancholy'},
-                      {name: lang==='fr'?'Apaisé·e':'Soothed',       x:.62,y:.88,color:'#0a5c40',desc:lang==='fr'?'Tension relâchée':'Tension released'},
+                      {name: tr(lang, 'Serein·e', 'Serene'),        x:.68,y:.68,color:'#0f8060',desc:tr(lang, 'Calme profond, bien-être', 'Deep calm, well-being')},
+                      {name: tr(lang, 'Détendu·e', 'Relaxed'),      x:.55,y:.82,color:'#076e52',desc:tr(lang, 'Relâché·e, sans tension', 'Released, no tension')},
+                      {name: tr(lang, 'Reconnaissant·e', 'Grateful'),x:.72,y:.75,color:'#1a7a4a',desc:tr(lang, 'Gratitude, chaleur intérieure', 'Gratitude, inner warmth')},
+                      {name: tr(lang, 'Nostalgique', 'Nostalgic'),   x:.60,y:.72,color:'#5b8fa8',desc:tr(lang, 'Doux souvenir, mélancolie douce', 'Sweet memory, gentle melancholy')},
+                      {name: tr(lang, 'Apaisé·e', 'Soothed'),       x:.62,y:.88,color:'#0a5c40',desc:tr(lang, 'Tension relâchée', 'Tension released')},
                       // Quadrant bas-gauche : énergie basse + désagréable
-                      {name: lang==='fr'?'Fatigué·e':'Tired',        x:.28,y:.82,color:'#888780',desc:lang==='fr'?"Manque d'énergie, épuisement":'Low energy, exhaustion'},
-                      {name: lang==='fr'?'Triste':'Sad',              x:.20,y:.72,color:'#185fa5',desc:lang==='fr'?'Mélancolie, abattement':'Melancholy, low mood'},
-                      {name: lang==='fr'?'Déprimé·e':'Depressed',    x:.15,y:.60,color:'#0c447c',desc:lang==='fr'?'Humeur très basse, vide':'Very low mood, emptiness'},
-                      {name: lang==='fr'?'Honteux·se':'Ashamed',     x:.25,y:.75,color:'#6b3fa0',desc:lang==='fr'?'Honte, culpabilité':'Shame, guilt'},
-                      {name: lang==='fr'?'Solitaire':'Lonely',        x:.18,y:.82,color:'#2e4a7a',desc:lang==='fr'?'Isolement, manque de lien':'Isolation, lack of connection'},
+                      {name: tr(lang, 'Fatigué·e', 'Tired'),        x:.28,y:.82,color:'#888780',desc:tr(lang, "Manque d'énergie, épuisement", 'Low energy, exhaustion')},
+                      {name: tr(lang, 'Triste', 'Sad'),              x:.20,y:.72,color:'#185fa5',desc:tr(lang, 'Mélancolie, abattement', 'Melancholy, low mood')},
+                      {name: tr(lang, 'Déprimé·e', 'Depressed'),    x:.15,y:.60,color:'#0c447c',desc:tr(lang, 'Humeur très basse, vide', 'Very low mood, emptiness')},
+                      {name: tr(lang, 'Honteux·se', 'Ashamed'),     x:.25,y:.75,color:'#6b3fa0',desc:tr(lang, 'Honte, culpabilité', 'Shame, guilt')},
+                      {name: tr(lang, 'Solitaire', 'Lonely'),        x:.18,y:.82,color:'#2e4a7a',desc:tr(lang, 'Isolement, manque de lien', 'Isolation, lack of connection')},
                       // Quadrant haut-gauche : énergie haute + désagréable
-                      {name: lang==='fr'?'En colère':'Angry',         x:.15,y:.18,color:'#d85a30',desc:lang==='fr'?'Frustration intense, réactivité':'Intense frustration, reactivity'},
-                      {name: lang==='fr'?'Furieux·se':'Furious',      x:.10,y:.28,color:'#b83000',desc:lang==='fr'?'Colère explosive':'Explosive anger'},
-                      {name: lang==='fr'?'Irrité·e':'Irritated',      x:.22,y:.32,color:'#993c1d',desc:lang==='fr'?'Agacement, impatience':'Irritation, impatience'},
-                      {name: lang==='fr'?'Stressé·e':'Stressed',      x:.28,y:.18,color:'#7f77dd',desc:lang==='fr'?'Pression élevée, surcharge':'High pressure, overload'},
-                      {name: lang==='fr'?'Anxieux·se':'Anxious',      x:.22,y:.38,color:'#534ab7',desc:lang==='fr'?'Inquiétude, tension intérieure':'Worry, inner tension'},
-                      {name: lang==='fr'?'Effrayé·e':'Scared',        x:.32,y:.25,color:'#d4537e',desc:lang==='fr'?'Peur, sentiment de menace':'Fear, sense of threat'},
-                      {name: lang==='fr'?'Paniqué·e':'Panicked',      x:.18,y:.12,color:'#c0184a',desc:lang==='fr'?'Terreur, panique':'Terror, panic'},
-                      {name: lang==='fr'?'Dépassé·e':'Overwhelmed',   x:.35,y:.20,color:'#9b59b6',desc:lang==='fr'?'Trop à gérer à la fois':'Too much at once'},
+                      {name: tr(lang, 'En colère', 'Angry'),         x:.15,y:.18,color:'#d85a30',desc:tr(lang, 'Frustration intense, réactivité', 'Intense frustration, reactivity')},
+                      {name: tr(lang, 'Furieux·se', 'Furious'),      x:.10,y:.28,color:'#b83000',desc:tr(lang, 'Colère explosive', 'Explosive anger')},
+                      {name: tr(lang, 'Irrité·e', 'Irritated'),      x:.22,y:.32,color:'#993c1d',desc:tr(lang, 'Agacement, impatience', 'Irritation, impatience')},
+                      {name: tr(lang, 'Stressé·e', 'Stressed'),      x:.28,y:.18,color:'#7f77dd',desc:tr(lang, 'Pression élevée, surcharge', 'High pressure, overload')},
+                      {name: tr(lang, 'Anxieux·se', 'Anxious'),      x:.22,y:.38,color:'#534ab7',desc:tr(lang, 'Inquiétude, tension intérieure', 'Worry, inner tension')},
+                      {name: tr(lang, 'Effrayé·e', 'Scared'),        x:.32,y:.25,color:'#d4537e',desc:tr(lang, 'Peur, sentiment de menace', 'Fear, sense of threat')},
+                      {name: tr(lang, 'Paniqué·e', 'Panicked'),      x:.18,y:.12,color:'#c0184a',desc:tr(lang, 'Terreur, panique', 'Terror, panic')},
+                      {name: tr(lang, 'Dépassé·e', 'Overwhelmed'),   x:.35,y:.20,color:'#9b59b6',desc:tr(lang, 'Trop à gérer à la fois', 'Too much at once')},
                       // Centre et états dissociatifs
-                      {name: lang==='fr'?'Dissocié·e':'Dissociated',  x:.38,y:.62,color:'#b4b2a9',desc:lang==='fr'?'Hors du corps, engourdi·e':'Out of body, numb'},
-                      {name: lang==='fr'?'Confus·e':'Confused',       x:.42,y:.38,color:'#8e9aaf',desc:lang==='fr'?'Incertitude, brouillard':'Uncertainty, fog'},
-                      {name: lang==='fr'?'Triggéré·e':'Triggered',    x:.30,y:.45,color:'#c0392b',desc:lang==='fr'?'Réaction traumatique activée':'Trauma response activated'},
-                      {name: lang==='fr'?'Neutre':'Neutral',           x:.50,y:.50,color:'#888780',desc:lang==='fr'?'État stable, sans teinte forte':'Stable state, no strong tone'},
+                      {name: tr(lang, 'Dissocié·e', 'Dissociated'),  x:.38,y:.62,color:'#b4b2a9',desc:tr(lang, 'Hors du corps, engourdi·e', 'Out of body, numb')},
+                      {name: tr(lang, 'Confus·e', 'Confused'),       x:.42,y:.38,color:'#8e9aaf',desc:tr(lang, 'Incertitude, brouillard', 'Uncertainty, fog')},
+                      {name: tr(lang, 'Triggéré·e', 'Triggered'),    x:.30,y:.45,color:'#c0392b',desc:tr(lang, 'Réaction traumatique activée', 'Trauma response activated')},
+                      {name: tr(lang, 'Neutre', 'Neutral'),           x:.50,y:.50,color:'#888780',desc:tr(lang, 'État stable, sans teinte forte', 'Stable state, no strong tone')},
                     ];
 
                     return (
                       <div className="mt-4 space-y-3">
                         <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                          {lang === 'fr' ? 'Roue des émotions' : 'Emotion wheel'}
+                          {tr(lang, 'Roue des émotions', 'Emotion wheel')}
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 items-start">
                           {/* Canvas via useEffect workaround */}
@@ -14399,42 +14333,42 @@ export default function App() {
                                 if (dx*dx+dy*dy>r*r) return;
                                 const nx=px/220,ny=py/220;
                                 const emList=[
-                                  {name:lang==='fr'?'Excité·e':'Excited',      x:.78,y:.15,color:'#ef9f27',desc:lang==='fr'?'Énergie débordante, très positif':'High energy, very positive'},
-                                  {name:lang==='fr'?'Euphorique':'Euphoric',    x:.88,y:.25,color:'#f4c430',desc:lang==='fr'?'Exaltation intense':'Intense elation'},
-                                  {name:lang==='fr'?'Enthousiaste':'Enthusiastic',x:.82,y:.32,color:'#d4a800',desc:lang==='fr'?'Élan, envie de faire':'Drive, eagerness'},
-                                  {name:lang==='fr'?'Joyeux·se':'Joyful',      x:.85,y:.42,color:'#63991a',desc:lang==='fr'?'Humeur positive, légèreté':'Positive mood, lightness'},
-                                  {name:lang==='fr'?'Confiant·e':'Confident',   x:.78,y:.52,color:'#1d9e75',desc:lang==='fr'?'Sûr·e de soi, stable':'Self-assured, stable'},
-                                  {name:lang==='fr'?'Fier·e':'Proud',           x:.72,y:.38,color:'#2db87a',desc:lang==='fr'?'Satisfaction de soi':'Self-satisfaction'},
-                                  {name:lang==='fr'?'Serein·e':'Serene',        x:.68,y:.68,color:'#0f8060',desc:lang==='fr'?'Calme profond, bien-être':'Deep calm, well-being'},
-                                  {name:lang==='fr'?'Détendu·e':'Relaxed',      x:.55,y:.82,color:'#076e52',desc:lang==='fr'?'Relâché·e, sans tension':'Released, no tension'},
-                                  {name:lang==='fr'?'Reconnaissant·e':'Grateful',x:.72,y:.75,color:'#1a7a4a',desc:lang==='fr'?'Gratitude, chaleur intérieure':'Gratitude, inner warmth'},
-                                  {name:lang==='fr'?'Nostalgique':'Nostalgic',   x:.60,y:.72,color:'#5b8fa8',desc:lang==='fr'?'Doux souvenir, mélancolie douce':'Sweet memory, gentle melancholy'},
-                                  {name:lang==='fr'?'Apaisé·e':'Soothed',       x:.62,y:.88,color:'#0a5c40',desc:lang==='fr'?'Tension relâchée':'Tension released'},
-                                  {name:lang==='fr'?'Fatigué·e':'Tired',        x:.28,y:.82,color:'#888780',desc:lang==='fr'?"Manque d'énergie, épuisement":'Low energy, exhaustion'},
-                                  {name:lang==='fr'?'Triste':'Sad',              x:.20,y:.72,color:'#185fa5',desc:lang==='fr'?'Mélancolie, abattement':'Melancholy, low mood'},
-                                  {name:lang==='fr'?'Déprimé·e':'Depressed',    x:.15,y:.60,color:'#0c447c',desc:lang==='fr'?'Humeur très basse, vide':'Very low mood, emptiness'},
-                                  {name:lang==='fr'?'Honteux·se':'Ashamed',     x:.25,y:.75,color:'#6b3fa0',desc:lang==='fr'?'Honte, culpabilité':'Shame, guilt'},
-                                  {name:lang==='fr'?'Solitaire':'Lonely',        x:.18,y:.82,color:'#2e4a7a',desc:lang==='fr'?'Isolement, manque de lien':'Isolation, lack of connection'},
-                                  {name:lang==='fr'?'En colère':'Angry',         x:.15,y:.18,color:'#d85a30',desc:lang==='fr'?'Frustration intense, réactivité':'Intense frustration, reactivity'},
-                                  {name:lang==='fr'?'Furieux·se':'Furious',      x:.10,y:.28,color:'#b83000',desc:lang==='fr'?'Colère explosive':'Explosive anger'},
-                                  {name:lang==='fr'?'Irrité·e':'Irritated',      x:.22,y:.32,color:'#993c1d',desc:lang==='fr'?'Agacement, impatience':'Irritation, impatience'},
-                                  {name:lang==='fr'?'Stressé·e':'Stressed',      x:.28,y:.18,color:'#7f77dd',desc:lang==='fr'?'Pression élevée, surcharge':'High pressure, overload'},
-                                  {name:lang==='fr'?'Anxieux·se':'Anxious',      x:.22,y:.38,color:'#534ab7',desc:lang==='fr'?'Inquiétude, tension intérieure':'Worry, inner tension'},
-                                  {name:lang==='fr'?'Effrayé·e':'Scared',        x:.32,y:.25,color:'#d4537e',desc:lang==='fr'?'Peur, sentiment de menace':'Fear, sense of threat'},
-                                  {name:lang==='fr'?'Paniqué·e':'Panicked',      x:.18,y:.12,color:'#c0184a',desc:lang==='fr'?'Terreur, panique':'Terror, panic'},
-                                  {name:lang==='fr'?'Dépassé·e':'Overwhelmed',   x:.35,y:.20,color:'#9b59b6',desc:lang==='fr'?'Trop à gérer à la fois':'Too much at once'},
-                                  {name:lang==='fr'?'Dissocié·e':'Dissociated',  x:.38,y:.62,color:'#b4b2a9',desc:lang==='fr'?'Hors du corps, engourdi·e':'Out of body, numb'},
-                                  {name:lang==='fr'?'Confus·e':'Confused',       x:.42,y:.38,color:'#8e9aaf',desc:lang==='fr'?'Incertitude, brouillard':'Uncertainty, fog'},
-                                  {name:lang==='fr'?'Triggéré·e':'Triggered',    x:.30,y:.45,color:'#c0392b',desc:lang==='fr'?'Réaction traumatique activée':'Trauma response activated'},
-                                  {name:lang==='fr'?'Neutre':'Neutral',           x:.50,y:.50,color:'#888780',desc:lang==='fr'?'État stable, sans teinte forte':'Stable state, no strong tone'},
+                                  {name:tr(lang, 'Excité·e', 'Excited'),      x:.78,y:.15,color:'#ef9f27',desc:tr(lang, 'Énergie débordante, très positif', 'High energy, very positive')},
+                                  {name:tr(lang, 'Euphorique', 'Euphoric'),    x:.88,y:.25,color:'#f4c430',desc:tr(lang, 'Exaltation intense', 'Intense elation')},
+                                  {name:tr(lang, 'Enthousiaste', 'Enthusiastic'),x:.82,y:.32,color:'#d4a800',desc:tr(lang, 'Élan, envie de faire', 'Drive, eagerness')},
+                                  {name:tr(lang, 'Joyeux·se', 'Joyful'),      x:.85,y:.42,color:'#63991a',desc:tr(lang, 'Humeur positive, légèreté', 'Positive mood, lightness')},
+                                  {name:tr(lang, 'Confiant·e', 'Confident'),   x:.78,y:.52,color:'#1d9e75',desc:tr(lang, 'Sûr·e de soi, stable', 'Self-assured, stable')},
+                                  {name:tr(lang, 'Fier·e', 'Proud'),           x:.72,y:.38,color:'#2db87a',desc:tr(lang, 'Satisfaction de soi', 'Self-satisfaction')},
+                                  {name:tr(lang, 'Serein·e', 'Serene'),        x:.68,y:.68,color:'#0f8060',desc:tr(lang, 'Calme profond, bien-être', 'Deep calm, well-being')},
+                                  {name:tr(lang, 'Détendu·e', 'Relaxed'),      x:.55,y:.82,color:'#076e52',desc:tr(lang, 'Relâché·e, sans tension', 'Released, no tension')},
+                                  {name:tr(lang, 'Reconnaissant·e', 'Grateful'),x:.72,y:.75,color:'#1a7a4a',desc:tr(lang, 'Gratitude, chaleur intérieure', 'Gratitude, inner warmth')},
+                                  {name:tr(lang, 'Nostalgique', 'Nostalgic'),   x:.60,y:.72,color:'#5b8fa8',desc:tr(lang, 'Doux souvenir, mélancolie douce', 'Sweet memory, gentle melancholy')},
+                                  {name:tr(lang, 'Apaisé·e', 'Soothed'),       x:.62,y:.88,color:'#0a5c40',desc:tr(lang, 'Tension relâchée', 'Tension released')},
+                                  {name:tr(lang, 'Fatigué·e', 'Tired'),        x:.28,y:.82,color:'#888780',desc:tr(lang, "Manque d'énergie, épuisement", 'Low energy, exhaustion')},
+                                  {name:tr(lang, 'Triste', 'Sad'),              x:.20,y:.72,color:'#185fa5',desc:tr(lang, 'Mélancolie, abattement', 'Melancholy, low mood')},
+                                  {name:tr(lang, 'Déprimé·e', 'Depressed'),    x:.15,y:.60,color:'#0c447c',desc:tr(lang, 'Humeur très basse, vide', 'Very low mood, emptiness')},
+                                  {name:tr(lang, 'Honteux·se', 'Ashamed'),     x:.25,y:.75,color:'#6b3fa0',desc:tr(lang, 'Honte, culpabilité', 'Shame, guilt')},
+                                  {name:tr(lang, 'Solitaire', 'Lonely'),        x:.18,y:.82,color:'#2e4a7a',desc:tr(lang, 'Isolement, manque de lien', 'Isolation, lack of connection')},
+                                  {name:tr(lang, 'En colère', 'Angry'),         x:.15,y:.18,color:'#d85a30',desc:tr(lang, 'Frustration intense, réactivité', 'Intense frustration, reactivity')},
+                                  {name:tr(lang, 'Furieux·se', 'Furious'),      x:.10,y:.28,color:'#b83000',desc:tr(lang, 'Colère explosive', 'Explosive anger')},
+                                  {name:tr(lang, 'Irrité·e', 'Irritated'),      x:.22,y:.32,color:'#993c1d',desc:tr(lang, 'Agacement, impatience', 'Irritation, impatience')},
+                                  {name:tr(lang, 'Stressé·e', 'Stressed'),      x:.28,y:.18,color:'#7f77dd',desc:tr(lang, 'Pression élevée, surcharge', 'High pressure, overload')},
+                                  {name:tr(lang, 'Anxieux·se', 'Anxious'),      x:.22,y:.38,color:'#534ab7',desc:tr(lang, 'Inquiétude, tension intérieure', 'Worry, inner tension')},
+                                  {name:tr(lang, 'Effrayé·e', 'Scared'),        x:.32,y:.25,color:'#d4537e',desc:tr(lang, 'Peur, sentiment de menace', 'Fear, sense of threat')},
+                                  {name:tr(lang, 'Paniqué·e', 'Panicked'),      x:.18,y:.12,color:'#c0184a',desc:tr(lang, 'Terreur, panique', 'Terror, panic')},
+                                  {name:tr(lang, 'Dépassé·e', 'Overwhelmed'),   x:.35,y:.20,color:'#9b59b6',desc:tr(lang, 'Trop à gérer à la fois', 'Too much at once')},
+                                  {name:tr(lang, 'Dissocié·e', 'Dissociated'),  x:.38,y:.62,color:'#b4b2a9',desc:tr(lang, 'Hors du corps, engourdi·e', 'Out of body, numb')},
+                                  {name:tr(lang, 'Confus·e', 'Confused'),       x:.42,y:.38,color:'#8e9aaf',desc:tr(lang, 'Incertitude, brouillard', 'Uncertainty, fog')},
+                                  {name:tr(lang, 'Triggéré·e', 'Triggered'),    x:.30,y:.45,color:'#c0392b',desc:tr(lang, 'Réaction traumatique activée', 'Trauma response activated')},
+                                  {name:tr(lang, 'Neutre', 'Neutral'),           x:.50,y:.50,color:'#888780',desc:tr(lang, 'État stable, sans teinte forte', 'Stable state, no strong tone')},
                                 ];
                                  const best=emList.reduce((acc,em)=>Math.hypot(em.x-nx,em.y-ny)<Math.hypot(acc.x-nx,acc.y-ny)?em:acc,emList[0]);
                                 setWheelDotPos({x:px,y:py});
                                 setWheelEmotion({name:best.name,color:best.color,desc:best.desc,intensity:wheelIntensity});
                               }}
                             />
-                            <div className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">{lang==='fr'?'↑ haute':'↑ high'}</div>
-                            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">{lang==='fr'?'↓ basse':'↓ low'}</div>
+                            <div className="absolute top-0.5 left-1/2 -translate-x-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">{tr(lang, '↑ haute', '↑ high')}</div>
+                            <div className="absolute bottom-0.5 left-1/2 -translate-x-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">{tr(lang, '↓ basse', '↓ low')}</div>
                             <div className="absolute left-0.5 top-1/2 -translate-y-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">😔</div>
                             <div className="absolute right-0.5 top-1/2 -translate-y-1/2 text-[9px] text-app-muted font-bold pointer-events-none leading-none">😊</div>
                           </div>
@@ -14450,15 +14384,15 @@ export default function App() {
                                 </div>
                                 <div className="space-y-1">
                                   <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">
-                                    {lang==='fr'?'Intensité':'Intensity'} — {wheelIntensity}/5
+                                    {tr(lang, 'Intensité', 'Intensity')} — {wheelIntensity}/5
                                   </p>
                                   <input type="range" min={1} max={5} value={wheelIntensity}
                                     onChange={e => setWheelIntensity(Number(e.target.value))}
                                     className="w-full"
                                   />
                                   <div className="flex justify-between text-[9px] text-app-muted">
-                                    <span>{lang==='fr'?'Légère':'Mild'}</span>
-                                    <span>{lang==='fr'?'Intense':'Intense'}</span>
+                                    <span>{tr(lang, 'Légère', 'Mild')}</span>
+                                    <span>{tr(lang, 'Intense', 'Intense')}</span>
                                   </div>
                                 </div>
                                 <button
@@ -14470,9 +14404,9 @@ export default function App() {
                                       intensity: wheelIntensity,
                                       alter: switchSelectedAlterIds.length > 0
                                         ? (savedAlters.find((a: SavedAlter) => a.id === switchSelectedAlterIds[0])?.alterName || '?')
-                                        : (lang==='fr'?'Système':'System'),
-                                      time: now.toLocaleTimeString(lang==='fr'?'fr-FR':'en-GB',{hour:'2-digit',minute:'2-digit'}),
-                                      date: now.toLocaleDateString(lang==='fr'?'fr-FR':'en-GB',{day:'numeric',month:'short'}),
+                                        : (tr(lang, 'Système', 'System')),
+                                      time: now.toLocaleTimeString(localeOf(lang, { hour24: true }),{hour:'2-digit',minute:'2-digit'}),
+                                      date: now.toLocaleDateString(localeOf(lang, { hour24: true }),{day:'numeric',month:'short'}),
                                     };
                                     setWheelHistory((prev: typeof wheelHistory) => [entry,...prev]);
                                     setWheelEmotion(null);
@@ -14480,19 +14414,19 @@ export default function App() {
                                   }}
                                   className="w-full py-2 text-xs font-black uppercase tracking-widest bg-app-card border border-app-border/40 hover:border-app-accent/40 rounded-xl transition-colors"
                                 >
-                                  {lang==='fr'?'+ Enregistrer':'+ Save'}
+                                  {tr(lang, '+ Enregistrer', '+ Save')}
                                 </button>
                               </>
                             ) : (
                               <div className="p-4 bg-app-bg rounded-xl border border-app-border/30 text-center">
                                 <p className="text-[11px] text-app-muted">
-                                  {lang==='fr'?'Cliquez sur la roue pour identifier une émotion':'Click the wheel to identify an emotion'}
+                                  {tr(lang, 'Cliquez sur la roue pour identifier une émotion', 'Click the wheel to identify an emotion')}
                                 </p>
                               </div>
                             )}
                             {wheelHistory.length > 0 && (
                               <div className="space-y-1.5">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang==='fr'?'Historique':'History'}</p>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Historique', 'History')}</p>
                                 {wheelHistory.slice(0,5).map((h: typeof wheelHistory[0], i: number) => (
                                   <div key={i} className="flex items-center gap-2 text-[11px] py-1.5 border-b border-app-border/20 group">
                                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:h.color}} />
@@ -14502,7 +14436,7 @@ export default function App() {
                                     <button
                                       onClick={() => setWheelHistory((prev: typeof wheelHistory) => prev.filter((_: typeof wheelHistory[0], idx: number) => idx !== i))}
                                       className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:text-red-500 text-app-muted flex-shrink-0"
-                                      title={lang==='fr'?'Supprimer':'Delete'}
+                                      title={tr(lang, 'Supprimer', 'Delete')}
                                     >
                                       <X className="w-3 h-3" />
                                     </button>
@@ -14528,7 +14462,7 @@ export default function App() {
                 {switchLogs.length === 0 ? (
                   <div className="text-center p-12 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted font-bold uppercase tracking-widest text-[10px] space-y-2">
                     <Timer className="w-8 h-8 mx-auto opacity-35" />
-                    <span>{lang === 'fr' ? 'Aucun switch enregistré.' : 'No switch logs found.'}</span>
+                    <span>{tr(lang, 'Aucun switch enregistré.', 'No switch logs found.')}</span>
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
@@ -14540,9 +14474,9 @@ export default function App() {
                         const hours = Math.floor(seconds / 3600);
                         const mins = Math.floor((seconds % 3600) / 60);
                         if (hours > 0) {
-                          durationStr = lang === 'fr' ? `${hours}h ${mins}m` : `${hours}h ${mins}m`;
+                          durationStr = trf(lang, `{0}h {1}m`, `{0}h {1}m`, [hours, mins]);
                         } else {
-                          durationStr = lang === 'fr' ? `${mins} m` : `${mins} mins`;
+                          durationStr = trf(lang, `{0} m`, `{0} mins`, [mins]);
                         }
                       }
 
@@ -14594,16 +14528,16 @@ export default function App() {
                             <div className="flex items-center gap-0.5">
                               <button
                                 onClick={() => handleEditSwitchLog(log)}
-                                title={lang === 'fr' ? 'Modifier' : 'Edit'}
-                                aria-label={lang === 'fr' ? 'Modifier ce switch' : 'Edit this switch'}
+                                title={tr(lang, 'Modifier', 'Edit')}
+                                aria-label={tr(lang, 'Modifier ce switch', 'Edit this switch')}
                                 className="p-1 hover:bg-app-bg text-app-muted hover:text-app-accent rounded transition-colors"
                               >
                                 <Pencil className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDeleteSwitchLog(log.id)}
-                                title={lang === 'fr' ? 'Supprimer' : 'Delete'}
-                                aria-label={lang === 'fr' ? 'Supprimer ce switch' : 'Delete this switch'}
+                                title={tr(lang, 'Supprimer', 'Delete')}
+                                aria-label={tr(lang, 'Supprimer ce switch', 'Delete this switch')}
                                 className="p-1 hover:bg-app-bg text-app-muted hover:text-red-500 rounded transition-colors"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -14671,24 +14605,24 @@ export default function App() {
                       <div className="flex items-center gap-2">
                         <HeartPulse className="w-4 h-4 text-app-accent" />
                         <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
-                          {lang === 'fr' ? 'Analyse des émotions' : 'Emotion Analysis'}
+                          {tr(lang, 'Analyse des émotions', 'Emotion Analysis')}
                         </h3>
                       </div>
                       <p className="text-[10px] text-app-muted uppercase tracking-wider mt-0.5">
-                        {lang==='fr'?'Par alter · Historique complet':'By alter · Full history'} · {wheelHistory.length} {lang==='fr'?'entrées':'entries'}
+                        {tr(lang, 'Par alter · Historique complet', 'By alter · Full history')} · {wheelHistory.length} {tr(lang, 'entrées', 'entries')}
                       </p>
                     </div>
                   </div>
 
                   {/* Répartition par quadrant */}
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Répartition':'Distribution'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Répartition', 'Distribution')}</p>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {[
-                        {key:'pos', label: lang==='fr'?'Positif / Énergie haute':'Positive / High energy', color:'#63991a', emoji:'🟢'},
-                        {key:'negHigh', label: lang==='fr'?'Difficile / Énergie haute':'Difficult / High energy', color:'#d85a30', emoji:'🔴'},
-                        {key:'negLow', label: lang==='fr'?'Difficile / Énergie basse':'Difficult / Low energy', color:'#185fa5', emoji:'🔵'},
-                        {key:'neutral', label: lang==='fr'?'Neutre / Dissociatif':'Neutral / Dissociative', color:'#888780', emoji:'⚪'},
+                        {key:'pos', label: tr(lang, 'Positif / Énergie haute', 'Positive / High energy'), color:'#63991a', emoji:'🟢'},
+                        {key:'negHigh', label: tr(lang, 'Difficile / Énergie haute', 'Difficult / High energy'), color:'#d85a30', emoji:'🔴'},
+                        {key:'negLow', label: tr(lang, 'Difficile / Énergie basse', 'Difficult / Low energy'), color:'#185fa5', emoji:'🔵'},
+                        {key:'neutral', label: tr(lang, 'Neutre / Dissociatif', 'Neutral / Dissociative'), color:'#888780', emoji:'⚪'},
                       ].map(q => {
                         const count = quadCounts[q.key as keyof typeof quadCounts];
                         const pct = total > 0 ? Math.round(count/total*100) : 0;
@@ -14701,7 +14635,7 @@ export default function App() {
                             <div className="h-1.5 bg-app-border/20 rounded-full overflow-hidden">
                               <div className="h-full rounded-full transition-all" style={{width:`${pct}%`, background:q.color}} />
                             </div>
-                            <span className="text-[9px] text-app-muted">{count} {lang==='fr'?'fois':'times'}</span>
+                            <span className="text-[9px] text-app-muted">{count} {tr(lang, 'fois', 'times')}</span>
                           </div>
                         );
                       })}
@@ -14710,7 +14644,7 @@ export default function App() {
 
                   {/* Top émotions par alter */}
                   <div className="space-y-3">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Par alter':'By alter'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Par alter', 'By alter')}</p>
                     {Object.entries(byAlter).map(([alterName, emotions]) => {
                       const sorted = [...emotions].sort((a,b) => b.count - a.count).slice(0,3);
                       return (
@@ -14735,7 +14669,7 @@ export default function App() {
 
                   {/* Timeline */}
                   <div className="space-y-2">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang==='fr'?'Timeline':'Timeline'}</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Timeline', 'Timeline')}</p>
                     <div className="flex gap-1.5 flex-wrap">
                       {Object.entries(timeline).reverse().map(([timeKey, names]) => {
                         const firstEntry = wheelHistory.find((h: typeof wheelHistory[0]) => h.time === timeKey);
@@ -14759,7 +14693,7 @@ export default function App() {
                     onClick={() => setWheelHistory([])}
                     className="text-[10px] text-app-muted hover:text-red-500 font-bold uppercase tracking-wider transition-colors"
                   >
-                    {lang==='fr'?"🗑 Effacer tout l'historique":'🗑 Clear all history'}
+                    {tr(lang, "🗑 Effacer tout l'historique", '🗑 Clear all history')}
                   </button>
                 </div>
               );
@@ -14785,7 +14719,7 @@ export default function App() {
               lang={lang}
               systemName={parallelSystems.length > 0
                 ? (activeSystemId === 'main'
-                    ? (mainSystemName || (lang === 'fr' ? 'Système Principal' : 'Main System'))
+                    ? (mainSystemName || (tr(lang, 'Système Principal', 'Main System')))
                     : parallelSystems.find(s => s.id === activeSystemId)?.name)
                 : undefined}
               getRoleName={getRoleDisplayName}
@@ -14834,7 +14768,7 @@ export default function App() {
                   type="text"
                   value={journalSearch}
                   onChange={(e) => setJournalSearch(e.target.value)}
-                  placeholder={lang === 'fr' ? 'Chercher une note...' : 'Search notes...'}
+                  placeholder={tr(lang, 'Chercher une note...', 'Search notes...')}
                   className="w-full bg-app-card border border-app-border/45 rounded-xl pl-11 pr-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                 />
               </div>
@@ -14853,7 +14787,7 @@ export default function App() {
                       : 'bg-app-card text-app-text border border-app-border hover:border-app-accent/25'
                   }`}
                 >
-                  {tab === 'notes' ? (lang === 'fr' ? 'Notes' : 'Notes') : (lang === 'fr' ? 'Habitudes' : 'Habits')}
+                  {tab === 'notes' ? (tr(lang, 'Notes', 'Notes')) : (tr(lang, 'Habitudes', 'Habits'))}
                 </button>
               ))}
             </div>
@@ -14866,12 +14800,12 @@ export default function App() {
                 <div className="flex items-center justify-between border-b border-app-border/20 pb-2">
                   <h3 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-1.5">
                     <Feather className="w-4 h-4" />
-                    <span>{editingJournalId ? (lang === 'fr' ? 'Modifier la Note' : 'Edit Note') : (lang === 'fr' ? 'Rédiger une Note' : 'Compose Note')}</span>
+                    <span>{editingJournalId ? (tr(lang, 'Modifier la Note', 'Edit Note')) : (tr(lang, 'Rédiger une Note', 'Compose Note'))}</span>
                   </h3>
                   {editingJournalId && (
                     <button type="button" onClick={() => { setEditingJournalId(null); setJournalTitleInput(''); setJournalContentInput(''); setJournalImages([]); setJournalAuthorInput(''); setJournalAuthorIds(folderAlterId(journalFolder) ? [folderAlterId(journalFolder) as string] : []); }}
                       className="text-[10px] text-app-muted hover:text-app-text font-bold uppercase tracking-wider transition-colors">
-                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      {tr(lang, 'Annuler', 'Cancel')}
                     </button>
                   )}
                 </div>
@@ -14910,7 +14844,7 @@ export default function App() {
                               if (e.key === 'Enter') { e.preventDefault(); if (authorSuggestions.length > 0) addAuthor(authorSuggestions[0].id); }
                               if (e.key === 'Escape') setJournalAuthorInput('');
                             }}
-                            placeholder={lang === 'fr' ? 'Alter concerné… (vide = Commun)' : 'Which alter?… (empty = Shared)'}
+                            placeholder={tr(lang, 'Alter concerné… (vide = Commun)', 'Which alter?… (empty = Shared)')}
                             className="w-full bg-app-bg border border-app-border rounded-xl pl-9 pr-4 py-2.5 text-xs font-semibold focus:outline-none text-app-text placeholder:text-app-muted"
                           />
                           {authorSuggestions.length > 0 && (
@@ -14947,7 +14881,7 @@ export default function App() {
                                   {locked
                                     ? <Lock className="w-2.5 h-2.5" />
                                     : <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c }} />}
-                                  {locked ? (lang === 'fr' ? 'Fiche verrouillée' : 'Locked profile') : al.alterName}
+                                  {locked ? (tr(lang, 'Fiche verrouillée', 'Locked profile')) : al.alterName}
                                   <X className="w-2.5 h-2.5" />
                                 </button>
                               );
@@ -15010,7 +14944,7 @@ export default function App() {
                     type="submit"
                     className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                   >
-                    {editingJournalId ? (lang === 'fr' ? 'Enregistrer les modifications' : 'Save changes') : t.createJournalEntry}
+                    {editingJournalId ? (tr(lang, 'Enregistrer les modifications', 'Save changes')) : t.createJournalEntry}
                   </button>
                 </form>
               </div>
@@ -15039,8 +14973,8 @@ export default function App() {
                   );
                   const folderChips = (
                     <div className="flex flex-wrap gap-2">
-                      {folderBtn('all', lang === 'fr' ? 'Toutes' : 'All', journalEntries.length)}
-                      {folderBtn('common', lang === 'fr' ? 'Commun' : 'Shared', commonCount)}
+                      {folderBtn('all', tr(lang, 'Toutes', 'All'), journalEntries.length)}
+                      {folderBtn('common', tr(lang, 'Commun', 'Shared'), commonCount)}
                       {folderAlters.map(al => folderBtn(alterFolderKey(al.id), al.alterName, countByAlter.get(al.id) || 0, al.alterColor))}
                     </div>
                   );
@@ -15078,7 +15012,7 @@ export default function App() {
                                       {locked
                                         ? <Lock className="w-2.5 h-2.5" />
                                         : <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: c }} />}
-                                      {locked ? (lang === 'fr' ? 'Fiche verrouillée' : 'Locked profile') : al.alterName}
+                                      {locked ? (tr(lang, 'Fiche verrouillée', 'Locked profile')) : al.alterName}
                                     </span>
                                   );
                                 })}
@@ -15113,7 +15047,7 @@ export default function App() {
                               <button
                                 onClick={() => handleEditJournalEntry(entry)}
                                 className="p-1.5 bg-app-bg text-app-muted hover:text-app-accent border border-app-border hover:border-app-accent/40 rounded-lg transition-colors"
-                                title={lang === 'fr' ? 'Modifier' : 'Edit'}
+                                title={tr(lang, 'Modifier', 'Edit')}
                               >
                                 <Pencil className="w-3 h-3" />
                               </button>
@@ -15121,7 +15055,7 @@ export default function App() {
                                 onClick={() => handleDeleteJournalEntry(entry.id)}
                                 className="p-1 px-2.5 bg-app-bg text-[10px] font-bold text-app-muted uppercase tracking-widest border border-app-border rounded-lg hover:text-red-500 hover:border-red-500/40 transition-colors"
                               >
-                                {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                                {tr(lang, 'Supprimer', 'Delete')}
                               </button>
                             </div>
                           </div>
@@ -15152,7 +15086,7 @@ export default function App() {
                         type="button"
                         onClick={() => done ? decrementHabitToday(habit.id) : incrementHabitToday(habit.id)}
                         className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all border-2 ${done ? 'bg-app-muted text-app-bg border-app-muted' : 'bg-app-bg text-app-muted border-app-border hover:border-app-accent hover:text-app-accent'}`}
-                        title={done ? (lang === 'fr' ? 'Décocher' : 'Uncheck') : (lang === 'fr' ? 'Marquer comme fait' : 'Mark as done')}
+                        title={done ? (tr(lang, 'Décocher', 'Uncheck')) : (tr(lang, 'Marquer comme fait', 'Mark as done'))}
                       >
                         <Check className="w-4 h-4" />
                       </button>
@@ -15197,20 +15131,20 @@ export default function App() {
                 <div className="max-w-2xl space-y-6">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-black uppercase tracking-widest text-app-muted">
-                      {lang === 'fr' ? "Aujourd'hui" : 'Today'}
+                      {tr(lang, "Aujourd'hui", 'Today')}
                     </h3>
                     <button
                       type="button"
                       onClick={() => { resetHabitDraft(); setHabitFormOpen(true); }}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-accent text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
                     >
-                      <Plus className="w-3.5 h-3.5" /> {lang === 'fr' ? 'Ajouter' : 'Add'}
+                      <Plus className="w-3.5 h-3.5" /> {tr(lang, 'Ajouter', 'Add')}
                     </button>
                   </div>
 
                   {habits.length === 0 && !habitFormOpen && (
                     <div className="text-center p-14 bg-app-card/35 rounded-2xl border border-app-border/20 text-app-muted uppercase tracking-widest text-[10px]">
-                      {lang === 'fr' ? 'Aucune habitude pour le moment.' : 'No habits yet.'}
+                      {tr(lang, 'Aucune habitude pour le moment.', 'No habits yet.')}
                     </div>
                   )}
 
@@ -15232,14 +15166,14 @@ export default function App() {
                           type="text"
                           value={habitDraftName}
                           onChange={(e) => setHabitDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom de l\'habitude (ex. Douche, Lessive...)' : 'Habit name...'}
+                          placeholder={tr(lang, 'Nom de l\'habitude (ex. Douche, Lessive...)', 'Habit name...')}
                           className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                         />
                       </div>
 
                       <div className="flex items-center gap-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-app-muted shrink-0">
-                          {lang === 'fr' ? 'Objectif / jour' : 'Target / day'}
+                          {tr(lang, 'Objectif / jour', 'Target / day')}
                         </label>
                         <input
                           type="number"
@@ -15252,7 +15186,7 @@ export default function App() {
 
                       <div className="space-y-2">
                         <label className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                          {lang === 'fr' ? 'Qui ? (vide = commune / n\'importe qui)' : 'Who? (empty = shared / anyone)'}
+                          {tr(lang, 'Qui ? (vide = commune / n\'importe qui)', 'Who? (empty = shared / anyone)')}
                         </label>
                         {habitDraftAlterIds.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
@@ -15274,7 +15208,7 @@ export default function App() {
                           type="text"
                           value={habitAlterSearch}
                           onChange={(e) => setHabitAlterSearch(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Rechercher un alter par nom...' : 'Search an alter by name...'}
+                          placeholder={tr(lang, 'Rechercher un alter par nom...', 'Search an alter by name...')}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                         />
                         {habitAlterSearch.trim() && (
@@ -15303,14 +15237,14 @@ export default function App() {
                           disabled={!habitDraftName.trim()}
                           className="flex-1 py-2.5 rounded-xl bg-app-accent text-white text-xs font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                         >
-                          {editingHabitId ? (lang === 'fr' ? 'Enregistrer' : 'Save') : (lang === 'fr' ? 'Ajouter l\'habitude' : 'Add habit')}
+                          {editingHabitId ? (tr(lang, 'Enregistrer', 'Save')) : (tr(lang, 'Ajouter l\'habitude', 'Add habit'))}
                         </button>
                         <button
                           type="button"
                           onClick={resetHabitDraft}
                           className="px-4 py-2.5 rounded-xl border border-app-border text-app-muted hover:text-app-text text-xs font-black uppercase tracking-widest transition-colors"
                         >
-                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          {tr(lang, 'Annuler', 'Cancel')}
                         </button>
                       </div>
                     </div>
@@ -15319,16 +15253,14 @@ export default function App() {
                   {habitDeleteConfirmId && (
                     <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-red-500/30 bg-red-500/5">
                       <span className="text-xs text-app-text">
-                        {lang === 'fr'
-                          ? `Supprimer « ${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''} » ?`
-                          : `Delete "${habits.find(h => h.id === habitDeleteConfirmId)?.name || ''}"?`}
+                        {trf(lang, `Supprimer « {0} » ?`, `Delete "{0}"?`, [habits.find(h => h.id === habitDeleteConfirmId)?.name || ''])}
                       </span>
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button type="button" onClick={() => deleteHabit(habitDeleteConfirmId)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide bg-red-500 text-white hover:bg-red-600 transition-colors">
-                          {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                          {tr(lang, 'Supprimer', 'Delete')}
                         </button>
                         <button type="button" onClick={() => setHabitDeleteConfirmId(null)} className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wide border border-app-border text-app-muted hover:text-app-text transition-colors">
-                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          {tr(lang, 'Annuler', 'Cancel')}
                         </button>
                       </div>
                     </div>
@@ -15366,7 +15298,7 @@ export default function App() {
                 {showNewConvPanel && (
                   <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                      {lang === 'fr' ? 'Choisir les deux alters' : 'Choose two alters'}
+                      {tr(lang, 'Choisir les deux alters', 'Choose two alters')}
                     </p>
                     {/* Recherche alter 1 — dropdown style chat interne */}
                     {(() => {
@@ -15386,7 +15318,7 @@ export default function App() {
                               : current1 && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(current1.alterName||'?').charAt(0)}</div>
                             }
                             <span className={`flex-1 text-sm ${current1 ? 'font-semibold text-app-text' : 'text-app-muted'}`}>
-                              {current1 ? `${current1.alterName}${current1.systemId && current1.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===current1.systemId)?.name || current1.systemId})` : ''}` : (lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…')}
+                              {current1 ? `${current1.alterName}${current1.systemId && current1.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===current1.systemId)?.name || current1.systemId})` : ''}` : (tr(lang, 'Rechercher un alter…', 'Search alter…'))}
                             </span>
                             <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${newConvAlter1Open ? 'rotate-180' : ''}`} />
                           </div>
@@ -15400,14 +15332,14 @@ export default function App() {
                                     type="text"
                                     value={newConvAlter1Search}
                                     onChange={e => setNewConvAlter1Search(e.target.value)}
-                                    placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                    placeholder={tr(lang, 'Rechercher un alter…', 'Search alter…')}
                                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                     onClick={e => e.stopPropagation()}
                                   />
                                 </div>
                                 <div className="max-h-52 overflow-y-auto py-1">
                                   {filtered1.length === 0 ? (
-                                    <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                    <p className="px-4 py-3 text-xs text-app-muted">{tr(lang, 'Aucun résultat', 'No results')}</p>
                                   ) : filtered1.map(a => (
                                     <button
                                       key={a.id}
@@ -15447,7 +15379,7 @@ export default function App() {
                               : current2 && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[9px] font-black text-app-accent flex-shrink-0">{(current2.alterName||'?').charAt(0)}</div>
                             }
                             <span className={`flex-1 text-sm ${current2 ? 'font-semibold text-app-text' : 'text-app-muted'}`}>
-                              {current2 ? `${current2.alterName}${current2.systemId && current2.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===current2.systemId)?.name || current2.systemId})` : ''}` : (lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…')}
+                              {current2 ? `${current2.alterName}${current2.systemId && current2.systemId !== 'main' ? ` (${parallelSystems.find(s=>s.id===current2.systemId)?.name || current2.systemId})` : ''}` : (tr(lang, 'Rechercher un alter…', 'Search alter…'))}
                             </span>
                             <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${newConvAlter2Open ? 'rotate-180' : ''}`} />
                           </div>
@@ -15461,14 +15393,14 @@ export default function App() {
                                     type="text"
                                     value={newConvAlter2Search}
                                     onChange={e => setNewConvAlter2Search(e.target.value)}
-                                    placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                    placeholder={tr(lang, 'Rechercher un alter…', 'Search alter…')}
                                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                     onClick={e => e.stopPropagation()}
                                   />
                                 </div>
                                 <div className="max-h-52 overflow-y-auto py-1">
                                   {filtered2.length === 0 ? (
-                                    <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                    <p className="px-4 py-3 text-xs text-app-muted">{tr(lang, 'Aucun résultat', 'No results')}</p>
                                   ) : filtered2.map(a => (
                                     <button
                                       key={a.id}
@@ -15495,7 +15427,7 @@ export default function App() {
                         disabled={!newConvAlter1 || !newConvAlter2}
                         className="flex-1 py-2 bg-app-accent text-white rounded-xl text-xs font-black uppercase tracking-widest hover:opacity-90 disabled:opacity-40 transition-all"
                       >
-                        {lang === 'fr' ? 'Créer' : 'Create'}
+                        {tr(lang, 'Créer', 'Create')}
                       </button>
                       <button onClick={() => setShowNewConvPanel(false)} className="px-3 py-2 bg-app-card border border-app-border rounded-xl text-xs font-bold hover:opacity-80">✕</button>
                     </div>
@@ -15526,7 +15458,7 @@ export default function App() {
                       >
                         <Search className="w-4 h-4 text-app-muted flex-shrink-0" />
                         <span className="flex-1 text-app-muted text-xs">
-                          {convSearch || (lang === 'fr' ? 'Rechercher conversation…' : 'Search conversation…')}
+                          {convSearch || (tr(lang, 'Rechercher conversation…', 'Search conversation…'))}
                         </span>
                         <ChevronDown className={`w-4 h-4 text-app-muted flex-shrink-0 transition-transform ${convSearchOpen ? 'rotate-180' : ''}`} />
                       </div>
@@ -15540,14 +15472,14 @@ export default function App() {
                                 type="text"
                                 value={convSearch}
                                 onChange={e => setConvSearch(e.target.value)}
-                                placeholder={lang === 'fr' ? 'Rechercher conversation…' : 'Search conversation…'}
+                                placeholder={tr(lang, 'Rechercher conversation…', 'Search conversation…')}
                                 className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                 onClick={e => e.stopPropagation()}
                               />
                             </div>
                             <div className="max-h-52 overflow-y-auto py-1">
                               {filteredConvs.length === 0 ? (
-                                <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                <p className="px-4 py-3 text-xs text-app-muted">{tr(lang, 'Aucun résultat', 'No results')}</p>
                               ) : filteredConvs.map(c => {
                                 const [id1, id2] = c.participantIds;
                                 const a1 = allAlters.find(a => a.id === id1);
@@ -15636,7 +15568,7 @@ export default function App() {
                         <button
                           onClick={() => { setConversations(prev => prev.filter(c => c.id !== conv.id)); setDirectMessages(prev => prev.filter(m => m.conversationId !== conv.id)); if (activeConvId === conv.id) setActiveConvId(null); }}
                           className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-app-bg hover:bg-red-500/10 text-app-muted hover:text-red-500 transition-all"
-                          title={lang === 'fr' ? 'Supprimer la conversation' : 'Delete conversation'}
+                          title={tr(lang, 'Supprimer la conversation', 'Delete conversation')}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -15714,7 +15646,7 @@ export default function App() {
                     <div className="border-t border-app-border/20 bg-app-card/50 p-4 space-y-2">
                       {/* Sélecteur qui parle */}
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-app-muted shrink-0">{lang === 'fr' ? 'Qui écrit' : 'Speaking'}:</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-app-muted shrink-0">{tr(lang, 'Qui écrit', 'Speaking')}:</span>
                         <select
                           value={msgSenderId}
                           onChange={e => setMsgSenderId(e.target.value)}
@@ -15740,7 +15672,7 @@ export default function App() {
                               autoFocus
                               value={msgImageUrlInput}
                               onChange={e => setMsgImageUrlInput(e.target.value)}
-                              placeholder={lang === 'fr' ? 'Colle le lien de l\'image ici…' : 'Paste the image link here…'}
+                              placeholder={tr(lang, 'Colle le lien de l\'image ici…', 'Paste the image link here…')}
                               className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                             />
                             <button
@@ -15752,7 +15684,7 @@ export default function App() {
                               }}
                               className="px-3 py-2 bg-app-text text-app-bg rounded-xl text-[10px] font-black uppercase tracking-widest disabled:opacity-40 shrink-0"
                             >
-                              {lang === 'fr' ? 'Insérer' : 'Insert'}
+                              {tr(lang, 'Insérer', 'Insert')}
                             </button>
                             <button
                               type="button"
@@ -15768,7 +15700,7 @@ export default function App() {
                       <form onSubmit={handleSendDirectMessage} className="flex gap-2">
                         <label
                           className="shrink-0 p-2.5 border border-app-border rounded-xl text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors"
-                          title={lang === 'fr' ? 'Importer une image ou un GIF' : 'Upload an image or GIF'}
+                          title={tr(lang, 'Importer une image ou un GIF', 'Upload an image or GIF')}
                         >
                           <Upload className="w-4 h-4" />
                           <input
@@ -15788,7 +15720,7 @@ export default function App() {
                           type="button"
                           onClick={() => setMsgImageUrlInput(msgImageUrlInput === null ? '' : null)}
                           className={`shrink-0 p-2.5 border rounded-xl transition-colors ${msgImageUrlInput !== null ? 'text-app-accent border-app-accent/40 bg-app-accent/5' : 'text-app-muted border-app-border hover:text-app-accent hover:border-app-accent/40'}`}
-                          title={lang === 'fr' ? 'Insérer une image ou un GIF par URL' : 'Insert an image or GIF by URL'}
+                          title={tr(lang, 'Insérer une image ou un GIF par URL', 'Insert an image or GIF by URL')}
                         >
                           <ImageIcon className="w-4 h-4" />
                         </button>
@@ -15973,9 +15905,9 @@ export default function App() {
             <div className="space-y-4 max-w-3xl mx-auto w-full animate-fade-in duration-300">
               {/* Header */}
               <div className="pb-4 border-b border-app-border/30 space-y-1">
-                <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? "Techniques d'Ancrage" : 'Grounding Techniques'}</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{tr(lang, "Techniques d'Ancrage", 'Grounding Techniques')}</h2>
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
-                  {lang === 'fr' ? "En cas de dissociation ou détresse émotionnelle" : 'In case of dissociation or emotional distress'}
+                  {tr(lang, "En cas de dissociation ou détresse émotionnelle", 'In case of dissociation or emotional distress')}
                 </p>
               </div>
 
@@ -15984,14 +15916,14 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-app-accent" />
                   <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
-                    {lang === 'fr' ? "Vérification de réalité" : "Reality check"}
+                    {tr(lang, "Vérification de réalité", "Reality check")}
                   </h3>
                 </div>
                 {(() => {
                   void realityCheckTick;
                   const now = new Date();
-                  const dateStr = now.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                  const timeStr = now.toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+                  const dateStr = now.toLocaleDateString(localeOf(lang), { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                  const timeStr = now.toLocaleTimeString(localeOf(lang), { hour: '2-digit', minute: '2-digit' });
                   return (
                     <div className="p-4 bg-app-bg rounded-xl border border-app-border/30 text-center">
                       <p className="text-3xl font-black text-app-text tabular-nums">{timeStr}</p>
@@ -16002,13 +15934,13 @@ export default function App() {
                 <div>
                   <label className="flex items-center gap-1.5 text-[11px] font-bold text-app-muted uppercase tracking-wide mb-1.5">
                     <MapPin className="w-3.5 h-3.5" />
-                    {lang === 'fr' ? "Où suis-je ?" : "Where am I?"}
+                    {tr(lang, "Où suis-je ?", "Where am I?")}
                   </label>
                   <input
                     type="text"
                     value={realityCheckWhere}
                     onChange={e => setRealityCheckWhere(e.target.value)}
-                    placeholder={lang === 'fr' ? "Décris l'endroit où tu te trouves..." : "Describe where you are..."}
+                    placeholder={tr(lang, "Décris l'endroit où tu te trouves...", "Describe where you are...")}
                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                 </div>
@@ -16017,7 +15949,7 @@ export default function App() {
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-app-bg hover:bg-app-border/20 border border-app-border/40 rounded-xl text-xs font-bold text-app-text transition-colors"
                 >
                   <CalendarDays className="w-4 h-4" />
-                  {lang === 'fr' ? "Voir le programme du jour" : "See today's plan"}
+                  {tr(lang, "Voir le programme du jour", "See today's plan")}
                 </button>
               </div>
 
@@ -16026,7 +15958,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <StickyNote className="w-4 h-4 text-app-accent" />
                   <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
-                    {lang === 'fr' ? "Message pour la suite" : "Landing note"}
+                    {tr(lang, "Message pour la suite", "Landing note")}
                   </h3>
                 </div>
 
@@ -16040,13 +15972,13 @@ export default function App() {
                       <p className="text-sm text-app-text whitespace-pre-wrap leading-relaxed">{latestUnread.text}</p>
                       <div className="flex items-center justify-between gap-2 pt-1">
                         <p className="text-[10px] text-app-muted">
-                          {author ? `— ${author.alterName}` : ''} {new Date(latestUnread.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          {author ? `— ${author.alterName}` : ''} {new Date(latestUnread.createdAt).toLocaleString(localeOf(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </p>
                         <button
                           onClick={() => setLandingNotes(prev => prev.map(n => n.id === latestUnread.id ? { ...n, read: true } : n))}
                           className="text-[11px] font-bold text-amber-600 dark:text-amber-400 hover:underline flex-shrink-0"
                         >
-                          {lang === 'fr' ? "OK, compris" : "Got it"}
+                          {tr(lang, "OK, compris", "Got it")}
                         </button>
                       </div>
                     </div>
@@ -16058,7 +15990,7 @@ export default function App() {
                   <textarea
                     value={newLandingNoteText}
                     onChange={e => setNewLandingNoteText(e.target.value)}
-                    placeholder={lang === 'fr' ? "Où on est, ce qu'on faisait, à quelle heure il faut partir..." : "Where we are, what we were doing, what time to leave..."}
+                    placeholder={tr(lang, "Où on est, ce qu'on faisait, à quelle heure il faut partir...", "Where we are, what we were doing, what time to leave...")}
                     rows={2}
                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
@@ -16069,7 +16001,7 @@ export default function App() {
                         onChange={e => setNewLandingNoteAuthorId(e.target.value)}
                         className="flex-1 min-w-0 bg-app-bg border border-app-border/40 rounded-xl px-2 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                       >
-                        <option value="">{lang === 'fr' ? "Anonyme" : "Anonymous"}</option>
+                        <option value="">{tr(lang, "Anonyme", "Anonymous")}</option>
                         {savedAlters.map(a => <option key={a.id} value={a.id}>{a.alterName}</option>)}
                       </select>
                     )}
@@ -16086,7 +16018,7 @@ export default function App() {
                       className="flex items-center gap-1.5 px-4 py-2 bg-app-accent text-white rounded-xl text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      {lang === 'fr' ? "Laisser" : "Leave"}
+                      {tr(lang, "Laisser", "Leave")}
                     </button>
                   </div>
                 </div>
@@ -16099,7 +16031,7 @@ export default function App() {
                       className="text-[11px] font-bold text-app-muted hover:text-app-text flex items-center gap-1"
                     >
                       <ChevronRight className={`w-3.5 h-3.5 transition-transform ${landingNotesHistoryOpen ? 'rotate-90' : ''}`} />
-                      {lang === 'fr' ? `Historique (${landingNotes.length})` : `History (${landingNotes.length})`}
+                      {trf(lang, `Historique ({0})`, `History ({0})`, [landingNotes.length])}
                     </button>
                     {landingNotesHistoryOpen && (
                       <div className="mt-2 space-y-2 max-h-56 overflow-y-auto">
@@ -16110,12 +16042,12 @@ export default function App() {
                               <p className="whitespace-pre-wrap leading-relaxed">{n.text}</p>
                               <div className="flex items-center justify-between mt-1.5">
                                 <p className="text-[10px] text-app-muted">
-                                  {author ? `${author.alterName} · ` : ''}{new Date(n.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                  {author ? `${author.alterName} · ` : ''}{new Date(n.createdAt).toLocaleString(localeOf(lang), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                 </p>
                                 <button
                                   onClick={() => setLandingNotes(prev => prev.filter(x => x.id !== n.id))}
                                   className="text-app-muted hover:text-red-500 flex-shrink-0"
-                                  title={lang === 'fr' ? "Supprimer" : "Delete"}
+                                  title={tr(lang, "Supprimer", "Delete")}
                                 >
                                   <Trash2 className="w-3 h-3" />
                                 </button>
@@ -16131,15 +16063,13 @@ export default function App() {
 
               {/* Note intro */}
               <div className="p-3 bg-app-card border border-app-border/40 rounded-xl text-xs text-app-muted leading-relaxed">
-                {lang === 'fr'
-                  ? "Ces techniques visent à soulager les états de détresse émotionnelle et à lutter contre la dissociation. Elles doivent être répétées très régulièrement, notamment en dehors des crises, pour être efficaces."
-                  : "These techniques aim to relieve emotional distress and combat dissociation. They must be practised very regularly, especially outside of crises, to be effective."}
+                {tr(lang, "Ces techniques visent à soulager les états de détresse émotionnelle et à lutter contre la dissociation. Elles doivent être répétées très régulièrement, notamment en dehors des crises, pour être efficaces.", "These techniques aim to relieve emotional distress and combat dissociation. They must be practised very regularly, especially outside of crises, to be effective.")}
               </div>
 
               {/* Accordion sections */}
               {sections.map((section) => {
                 const isOpen = openGroundingSections.includes(section.id);
-                const items = lang === 'fr' ? section.itemsFr : section.itemsEn;
+                const items = tr(lang, section.itemsFr, section.itemsEn);
                 return (
                   <div key={section.id} className={`border rounded-2xl overflow-hidden ${section.colorClass}`}>
                     <button
@@ -16149,7 +16079,7 @@ export default function App() {
                       className="w-full flex items-center justify-between px-4 py-3 text-left"
                     >
                       <span className={`text-xs font-black uppercase tracking-widest ${section.accentClass}`}>
-                        {lang === 'fr' ? section.labelFr : section.labelEn}
+                        {tr(lang, section.labelFr, section.labelEn)}
                       </span>
                       <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform ${section.accentClass} ${isOpen ? 'rotate-90' : ''}`} />
                     </button>
@@ -16172,7 +16102,7 @@ export default function App() {
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4 text-app-accent" />
                   <h3 className="text-xs font-black uppercase tracking-widest text-app-text">
-                    {lang === 'fr' ? "Contacts de confiance" : "Trusted contacts"}
+                    {tr(lang, "Contacts de confiance", "Trusted contacts")}
                   </h3>
                 </div>
 
@@ -16191,14 +16121,14 @@ export default function App() {
                                 type="text"
                                 value={editContactName}
                                 onChange={e => setEditContactName(e.target.value)}
-                                placeholder={lang === 'fr' ? "Nom" : "Name"}
+                                placeholder={tr(lang, "Nom", "Name")}
                                 className="flex-1 min-w-0 bg-app-card border border-app-border/40 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                               />
                               <input
                                 type="tel"
                                 value={editContactPhone}
                                 onChange={e => setEditContactPhone(e.target.value)}
-                                placeholder={lang === 'fr' ? "Téléphone" : "Phone"}
+                                placeholder={tr(lang, "Téléphone", "Phone")}
                                 className="flex-1 min-w-0 bg-app-card border border-app-border/40 rounded-lg px-2 py-1.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                               />
                             </div>
@@ -16209,14 +16139,14 @@ export default function App() {
                                 setEditingContactId(null);
                               }}
                               className="p-2 hover:text-emerald-500 text-app-muted rounded-lg flex-shrink-0"
-                              title={lang === 'fr' ? "Enregistrer" : "Save"}
+                              title={tr(lang, "Enregistrer", "Save")}
                             >
                               <Check className="w-4 h-4" />
                             </button>
                             <button
                               onClick={() => setEditingContactId(null)}
                               className="p-2 hover:text-red-500 text-app-muted rounded-lg flex-shrink-0"
-                              title={lang === 'fr' ? "Annuler" : "Cancel"}
+                              title={tr(lang, "Annuler", "Cancel")}
                             >
                               <X className="w-4 h-4" />
                             </button>
@@ -16243,14 +16173,14 @@ export default function App() {
                                 setEditContactPhone(c.phone);
                               }}
                               className="p-2 hover:text-app-accent text-app-muted rounded-lg flex-shrink-0"
-                              title={lang === 'fr' ? "Modifier" : "Edit"}
+                              title={tr(lang, "Modifier", "Edit")}
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setTrustedContacts(prev => prev.filter(x => x.id !== c.id))}
                               className="p-2 hover:text-red-500 text-app-muted rounded-lg flex-shrink-0"
-                              title={lang === 'fr' ? "Supprimer" : "Delete"}
+                              title={tr(lang, "Supprimer", "Delete")}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -16267,14 +16197,14 @@ export default function App() {
                     type="text"
                     value={newContactName}
                     onChange={e => setNewContactName(e.target.value)}
-                    placeholder={lang === 'fr' ? "Nom" : "Name"}
+                    placeholder={tr(lang, "Nom", "Name")}
                     className="flex-1 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                   <input
                     type="tel"
                     value={newContactPhone}
                     onChange={e => setNewContactPhone(e.target.value)}
-                    placeholder={lang === 'fr' ? "Téléphone" : "Phone"}
+                    placeholder={tr(lang, "Téléphone", "Phone")}
                     className="flex-1 bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                     onKeyDown={e => {
                       if (e.key === 'Enter' && newContactName.trim() && newContactPhone.trim()) {
@@ -16292,14 +16222,14 @@ export default function App() {
                       setNewContactPhone('');
                     }}
                     className="p-2.5 bg-app-accent text-white rounded-xl hover:opacity-90 transition-opacity flex-shrink-0"
-                    title={lang === 'fr' ? "Ajouter" : "Add"}
+                    title={tr(lang, "Ajouter", "Add")}
                   >
                     <Plus className="w-4 h-4" />
                   </button>
                 </div>
                 {trustedContacts.length === 0 && (
                   <p className="text-[11px] text-app-muted text-center">
-                    {lang === 'fr' ? "Ajoutez vos contacts de confiance (thérapeute, proche…)" : "Add your trusted contacts (therapist, loved one…)"}
+                    {tr(lang, "Ajoutez vos contacts de confiance (thérapeute, proche…)", "Add your trusted contacts (therapist, loved one…)")}
                   </p>
                 )}
               </div>
@@ -16308,22 +16238,20 @@ export default function App() {
               <div className="p-5 bg-red-500/5 border border-red-500/20 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-red-500">
                   <AlertTriangle className="w-4 h-4" />
-                  {lang === 'fr' ? "En cas d'urgence" : "In case of emergency"}
+                  {tr(lang, "En cas d'urgence", "In case of emergency")}
                 </div>
                 <p className="text-[11px] text-app-muted leading-relaxed">
-                  {lang === 'fr'
-                    ? "Si tu es en détresse ou en danger immédiat, ces numéros sont gratuits, confidentiels et disponibles même si tu n'as pas encore de contact de confiance enregistré."
-                    : "If you're in distress or immediate danger, these numbers are free, confidential, and available even if you haven't saved a trusted contact yet."}
+                  {tr(lang, "Si tu es en détresse ou en danger immédiat, ces numéros sont gratuits, confidentiels et disponibles même si tu n'as pas encore de contact de confiance enregistré.", "If you're in distress or immediate danger, these numbers are free, confidential, and available even if you haven't saved a trusted contact yet.")}
                 </p>
                 <div className="space-y-2">
                   {[
-                    { name: lang === 'fr' ? "15 — SAMU (urgence médicale)" : "15 — Emergency medical services", desc: lang === 'fr' ? "Danger immédiat pour la santé" : "Immediate health danger", num: "15" },
-                    { name: lang === 'fr' ? "112 — Numéro d'urgence européen" : "112 — European emergency number", desc: lang === 'fr' ? "Depuis n'importe quel téléphone, en Europe" : "From any phone, within Europe", num: "112" },
-                    { name: lang === 'fr' ? "115 — Urgences sociales" : "115 — Social emergency line", desc: lang === 'fr' ? "Aussi appelé « SAMU social »" : "Also known as the \"SAMU social\"", num: "115" },
-                    { name: lang === 'fr' ? "119 — Enfance maltraitée" : "119 — Child abuse hotline", desc: lang === 'fr' ? "Allô Enfance en Danger, 24h/24 7j/7" : "Allô Enfance en Danger, 24/7", num: "119" },
-                    { name: lang === 'fr' ? "3114 — Prévention du suicide" : "3114 — Suicide prevention", desc: lang === 'fr' ? "Gratuit, 24h/24 7j/7, France entière" : "Free, 24/7, all of France", num: "3114" },
-                    { name: lang === 'fr' ? "3919 — Violences Femmes Infos" : "3919 — Violence against women hotline", desc: lang === 'fr' ? "Anonyme et gratuit, 24h/24 7j/7" : "Anonymous and free, 24/7", num: "3919" },
-                    { name: lang === 'fr' ? "SOS Amitié — Écoute" : "SOS Amitié — Listening line", desc: lang === 'fr' ? "Anonyme et confidentiel, bénévoles formés" : "Anonymous and confidential, trained volunteers", num: "0972394050" },
+                    { name: tr(lang, "15 — SAMU (urgence médicale)", "15 — Emergency medical services"), desc: tr(lang, "Danger immédiat pour la santé", "Immediate health danger"), num: "15" },
+                    { name: tr(lang, "112 — Numéro d'urgence européen", "112 — European emergency number"), desc: tr(lang, "Depuis n'importe quel téléphone, en Europe", "From any phone, within Europe"), num: "112" },
+                    { name: tr(lang, "115 — Urgences sociales", "115 — Social emergency line"), desc: tr(lang, "Aussi appelé « SAMU social »", "Also known as the \"SAMU social\""), num: "115" },
+                    { name: tr(lang, "119 — Enfance maltraitée", "119 — Child abuse hotline"), desc: tr(lang, "Allô Enfance en Danger, 24h/24 7j/7", "Allô Enfance en Danger, 24/7"), num: "119" },
+                    { name: tr(lang, "3114 — Prévention du suicide", "3114 — Suicide prevention"), desc: tr(lang, "Gratuit, 24h/24 7j/7, France entière", "Free, 24/7, all of France"), num: "3114" },
+                    { name: tr(lang, "3919 — Violences Femmes Infos", "3919 — Violence against women hotline"), desc: tr(lang, "Anonyme et gratuit, 24h/24 7j/7", "Anonymous and free, 24/7"), num: "3919" },
+                    { name: tr(lang, "SOS Amitié — Écoute", "SOS Amitié — Listening line"), desc: tr(lang, "Anonyme et confidentiel, bénévoles formés", "Anonymous and confidential, trained volunteers"), num: "0972394050" },
                   ].map(r => (
                     <a
                       key={r.num}
@@ -16341,17 +16269,13 @@ export default function App() {
                   ))}
                 </div>
                 <p className="text-[9px] text-app-muted italic">
-                  {lang === 'fr'
-                    ? "Numéros valables en France. Si tu es dans un autre pays, cherche l'équivalent local — findahelpline.com recense des lignes d'écoute dans le monde entier."
-                    : "Numbers valid in France. If you're in another country, look up your local equivalent — findahelpline.com lists helplines worldwide."}
+                  {tr(lang, "Numéros valables en France. Si tu es dans un autre pays, cherche l'équivalent local — findahelpline.com recense des lignes d'écoute dans le monde entier.", "Numbers valid in France. If you're in another country, look up your local equivalent — findahelpline.com lists helplines worldwide.")}
                 </p>
               </div>
 
               {/* Footer */}
               <p className="text-center text-[11px] text-app-muted italic pb-4">
-                {lang === 'fr'
-                  ? "Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical."
-                  : "Content reproduced with respect for the work of Dr Igor Thiriez (v3.1, 2021). Haven Space is not a medical tool."}
+                {tr(lang, "Contenu reproduit avec respect du travail du Dr Igor Thiriez (v3.1, 2021). Haven Space n'est pas un outil médical.", "Content reproduced with respect for the work of Dr Igor Thiriez (v3.1, 2021). Haven Space is not a medical tool.")}
               </p>
             </div>
           );
@@ -16362,20 +16286,20 @@ export default function App() {
           return (
             <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
               <div className="pb-4 border-b border-app-border/30 space-y-1">
-                <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Santé' : 'Health'}</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{tr(lang, 'Santé', 'Health')}</h2>
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
-                  {lang === 'fr' ? 'Carnet de santé partagé du système' : "The system's shared health record"}
+                  {tr(lang, 'Carnet de santé partagé du système', "The system's shared health record")}
                 </p>
               </div>
 
               {/* Sous-onglets */}
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: 'traitements', label: lang === 'fr' ? 'Traitements' : 'Treatments' },
-                  { id: 'antecedents', label: lang === 'fr' ? 'Antécédents' : 'History' },
-                  { id: 'intervenants', label: lang === 'fr' ? 'Intervenants' : 'Providers' },
-                  { id: 'aides', label: lang === 'fr' ? 'Aides et stratégies' : 'Aids & strategies' },
-                  { id: 'urgence', label: lang === 'fr' ? 'Urgence' : 'Emergency' },
+                  { id: 'traitements', label: tr(lang, 'Traitements', 'Treatments') },
+                  { id: 'antecedents', label: tr(lang, 'Antécédents', 'History') },
+                  { id: 'intervenants', label: tr(lang, 'Intervenants', 'Providers') },
+                  { id: 'aides', label: tr(lang, 'Aides et stratégies', 'Aids & strategies') },
+                  { id: 'urgence', label: tr(lang, 'Urgence', 'Emergency') },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -16396,36 +16320,36 @@ export default function App() {
                       className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      {lang === 'fr' ? 'Ajouter un médicament' : 'Add a medication'}
+                      {tr(lang, 'Ajouter un médicament', 'Add a medication')}
                     </button>
                   ) : (
                     <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Nom *' : 'Name *'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Nom *', 'Name *')}</label>
                         <input type="text" value={medDraftName} onChange={e => setMedDraftName(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Nom du médicament...' : 'Medication name...'}
+                          placeholder={tr(lang, 'Nom du médicament...', 'Medication name...')}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dosage' : 'Dosage'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Dosage', 'Dosage')}</label>
                         <input type="text" value={medDraftDosage} onChange={e => setMedDraftDosage(e.target.value)}
-                          placeholder={lang === 'fr' ? 'ex. 50mg' : 'e.g. 50mg'}
+                          placeholder={tr(lang, 'ex. 50mg', 'e.g. 50mg')}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Prise' : 'Intake'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Prise', 'Intake')}</label>
                         <div className="flex gap-2">
                           <button
                             onClick={() => setMedDraftRecurring(true)}
                             className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${medDraftRecurring ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
                           >
-                            {lang === 'fr' ? 'Régulière' : 'Regular'}
+                            {tr(lang, 'Régulière', 'Regular')}
                           </button>
                           <button
                             onClick={() => setMedDraftRecurring(false)}
                             className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${!medDraftRecurring ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
                           >
-                            {lang === 'fr' ? 'Ponctuelle' : 'One-time'}
+                            {tr(lang, 'Ponctuelle', 'One-time')}
                           </button>
                         </div>
                         {!medDraftRecurring && (
@@ -16438,7 +16362,7 @@ export default function App() {
                         )}
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Heures de rappel' : 'Reminder times'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Heures de rappel', 'Reminder times')}</label>
                         {medDraftTimes.length > 0 && (
                           <div className="flex flex-wrap gap-1.5">
                             {medDraftTimes.map((t, i) => (
@@ -16459,23 +16383,23 @@ export default function App() {
                             <button onClick={() => setMedDraftPeriodInput('PM')} className={`px-3 py-2 rounded-lg text-xs font-bold border transition-all ${medDraftPeriodInput === 'PM' ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}>PM</button>
                           </div>
                           <button onClick={addMedTime} className="px-3 py-2 rounded-xl border border-dashed border-app-border text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
-                            + {lang === 'fr' ? 'Ajouter' : 'Add'}
+                            + {tr(lang, 'Ajouter', 'Add')}
                           </button>
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Note', 'Note')}</label>
                         <textarea value={medDraftNote} onChange={e => setMedDraftNote(e.target.value)} rows={2}
-                          placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                          placeholder={tr(lang, 'Note (facultatif)', 'Note (optional)')}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
                       </div>
                       <div className="flex gap-2">
                         <button onClick={saveMedication} disabled={!medDraftName.trim()}
                           className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-                          {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                          {tr(lang, 'Enregistrer', 'Save')}
                         </button>
                         <button onClick={() => setMedFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
-                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          {tr(lang, 'Annuler', 'Cancel')}
                         </button>
                       </div>
                     </div>
@@ -16483,7 +16407,7 @@ export default function App() {
 
                   {medications.length === 0 ? (
                     <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
-                      {lang === 'fr' ? 'Aucun médicament enregistré.' : 'No medication logged.'}
+                      {tr(lang, 'Aucun médicament enregistré.', 'No medication logged.')}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -16495,8 +16419,8 @@ export default function App() {
                               {med.dosage && <span className="text-[10px] font-bold text-app-muted bg-app-bg px-2 py-0.5 rounded-full border border-app-border/30">{med.dosage}</span>}
                               <span className="text-[10px] font-bold text-app-muted bg-app-bg px-2 py-0.5 rounded-full border border-app-border/30">
                                 {med.recurring !== false
-                                  ? (lang === 'fr' ? 'Quotidien' : 'Daily')
-                                  : (lang === 'fr' ? `Ponctuel${med.oneTimeDate ? ' — ' + med.oneTimeDate : ''}` : `One-time${med.oneTimeDate ? ' — ' + med.oneTimeDate : ''}`)}
+                                  ? (tr(lang, 'Quotidien', 'Daily'))
+                                  : (trf(lang, `Ponctuel{0}`, `One-time{0}`, [med.oneTimeDate ? ' — ' + med.oneTimeDate : '']))}
                               </span>
                             </div>
                             {med.times.length > 0 && (
@@ -16528,34 +16452,34 @@ export default function App() {
                       className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
                     >
                       <Plus className="w-3.5 h-3.5" />
-                      {lang === 'fr' ? 'Ajouter une entrée' : 'Add an entry'}
+                      {tr(lang, 'Ajouter une entrée', 'Add an entry')}
                     </button>
                   ) : (
                     <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Titre' : 'Title'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Titre', 'Title')}</label>
                         <input type="text" value={histDraftTitle} onChange={e => setHistDraftTitle(e.target.value)}
-                          placeholder={lang === 'fr' ? 'Condition, chirurgie, diagnostic...' : 'Condition, surgery, diagnosis...'}
+                          placeholder={tr(lang, 'Condition, chirurgie, diagnostic...', 'Condition, surgery, diagnosis...')}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Date' : 'Date'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Date', 'Date')}</label>
                         <input type="datetime-local" value={histDraftDate} onChange={e => setHistDraftDate(e.target.value)}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                        <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Note', 'Note')}</label>
                         <textarea value={histDraftNote} onChange={e => setHistDraftNote(e.target.value)} rows={2}
-                          placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                          placeholder={tr(lang, 'Note (facultatif)', 'Note (optional)')}
                           className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
                       </div>
                       <div className="flex gap-2">
                         <button onClick={saveHistEntry} disabled={!histDraftTitle.trim()}
                           className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-                          {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                          {tr(lang, 'Enregistrer', 'Save')}
                         </button>
                         <button onClick={() => setHistFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
-                          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                          {tr(lang, 'Annuler', 'Cancel')}
                         </button>
                       </div>
                     </div>
@@ -16563,7 +16487,7 @@ export default function App() {
 
                   {sortedHistory.length === 0 ? (
                     <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
-                      {lang === 'fr' ? 'Aucun antécédent enregistré.' : 'No history logged.'}
+                      {tr(lang, 'Aucun antécédent enregistré.', 'No history logged.')}
                     </div>
                   ) : (
                     <div className="space-y-3">
@@ -16573,7 +16497,7 @@ export default function App() {
                             <span className="font-black text-sm text-app-text block">{entry.title}</span>
                             {entry.date && (
                               <span className="text-[10px] font-mono text-app-muted">
-                                {new Date(entry.date).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                {new Date(entry.date).toLocaleString(localeOf(lang), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                               </span>
                             )}
                             {entry.note && <p className="text-xs text-app-muted italic">{entry.note}</p>}
@@ -16605,32 +16529,30 @@ export default function App() {
               {healthSubTab === 'urgence' && (
                 <div className="space-y-4">
                   <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-2xl text-xs text-app-muted leading-relaxed">
-                    {lang === 'fr'
-                      ? "Informations critiques pour les secours. Reste bref et clair : ces infos sont pensées pour être lues rapidement par quelqu'un d'autre en cas de besoin."
-                      : 'Critical info for first responders. Keep it brief and clear: this is meant to be quickly read by someone else if needed.'}
+                    {tr(lang, "Informations critiques pour les secours. Reste bref et clair : ces infos sont pensées pour être lues rapidement par quelqu'un d'autre en cas de besoin.", 'Critical info for first responders. Keep it brief and clear: this is meant to be quickly read by someone else if needed.')}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Conditions' : 'Conditions'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Conditions', 'Conditions')}</label>
                     <input type="text" value={emergencyDraft.conditions} onChange={e => setEmergencyDraft(prev => ({ ...prev, conditions: e.target.value }))}
-                      placeholder={lang === 'fr' ? 'ex. Diabétique de type 1' : 'e.g. Type 1 Diabetic'}
+                      placeholder={tr(lang, 'ex. Diabétique de type 1', 'e.g. Type 1 Diabetic')}
                       className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Allergies' : 'Allergies'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Allergies', 'Allergies')}</label>
                     <input type="text" value={emergencyDraft.allergies} onChange={e => setEmergencyDraft(prev => ({ ...prev, allergies: e.target.value }))}
-                      placeholder={lang === 'fr' ? 'ex. Pénicilline' : 'e.g. Penicillin'}
+                      placeholder={tr(lang, 'ex. Pénicilline', 'e.g. Penicillin')}
                       className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Groupe sanguin' : 'Blood type'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Groupe sanguin', 'Blood type')}</label>
                     <input type="text" value={emergencyDraft.bloodType} onChange={e => setEmergencyDraft(prev => ({ ...prev, bloodType: e.target.value }))}
                       placeholder="O+"
                       className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20" />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Note' : 'Note'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Note', 'Note')}</label>
                     <textarea value={emergencyDraft.note} onChange={e => setEmergencyDraft(prev => ({ ...prev, note: e.target.value }))} rows={3}
-                      placeholder={lang === 'fr' ? 'Note (facultatif)' : 'Note (optional)'}
+                      placeholder={tr(lang, 'Note (facultatif)', 'Note (optional)')}
                       className="w-full bg-app-card border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none" />
                   </div>
                   <button
@@ -16641,14 +16563,14 @@ export default function App() {
                       <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${emergencyDraft.showQuickAccess ? 'left-[18px]' : 'left-0.5'}`} />
                     </div>
                     <span className="text-xs text-app-text text-left">
-                      {lang === 'fr' ? "Afficher un accès rapide aux infos d'urgence dans l'en-tête de l'app" : "Show a quick-access shortcut to emergency info in the app's header"}
+                      {tr(lang, "Afficher un accès rapide aux infos d'urgence dans l'en-tête de l'app", "Show a quick-access shortcut to emergency info in the app's header")}
                     </span>
                   </button>
                   <button
                     onClick={saveEmergencyInfo}
                     className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                   >
-                    {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                    {tr(lang, 'Enregistrer', 'Save')}
                   </button>
                 </div>
               )}
@@ -16662,16 +16584,16 @@ export default function App() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                        {lang === 'fr' ? 'Supprimer ce médicament ?' : 'Delete this medication?'}
+                        {tr(lang, 'Supprimer ce médicament ?', 'Delete this medication?')}
                       </h3>
                     </div>
                     <div className="flex flex-col gap-2">
                       <button onClick={() => { setMedications(prev => prev.filter(m => m.id !== deleteMedId)); setDeleteMedId(null); }}
                         className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm">
-                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                        {tr(lang, 'Supprimer', 'Delete')}
                       </button>
                       <button onClick={() => setDeleteMedId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
-                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        {tr(lang, 'Annuler', 'Cancel')}
                       </button>
                     </div>
                   </div>
@@ -16687,16 +16609,16 @@ export default function App() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                        {lang === 'fr' ? 'Supprimer cet antécédent ?' : 'Delete this history entry?'}
+                        {tr(lang, 'Supprimer cet antécédent ?', 'Delete this history entry?')}
                       </h3>
                     </div>
                     <div className="flex flex-col gap-2">
                       <button onClick={() => { setHealthHistory(prev => prev.filter(h => h.id !== deleteHistId)); setDeleteHistId(null); }}
                         className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm">
-                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                        {tr(lang, 'Supprimer', 'Delete')}
                       </button>
                       <button onClick={() => setDeleteHistId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
-                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        {tr(lang, 'Annuler', 'Cancel')}
                       </button>
                     </div>
                   </div>
@@ -16709,7 +16631,7 @@ export default function App() {
         {currentTab === 'wallet' && (() => {
           const now = new Date();
           const monthKey = now.toISOString().slice(0, 7);
-          const monthLabel = now.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'long', year: 'numeric' });
+          const monthLabel = now.toLocaleDateString(localeOf(lang), { month: 'long', year: 'numeric' });
           const monthEntries = walletEntries.filter(e => e.date.startsWith(monthKey));
           const totalDepenses = monthEntries.filter(e => e.type === 'depense').reduce((s, e) => s + e.amount, 0);
           const totalRevenus = monthEntries.filter(e => e.type === 'revenu').reduce((s, e) => s + e.amount, 0);
@@ -16725,17 +16647,17 @@ export default function App() {
           return (
             <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
               <div className="pb-4 border-b border-app-border/30 space-y-1">
-                <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Portefeuille' : 'Wallet'}</h2>
+                <h2 className="text-2xl font-black uppercase tracking-wider">{tr(lang, 'Portefeuille', 'Wallet')}</h2>
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
-                  {lang === 'fr' ? 'Dépenses par alter et budget commun du système' : "Per-alter expenses and the system's shared budget"}
+                  {tr(lang, 'Dépenses par alter et budget commun du système', "Per-alter expenses and the system's shared budget")}
                 </p>
               </div>
 
               {/* Sous-onglets */}
               <div className="flex flex-wrap gap-2">
                 {[
-                  { id: 'apercu', label: lang === 'fr' ? 'Aperçu' : 'Overview' },
-                  { id: 'historique', label: lang === 'fr' ? 'Historique' : 'History' },
+                  { id: 'apercu', label: tr(lang, 'Aperçu', 'Overview') },
+                  { id: 'historique', label: tr(lang, 'Historique', 'History') },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -16753,7 +16675,7 @@ export default function App() {
                   className="flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  {lang === 'fr' ? 'Ajouter une opération' : 'Add an entry'}
+                  {tr(lang, 'Ajouter une opération', 'Add an entry')}
                 </button>
               ) : (
                 <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
@@ -16762,17 +16684,17 @@ export default function App() {
                       onClick={() => setWalletDraftType('depense')}
                       className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${walletDraftType === 'depense' ? 'bg-red-500/15 border-red-500/40 text-red-500' : 'bg-app-bg border-app-border text-app-muted'}`}
                     >
-                      {lang === 'fr' ? '➖ Dépense' : '➖ Expense'}
+                      {tr(lang, '➖ Dépense', '➖ Expense')}
                     </button>
                     <button
                       onClick={() => setWalletDraftType('revenu')}
                       className={`flex-1 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${walletDraftType === 'revenu' ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-500' : 'bg-app-bg border-app-border text-app-muted'}`}
                     >
-                      {lang === 'fr' ? '➕ Revenu' : '➕ Income'}
+                      {tr(lang, '➕ Revenu', '➕ Income')}
                     </button>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Montant (€) *' : 'Amount (€) *'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Montant (€) *', 'Amount (€) *')}</label>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -16783,17 +16705,17 @@ export default function App() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Description *' : 'Description *'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Description *', 'Description *')}</label>
                     <input
                       type="text"
                       value={walletDraftLabel}
                       onChange={e => setWalletDraftLabel(e.target.value)}
-                      placeholder={lang === 'fr' ? 'ex. Courses de la semaine' : 'e.g. Weekly groceries'}
+                      placeholder={tr(lang, 'ex. Courses de la semaine', 'e.g. Weekly groceries')}
                       className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Catégorie' : 'Category'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Catégorie', 'Category')}</label>
                     <div className="flex flex-wrap gap-1.5">
                       {WALLET_CATEGORIES.map(c => (
                         <button
@@ -16801,7 +16723,7 @@ export default function App() {
                           onClick={() => setWalletDraftCategory(c.id)}
                           className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftCategory === c.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
                         >
-                          {c.emoji} {lang === 'fr' ? c.label : c.labelEn}
+                          {c.emoji} {tr(lang, c.label, c.labelEn)}
                         </button>
                       ))}
                       {walletCustomCategories.map(c => (
@@ -16819,7 +16741,7 @@ export default function App() {
                         onClick={() => setWalletNewCatOpen(o => !o)}
                         className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-dashed transition-all ${walletNewCatOpen ? 'bg-app-accent/10 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
                       >
-                        + {lang === 'fr' ? 'Nouvelle' : 'New'}
+                        + {tr(lang, 'Nouvelle', 'New')}
                       </button>
                     </div>
                     {walletNewCatOpen && (
@@ -16834,7 +16756,7 @@ export default function App() {
                           type="text"
                           value={walletNewCatLabel}
                           onChange={e => setWalletNewCatLabel(e.target.value)}
-                          placeholder={lang === 'fr' ? 'ex. Matériel créatif' : 'e.g. Art supplies'}
+                          placeholder={tr(lang, 'ex. Matériel créatif', 'e.g. Art supplies')}
                           onKeyDown={e => { if (e.key === 'Enter') addWalletCategory(); }}
                           className="flex-1 min-w-0 bg-app-bg border border-app-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                         />
@@ -16843,19 +16765,19 @@ export default function App() {
                           disabled={!walletNewCatLabel.trim()}
                           className="shrink-0 px-3 py-2 bg-app-accent text-white font-extrabold uppercase text-[9px] tracking-widest rounded-xl transition-all disabled:opacity-40"
                         >
-                          {lang === 'fr' ? 'Ajouter' : 'Add'}
+                          {tr(lang, 'Ajouter', 'Add')}
                         </button>
                       </div>
                     )}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Qui ?' : 'Who?'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Qui ?', 'Who?')}</label>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <button
                         onClick={() => { setWalletDraftAlterId(null); setWalletWhoSearch(''); }}
                         className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${walletDraftAlterId === null ? 'bg-app-accent text-white border-transparent' : 'bg-app-bg border-app-border text-app-muted'}`}
                       >
-                        🤝 {lang === 'fr' ? 'Commun' : 'Shared'}
+                        🤝 {tr(lang, 'Commun', 'Shared')}
                       </button>
                       {walletDraftAlterId && (
                         <span className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-lg text-[10px] font-bold bg-app-accent text-white">
@@ -16870,14 +16792,14 @@ export default function App() {
                       type="text"
                       value={walletWhoSearch}
                       onChange={e => setWalletWhoSearch(e.target.value)}
-                      placeholder={lang === 'fr' ? 'Rechercher un alter par nom...' : 'Search for an alter by name...'}
+                      placeholder={tr(lang, 'Rechercher un alter par nom...', 'Search for an alter by name...')}
                       className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                     />
                     {walletWhoSearch.trim() && (() => {
                       const q = walletWhoSearch.trim().toLowerCase();
                       const matches = savedAlters.filter(a => a.alterName.toLowerCase().includes(q)).slice(0, 8);
                       return matches.length === 0 ? (
-                        <p className="text-[10px] text-app-muted italic px-1">{lang === 'fr' ? 'Aucun alter trouvé.' : 'No alter found.'}</p>
+                        <p className="text-[10px] text-app-muted italic px-1">{tr(lang, 'Aucun alter trouvé.', 'No alter found.')}</p>
                       ) : (
                         <div className="flex flex-wrap gap-1.5">
                           {matches.map(a => (
@@ -16894,7 +16816,7 @@ export default function App() {
                     })()}
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Date' : 'Date'}</label>
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Date', 'Date')}</label>
                     <input
                       type="date"
                       value={walletDraftDate}
@@ -16912,15 +16834,15 @@ export default function App() {
                             disabled={!walletFormValid}
                             className="flex-1 px-4 py-2.5 bg-app-accent text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                           >
-                            {lang === 'fr' ? 'Enregistrer' : 'Save'}
+                            {tr(lang, 'Enregistrer', 'Save')}
                           </button>
                           <button onClick={() => setWalletFormOpen(false)} className="px-4 py-2.5 bg-app-bg border border-app-border text-app-muted font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-                            {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                            {tr(lang, 'Annuler', 'Cancel')}
                           </button>
                         </div>
                         {!walletFormValid && (
                           <p className="text-[10px] text-app-muted italic px-1">
-                            {lang === 'fr' ? 'Renseigne un montant supérieur à 0 et une description pour pouvoir enregistrer.' : 'Enter an amount above 0 and a description to save.'}
+                            {tr(lang, 'Renseigne un montant supérieur à 0 et une description pour pouvoir enregistrer.', 'Enter an amount above 0 and a description to save.')}
                           </p>
                         )}
                       </div>
@@ -16934,15 +16856,15 @@ export default function App() {
                   <p className="text-[10px] font-bold uppercase tracking-widest text-app-muted capitalize">{monthLabel}</p>
                   <div className="grid grid-cols-3 gap-2 sm:gap-3">
                     <div className="p-3 sm:p-4 bg-app-card border border-app-border/40 rounded-2xl">
-                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Dépensé' : 'Spent'}</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Dépensé', 'Spent')}</p>
                       <p className="text-base sm:text-xl font-black text-red-500 mt-1">-{totalDepenses.toFixed(2)} €</p>
                     </div>
                     <div className="p-3 sm:p-4 bg-app-card border border-app-border/40 rounded-2xl">
-                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Reçu' : 'Received'}</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Reçu', 'Received')}</p>
                       <p className="text-base sm:text-xl font-black text-emerald-500 mt-1">+{totalRevenus.toFixed(2)} €</p>
                     </div>
                     <div className={`p-3 sm:p-4 border rounded-2xl ${(totalRevenus - totalDepenses) >= 0 ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-red-500/10 border-red-500/30'}`}>
-                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{lang === 'fr' ? 'Total' : 'Total'}</p>
+                      <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-app-muted">{tr(lang, 'Total', 'Total')}</p>
                       <p className={`text-base sm:text-xl font-black mt-1 ${(totalRevenus - totalDepenses) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                         {(totalRevenus - totalDepenses) >= 0 ? '+' : ''}{(totalRevenus - totalDepenses).toFixed(2)} €
                       </p>
@@ -16950,14 +16872,14 @@ export default function App() {
                   </div>
 
                   <div className="space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Répartition des dépenses' : 'Expense breakdown'}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-app-muted">{tr(lang, 'Répartition des dépenses', 'Expense breakdown')}</p>
                     <div className="p-4 bg-app-card border border-app-border/40 rounded-2xl space-y-3">
                       {(totalCommun > 0 || byAlterSorted.length > 0) ? (
                         <>
                           {totalCommun > 0 && (
                             <div>
                               <div className="flex justify-between text-xs font-bold mb-1">
-                                <span>🤝 {lang === 'fr' ? 'Commun' : 'Shared'}</span>
+                                <span>🤝 {tr(lang, 'Commun', 'Shared')}</span>
                                 <span>{totalCommun.toFixed(2)} €</span>
                               </div>
                               <div className="h-2 rounded-full bg-app-bg overflow-hidden">
@@ -16970,7 +16892,7 @@ export default function App() {
                             return (
                               <div key={alterId}>
                                 <div className="flex justify-between text-xs font-bold mb-1">
-                                  <span>{alter?.alterName || (lang === 'fr' ? 'Alter supprimé' : 'Deleted alter')}</span>
+                                  <span>{alter?.alterName || (tr(lang, 'Alter supprimé', 'Deleted alter'))}</span>
                                   <span>{amount.toFixed(2)} €</span>
                                 </div>
                                 <div className="h-2 rounded-full bg-app-bg overflow-hidden">
@@ -16981,7 +16903,7 @@ export default function App() {
                           })}
                         </>
                       ) : (
-                        <p className="text-xs text-app-muted italic">{lang === 'fr' ? 'Aucune dépense ce mois-ci.' : 'No expenses this month.'}</p>
+                        <p className="text-xs text-app-muted italic">{tr(lang, 'Aucune dépense ce mois-ci.', 'No expenses this month.')}</p>
                       )}
                     </div>
                   </div>
@@ -16991,7 +16913,7 @@ export default function App() {
               {walletSubTab === 'historique' && (
                 <div className="space-y-2">
                   {sortedHistory.length === 0 && (
-                    <p className="text-xs text-app-muted italic text-center py-6">{lang === 'fr' ? 'Aucune opération pour le moment.' : 'No entries yet.'}</p>
+                    <p className="text-xs text-app-muted italic text-center py-6">{tr(lang, 'Aucune opération pour le moment.', 'No entries yet.')}</p>
                   )}
                   {sortedHistory.map(entry => {
                     const cat = WALLET_ALL_CATEGORIES.find(c => c.id === entry.category);
@@ -17002,7 +16924,7 @@ export default function App() {
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-bold text-app-text truncate">{entry.label}</p>
                           <p className="text-[10px] text-app-muted">
-                            {entry.date} · {alter ? alter.alterName : (lang === 'fr' ? 'Commun' : 'Shared')}
+                            {entry.date} · {alter ? alter.alterName : (tr(lang, 'Commun', 'Shared'))}
                           </p>
                         </div>
                         <p className={`text-sm font-black shrink-0 ${entry.type === 'depense' ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -17029,7 +16951,7 @@ export default function App() {
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                        {lang === 'fr' ? 'Supprimer cette opération ?' : 'Delete this entry?'}
+                        {tr(lang, 'Supprimer cette opération ?', 'Delete this entry?')}
                       </h3>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -17037,10 +16959,10 @@ export default function App() {
                         onClick={() => { setWalletEntries(prev => prev.filter(e => e.id !== deleteWalletId)); setDeleteWalletId(null); }}
                         className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                       >
-                        {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                        {tr(lang, 'Supprimer', 'Delete')}
                       </button>
                       <button onClick={() => setDeleteWalletId(null)} className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all">
-                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        {tr(lang, 'Annuler', 'Cancel')}
                       </button>
                     </div>
                   </div>
@@ -17055,27 +16977,27 @@ export default function App() {
             { id: 'box-breathing', label: 'Box Breathing', icon: Wind },
             { id: 'fidgets', label: 'Fidgets', icon: Hand },
             { id: 'kalimba', label: 'Kalimba', icon: Music },
-            { id: 'affirmations', label: lang === 'fr' ? 'Affirmations' : 'Affirmations', icon: Sparkles },
-            { id: 'memory-box', label: lang === 'fr' ? 'Boîte à Souvenirs' : 'Memory Box', icon: Heart },
-            { id: 'choice-box', label: lang === 'fr' ? 'Boîte à Choix' : 'Choice Box', icon: Repeat },
-            { id: 'ephemeral', label: lang === 'fr' ? 'Éphémère' : 'Ephemeral', icon: Feather },
-            { id: 'eco-system', label: lang === 'fr' ? 'Éco-Système' : 'Eco-System', icon: TreePine },
+            { id: 'affirmations', label: tr(lang, 'Affirmations', 'Affirmations'), icon: Sparkles },
+            { id: 'memory-box', label: tr(lang, 'Boîte à Souvenirs', 'Memory Box'), icon: Heart },
+            { id: 'choice-box', label: tr(lang, 'Boîte à Choix', 'Choice Box'), icon: Repeat },
+            { id: 'ephemeral', label: tr(lang, 'Éphémère', 'Ephemeral'), icon: Feather },
+            { id: 'eco-system', label: tr(lang, 'Éco-Système', 'Eco-System'), icon: TreePine },
           ];
           const activeToolMeta = relaxTools.find(t2 => t2.id === activeRelaxTool);
           const phases = getBreathingPhases();
           const currentPhase = phases[breathingPhaseIdx % phases.length];
           const phaseLabel = breathingRhythm === 'box'
-            ? (lang === 'fr' ? BOX_BREATHING_LABELS_FR[breathingPhaseIdx % 4] : BOX_BREATHING_LABELS_EN[breathingPhaseIdx % 4])
-            : (lang === 'fr' ? ['Inspire', 'Retiens', 'Expire'][breathingPhaseIdx % 3] : ['Inhale', 'Hold', 'Exhale'][breathingPhaseIdx % 3]);
+            ? tr(lang, BOX_BREATHING_LABELS_FR[breathingPhaseIdx % 4], BOX_BREATHING_LABELS_EN[breathingPhaseIdx % 4])
+            : tr(lang, ['Inspire', 'Retiens', 'Expire'][breathingPhaseIdx % 3], ['Inhale', 'Hold', 'Exhale'][breathingPhaseIdx % 3]);
 
           return (
             <div className="space-y-6 max-w-3xl mx-auto w-full animate-fade-in duration-300">
               {!activeRelaxTool ? (
                 <>
                   <div className="pb-4 border-b border-app-border/30 space-y-1">
-                    <h2 className="text-2xl font-black uppercase tracking-wider">{lang === 'fr' ? 'Détente' : 'Relax'}</h2>
+                    <h2 className="text-2xl font-black uppercase tracking-wider">{tr(lang, 'Détente', 'Relax')}</h2>
                     <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
-                      {lang === 'fr' ? 'Outils anti-dissociation' : 'Anti-dissociation tools'}
+                      {tr(lang, 'Outils anti-dissociation', 'Anti-dissociation tools')}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -17103,7 +17025,7 @@ export default function App() {
                     className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors"
                   >
                     <ChevronRight className="w-3.5 h-3.5 rotate-180" />
-                    {lang === 'fr' ? 'Détente' : 'Relax'}
+                    {tr(lang, 'Détente', 'Relax')}
                   </button>
 
                   {activeRelaxTool === 'box-breathing' ? (
@@ -17122,7 +17044,7 @@ export default function App() {
                           }}
                         >
                           <span className="text-sm font-black uppercase tracking-widest text-app-accent select-none">
-                            {breathingRunning ? phaseLabel : (lang === 'fr' ? 'Prêt·e ?' : 'Ready?')}
+                            {breathingRunning ? phaseLabel : (tr(lang, 'Prêt·e ?', 'Ready?'))}
                           </span>
                         </div>
                       </div>
@@ -17134,7 +17056,7 @@ export default function App() {
                             onClick={() => setBreathingRhythm('box')}
                             className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${breathingRhythm === 'box' ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
                           >
-                            {lang === 'fr' ? 'Carré' : 'Box'}
+                            {tr(lang, 'Carré', 'Box')}
                           </button>
                           <button
                             onClick={() => setBreathingRhythm('478')}
@@ -17147,7 +17069,7 @@ export default function App() {
                         {breathingRhythm === 'box' && (
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-app-muted">
-                              <span>{lang === 'fr' ? 'Tempo' : 'Tempo'}</span>
+                              <span>{tr(lang, 'Tempo', 'Tempo')}</span>
                               <span>{breathingSpeed}s</span>
                             </div>
                             <input
@@ -17166,7 +17088,7 @@ export default function App() {
                           onClick={() => { setBreathingPhaseIdx(0); setBreathingRunning(r => !r); }}
                           className="w-full py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                         >
-                          {breathingRunning ? (lang === 'fr' ? 'Arrêter' : 'Stop') : (lang === 'fr' ? 'Commencer' : 'Start')}
+                          {breathingRunning ? (tr(lang, 'Arrêter', 'Stop')) : (tr(lang, 'Commencer', 'Start'))}
                         </button>
                       </div>
                     </div>
@@ -17177,9 +17099,9 @@ export default function App() {
                       {/* Sous-navigation */}
                       <div className="flex gap-2 w-full max-w-sm">
                         {[
-                          { id: 'sand', label: lang === 'fr' ? 'Bac à Sable' : 'Sand Box' },
-                          { id: 'bubbles', label: lang === 'fr' ? 'Bulles' : 'Bubbles' },
-                          { id: 'coloring', label: lang === 'fr' ? 'Coloriage' : 'Coloring' },
+                          { id: 'sand', label: tr(lang, 'Bac à Sable', 'Sand Box') },
+                          { id: 'bubbles', label: tr(lang, 'Bulles', 'Bubbles') },
+                          { id: 'coloring', label: tr(lang, 'Coloriage', 'Coloring') },
                         ].map(sub => (
                           <button
                             key={sub.id}
@@ -17196,9 +17118,9 @@ export default function App() {
                         <div className="w-full max-w-sm space-y-3">
                           <div className="flex gap-2">
                             {[
-                              { id: 'sand', label: lang === 'fr' ? 'Sable' : 'Sand' },
-                              { id: 'snow', label: lang === 'fr' ? 'Neige' : 'Snow' },
-                              { id: 'waves', label: lang === 'fr' ? 'Vagues' : 'Waves' },
+                              { id: 'sand', label: tr(lang, 'Sable', 'Sand') },
+                              { id: 'snow', label: tr(lang, 'Neige', 'Snow') },
+                              { id: 'waves', label: tr(lang, 'Vagues', 'Waves') },
                             ].map(m => (
                               <button
                                 key={m.id}
@@ -17221,8 +17143,8 @@ export default function App() {
                           />
                           <p className="text-[10px] text-app-muted text-center italic">
                             {sandColorMode === 'waves'
-                              ? (lang === 'fr' ? 'Fais glisser ton doigt — l\'eau ondule et clapote au contact.' : 'Drag your finger — the water ripples on contact.')
-                              : (lang === 'fr' ? 'Fais glisser ton doigt — les traits s\'effacent tout seuls.' : 'Drag your finger — the marks fade on their own.')}
+                              ? (tr(lang, 'Fais glisser ton doigt — l\'eau ondule et clapote au contact.', 'Drag your finger — the water ripples on contact.'))
+                              : (tr(lang, 'Fais glisser ton doigt — les traits s\'effacent tout seuls.', 'Drag your finger — the marks fade on their own.'))}
                           </p>
                         </div>
                       )}
@@ -17250,7 +17172,7 @@ export default function App() {
                             onClick={() => setPoppedBubbles(new Set())}
                             className="w-full py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Regonfler toutes les bulles' : 'Reset all bubbles'}
+                            {tr(lang, 'Regonfler toutes les bulles', 'Reset all bubbles')}
                           </button>
                         </div>
                       )}
@@ -17261,8 +17183,8 @@ export default function App() {
                           {/* Sélecteur de catégorie */}
                           <div className="flex gap-2 w-full">
                             {([
-                              { id: 'fleur', label: lang === 'fr' ? 'Fleurs' : 'Flowers' },
-                              { id: 'cercle', label: lang === 'fr' ? 'Cercles' : 'Circles' },
+                              { id: 'fleur', label: tr(lang, 'Fleurs', 'Flowers') },
+                              { id: 'cercle', label: tr(lang, 'Cercles', 'Circles') },
                             ] as { id: MandalaCategory; label: string }[]).map(cat => (
                               <button
                                 key={cat.id}
@@ -17309,19 +17231,19 @@ export default function App() {
                             <button
                               onClick={() => setMandalaZoom(z => Math.min(3, z + 0.25))}
                               className="w-9 h-9 shrink-0 rounded-lg border border-app-border text-app-text text-lg font-bold"
-                              aria-label={lang === 'fr' ? 'Zoom avant' : 'Zoom in'}
+                              aria-label={tr(lang, 'Zoom avant', 'Zoom in')}
                             >+</button>
                             <span className="flex-1 text-center text-[10px] font-mono text-app-muted">{Math.round(mandalaZoom * 100)}%</span>
                             <button
                               onClick={() => setMandalaZoom(z => Math.max(1, z - 0.25))}
                               className="w-9 h-9 shrink-0 rounded-lg border border-app-border text-app-text text-lg font-bold"
-                              aria-label={lang === 'fr' ? 'Zoom arrière' : 'Zoom out'}
+                              aria-label={tr(lang, 'Zoom arrière', 'Zoom out')}
                             >-</button>
                             <button
                               onClick={resetMandalaView}
                               className="px-3 h-9 shrink-0 rounded-lg border border-app-border text-[9px] font-black uppercase tracking-wider text-app-muted"
                             >
-                              {lang === 'fr' ? 'Réinitialiser' : 'Reset'}
+                              {tr(lang, 'Réinitialiser', 'Reset')}
                             </button>
                           </div>
 
@@ -17350,10 +17272,10 @@ export default function App() {
                             onClick={clearCurrentMandala}
                             className="w-full py-2 rounded-xl border border-app-border text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
                           >
-                            {lang === 'fr' ? 'Effacer ce mandala' : 'Clear this mandala'}
+                            {tr(lang, 'Effacer ce mandala', 'Clear this mandala')}
                           </button>
                           <p className="text-[10px] text-app-muted text-center italic">
-                            {lang === 'fr' ? 'Choisis un mandala et une couleur, puis clique dans une zone pour la remplir. Reclique avec la même couleur pour l\'effacer.' : 'Pick a mandala and a color, then click inside a zone to fill it. Click again with the same color to erase it.'}
+                            {tr(lang, 'Choisis un mandala et une couleur, puis clique dans une zone pour la remplir. Reclique avec la même couleur pour l\'effacer.', 'Pick a mandala and a color, then click inside a zone to fill it. Click again with the same color to erase it.')}
                           </p>
                         </div>
                       )}
@@ -17380,14 +17302,14 @@ export default function App() {
                         </div>
                       </div>
                       <p className="text-[10px] text-app-muted text-center italic max-w-xs">
-                        {lang === 'fr' ? 'Touche les lames pour jouer une note.' : 'Tap the tines to play a note.'}
+                        {tr(lang, 'Touche les lames pour jouer une note.', 'Tap the tines to play a note.')}
                       </p>
 
                       {/* Enregistrement de séquences */}
                       <div className="w-full max-w-md space-y-3">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-                            {lang === 'fr' ? `Séquences (${kalimbaSequences.length}/5)` : `Sequences (${kalimbaSequences.length}/5)`}
+                            {trf(lang, `Séquences ({0}/5)`, `Sequences ({0}/5)`, [kalimbaSequences.length])}
                           </span>
                           {kalimbaRecordingActive ? (
                             <button
@@ -17395,7 +17317,7 @@ export default function App() {
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500 text-white text-[10px] font-black uppercase tracking-widest animate-pulse"
                             >
                               <span className="w-2 h-2 rounded-sm bg-white" />
-                              {lang === 'fr' ? 'Arrêter' : 'Stop'}
+                              {tr(lang, 'Arrêter', 'Stop')}
                             </button>
                           ) : (
                             <button
@@ -17404,20 +17326,20 @@ export default function App() {
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-app-accent text-white text-[10px] font-black uppercase tracking-widest disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
                             >
                               <span className="w-2.5 h-2.5 rounded-full bg-white" />
-                              {lang === 'fr' ? 'Enregistrer' : 'Record'}
+                              {tr(lang, 'Enregistrer', 'Record')}
                             </button>
                           )}
                         </div>
 
                         {kalimbaRecordingActive && (
                           <p className="text-[10px] text-red-500 text-center font-bold uppercase tracking-wider animate-pulse">
-                            {lang === 'fr' ? '● Enregistrement en cours — joue ta séquence, puis Arrêter.' : '● Recording — play your sequence, then Stop.'}
+                            {tr(lang, '● Enregistrement en cours — joue ta séquence, puis Arrêter.', '● Recording — play your sequence, then Stop.')}
                           </p>
                         )}
 
                         {kalimbaSequences.length === 0 && !kalimbaRecordingActive && (
                           <p className="text-[10px] text-app-muted italic text-center">
-                            {lang === 'fr' ? "Aucune séquence enregistrée pour l'instant." : 'No sequences recorded yet.'}
+                            {tr(lang, "Aucune séquence enregistrée pour l'instant.", 'No sequences recorded yet.')}
                           </p>
                         )}
 
@@ -17432,7 +17354,7 @@ export default function App() {
                                 <Play className="w-3.5 h-3.5" />
                               </button>
                               <span className="flex-1 min-w-0 text-xs font-bold truncate">{seq.name}</span>
-                              <span className="text-[9px] text-app-muted shrink-0">{seq.notes.length} {lang === 'fr' ? 'notes' : 'notes'}</span>
+                              <span className="text-[9px] text-app-muted shrink-0">{seq.notes.length} {tr(lang, 'notes', 'notes')}</span>
                               <button
                                 onClick={() => deleteKalimbaSequence(seq.id)}
                                 className="p-1.5 rounded-lg text-app-muted hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
@@ -17449,7 +17371,7 @@ export default function App() {
                     return (
                       <div className="flex flex-col items-center gap-6 py-6">
                         <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
-                          {lang === 'fr' ? 'Affirmations' : 'Affirmations'}
+                          {tr(lang, 'Affirmations', 'Affirmations')}
                         </h3>
                         <div className="w-full max-w-sm bg-app-card border border-app-border/40 rounded-3xl p-8 space-y-4 shadow-sm">
                           <div className="text-[10px] font-black uppercase tracking-widest text-app-accent text-center flex items-center justify-center gap-1.5">
@@ -17465,7 +17387,7 @@ export default function App() {
                           className="w-full max-w-sm flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                         >
                           <RotateCcw className="w-3.5 h-3.5" />
-                          {lang === 'fr' ? 'Rafraîchir' : 'Refresh'}
+                          {tr(lang, 'Rafraîchir', 'Refresh')}
                         </button>
                       </div>
                     );
@@ -17475,21 +17397,21 @@ export default function App() {
                     return (
                       <div className="flex flex-col items-center gap-5 py-6 w-full">
                         <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
-                          {lang === 'fr' ? 'Boîte à Souvenirs' : 'Memory Box'}
+                          {tr(lang, 'Boîte à Souvenirs', 'Memory Box')}
                         </h3>
 
                         {/* Scène chaleureuse avec les souvenirs déposés */}
                         <div className="w-full max-w-lg min-h-[140px] bg-gradient-to-b from-amber-500/10 to-app-accent/5 border border-amber-500/20 rounded-3xl p-6 flex flex-wrap items-center justify-center gap-3">
                           {memories.length === 0 ? (
                             <p className="text-xs text-app-muted italic text-center">
-                              {lang === 'fr' ? 'Aucun souvenir déposé pour le moment.' : 'No memories left yet.'}
+                              {tr(lang, 'Aucun souvenir déposé pour le moment.', 'No memories left yet.')}
                             </p>
                           ) : (
                             memories.map(m => (
                               <button
                                 key={m.id}
                                 onClick={() => setRevealedMemoryId(m.id)}
-                                title={lang === 'fr' ? 'Cliquer pour lire' : 'Click to read'}
+                                title={tr(lang, 'Cliquer pour lire', 'Click to read')}
                                 className="w-11 h-11 rounded-2xl bg-app-card border border-amber-500/30 flex items-center justify-center text-amber-600 hover:scale-110 hover:border-amber-500/60 transition-all shadow-sm"
                               >
                                 {getMemoryElementIcon(m.elementType, 'w-5 h-5')}
@@ -17504,7 +17426,7 @@ export default function App() {
                             <div className="flex items-center justify-between">
                               <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 flex items-center gap-1.5">
                                 {getMemoryElementIcon(revealed.elementType, 'w-3.5 h-3.5')}
-                                {MEMORY_ELEMENTS.find(e => e.id === revealed.elementType)?.[lang === 'fr' ? 'label' : 'labelEn']}
+                                {MEMORY_ELEMENTS.find(e => e.id === revealed.elementType)?.[tr(lang, 'label', 'labelEn')]}
                               </span>
                               <button onClick={() => setRevealedMemoryId(null)} className="p-1 text-app-muted hover:text-app-text transition-colors">
                                 <X className="w-3.5 h-3.5" />
@@ -17513,14 +17435,14 @@ export default function App() {
                             <p className="text-sm text-app-text leading-relaxed">{revealed.text}</p>
                             <div className="flex items-center justify-between pt-2 border-t border-app-border/15">
                               <span className="text-[10px] text-app-muted font-bold">
-                                {revealedAuthor ? revealedAuthor.alterName : (lang === 'fr' ? 'Anonyme' : 'Anonymous')}
+                                {revealedAuthor ? revealedAuthor.alterName : (tr(lang, 'Anonyme', 'Anonymous'))}
                                 {' · '}
-                                {new Date(revealed.timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {new Date(revealed.timestamp).toLocaleDateString(localeOf(lang), { day: 'numeric', month: 'short', year: 'numeric' })}
                               </span>
                               <button
                                 onClick={() => deleteMemory(revealed.id)}
                                 className="p-1 text-app-muted hover:text-red-500 transition-colors"
-                                title={lang === 'fr' ? 'Supprimer' : 'Delete'}
+                                title={tr(lang, 'Supprimer', 'Delete')}
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -17535,20 +17457,20 @@ export default function App() {
                             className="w-full max-w-lg flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                           >
                             <Plus className="w-3.5 h-3.5" />
-                            {lang === 'fr' ? 'Déposer un souvenir' : 'Leave a memory'}
+                            {tr(lang, 'Déposer un souvenir', 'Leave a memory')}
                           </button>
                         ) : (
                           <div className="w-full max-w-lg bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-4">
                             <textarea
                               value={memoryDraftText}
                               onChange={e => setMemoryDraftText(e.target.value)}
-                              placeholder={lang === 'fr' ? "Ce que tu veux laisser au système..." : "What you want to leave for the system..."}
+                              placeholder={tr(lang, "Ce que tu veux laisser au système...", "What you want to leave for the system...")}
                               rows={3}
                               className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20 resize-none"
                             />
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                                {lang === 'fr' ? 'Le déposer dans...' : 'Leave it as...'}
+                                {tr(lang, 'Le déposer dans...', 'Leave it as...')}
                               </label>
                               <div className="flex flex-wrap gap-1.5">
                                 {MEMORY_ELEMENTS.map(el => (
@@ -17558,19 +17480,17 @@ export default function App() {
                                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-bold border transition-all ${memoryDraftElement === el.id ? 'bg-amber-500/15 border-amber-500/50 text-amber-600' : 'bg-app-bg border-app-border text-app-muted'}`}
                                   >
                                     {getMemoryElementIcon(el.id, 'w-5 h-5')}
-                                    {lang === 'fr' ? el.label : el.labelEn}
+                                    {tr(lang, el.label, el.labelEn)}
                                   </button>
                                 ))}
                               </div>
                               <p className="text-[9px] leading-relaxed text-app-muted italic pt-0.5">
-                                {lang === 'fr'
-                                  ? 'Bougie pour la nostalgie · Lanterne pour un souvenir précieux · Mot en bouteille pour l\u2019espoir · Papillon pour l\u2019émerveillement · Petit coffre pour un moment secret'
-                                  : 'Candle for nostalgia · Lantern for a precious memory · Message in a bottle for hope · Butterfly for wonder · Small chest for a secret moment'}
+                                {tr(lang, 'Bougie pour la nostalgie · Lanterne pour un souvenir précieux · Mot en bouteille pour l\u2019espoir · Papillon pour l\u2019émerveillement · Petit coffre pour un moment secret', 'Candle for nostalgia · Lantern for a precious memory · Message in a bottle for hope · Butterfly for wonder · Small chest for a secret moment')}
                               </p>
                             </div>
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                                {lang === 'fr' ? 'Qui dépose ?' : 'Who is leaving it?'}
+                                {tr(lang, 'Qui dépose ?', 'Who is leaving it?')}
                               </label>
                               {(() => {
                                 const current = memoryDraftAuthorId ? savedAlters.find(a => a.id === memoryDraftAuthorId) : null;
@@ -17588,7 +17508,7 @@ export default function App() {
                                         : current && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] font-black text-app-accent flex-shrink-0">{(current.alterName || '?').charAt(0)}</div>
                                       }
                                       <span className={`flex-1 font-semibold ${current ? 'text-app-text' : 'text-app-muted'}`}>
-                                        {current ? current.alterName : (lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System')}
+                                        {current ? current.alterName : (tr(lang, 'Anonyme / Système', 'Anonymous / System'))}
                                       </span>
                                       <ChevronDown className={`w-3.5 h-3.5 text-app-muted flex-shrink-0 transition-transform ${memoryAuthorOpen ? 'rotate-180' : ''}`} />
                                     </div>
@@ -17602,7 +17522,7 @@ export default function App() {
                                               type="text"
                                               value={memoryAuthorSearch}
                                               onChange={e => setMemoryAuthorSearch(e.target.value)}
-                                              placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                              placeholder={tr(lang, 'Rechercher un alter…', 'Search alter…')}
                                               className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                               onClick={e => e.stopPropagation()}
                                             />
@@ -17613,10 +17533,10 @@ export default function App() {
                                               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${!memoryDraftAuthorId ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
                                               onClick={() => { setMemoryDraftAuthorId(''); setMemoryAuthorOpen(false); setMemoryAuthorSearch(''); }}
                                             >
-                                              {lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System'}
+                                              {tr(lang, 'Anonyme / Système', 'Anonymous / System')}
                                             </button>
                                             {filtered.length === 0 ? (
-                                              <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                              <p className="px-4 py-3 text-xs text-app-muted">{tr(lang, 'Aucun résultat', 'No results')}</p>
                                             ) : filtered.map(a => (
                                               <button
                                                 type="button"
@@ -17645,13 +17565,13 @@ export default function App() {
                                 disabled={!memoryDraftText.trim()}
                                 className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
                               >
-                                {lang === 'fr' ? 'Déposer' : 'Leave it'}
+                                {tr(lang, 'Déposer', 'Leave it')}
                               </button>
                               <button
                                 onClick={() => { setMemoryFormOpen(false); setMemoryDraftText(''); }}
                                 className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors"
                               >
-                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                                {tr(lang, 'Annuler', 'Cancel')}
                               </button>
                             </div>
                           </div>
@@ -17661,7 +17581,7 @@ export default function App() {
                   })() : activeRelaxTool === 'choice-box' ? (
                     <div className="flex flex-col items-center gap-8 py-6 w-full">
                       <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
-                        {lang === 'fr' ? 'Boîte à Choix' : 'Choice Box'}
+                        {tr(lang, 'Boîte à Choix', 'Choice Box')}
                       </h3>
 
                       {/* --- La roue --- */}
@@ -17690,7 +17610,7 @@ export default function App() {
                           className="w-full flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                         >
                           <Repeat className="w-3.5 h-3.5" />
-                          {wheelSpinning ? (lang === 'fr' ? 'Ça tourne…' : 'Spinning…') : (lang === 'fr' ? 'Faire tourner la roue' : 'Spin the wheel')}
+                          {wheelSpinning ? (tr(lang, 'Ça tourne…', 'Spinning…')) : (tr(lang, 'Faire tourner la roue', 'Spin the wheel'))}
                         </button>
 
                         {/* Légende / gestion des options de la roue */}
@@ -17700,7 +17620,7 @@ export default function App() {
                             className="text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors flex items-center gap-1.5 mx-auto"
                           >
                             <Pencil className="w-3 h-3" />
-                            {wheelEditMode ? (lang === 'fr' ? 'Fermer' : 'Close') : (lang === 'fr' ? 'Modifier les options' : 'Edit options')}
+                            {wheelEditMode ? (tr(lang, 'Fermer', 'Close')) : (tr(lang, 'Modifier les options', 'Edit options'))}
                           </button>
 
                           {!wheelEditMode ? (
@@ -17745,7 +17665,7 @@ export default function App() {
                                       setWheelNewOption('');
                                     }
                                   }}
-                                  placeholder={lang === 'fr' ? 'Nouvelle option...' : 'New option...'}
+                                  placeholder={tr(lang, 'Nouvelle option...', 'New option...')}
                                   className="flex-1 min-w-0 bg-app-bg border border-dashed border-app-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                 />
                                 <button
@@ -17766,7 +17686,7 @@ export default function App() {
                           onClick={() => setMicroPanelOpen(o => !o)}
                           className="w-full py-3 rounded-xl border border-app-border text-xs font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 transition-colors"
                         >
-                          {lang === 'fr' ? "Qu'est-ce qu'on fait maintenant ?" : 'What should we do now?'}
+                          {tr(lang, "Qu'est-ce qu'on fait maintenant ?", 'What should we do now?')}
                         </button>
 
                         {microPanelOpen && (
@@ -17785,7 +17705,7 @@ export default function App() {
                           className="text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent transition-colors flex items-center gap-1.5 mx-auto"
                         >
                           <Pencil className="w-3 h-3" />
-                          {microEditMode ? (lang === 'fr' ? 'Fermer' : 'Close') : (lang === 'fr' ? 'Modifier les micro-options' : 'Edit micro-options')}
+                          {microEditMode ? (tr(lang, 'Fermer', 'Close')) : (tr(lang, 'Modifier les micro-options', 'Edit micro-options'))}
                         </button>
 
                         {microEditMode && (
@@ -17830,7 +17750,7 @@ export default function App() {
                                     setMicroNewEmoji(''); setMicroNewLabel('');
                                   }
                                 }}
-                                placeholder={lang === 'fr' ? 'Nouvelle micro-option...' : 'New micro-option...'}
+                                placeholder={tr(lang, 'Nouvelle micro-option...', 'New micro-option...')}
                                 className="flex-1 min-w-0 bg-app-bg border border-dashed border-app-border rounded-lg px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                               />
                               <button
@@ -17847,7 +17767,7 @@ export default function App() {
                   ) : activeRelaxTool === 'ephemeral' ? (
                     <div className="flex flex-col items-center gap-4 py-6 w-full">
                       <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
-                        {lang === 'fr' ? 'Éphémère' : 'Ephemeral'}
+                        {tr(lang, 'Éphémère', 'Ephemeral')}
                       </h3>
                       <div
                         ref={ephemeralContainerRef}
@@ -17858,7 +17778,7 @@ export default function App() {
                             key={bubble.id}
                             onClick={e => popEphemeralBubble(bubble, e)}
                             onAnimationEnd={() => setEphemeralBubbles(prev => prev.filter(b => b.id !== bubble.id))}
-                            aria-label={lang === 'fr' ? 'Éclater la bulle' : 'Pop the bubble'}
+                            aria-label={tr(lang, 'Éclater la bulle', 'Pop the bubble')}
                             className="absolute rounded-full ephemeral-bubble-rise cursor-pointer"
                             style={{
                               left: `${bubble.x}%`,
@@ -17889,12 +17809,12 @@ export default function App() {
                         ))}
                         {ephemeralBubbles.length === 0 && ephemeralPops.length === 0 && (
                           <p className="absolute inset-0 flex items-center justify-center text-[10px] text-app-muted italic px-8 text-center">
-                            {lang === 'fr' ? 'Les bulles arrivent...' : 'Bubbles incoming...'}
+                            {tr(lang, 'Les bulles arrivent...', 'Bubbles incoming...')}
                           </p>
                         )}
                       </div>
                       <p className="text-[10px] text-app-muted text-center italic max-w-xs">
-                        {lang === 'fr' ? 'Touche une bulle pour la faire éclater avant qu\'elle n\'atteigne le haut — chaque taille a son propre son.' : 'Tap a bubble to pop it before it reaches the top — each size has its own sound.'}
+                        {tr(lang, 'Touche une bulle pour la faire éclater avant qu\'elle n\'atteigne le haut — chaque taille a son propre son.', 'Tap a bubble to pop it before it reaches the top — each size has its own sound.')}
                       </p>
                     </div>
                   ) : activeRelaxTool === 'eco-system' ? (() => {
@@ -17912,15 +17832,13 @@ export default function App() {
                     return (
                       <div className="flex flex-col items-center gap-5 py-6 w-full">
                         <h3 className="text-xl font-black uppercase tracking-wider text-app-text">
-                          {lang === 'fr' ? 'Éco-Système' : 'Eco-System'}
+                          {tr(lang, 'Éco-Système', 'Eco-System')}
                         </h3>
                         {ecoBackground === 'jardin' && (
                           <div className="flex flex-col items-center gap-2 -mt-3 w-full max-w-2xl">
                             <div className="flex items-center gap-2 flex-wrap justify-center">
                               <p className="text-[11px] font-bold text-app-muted">
-                                💧 {waterCountToday} {lang === 'fr'
-                                  ? (waterCountToday > 1 ? 'verres bus aujourd\'hui' : 'verre bu aujourd\'hui')
-                                  : (waterCountToday === 1 ? 'glass today' : 'glasses today')}
+                                💧 {waterCountToday} {tr(lang, waterCountToday > 1 ? 'verres bus aujourd\'hui' : 'verre bu aujourd\'hui', waterCountToday === 1 ? 'glass today' : 'glasses today')}
                               </p>
                               <button
                                 type="button"
@@ -17928,14 +17846,14 @@ export default function App() {
                                 className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-wide px-2.5 py-1.5 rounded-lg border border-app-border bg-app-card text-app-muted hover:border-app-accent/50 hover:text-app-accent transition-all"
                               >
                                 <RotateCcw className="w-3 h-3" />
-                                {lang === 'fr' ? 'Réinitialiser' : 'Reset'}
+                                {tr(lang, 'Réinitialiser', 'Reset')}
                               </button>
                               <button
                                 type="button"
                                 onClick={() => setEcoJardinSettingsOpen(o => !o)}
                                 className={`text-[9px] font-black uppercase tracking-wide px-2 py-1 rounded-lg border transition-all ${ecoJardinSettingsOpen ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'border-app-border text-app-muted'}`}
                               >
-                                💧 {lang === 'fr' ? 'Rappel' : 'Reminder'}
+                                💧 {tr(lang, 'Rappel', 'Reminder')}
                               </button>
                             </div>
                             {ecoJardinSettingsOpen && (
@@ -17946,7 +17864,7 @@ export default function App() {
                                   className="flex items-center justify-between"
                                 >
                                   <span className="text-[10px] font-bold text-app-text">
-                                    {lang === 'fr' ? "Rappel d'hydratation" : 'Hydration reminder'}
+                                    {tr(lang, "Rappel d'hydratation", 'Hydration reminder')}
                                   </span>
                                   <div className={`w-8 h-4 rounded-full transition-colors relative ${hydroReminderOn ? 'bg-app-accent' : 'bg-app-border'}`}>
                                     <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all ${hydroReminderOn ? 'left-[18px]' : 'left-0.5'}`} />
@@ -17955,7 +17873,7 @@ export default function App() {
                                 {hydroReminderOn && (
                                   <div className="flex items-center justify-between flex-wrap gap-1.5">
                                     <span className="text-[9px] font-bold text-app-muted uppercase tracking-wide">
-                                      {lang === 'fr' ? 'Toutes les' : 'Every'}
+                                      {tr(lang, 'Toutes les', 'Every')}
                                     </span>
                                     <div className="flex flex-wrap justify-end gap-1">
                                       {[15, 30, 60, 120, 180, 240, 360].map(m => (
@@ -17973,7 +17891,7 @@ export default function App() {
                                 )}
                                 {hydroReminderOn && !notifBrowser && (
                                   <p className="text-[9px] text-app-muted italic">
-                                    {lang === 'fr' ? 'Active aussi les notifications navigateur dans Réglages pour recevoir le rappel.' : 'Also enable browser notifications in Settings to receive the reminder.'}
+                                    {tr(lang, 'Active aussi les notifications navigateur dans Réglages pour recevoir le rappel.', 'Also enable browser notifications in Settings to receive the reminder.')}
                                   </p>
                                 )}
                               </div>
@@ -17995,7 +17913,7 @@ export default function App() {
                               }}
                               className={`flex-1 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${ecoBackground === b.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
                             >
-                              {lang === 'fr' ? b.label : b.labelEn}
+                              {tr(lang, b.label, b.labelEn)}
                             </button>
                           ))}
                         </div>
@@ -18006,17 +17924,17 @@ export default function App() {
                             type="button"
                             onClick={() => setEcoAltMood(m => !m)}
                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${ecoAltMood ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-card border-app-border text-app-muted'}`}
-                            title={lang === 'fr' ? 'Changer la teinte de lumière' : 'Shift the light tint'}
+                            title={tr(lang, 'Changer la teinte de lumière', 'Shift the light tint')}
                           >
-                            🌗 {lang === 'fr' ? 'Ambiance' : 'Mood'}
+                            🌗 {tr(lang, 'Ambiance', 'Mood')}
                           </button>
                           <button
                             type="button"
                             onClick={() => setEcoSoundOn(s => !s)}
                             className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border transition-all ${ecoSoundOn ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-card border-app-border text-app-muted'}`}
-                            title={lang === 'fr' ? "Son d'ambiance doux" : 'Soft ambient sound'}
+                            title={tr(lang, "Son d'ambiance doux", 'Soft ambient sound')}
                           >
-                            {ecoSoundOn ? '🔊' : '🔈'} {lang === 'fr' ? 'Son' : 'Sound'}
+                            {ecoSoundOn ? '🔊' : '🔈'} {tr(lang, 'Son', 'Sound')}
                           </button>
                           <div className="flex items-center gap-1 bg-app-card border border-app-border rounded-lg px-1">
                             <button type="button" onClick={() => setEcoZoom(z => clampEcoZoom(z - 0.2))} className="px-2 py-1.5 text-app-muted hover:text-app-text text-xs font-black">−</button>
@@ -18029,7 +17947,7 @@ export default function App() {
                               onClick={resetEcoView}
                               className="px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest border border-app-border bg-app-card text-app-muted hover:text-app-text transition-all"
                             >
-                              {lang === 'fr' ? 'Recentrer' : 'Recenter'}
+                              {tr(lang, 'Recentrer', 'Recenter')}
                             </button>
                           )}
                         </div>
@@ -18043,7 +17961,7 @@ export default function App() {
                                 onClick={() => setEcoSoundChoice(s.id)}
                                 className={`px-2.5 py-1 rounded-lg text-[9px] font-black border transition-all ${ecoSoundChoice === s.id ? 'bg-app-accent text-white border-transparent' : 'bg-app-card border-app-border text-app-muted'}`}
                               >
-                                {s.emoji} {lang === 'fr' ? s.label : s.labelEn}
+                                {s.emoji} {tr(lang, s.label, s.labelEn)}
                               </button>
                             ))}
                           </div>
@@ -18203,7 +18121,7 @@ export default function App() {
 
                             {visibleElements.length === 0 && (
                               <p className="absolute inset-0 flex items-center justify-center text-xs text-app-muted italic px-6 text-center pointer-events-none">
-                                {lang === 'fr' ? "Aucune présence posée pour le moment." : 'No presence placed yet.'}
+                                {tr(lang, "Aucune présence posée pour le moment.", 'No presence placed yet.')}
                               </p>
                             )}
 
@@ -18256,10 +18174,10 @@ export default function App() {
                                   </span>
                                   <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-app-card/90 border border-app-border/40 text-app-text whitespace-nowrap pointer-events-none shadow-sm">
                                     {isSeed
-                                      ? (wilted ? (lang === 'fr' ? '💧 A soif — arrose-la' : '💧 Thirsty — water it') : (lang === 'fr' ? meta.label : meta.labelEn))
-                                      : isNightButterfly ? (lang === 'fr' ? 'Luciole (papillon endormi)' : 'Firefly (butterfly asleep)')
-                                      : (lang === 'fr' ? meta.label : meta.labelEn)}
-                                    {author ? ` · ${author.alterName}` : ` · ${lang === 'fr' ? 'Anonyme' : 'Anonymous'}`}
+                                      ? (wilted ? (tr(lang, '💧 A soif — arrose-la', '💧 Thirsty — water it')) : (tr(lang, meta.label, meta.labelEn)))
+                                      : isNightButterfly ? (tr(lang, 'Luciole (papillon endormi)', 'Firefly (butterfly asleep)'))
+                                      : (tr(lang, meta.label, meta.labelEn))}
+                                    {author ? ` · ${author.alterName}` : ` · ${tr(lang, 'Anonyme', 'Anonymous')}`}
                                   </span>
                                 </div>
                               );
@@ -18291,20 +18209,20 @@ export default function App() {
                               className="flex-1 flex items-center justify-center gap-2.5 py-3.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-xs tracking-widest rounded-xl transition-all"
                             >
                               <Plus className="w-3.5 h-3.5" />
-                              {lang === 'fr' ? 'Poser ma présence' : 'Place my presence'}
+                              {tr(lang, 'Poser ma présence', 'Place my presence')}
                             </button>
                             <button
                               onClick={() => setEcoEditMode(o => !o)}
                               className={`px-4 rounded-xl border text-[10px] font-black uppercase tracking-widest transition-all ${ecoEditMode ? 'bg-red-500/10 border-red-500/40 text-red-500' : 'bg-app-card border-app-border text-app-muted'}`}
                             >
-                              {ecoEditMode ? (lang === 'fr' ? 'Terminé' : 'Done') : (lang === 'fr' ? 'Gérer' : 'Manage')}
+                              {ecoEditMode ? (tr(lang, 'Terminé', 'Done')) : (tr(lang, 'Gérer', 'Manage'))}
                             </button>
                           </div>
                         ) : (
                           <div className="w-full max-w-2xl bg-app-card border border-app-border/40 rounded-2xl p-5 space-y-4">
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                                {lang === 'fr' ? 'Quel élément ?' : 'Which element?'}
+                                {tr(lang, 'Quel élément ?', 'Which element?')}
                               </label>
                               {/* Sous-onglets de catégories */}
                               <div className="flex gap-1.5">
@@ -18318,7 +18236,7 @@ export default function App() {
                                     }}
                                     className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wide border transition-all ${ecoDraftTab === tab.id ? 'border-app-accent text-app-accent' : 'border-app-border text-app-muted'}`}
                                   >
-                                    {lang === 'fr' ? tab.label : tab.labelEn}
+                                    {tr(lang, tab.label, tab.labelEn)}
                                   </button>
                                 ))}
                               </div>
@@ -18330,7 +18248,7 @@ export default function App() {
                                     className={`flex flex-col items-center gap-1 py-2.5 rounded-xl text-[8px] font-bold border transition-all ${ecoDraftType === t.id ? 'bg-app-accent/15 border-app-accent/50 text-app-accent' : 'bg-app-bg border-app-border text-app-muted'}`}
                                   >
                                     {getEcoIcon(ecoBackground, t.id, 'w-6 h-6', t.emoji)}
-                                    <span className="text-center leading-tight">{lang === 'fr' ? t.label : t.labelEn}</span>
+                                    <span className="text-center leading-tight">{tr(lang, t.label, t.labelEn)}</span>
                                   </button>
                                 ))}
                               </div>
@@ -18338,7 +18256,7 @@ export default function App() {
 
                             <div className="space-y-1.5">
                               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                                {lang === 'fr' ? 'Qui dépose ?' : 'Who is placing it?'}
+                                {tr(lang, 'Qui dépose ?', 'Who is placing it?')}
                               </label>
                               {(() => {
                                 const current = ecoDraftAuthorId ? savedAlters.find(a => a.id === ecoDraftAuthorId) : null;
@@ -18356,7 +18274,7 @@ export default function App() {
                                         : current && <div className="w-5 h-5 rounded-full bg-app-accent/20 flex items-center justify-center text-[8px] font-black text-app-accent flex-shrink-0">{(current.alterName || '?').charAt(0)}</div>
                                       }
                                       <span className={`flex-1 font-semibold ${current ? 'text-app-text' : 'text-app-muted'}`}>
-                                        {current ? current.alterName : (lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System')}
+                                        {current ? current.alterName : (tr(lang, 'Anonyme / Système', 'Anonymous / System'))}
                                       </span>
                                       <ChevronDown className={`w-3.5 h-3.5 text-app-muted flex-shrink-0 transition-transform ${ecoAuthorOpen ? 'rotate-180' : ''}`} />
                                     </div>
@@ -18370,7 +18288,7 @@ export default function App() {
                                               type="text"
                                               value={ecoAuthorSearch}
                                               onChange={e => setEcoAuthorSearch(e.target.value)}
-                                              placeholder={lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…'}
+                                              placeholder={tr(lang, 'Rechercher un alter…', 'Search alter…')}
                                               className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                                               onClick={e => e.stopPropagation()}
                                             />
@@ -18381,10 +18299,10 @@ export default function App() {
                                               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left ${!ecoDraftAuthorId ? 'bg-app-accent/10 text-app-accent' : 'text-app-text'}`}
                                               onClick={() => { setEcoDraftAuthorId(''); setEcoAuthorOpen(false); setEcoAuthorSearch(''); }}
                                             >
-                                              {lang === 'fr' ? 'Anonyme / Système' : 'Anonymous / System'}
+                                              {tr(lang, 'Anonyme / Système', 'Anonymous / System')}
                                             </button>
                                             {filtered.length === 0 ? (
-                                              <p className="px-4 py-3 text-xs text-app-muted">{lang === 'fr' ? 'Aucun résultat' : 'No results'}</p>
+                                              <p className="px-4 py-3 text-xs text-app-muted">{tr(lang, 'Aucun résultat', 'No results')}</p>
                                             ) : filtered.map(a => (
                                               <button
                                                 type="button"
@@ -18413,13 +18331,13 @@ export default function App() {
                                 onClick={addEcoElement}
                                 className="flex-1 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all"
                               >
-                                {lang === 'fr' ? 'Déposer' : 'Place it'}
+                                {tr(lang, 'Déposer', 'Place it')}
                               </button>
                               <button
                                 onClick={() => setEcoFormOpen(false)}
                                 className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors"
                               >
-                                {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                                {tr(lang, 'Annuler', 'Cancel')}
                               </button>
                             </div>
                           </div>
@@ -18427,8 +18345,8 @@ export default function App() {
 
                         <p className="text-[10px] text-app-muted text-center italic max-w-xs">
                           {ecoEditMode
-                            ? (lang === 'fr' ? 'Clique sur un élément pour le retirer.' : 'Click an element to remove it.')
-                            : (lang === 'fr' ? 'Fais glisser un élément pour le repositionner, ou tapote-le pour le voir réagir. Molette, pincement ou glisser le fond pour naviguer dans la scène.' : 'Drag an element to reposition it, or tap it to see it gently react. Scroll, pinch or drag the background to navigate the scene.')}
+                            ? (tr(lang, 'Clique sur un élément pour le retirer.', 'Click an element to remove it.'))
+                            : (tr(lang, 'Fais glisser un élément pour le repositionner, ou tapote-le pour le voir réagir. Molette, pincement ou glisser le fond pour naviguer dans la scène.', 'Drag an element to reposition it, or tap it to see it gently react. Scroll, pinch or drag the background to navigate the scene.'))}
                         </p>
                       </div>
                     );
@@ -18437,7 +18355,7 @@ export default function App() {
                       {activeToolMeta && <activeToolMeta.icon className="w-10 h-10 text-app-muted opacity-30" />}
                       <h3 className="text-lg font-black uppercase tracking-wider text-app-text">{activeToolMeta?.label}</h3>
                       <p className="text-xs text-app-muted uppercase tracking-widest font-bold">
-                        {lang === 'fr' ? 'Bientôt disponible' : 'Coming soon'}
+                        {tr(lang, 'Bientôt disponible', 'Coming soon')}
                       </p>
                     </div>
                   )}
@@ -18473,12 +18391,10 @@ export default function App() {
               <div className="p-6 bg-app-card border border-app-border rounded-2xl md:p-8 space-y-6">
                 <div className="space-y-2">
                   <h3 className="font-extrabold text-sm uppercase tracking-widest text-app-text">
-                    {lang === 'fr' ? 'Configuration de la connexion API' : 'API Connection Configuration'}
+                    {tr(lang, 'Configuration de la connexion API', 'API Connection Configuration')}
                   </h3>
                   <p className="text-xs text-app-muted leading-relaxed">
-                    {lang === 'fr' 
-                      ? "Pour synchroniser vos alters et automatiser leurs fiches, saisissez votre jeton secret d'API PluralKit. Vous pouvez l'obtenir sur Discord en envoyant la commande pk;token au bot PluralKit." 
-                      : 'To synchronize and configure your alters, enter your secret PluralKit API token. You can retrieve it on Discord by typing the pk;token command to the PluralKit bot.'}
+                    {tr(lang, "Pour synchroniser vos alters et automatiser leurs fiches, saisissez votre jeton secret d'API PluralKit. Vous pouvez l'obtenir sur Discord en envoyant la commande pk;token au bot PluralKit.", 'To synchronize and configure your alters, enter your secret PluralKit API token. You can retrieve it on Discord by typing the pk;token command to the PluralKit bot.')}
                   </p>
                 </div>
 
@@ -18500,7 +18416,7 @@ export default function App() {
                       {pkLoading ? (
                         <>
                           <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          <span>{lang === 'fr' ? 'Connexion...' : 'Connecting...'}</span>
+                          <span>{tr(lang, 'Connexion...', 'Connecting...')}</span>
                         </>
                       ) : (
                         <>
@@ -18540,11 +18456,9 @@ export default function App() {
 
                 <div className="pt-4 border-t border-app-border/15 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
-                    <p className="text-xs font-black uppercase text-app-muted tracking-wider">{lang === 'fr' ? 'Actions de synchronisation' : 'Sync Actions'}</p>
+                    <p className="text-xs font-black uppercase text-app-muted tracking-wider">{tr(lang, 'Actions de synchronisation', 'Sync Actions')}</p>
                     <p className="text-[10px] text-app-muted leading-relaxed mt-1">
-                      {lang === 'fr' 
-                        ? "En cliquant ci-dessous, tous vos membres PluralKit seront sauvegardés comme fiches d'alters modifiables dans l'application." 
-                        : 'By syncing, all of your PluralKit members will be saved as fully editable alter profiles in this application.'}
+                      {tr(lang, "En cliquant ci-dessous, tous vos membres PluralKit seront sauvegardés comme fiches d'alters modifiables dans l'application.", 'By syncing, all of your PluralKit members will be saved as fully editable alter profiles in this application.')}
                     </p>
                   </div>
                   <button
@@ -18559,12 +18473,10 @@ export default function App() {
                 <div className="pt-4 border-t border-app-border/15 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <p className="text-xs font-black uppercase text-app-muted tracking-wider">
-                      {lang === 'fr' ? "Envoyer vers PluralKit (pour exporter ailleurs)" : "Push to PluralKit (to export elsewhere)"}
+                      {tr(lang, "Envoyer vers PluralKit (pour exporter ailleurs)", "Push to PluralKit (to export elsewhere)")}
                     </p>
                     <p className="text-[10px] text-app-muted leading-relaxed mt-1">
-                      {lang === 'fr'
-                        ? "Envoie toutes tes fiches d'alters Haven Space vers PluralKit (crée les nouvelles, met à jour celles déjà liées). Une fois fait, tape pk;export sur Discord pour obtenir un fichier PluralKit authentique — importable dans Ourcana, Constellations, PluralSpace, Ampersand et la plupart des autres apps du secteur."
-                        : "Sends all your Haven Space alter cards to PluralKit (creates new ones, updates linked ones). Once done, run pk;export on Discord to get an authentic PluralKit file — importable into Ourcana, Constellations, PluralSpace, Ampersand, and most other apps in the space."}
+                      {tr(lang, "Envoie toutes tes fiches d'alters Haven Space vers PluralKit (crée les nouvelles, met à jour celles déjà liées). Une fois fait, tape pk;export sur Discord pour obtenir un fichier PluralKit authentique — importable dans Ourcana, Constellations, PluralSpace, Ampersand et la plupart des autres apps du secteur.", "Sends all your Haven Space alter cards to PluralKit (creates new ones, updates linked ones). Once done, run pk;export on Discord to get an authentic PluralKit file — importable into Ourcana, Constellations, PluralSpace, Ampersand, and most other apps in the space.")}
                     </p>
                   </div>
                   <button
@@ -18580,7 +18492,7 @@ export default function App() {
                     ) : (
                       <>
                         <Upload className="w-3.5 h-3.5" />
-                        <span>{lang === 'fr' ? 'Tout envoyer' : 'Push all'}</span>
+                        <span>{tr(lang, 'Tout envoyer', 'Push all')}</span>
                       </>
                     )}
                   </button>
@@ -18593,7 +18505,7 @@ export default function App() {
               <div className="space-y-6">
                 <div className="flex items-center justify-between border-b border-app-border/20 pb-3">
                   <h3 className="font-black text-sm uppercase tracking-widest text-app-text">
-                    {lang === 'fr' ? 'Membres du Système' : 'System Members'} ({pkMembers.length})
+                    {tr(lang, 'Membres du Système', 'System Members')} ({pkMembers.length})
                   </h3>
                 </div>
 
@@ -18636,7 +18548,7 @@ export default function App() {
                               <div className="flex items-center justify-between text-[10px] text-green-500 font-bold uppercase tracking-wider bg-green-500/10 px-3 py-1.5 rounded-lg border border-green-500/15">
                                 <span className="flex items-center gap-1.5">
                                   <CheckCircle2 className="w-3.5 h-3.5" />
-                                  {lang === 'fr' ? 'Synchronisé' : 'Synchronized'}
+                                  {tr(lang, 'Synchronisé', 'Synchronized')}
                                 </span>
                                 <span className="font-mono text-[9px] opacity-75">PK: {member.id}</span>
                               </div>
@@ -18645,18 +18557,18 @@ export default function App() {
                                   onClick={() => {
                                     executeLoadAlter(localAlter);
                                     setCurrentTab('creator');
-                                    alert(lang === 'fr' ? 'Alter chargé dans le créateur !' : 'Alter loaded into card creator!');
+                                    alert(tr(lang, 'Alter chargé dans le créateur !', 'Alter loaded into card creator!'));
                                   }}
                                   className="flex-1 py-3 px-3 bg-app-accent hover:opacity-90 text-[10px] font-black uppercase tracking-widest text-white rounded-lg transition-all"
                                 >
-                                  {lang === 'fr' ? 'Modifier la Fiche' : 'Edit Profile'}
+                                  {tr(lang, 'Modifier la Fiche', 'Edit Profile')}
                                 </button>
                                 
                                 <button
                                   onClick={() => exportAlterToPluralKit(localAlter)}
                                   disabled={isExportingPkId === member.id}
                                   className="py-3 px-3 bg-app-bg border border-app-border hover:border-app-accent/30 text-[10px] font-black uppercase tracking-widest text-app-text rounded-lg transition-all flex items-center justify-center"
-                                  title={lang === 'fr' ? "Remplacer les données de PluralKit par la fiche locale" : "Overwrite PluralKit data with this local card"}
+                                  title={tr(lang, "Remplacer les données de PluralKit par la fiche locale", "Overwrite PluralKit data with this local card")}
                                 >
                                   {isExportingPkId === member.id ? (
                                     <div className="w-3 h-3 border border-app-text border-t-transparent rounded-full animate-spin" />
@@ -18688,16 +18600,16 @@ export default function App() {
                                     theme: Theme.LIGHT,
                                     profileImage: member.avatar_url || '',
                                     description: member.description || '',
-                                    internalNotes: member.pronouns ? `${lang === 'fr' ? 'Pronoms' : 'Pronouns'}: ${member.pronouns}` : '',
+                                    internalNotes: member.pronouns ? `${tr(lang, 'Pronoms', 'Pronouns')}: ${member.pronouns}` : '',
                                     frontStatus: 'none',
                                   };
                                   return [...prev, alterData];
                                 });
-                                setPkSuccess(lang === 'fr' ? `Membre ${member.name} importé avec succès !` : `Member ${member.name} successfully imported!`);
+                                setPkSuccess(trf(lang, `Membre {0} importé avec succès !`, `Member {0} successfully imported!`, [member.name]));
                               }}
                               className="w-full py-2 bg-app-bg border border-app-border hover:border-app-accent/30 text-[10px] font-black uppercase tracking-widest text-app-text rounded-lg transition-all"
                             >
-                              {lang === 'fr' ? 'Importer comme Alter' : 'Import as Alter'}
+                              {tr(lang, 'Importer comme Alter', 'Import as Alter')}
                             </button>
                           )}
                         </div>
@@ -18713,12 +18625,10 @@ export default function App() {
               <div>
                 <h3 className="text-lg font-black uppercase tracking-wider flex items-center gap-2">
                   <FileJson className="w-5 h-5 text-app-text" />
-                  {lang === 'fr' ? 'Synchronisation par Fichier JSON (Sans Compte)' : 'JSON File Synchronization (Accountless)'}
+                  {tr(lang, 'Synchronisation par Fichier JSON (Sans Compte)', 'JSON File Synchronization (Accountless)')}
                 </h3>
                 <p className="text-xs text-app-muted uppercase tracking-widest font-bold mt-1">
-                  {lang === 'fr' 
-                    ? 'Sauvegardez l\'intégralité de vos données dans un fichier local pour les transférer sur un autre appareil.' 
-                    : 'Save all your application data into a local file to restore or transfer to another device.'}
+                  {tr(lang, 'Sauvegardez l\'intégralité de vos données dans un fichier local pour les transférer sur un autre appareil.', 'Save all your application data into a local file to restore or transfer to another device.')}
                 </p>
               </div>
 
@@ -18744,31 +18654,29 @@ export default function App() {
                     <div className="flex items-center gap-2 text-app-text">
                       <Download className="w-4.5 h-4.5" />
                       <h4 className="font-extrabold text-xs uppercase tracking-widest text-app-text">
-                        {lang === 'fr' ? 'Sauvegarder et Exporter' : 'Backup & Export'}
+                        {tr(lang, 'Sauvegarder et Exporter', 'Backup & Export')}
                       </h4>
                     </div>
                     <p className="text-xs text-app-muted leading-relaxed">
-                      {lang === 'fr'
-                        ? 'Téléchargez une sauvegarde en local de toutes vos fiches d\'alters, systèmes parallèles, historique de front, chat interne, messagerie, journal de bord, planning, santé, portefeuille et Innerworld.'
-                        : 'Download a total offline backup containing your alter cards, parallel systems, front history, inner chat, messaging, journal, planning, health, wallet, and Innerworld data.'}
+                      {tr(lang, 'Téléchargez une sauvegarde en local de toutes vos fiches d\'alters, systèmes parallèles, historique de front, chat interne, messagerie, journal de bord, planning, santé, portefeuille et Innerworld.', 'Download a total offline backup containing your alter cards, parallel systems, front history, inner chat, messaging, journal, planning, health, wallet, and Innerworld data.')}
                     </p>
                     
                     {/* Quick Stats of local database */}
                     <div className="p-3.5 bg-app-bg/50 border border-app-border/40 rounded-xl space-y-1.5 font-mono text-[10px] text-app-muted">
-                      <div><strong className="text-app-text">{lang === 'fr' ? 'Système actuel :' : 'Current System :'}</strong> {mainSystemName}</div>
-                      <div><strong className="text-app-text">{savedAlters.length}</strong> {lang === 'fr' ? 'alters' : 'alters'}</div>
-                      <div><strong className="text-app-text">{subsystems.length}</strong> {lang === 'fr' ? 'sous-systèmes' : 'subsystems'}</div>
-                      <div><strong className="text-app-text">{parallelSystems.length}</strong> {lang === 'fr' ? 'systèmes parallèles' : 'parallel systems'}</div>
-                      <div><strong className="text-app-text">{switchLogs.length}</strong> {lang === 'fr' ? 'entrées d\'historique de front' : 'front history entries'}</div>
-                      <div><strong className="text-app-text">{chatMessages.length}</strong> {lang === 'fr' ? 'messages de chat interne' : 'inner chat messages'}</div>
-                      <div><strong className="text-app-text">{directMessages.length}</strong> {lang === 'fr' ? 'messages de messagerie' : 'direct messages'}</div>
-                      <div><strong className="text-app-text">{journalEntries.length}</strong> {lang === 'fr' ? 'notes de journal' : 'journals'}</div>
-                      <div><strong className="text-app-text">{planningCounts.planning}</strong> {lang === 'fr' ? 'entrées de planning' : 'planning entries'}</div>
-                      <div><strong className="text-app-text">{planningCounts.eisenhower}</strong> {lang === 'fr' ? 'tâches (matrice d\'Eisenhower)' : 'tasks (Eisenhower matrix)'}</div>
-                      <div><strong className="text-app-text">{medications.length + healthHistory.length + healthProviders.length + healthAids.length}</strong> {lang === 'fr' ? 'éléments de santé' : 'health items'}</div>
-                      <div><strong className="text-app-text">{walletEntries.length}</strong> {lang === 'fr' ? 'entrées de portefeuille' : 'wallet entries'}</div>
-                      <div><strong className="text-app-text">{innerworldPageCount}</strong> {lang === 'fr' ? 'pages Innerworld' : 'Innerworld pages'}</div>
-                      <div><strong className="text-app-text">{Object.values(spectrumBySystem).reduce((sum, criteria) => sum + criteria.length, 0)}</strong> {lang === 'fr' ? 'critères Spectrum Tool' : 'Spectrum Tool criteria'}</div>
+                      <div><strong className="text-app-text">{tr(lang, 'Système actuel :', 'Current System :')}</strong> {mainSystemName}</div>
+                      <div><strong className="text-app-text">{savedAlters.length}</strong> {tr(lang, 'alters', 'alters')}</div>
+                      <div><strong className="text-app-text">{subsystems.length}</strong> {tr(lang, 'sous-systèmes', 'subsystems')}</div>
+                      <div><strong className="text-app-text">{parallelSystems.length}</strong> {tr(lang, 'systèmes parallèles', 'parallel systems')}</div>
+                      <div><strong className="text-app-text">{switchLogs.length}</strong> {tr(lang, 'entrées d\'historique de front', 'front history entries')}</div>
+                      <div><strong className="text-app-text">{chatMessages.length}</strong> {tr(lang, 'messages de chat interne', 'inner chat messages')}</div>
+                      <div><strong className="text-app-text">{directMessages.length}</strong> {tr(lang, 'messages de messagerie', 'direct messages')}</div>
+                      <div><strong className="text-app-text">{journalEntries.length}</strong> {tr(lang, 'notes de journal', 'journals')}</div>
+                      <div><strong className="text-app-text">{planningCounts.planning}</strong> {tr(lang, 'entrées de planning', 'planning entries')}</div>
+                      <div><strong className="text-app-text">{planningCounts.eisenhower}</strong> {tr(lang, 'tâches (matrice d\'Eisenhower)', 'tasks (Eisenhower matrix)')}</div>
+                      <div><strong className="text-app-text">{medications.length + healthHistory.length + healthProviders.length + healthAids.length}</strong> {tr(lang, 'éléments de santé', 'health items')}</div>
+                      <div><strong className="text-app-text">{walletEntries.length}</strong> {tr(lang, 'entrées de portefeuille', 'wallet entries')}</div>
+                      <div><strong className="text-app-text">{innerworldPageCount}</strong> {tr(lang, 'pages Innerworld', 'Innerworld pages')}</div>
+                      <div><strong className="text-app-text">{Object.values(spectrumBySystem).reduce((sum, criteria) => sum + criteria.length, 0)}</strong> {tr(lang, 'critères Spectrum Tool', 'Spectrum Tool criteria')}</div>
                     </div>
                   </div>
 
@@ -18778,17 +18686,15 @@ export default function App() {
                     className="w-full px-5 py-3 bg-app-accent hover:opacity-90 font-extrabold uppercase text-xs tracking-widest text-white rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
                   >
                     <Download className="w-4 h-4" />
-                    <span>{lang === 'fr' ? 'Exporter en JSON' : 'Export JSON Backup'}</span>
+                    <span>{tr(lang, 'Exporter en JSON', 'Export JSON Backup')}</span>
                   </button>
 
                   <div className="p-3.5 bg-app-bg/50 border border-app-border/40 rounded-xl space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-widest text-app-muted flex items-center gap-1.5">
-                      <Link2 className="w-3 h-3" /> {lang === 'fr' ? 'Vers une autre app ?' : 'Moving to another app?'}
+                      <Link2 className="w-3 h-3" /> {tr(lang, 'Vers une autre app ?', 'Moving to another app?')}
                     </p>
                     <p className="text-[10px] text-app-muted leading-relaxed">
-                      {lang === 'fr'
-                        ? "Pas de format universel entre apps différentes — mais l'onglet PluralKit peut envoyer toutes tes fiches vers un compte PluralKit, qui lui exporte un fichier lisible par la plupart des autres apps du secteur (Ourcana, Constellations, PluralSpace, Ampersand...)."
-                        : "There's no universal format across different apps — but the PluralKit tab can push all your cards to a PluralKit account, which exports a file readable by most other apps in the space (Ourcana, Constellations, PluralSpace, Ampersand...)."}
+                      {tr(lang, "Pas de format universel entre apps différentes — mais l'onglet PluralKit peut envoyer toutes tes fiches vers un compte PluralKit, qui lui exporte un fichier lisible par la plupart des autres apps du secteur (Ourcana, Constellations, PluralSpace, Ampersand...).", "There's no universal format across different apps — but the PluralKit tab can push all your cards to a PluralKit account, which exports a file readable by most other apps in the space (Ourcana, Constellations, PluralSpace, Ampersand...).")}
                     </p>
                   </div>
                 </div>
@@ -18799,13 +18705,11 @@ export default function App() {
                     <div className="flex items-center gap-2 text-app-text">
                       <Upload className="w-4.5 h-4.5" />
                       <h4 className="font-extrabold text-xs uppercase tracking-widest text-app-text">
-                        {lang === 'fr' ? 'Restaurer ou Importer' : 'Restore & Import'}
+                        {tr(lang, 'Restaurer ou Importer', 'Restore & Import')}
                       </h4>
                     </div>
                     <p className="text-xs text-app-muted leading-relaxed">
-                      {lang === 'fr'
-                        ? 'Glissez-déposez ou sélectionnez un fichier de sauvegarde (.json) pour importer vos données.'
-                        : 'Drag-and-drop or click to upload a backup file (.json) to import elements.'}
+                      {tr(lang, 'Glissez-déposez ou sélectionnez un fichier de sauvegarde (.json) pour importer vos données.', 'Drag-and-drop or click to upload a backup file (.json) to import elements.')}
                     </p>
 
                     {/* Drag and Drop Zone according to Usability Guidelines */}
@@ -18829,7 +18733,7 @@ export default function App() {
                       />
                       <Upload className="w-8 h-8 text-app-muted mb-2.5" />
                       <div className="text-xs font-bold text-app-text">
-                        {lang === 'fr' ? 'Sélectionner ou glisser le fichier' : 'Click or drag file here'}
+                        {tr(lang, 'Sélectionner ou glisser le fichier', 'Click or drag file here')}
                       </div>
                       <div className="text-[10px] text-app-muted mt-1 uppercase tracking-wider font-extrabold">
                         JSON BACKUP (*.json)
@@ -18844,35 +18748,31 @@ export default function App() {
                 <div className="mt-6 p-5 bg-app-card/65 border border-app-border/40 rounded-2xl space-y-3">
                   <h4 className="text-xs font-black uppercase tracking-widest text-app-text flex items-center gap-2">
                     <RotateCcw className="w-4 h-4" />
-                    {lang === 'fr' ? 'Point de restauration' : 'Restore point'}
+                    {tr(lang, 'Point de restauration', 'Restore point')}
                   </h4>
                   <p className="text-xs text-app-text/90 leading-relaxed">
-                    {lang === 'fr' ? 'Photo de ton système du ' : 'Snapshot of your system from '}
-                    <strong>{new Date(restorePointMeta.createdAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeStyle: 'short' })}</strong>
-                    {lang === 'fr'
-                      ? ` (${restorePointMeta.counts.alters} alters, ${restorePointMeta.counts.journals} notes, ${restorePointMeta.counts.switches} switchs), `
-                      : ` (${restorePointMeta.counts.alters} alters, ${restorePointMeta.counts.journals} notes, ${restorePointMeta.counts.switches} switches), `}
+                    {tr(lang, 'Photo de ton système du ', 'Snapshot of your system from ')}
+                    <strong>{new Date(restorePointMeta.createdAt).toLocaleString(localeOf(lang), { dateStyle: 'long', timeStyle: 'short' })}</strong>
+                    {trf(lang, ` ({0} alters, {1} notes, {2} switchs), `, ` ({0} alters, {1} notes, {2} switches), `, [restorePointMeta.counts.alters, restorePointMeta.counts.journals, restorePointMeta.counts.switches])}
                     {restorePointMeta.reason === 'import'
-                      ? (lang === 'fr' ? 'prise juste avant un import qui remplaçait tes données.' : 'taken right before an import that replaced your data.')
-                      : (lang === 'fr' ? 'prise juste avant une restauration.' : 'taken right before a restore.')}
+                      ? (tr(lang, 'prise juste avant un import qui remplaçait tes données.', 'taken right before an import that replaced your data.'))
+                      : (tr(lang, 'prise juste avant une restauration.', 'taken right before a restore.'))}
                   </p>
                   <p className="text-[11px] text-app-muted leading-relaxed">
-                    {lang === 'fr'
-                      ? "« Restaurer » remet cet état ; ton état actuel devient alors le nouveau point, donc tu peux revenir en arrière. Ça protège d'une erreur d'import, pas de la perte du téléphone : garde aussi un fichier exporté ailleurs."
-                      : '"Restore" puts that state back; your current state then becomes the new point, so you can go back. It protects against an import mistake, not against losing your phone: also keep an exported file elsewhere.'}
+                    {tr(lang, "« Restaurer » remet cet état ; ton état actuel devient alors le nouveau point, donc tu peux revenir en arrière. Ça protège d'une erreur d'import, pas de la perte du téléphone : garde aussi un fichier exporté ailleurs.", '"Restore" puts that state back; your current state then becomes the new point, so you can go back. It protects against an import mistake, not against losing your phone: also keep an exported file elsewhere.')}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <button type="button" onClick={handleRestoreFromRestorePoint} disabled={restoreBusy}
                       className="px-4 py-2.5 rounded-xl bg-app-accent text-white text-[10px] font-extrabold uppercase tracking-widest hover:opacity-90 disabled:opacity-40 transition-opacity">
-                      {restoreBusy ? '…' : (lang === 'fr' ? 'Restaurer' : 'Restore')}
+                      {restoreBusy ? '…' : (tr(lang, 'Restaurer', 'Restore'))}
                     </button>
                     <button type="button" onClick={handleDownloadRestorePoint} disabled={restoreBusy}
                       className="px-4 py-2.5 rounded-xl bg-app-card border border-app-border text-[10px] font-black uppercase tracking-widest text-app-text hover:border-app-accent/40 disabled:opacity-40 transition-colors">
-                      {lang === 'fr' ? 'Télécharger' : 'Download'}
+                      {tr(lang, 'Télécharger', 'Download')}
                     </button>
                     <button type="button" onClick={handleDeleteRestorePoint} disabled={restoreBusy}
                       className="px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-red-500 disabled:opacity-40 transition-colors">
-                      {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                      {tr(lang, 'Supprimer', 'Delete')}
                     </button>
                   </div>
                 </div>
@@ -18887,22 +18787,22 @@ export default function App() {
                         <FileJson className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-black text-sm text-app-text">{lang === 'fr' ? 'Aperçu de la Sauvegarde' : 'Backup Preview'}</h4>
+                        <h4 className="font-black text-sm text-app-text">{tr(lang, 'Aperçu de la Sauvegarde', 'Backup Preview')}</h4>
                         <p className="text-[10px] font-mono text-app-muted">{importPreview.fileName}</p>
                       </div>
                     </div>
                     <div className="px-3 py-1 bg-app-accent/15 text-app-accent text-[9px] font-black uppercase tracking-wider rounded-md border border-app-accent/20">
-                      {lang === 'fr' ? 'Fichier valide chargé' : 'Valid backup loaded'}
+                      {tr(lang, 'Fichier valide chargé', 'Valid backup loaded')}
                     </div>
                   </div>
 
                   <div className="space-y-3">
-                    <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Contenu compatible détecté :' : 'Detected compatible content :'}</h5>
+                    <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Contenu compatible détecté :', 'Detected compatible content :')}</h5>
                     {importPreview.exportedAt && (
                       <p className="text-[11px] text-app-muted">
-                        {lang === 'fr' ? 'Sauvegarde du ' : 'Backup from '}
-                        <strong className="text-app-text">{new Date(importPreview.exportedAt).toLocaleString(lang === 'fr' ? 'fr-FR' : 'en-US', { dateStyle: 'long', timeStyle: 'short' })}</strong>
-                        {' '}({Math.max(0, Math.floor((Date.now() - importPreview.exportedAt) / 86400000))}{lang === 'fr' ? ' j' : ' d'})
+                        {tr(lang, 'Sauvegarde du ', 'Backup from ')}
+                        <strong className="text-app-text">{new Date(importPreview.exportedAt).toLocaleString(localeOf(lang), { dateStyle: 'long', timeStyle: 'short' })}</strong>
+                        {' '}({Math.max(0, Math.floor((Date.now() - importPreview.exportedAt) / 86400000))}{tr(lang, ' j', ' d')})
                       </p>
                     )}
 
@@ -18910,21 +18810,19 @@ export default function App() {
                     {(importPreview.rows || []).some((r: any) => r.lower) && (
                       <div role="alert" className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/40 space-y-2">
                         <p className="text-xs font-black text-app-text">
-                          {lang === 'fr' ? '⚠ Ce fichier contient moins de données que ton système actuel.' : '⚠ This file contains less data than your current system.'}
+                          {tr(lang, '⚠ Ce fichier contient moins de données que ton système actuel.', '⚠ This file contains less data than your current system.')}
                         </p>
                         <p className="text-[11px] text-app-text/90 leading-relaxed">
-                          {(importPreview.rows as any[]).filter(r => r.lower).map(r => `${r.label[lang]} : ${r.incoming} ${lang === 'fr' ? 'au lieu de' : 'instead of'} ${r.current}`).join(' · ')}
+                          {(importPreview.rows as any[]).filter(r => r.lower).map(r => `${tr(lang, r.label.fr, r.label.en)} : ${r.incoming} ${tr(lang, 'au lieu de', 'instead of')} ${r.current}`).join(' · ')}
                           {'. '}
-                          {lang === 'fr'
-                            ? '« Écraser » ferait perdre la différence. Si ce n\'est pas voulu, vérifie que c\'est le bon fichier, ou exporte ton état actuel avant.'
-                            : '"Overwrite" would lose the difference. If that is not intended, check that this is the right file, or export your current state first.'}
+                          {tr(lang, '« Écraser » ferait perdre la différence. Si ce n\'est pas voulu, vérifie que c\'est le bon fichier, ou exporte ton état actuel avant.', '"Overwrite" would lose the difference. If that is not intended, check that this is the right file, or export your current state first.')}
                         </p>
                         <button
                           type="button"
                           onClick={handleExportJSON}
                           className="px-3 py-2 rounded-xl bg-app-card border border-amber-500/40 text-[10px] font-black uppercase tracking-widest text-app-text hover:border-amber-500 transition-colors"
                         >
-                          {lang === 'fr' ? 'Exporter mon état actuel d\'abord' : 'Export my current state first'}
+                          {tr(lang, 'Exporter mon état actuel d\'abord', 'Export my current state first')}
                         </button>
                       </div>
                     )}
@@ -18938,11 +18836,11 @@ export default function App() {
                           <div className={`text-sm font-black ${r.present ? (r.lower ? 'text-amber-600' : 'text-app-text') : 'text-app-muted'}`}>
                             {r.present ? r.incoming : '—'}
                           </div>
-                          <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{r.label[lang]}</div>
+                          <div className="text-[9px] text-app-muted uppercase font-bold tracking-wider">{tr(lang, r.label.fr, r.label.en)}</div>
                           <div className="text-[9px] text-app-muted">
                             {r.present
-                              ? `${lang === 'fr' ? 'actuellement' : 'currently'} ${r.current}`
-                              : (lang === 'fr' ? 'absent · conservé' : 'absent · kept')}
+                              ? `${tr(lang, 'actuellement', 'currently')} ${r.current}`
+                              : (tr(lang, 'absent · conservé', 'absent · kept'))}
                           </div>
                         </div>
                       ))}
@@ -18950,7 +18848,7 @@ export default function App() {
 
                     {(importPreview.missingLabels || []).length > 0 && (
                       <p className="text-[11px] text-app-muted leading-relaxed">
-                        {lang === 'fr' ? 'Absent du fichier (conservé tel quel si tu écrases) : ' : 'Missing from the file (kept as is if you overwrite): '}
+                        {tr(lang, 'Absent du fichier (conservé tel quel si tu écrases) : ', 'Missing from the file (kept as is if you overwrite): ')}
                         {(importPreview.missingLabels as string[]).join(', ')}.
                       </p>
                     )}
@@ -18958,11 +18856,9 @@ export default function App() {
 
                   <div className="pt-4 border-t border-app-border/15 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                     <div className="space-y-1 max-w-lg">
-                      <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{lang === 'fr' ? 'Méthode de Restauration' : 'Restoration Method'}</h5>
+                      <h5 className="text-[10px] font-black uppercase tracking-widest text-app-muted">{tr(lang, 'Méthode de Restauration', 'Restoration Method')}</h5>
                       <p className="text-[11px] text-app-text/90 leading-relaxed">
-                        {lang === 'fr'
-                          ? 'Choisissez "Écraser" pour remplacer vos données actuelles par celles du fichier (les sections absentes du fichier sont conservées). Choisissez "Fusionner" pour combiner de manière sécurisée sans aucune perte.'
-                          : 'Choose "Overwrite" to replace your current data with the file\'s (sections missing from the file are kept). Choose "Merge" to combine items securely.'}
+                        {tr(lang, 'Choisissez "Écraser" pour remplacer vos données actuelles par celles du fichier (les sections absentes du fichier sont conservées). Choisissez "Fusionner" pour combiner de manière sécurisée sans aucune perte.', 'Choose "Overwrite" to replace your current data with the file\'s (sections missing from the file are kept). Choose "Merge" to combine items securely.')}
                       </p>
                     </div>
 
@@ -18972,7 +18868,7 @@ export default function App() {
                         onClick={handleApplyImportMerge}
                         className="flex-1 lg:flex-none px-5 py-3 bg-app-bg border border-app-border hover:border-app-accent/30 text-[10px] font-black uppercase tracking-widest text-app-text rounded-xl transition-all cursor-pointer"
                       >
-                        {lang === 'fr' ? 'Fusionner les données' : 'Merge Data'}
+                        {tr(lang, 'Fusionner les données', 'Merge Data')}
                       </button>
                       <button
                         type="button"
@@ -18980,7 +18876,7 @@ export default function App() {
                         disabled={restoreBusy}
                         className="flex-1 lg:flex-none px-5 py-3 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white text-[10px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md cursor-pointer border-none"
                       >
-                        {lang === 'fr' ? 'Écraser et Remplacer' : 'Overwrite Current'}
+                        {tr(lang, 'Écraser et Remplacer', 'Overwrite Current')}
                       </button>
                     </div>
                   </div>
@@ -19008,7 +18904,7 @@ export default function App() {
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
             >
-              {lang === 'fr' ? 'Guide' : 'Guide'}
+              {tr(lang, 'Guide', 'Guide')}
             </button>
             <button
               onClick={() => {
@@ -19017,7 +18913,7 @@ export default function App() {
               }}
               className="hover:text-app-text transition-colors border-none bg-transparent cursor-pointer font-bold uppercase tracking-widest text-xs"
             >
-              {lang === 'fr' ? 'Lexiques' : 'Lexicons'}
+              {tr(lang, 'Lexiques', 'Lexicons')}
             </button>
             <button
               onClick={() => {
@@ -19073,9 +18969,9 @@ export default function App() {
               }
               <span className="flex-1 text-xs font-semibold text-app-text leading-snug">
                 <strong className="font-black">{dmToast.recipientName}</strong>
-                {lang === 'fr' ? ', ' : ', '}
+                {tr(lang, ', ', ', ')}
                 <strong className="font-black">{dmToast.senderName}</strong>
-                {lang === 'fr' ? ' t\'a envoyé un message !' : ' sent you a message!'}
+                {tr(lang, ' t\'a envoyé un message !', ' sent you a message!')}
               </span>
               <span
                 onClick={e => { e.stopPropagation(); setDmToast(null); }}
@@ -19123,7 +19019,7 @@ export default function App() {
                 <div className="min-w-0 flex-1">
                   <div className="font-bold text-sm text-app-text truncate">{saveConflictAlter.alterName}</div>
                   <div className="text-xs text-app-muted truncate">
-                    {saveConflictAlter.description || (lang === 'fr' ? 'Pas de description.' : 'No description.')}
+                    {saveConflictAlter.description || (tr(lang, 'Pas de description.', 'No description.'))}
                   </div>
                 </div>
               </div>
@@ -19133,9 +19029,7 @@ export default function App() {
                   onClick={() => {
                     handleSaveAlter(saveConflictAlter.id, false);
                     alert(
-                      lang === 'fr' 
-                        ? `Fiche mise à jour et rangée sous l'alter « ${saveConflictAlter.alterName} » !` 
-                        : `Card successfully updated and stored under alter "${saveConflictAlter.alterName}"!`
+                      trf(lang, `Fiche mise à jour et rangée sous l'alter « {0} » !`, `Card successfully updated and stored under alter "{0}"!`, [saveConflictAlter.alterName])
                     );
                   }}
                   className="w-full py-3.5 bg-app-accent hover:opacity-95 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-sm"
@@ -19146,7 +19040,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     handleSaveAlter(null, true);
-                    alert(lang === 'fr' ? 'Fiche enregistrée en tant que nouvel alter !' : 'Saved as a new separate alter!');
+                    alert(tr(lang, 'Fiche enregistrée en tant que nouvel alter !', 'Saved as a new separate alter!'));
                   }}
                   className="w-full py-3.5 bg-app-bg border border-app-border hover:border-app-accent/30 text-app-text font-bold text-xs uppercase tracking-widest rounded-xl transition-all"
                 >
@@ -19178,12 +19072,10 @@ export default function App() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Supprimer cet Alter ?' : 'Delete this Alter?'}
+                  {tr(lang, 'Supprimer cet Alter ?', 'Delete this Alter?')}
                 </h3>
                 <p className="text-xs text-app-muted leading-relaxed">
-                  {lang === 'fr' 
-                    ? 'Êtes-vous sûr de vouloir supprimer définitivement cette fiche ? Cette action est irréversible.' 
-                    : 'Are you sure you want to permanently delete this card? This action cannot be undone.'}
+                  {tr(lang, 'Êtes-vous sûr de vouloir supprimer définitivement cette fiche ? Cette action est irréversible.', 'Are you sure you want to permanently delete this card? This action cannot be undone.')}
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -19191,17 +19083,17 @@ export default function App() {
                   onClick={() => {
                     const alter = savedAlters.find(a => a.id === deleteConfirmAlterId);
                     executeDeleteAlter(deleteConfirmAlterId);
-                    alert(lang === 'fr' ? `L'alter « ${alter?.alterName || ''} » a été supprimé.` : `The alter "${alter?.alterName || ''}" has been deleted.`);
+                    alert(trf(lang, `L'alter « {0} » a été supprimé.`, `The alter "{0}" has been deleted.`, [alter?.alterName || '']));
                   }}
                   className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                 >
-                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                  {tr(lang, 'Supprimer', 'Delete')}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmAlterId(null)}
                   className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                 >
-                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  {tr(lang, 'Annuler', 'Cancel')}
                 </button>
               </div>
             </motion.div>
@@ -19229,12 +19121,10 @@ export default function App() {
                   <>
                     <div className="space-y-2">
                       <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                        {lang === 'fr' ? 'Supprimer le sous-système ?' : 'Delete Subsystem?'}
+                        {tr(lang, 'Supprimer le sous-système ?', 'Delete Subsystem?')}
                       </h3>
                       <p className="text-xs text-app-muted leading-relaxed">
-                        {lang === 'fr'
-                          ? `« ${subToDelete?.name} » — que veux-tu faire des fiches et sous-systèmes qu'il contient ?`
-                          : `"${subToDelete?.name}" — what do you want to do with the profiles and subsystems inside it?`}
+                        {trf(lang, `« {0} » — que veux-tu faire des fiches et sous-systèmes qu'il contient ?`, `"{0}" — what do you want to do with the profiles and subsystems inside it?`, [subToDelete?.name])}
                       </p>
                     </div>
                     <div className="flex flex-col gap-2">
@@ -19242,24 +19132,22 @@ export default function App() {
                         onClick={() => setDeleteSubsystemStep('move')}
                         className="w-full py-3 bg-app-accent hover:opacity-90 text-app-accent-text font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                       >
-                        {lang === 'fr' ? 'Déplacer les fiches ailleurs' : 'Move profiles elsewhere'}
+                        {tr(lang, 'Déplacer les fiches ailleurs', 'Move profiles elsewhere')}
                       </button>
                       <button
                         onClick={() => setDeleteSubsystemStep('confirmDestroy')}
                         className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                       >
-                        {lang === 'fr' ? 'Supprimer le dossier et son contenu' : 'Delete folder & its contents'}
+                        {tr(lang, 'Supprimer le dossier et son contenu', 'Delete folder & its contents')}
                       </button>
                       <p className="text-[10px] text-red-500/80 leading-relaxed">
-                        {lang === 'fr'
-                          ? '⚠️ Cette option supprime définitivement les fiches à l\'intérieur.'
-                          : '⚠️ This permanently deletes the profiles inside.'}
+                        {tr(lang, '⚠️ Cette option supprime définitivement les fiches à l\'intérieur.', '⚠️ This permanently deletes the profiles inside.')}
                       </p>
                       <button
                         onClick={() => { setDeleteConfirmSubsystemId(null); setDeleteSubsystemStep('choose'); }}
                         className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                       >
-                        {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                        {tr(lang, 'Annuler', 'Cancel')}
                       </button>
                     </div>
                   </>
@@ -19267,7 +19155,7 @@ export default function App() {
                   <>
                     <div className="space-y-2">
                       <h3 className="text-base font-black uppercase tracking-wider text-red-500">
-                        {lang === 'fr' ? 'Action irréversible' : 'Irreversible action'}
+                        {tr(lang, 'Action irréversible', 'Irreversible action')}
                       </h3>
                       <p className="text-xs text-app-muted leading-relaxed">
                         {lang === 'fr' ? (
@@ -19291,13 +19179,13 @@ export default function App() {
                         disabled={destroySubsystemConfirmText.trim().toLowerCase() !== (subToDelete?.name || '').trim().toLowerCase()}
                         className="w-full py-3 bg-red-500 hover:bg-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                       >
-                        {lang === 'fr' ? 'Supprimer définitivement' : 'Permanently delete'}
+                        {tr(lang, 'Supprimer définitivement', 'Permanently delete')}
                       </button>
                       <button
                         onClick={() => { setDeleteSubsystemStep('choose'); setDestroySubsystemConfirmText(''); }}
                         className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                       >
-                        {lang === 'fr' ? 'Retour' : 'Back'}
+                        {tr(lang, 'Retour', 'Back')}
                       </button>
                     </div>
                   </>
@@ -19325,16 +19213,12 @@ export default function App() {
                     <>
                       <div className="space-y-2">
                         <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                          {lang === 'fr' ? 'Déplacer les fiches vers…' : 'Move profiles to…'}
+                          {tr(lang, 'Déplacer les fiches vers…', 'Move profiles to…')}
                         </h3>
                         <p className="text-xs text-app-muted leading-relaxed">
                           {directAlters.length === 0
-                            ? (lang === 'fr'
-                              ? 'Aucune fiche directement dans ce sous-système. Les sous-systèmes enfants remonteront d\'un niveau.'
-                              : 'No profiles directly inside this subsystem. Child subsystems will move up one level.')
-                            : (lang === 'fr'
-                              ? 'Choisis une destination pour chaque fiche. Coche-en plusieurs pour leur assigner la même destination d\'un coup — pas obligatoire, tu peux aussi les régler une par une.'
-                              : 'Choose a destination for each profile. Check several to assign them the same destination at once — not required, you can also set them one by one.')}
+                            ? (tr(lang, 'Aucune fiche directement dans ce sous-système. Les sous-systèmes enfants remonteront d\'un niveau.', 'No profiles directly inside this subsystem. Child subsystems will move up one level.'))
+                            : (tr(lang, 'Choisis une destination pour chaque fiche. Coche-en plusieurs pour leur assigner la même destination d\'un coup — pas obligatoire, tu peux aussi les régler une par une.', 'Choose a destination for each profile. Check several to assign them the same destination at once — not required, you can also set them one by one.'))}
                         </p>
                       </div>
 
@@ -19353,7 +19237,7 @@ export default function App() {
                               onChange={e => setMoveSubsystemBulkDestination(e.target.value)}
                               className="flex-1 min-w-0 bg-app-card border border-app-border rounded-lg px-2 py-1.5 text-xs text-app-text focus:outline-none"
                             >
-                              <option value="__main__">{lang === 'fr' ? '— Système principal —' : '— Main system —'}</option>
+                              <option value="__main__">{tr(lang, '— Système principal —', '— Main system —')}</option>
                               {availableDestinations.map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                               ))}
@@ -19363,7 +19247,7 @@ export default function App() {
                               disabled={moveSubsystemSelectedIds.length === 0}
                               className="px-2.5 py-1.5 bg-app-accent text-app-accent-text text-[9px] font-black uppercase tracking-wide rounded-lg disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
                             >
-                              {lang === 'fr' ? 'Assigner' : 'Assign'}
+                              {tr(lang, 'Assigner', 'Assign')}
                             </button>
                           </div>
 
@@ -19387,7 +19271,7 @@ export default function App() {
                                   onChange={e => setMoveSubsystemAssignments(prev => ({ ...prev, [a.id]: e.target.value }))}
                                   className="flex-1 min-w-0 bg-app-card border border-app-border rounded-lg px-2 py-1 text-[11px] text-app-text focus:outline-none"
                                 >
-                                  <option value="__main__">{lang === 'fr' ? '— Système principal —' : '— Main system —'}</option>
+                                  <option value="__main__">{tr(lang, '— Système principal —', '— Main system —')}</option>
                                   {availableDestinations.map(s => (
                                     <option key={s.id} value={s.id}>{s.name}</option>
                                   ))}
@@ -19403,13 +19287,13 @@ export default function App() {
                           onClick={() => executeDeleteSubsystem(deleteConfirmSubsystemId, 'move', moveSubsystemAssignments)}
                           className="w-full py-3 bg-app-accent hover:opacity-90 text-app-accent-text font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                         >
-                          {lang === 'fr' ? 'Confirmer et supprimer le sous-système' : 'Confirm & delete subsystem'}
+                          {tr(lang, 'Confirmer et supprimer le sous-système', 'Confirm & delete subsystem')}
                         </button>
                         <button
                           onClick={() => setDeleteSubsystemStep('choose')}
                           className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                         >
-                          {lang === 'fr' ? 'Retour' : 'Back'}
+                          {tr(lang, 'Retour', 'Back')}
                         </button>
                       </div>
                     </>
@@ -19435,10 +19319,10 @@ export default function App() {
               </div>
               <div className="space-y-1">
                 <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Fiche protégée' : 'Protected card'}
+                  {tr(lang, 'Fiche protégée', 'Protected card')}
                 </h3>
                 <p className="text-xs text-app-muted leading-relaxed">
-                  {alterPinPromptTarget.alterName}{lang === 'fr' ? ' a protégé cette fiche avec son propre code.' : ' has protected this card with its own code.'}
+                  {alterPinPromptTarget.alterName}{tr(lang, ' a protégé cette fiche avec son propre code.', ' has protected this card with its own code.')}
                 </p>
               </div>
 
@@ -19454,14 +19338,14 @@ export default function App() {
                       if (e.key !== 'Enter') return;
                       const target = alterPinPromptTarget;
                       if (simpleHash(alterPinPromptInput) !== (target as any).lockPinHash) {
-                        setAlterPinPromptError(lang === 'fr' ? 'Code incorrect.' : 'Wrong code.');
+                        setAlterPinPromptError(tr(lang, 'Code incorrect.', 'Wrong code.'));
                         return;
                       }
                       setUnlockedAlterIds(prev => [...prev, target.id]);
                       setAlterPinPromptTarget(null);
                       handleLoadAlter(target);
                     }}
-                    placeholder={lang === 'fr' ? 'Code de cette fiche' : "This card's code"}
+                    placeholder={tr(lang, 'Code de cette fiche', "This card's code")}
                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2.5 text-center text-lg font-mono tracking-widest focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                   {alterPinPromptError && <p className="text-[11px] text-red-500 font-bold">{alterPinPromptError}</p>}
@@ -19470,7 +19354,7 @@ export default function App() {
                       onClick={() => { setAlterPinPromptForgot(true); setAlterPinPromptError(''); }}
                       className="text-[11px] text-app-muted hover:text-app-accent underline"
                     >
-                      {lang === 'fr' ? 'Code oublié ?' : 'Forgot the code?'}
+                      {tr(lang, 'Code oublié ?', 'Forgot the code?')}
                     </button>
                   )}
                   <div className="flex flex-col gap-2">
@@ -19478,7 +19362,7 @@ export default function App() {
                       onClick={() => {
                         const target = alterPinPromptTarget;
                         if (simpleHash(alterPinPromptInput) !== (target as any).lockPinHash) {
-                          setAlterPinPromptError(lang === 'fr' ? 'Code incorrect.' : 'Wrong code.');
+                          setAlterPinPromptError(tr(lang, 'Code incorrect.', 'Wrong code.'));
                           return;
                         }
                         setUnlockedAlterIds(prev => [...prev, target.id]);
@@ -19487,13 +19371,13 @@ export default function App() {
                       }}
                       className="w-full py-3 bg-app-accent hover:opacity-90 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                     >
-                      {lang === 'fr' ? 'Déverrouiller' : 'Unlock'}
+                      {tr(lang, 'Déverrouiller', 'Unlock')}
                     </button>
                     <button
                       onClick={() => setAlterPinPromptTarget(null)}
                       className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                     >
-                      {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                      {tr(lang, 'Annuler', 'Cancel')}
                     </button>
                   </div>
                 </>
@@ -19505,7 +19389,7 @@ export default function App() {
                     autoFocus
                     value={alterPinPromptAnswer}
                     onChange={e => { setAlterPinPromptAnswer(e.target.value); setAlterPinPromptError(''); }}
-                    placeholder={lang === 'fr' ? 'Réponse' : 'Answer'}
+                    placeholder={tr(lang, 'Réponse', 'Answer')}
                     className="w-full bg-app-bg border border-app-border/40 rounded-xl px-3 py-2.5 text-center text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
                   />
                   {alterPinPromptError && <p className="text-[11px] text-red-500 font-bold">{alterPinPromptError}</p>}
@@ -19514,7 +19398,7 @@ export default function App() {
                       onClick={() => {
                         const target = alterPinPromptTarget;
                         if (simpleHash(alterPinPromptAnswer.toLowerCase().trim()) !== (target as any).lockPinAnswerHash) {
-                          setAlterPinPromptError(lang === 'fr' ? 'Réponse incorrecte.' : 'Wrong answer.');
+                          setAlterPinPromptError(tr(lang, 'Réponse incorrecte.', 'Wrong answer.'));
                           return;
                         }
                         // Bonne réponse : on déverrouille pour la session, mais on n'affiche pas le code —
@@ -19525,13 +19409,13 @@ export default function App() {
                       }}
                       className="w-full py-3 bg-app-accent hover:opacity-90 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                     >
-                      {lang === 'fr' ? 'Valider' : 'Confirm'}
+                      {tr(lang, 'Valider', 'Confirm')}
                     </button>
                     <button
                       onClick={() => setAlterPinPromptForgot(false)}
                       className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                     >
-                      {lang === 'fr' ? 'Retour au code' : 'Back to code'}
+                      {tr(lang, 'Retour au code', 'Back to code')}
                     </button>
                   </div>
                 </>
@@ -19553,12 +19437,10 @@ export default function App() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Charger cette fiche ?' : 'Load this card?'}
+                  {tr(lang, 'Charger cette fiche ?', 'Load this card?')}
                 </h3>
                 <p className="text-xs text-app-muted leading-relaxed">
-                  {lang === 'fr' 
-                    ? 'Charger cette fiche écrasera les modifications en cours dans le créateur. Continuer ?' 
-                    : 'Loading this card will overwrite any unsaved modifications in the creator. Continue?'}
+                  {tr(lang, 'Charger cette fiche écrasera les modifications en cours dans le créateur. Continuer ?', 'Loading this card will overwrite any unsaved modifications in the creator. Continue?')}
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -19566,13 +19448,13 @@ export default function App() {
                   onClick={() => executeLoadAlter(loadConfirmAlter)}
                   className="w-full py-3 bg-app-accent hover:opacity-90 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                 >
-                  {lang === 'fr' ? 'Charger' : 'Load'}
+                  {tr(lang, 'Charger', 'Load')}
                 </button>
                 <button
                   onClick={() => setLoadConfirmAlter(null)}
                   className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                 >
-                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  {tr(lang, 'Annuler', 'Cancel')}
                 </button>
               </div>
             </motion.div>
@@ -19593,12 +19475,10 @@ export default function App() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Supprimer ce switch ?' : 'Delete Switch Log?'}
+                  {tr(lang, 'Supprimer ce switch ?', 'Delete Switch Log?')}
                 </h3>
                 <p className="text-xs text-app-muted leading-relaxed">
-                  {lang === 'fr' 
-                    ? 'Êtes-vous sûr de vouloir supprimer définitivement ce switch enregistré ? Cette action est irréversible.' 
-                    : 'Are you sure you want to permanently delete this logged switch? This action cannot be undone.'}
+                  {tr(lang, 'Êtes-vous sûr de vouloir supprimer définitivement ce switch enregistré ? Cette action est irréversible.', 'Are you sure you want to permanently delete this logged switch? This action cannot be undone.')}
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -19606,13 +19486,13 @@ export default function App() {
                   onClick={() => executeDeleteSwitchLog(deleteConfirmSwitchLogId)}
                   className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                 >
-                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                  {tr(lang, 'Supprimer', 'Delete')}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmSwitchLogId(null)}
                   className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                 >
-                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  {tr(lang, 'Annuler', 'Cancel')}
                 </button>
               </div>
             </motion.div>
@@ -19633,12 +19513,10 @@ export default function App() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Supprimer cette note ?' : 'Delete Note?'}
+                  {tr(lang, 'Supprimer cette note ?', 'Delete Note?')}
                 </h3>
                 <p className="text-xs text-app-muted leading-relaxed">
-                  {lang === 'fr' 
-                    ? 'Êtes-vous sûr de vouloir supprimer définitivement cette note de journal ? Cette action est irréversible.' 
-                    : 'Are you sure you want to permanently delete this journal note? This action cannot be undone.'}
+                  {tr(lang, 'Êtes-vous sûr de vouloir supprimer définitivement cette note de journal ? Cette action est irréversible.', 'Are you sure you want to permanently delete this journal note? This action cannot be undone.')}
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -19646,13 +19524,13 @@ export default function App() {
                   onClick={() => executeDeleteJournalEntry(deleteConfirmJournalId)}
                   className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                 >
-                  {lang === 'fr' ? 'Supprimer' : 'Delete'}
+                  {tr(lang, 'Supprimer', 'Delete')}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmJournalId(null)}
                   className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                 >
-                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  {tr(lang, 'Annuler', 'Cancel')}
                 </button>
               </div>
             </motion.div>
@@ -19673,12 +19551,10 @@ export default function App() {
               </div>
               <div className="space-y-2">
                 <h3 className="text-base font-black uppercase tracking-wider text-app-text">
-                  {lang === 'fr' ? 'Effacer la conversation ?' : 'Clear Chat?'}
+                  {tr(lang, 'Effacer la conversation ?', 'Clear Chat?')}
                 </h3>
                 <p className="text-xs text-app-muted leading-relaxed">
-                  {lang === 'fr' 
-                    ? 'Êtes-vous sûr de vouloir vider l\'historique des messages ? Cette action est irréversible.' 
-                    : 'Are you sure you want to clear the entire chat history? This action cannot be undone.'}
+                  {tr(lang, 'Êtes-vous sûr de vouloir vider l\'historique des messages ? Cette action est irréversible.', 'Are you sure you want to clear the entire chat history? This action cannot be undone.')}
                 </p>
               </div>
               <div className="flex flex-col gap-2">
@@ -19686,13 +19562,13 @@ export default function App() {
                   onClick={executeClearChat}
                   className="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-extrabold text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-sm"
                 >
-                  {lang === 'fr' ? 'Effacer' : 'Clear'}
+                  {tr(lang, 'Effacer', 'Clear')}
                 </button>
                 <button
                   onClick={() => setDeleteConfirmClearChat(false)}
                   className="w-full py-3 bg-app-bg border border-app-border text-app-text font-bold text-[10px] uppercase tracking-widest rounded-xl transition-all"
                 >
-                  {lang === 'fr' ? 'Annuler' : 'Cancel'}
+                  {tr(lang, 'Annuler', 'Cancel')}
                 </button>
               </div>
             </motion.div>

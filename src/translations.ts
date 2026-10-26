@@ -1,4 +1,8 @@
-export const translations = {
+import { mergeDeep, LOCALE_PACKS } from './i18n';
+
+// Dictionnaire de l'interface. fr et en sont écrits ici ; es / de / it partent de l'ANGLAIS et ne surchargent que les clés
+// traduites dans locales/<langue>.ts (« dict ») : une clé non traduite s'affiche donc en anglais, jamais vide ni en français.
+const baseTranslations = {
   fr: {
     title: "Haven Space",
     subtitle: "Outil Système TDI",
@@ -1781,4 +1785,11 @@ export const translations = {
       APHANTASIA: "Absence or near-absence of voluntary visual mental imagery: inability to 'see' images in one's mind.",
     }
   }
+};
+
+export const translations = {
+  ...baseTranslations,
+  es: mergeDeep(baseTranslations.en, LOCALE_PACKS.es.dict),
+  de: mergeDeep(baseTranslations.en, LOCALE_PACKS.de.dict),
+  it: mergeDeep(baseTranslations.en, LOCALE_PACKS.it.dict),
 };

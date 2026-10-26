@@ -14,13 +14,14 @@ import { Download, Eye, EyeOff, Layers, Loader2, Lock, Network } from 'lucide-re
 import { toPng } from 'html-to-image';
 import { CustomRole, SavedAlter, Subsystem } from './types';
 import { BAND_META, OrgBand, OrgBlock, OrgMode, OrgNode, buildOrgChart } from './orgChart';
+import { tr, type Lang } from './i18n';
 
 interface OrgChartPageProps {
   savedAlters: SavedAlter[];
   customRoles: CustomRole[];
   subsystems: Subsystem[];          // déjà filtrés sur le système actif
   unlockedAlterIds: string[];
-  lang: 'fr' | 'en';
+  lang: Lang;
   systemName?: string;              // affiché seulement s'il existe des systèmes parallèles
   getRoleName: (roleId: string) => string;
   getRoleColor: (roleId: string) => string;
@@ -45,7 +46,7 @@ function writePref(key: string, value: string) {
 }
 
 interface CardCommon {
-  lang: 'fr' | 'en';
+  lang: Lang;
   showRoles: boolean;
   getRoleName: (roleId: string) => string;
   getRoleColor: (roleId: string) => string;
@@ -57,7 +58,7 @@ function AlterCard({ node, lang, showRoles, getRoleName, getRoleColor }: CardCom
       <div className="flex items-center gap-2 rounded-xl border border-dashed border-app-border bg-app-card px-3 py-2 min-w-[130px]">
         <Lock className="w-4 h-4 text-app-muted shrink-0" />
         <span className="text-xs font-bold text-app-muted">
-          {lang === 'fr' ? 'Fiche verrouillée' : 'Locked profile'}
+          {tr(lang, 'Fiche verrouillée', 'Locked profile')}
         </span>
       </div>
     );
@@ -65,7 +66,7 @@ function AlterCard({ node, lang, showRoles, getRoleName, getRoleColor }: CardCom
 
   const { alter, roleKey } = node;
   const accent = roleKey ? getRoleColor(roleKey) : '#9CA3AF';
-  const name = alter.alterName || (lang === 'fr' ? 'Sans nom' : 'Unnamed');
+  const name = alter.alterName || (tr(lang, 'Sans nom', 'Unnamed'));
 
   return (
     <div
@@ -156,7 +157,7 @@ function BandBox({ band, lang, ...card }: CardCommon & { band: OrgBand }) {
       <div className="flex items-center gap-2 mb-2">
         <span className="w-2.5 h-2.5 rounded-full" style={{ background: meta.color }} />
         <span className="text-xs font-black uppercase tracking-wider text-app-text">
-          {lang === 'fr' ? meta.fr : meta.en}
+          {tr(lang, meta.fr, meta.en)}
         </span>
         <span className="text-[10px] font-bold text-app-muted">{band.nodes.length}</span>
       </div>
@@ -183,9 +184,7 @@ function BlockBox({ block, lang, ...card }: CardCommon & { block: OrgBlock }) {
         <Branches items={items} start="header" />
       ) : (
         <p className="text-[11px] text-app-muted mt-2">
-          {lang === 'fr'
-            ? "Aucun alter à ce niveau (l'hôte et les co-hôtes sont affichés en haut)."
-            : 'No alters at this level (the host and co-hosts are shown at the top).'}
+          {tr(lang, "Aucun alter à ce niveau (l'hôte et les co-hôtes sont affichés en haut).", 'No alters at this level (the host and co-hosts are shown at the top).')}
         </p>
       )}
     </div>
@@ -236,9 +235,7 @@ export default function OrgChartPage({
       document.body.removeChild(link);
     } catch (err) {
       console.error('[Haven Space] Export de l\'organigramme impossible :', err);
-      alert(lang === 'fr'
-        ? "L'export a échoué. Réessaie, et si ça persiste, vérifie qu'aucune extension du navigateur ne bloque le téléchargement."
-        : 'The export failed. Try again, and if it keeps happening, check that no browser extension is blocking the download.');
+      alert(tr(lang, "L'export a échoué. Réessaie, et si ça persiste, vérifie qu'aucune extension du navigateur ne bloque le téléchargement.", 'The export failed. Try again, and if it keeps happening, check that no browser extension is blocking the download.'));
     } finally {
       setExporting(false);
     }
@@ -249,7 +246,7 @@ export default function OrgChartPage({
       <div className="text-center py-16 text-app-muted">
         <Network className="w-10 h-10 mx-auto mb-3 opacity-40" />
         <p className="text-sm font-bold">
-          {lang === 'fr' ? 'Aucun alter à afficher pour le moment.' : 'No alters to show yet.'}
+          {tr(lang, 'Aucun alter à afficher pour le moment.', 'No alters to show yet.')}
         </p>
       </div>
     );
@@ -267,7 +264,7 @@ export default function OrgChartPage({
       const ownIds = new Set(chart.root.bands.flatMap(b => b.nodes.map(n => n.alter.id)));
       const own: OrgBlock = {
         ...chart.root,
-        name: lang === 'fr' ? 'Sans sous-système' : 'No subsystem',
+        name: tr(lang, 'Sans sous-système', 'No subsystem'),
         children: [],
         count: ownIds.size,
       };
@@ -288,32 +285,28 @@ export default function OrgChartPage({
       <div>
         <h2 className="text-2xl font-black uppercase tracking-wider flex items-center gap-2 flex-wrap">
           <Network className="w-6 h-6" />
-          {lang === 'fr' ? 'Organigramme' : 'Org chart'}
+          {tr(lang, 'Organigramme', 'Org chart')}
           {systemName && <span className="text-app-muted text-base font-bold normal-case tracking-normal">— {systemName}</span>}
         </h2>
         <p className="text-xs text-app-muted mt-1" data-no-export="true">
           {mode === 'primary'
-            ? (lang === 'fr'
-                ? "Hôte, puis co-hôtes, puis catégories. Le premier rôle de fonction d'un alter décide de sa catégorie."
-                : "Host, then co-hosts, then categories. An alter's first function role decides its category.")
-            : (lang === 'fr'
-                ? "Un alter apparaît dans chaque catégorie dont il a un rôle, hôte et co-hôtes compris."
-                : 'An alter appears in every category it has a role in, host and co-hosts included.')}
+            ? (tr(lang, "Hôte, puis co-hôtes, puis catégories. Le premier rôle de fonction d'un alter décide de sa catégorie.", "Host, then co-hosts, then categories. An alter's first function role decides its category."))
+            : (tr(lang, "Un alter apparaît dans chaque catégorie dont il a un rôle, hôte et co-hôtes compris.", 'An alter appears in every category it has a role in, host and co-hosts included.'))}
         </p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2" data-no-export="true">
         <div role="group" className="inline-flex rounded-xl border border-app-border overflow-hidden">
           <button type="button" onClick={() => setMode('primary')} className={segBtn(mode === 'primary')} aria-pressed={mode === 'primary'}>
-            {lang === 'fr' ? 'Une catégorie' : 'One category'}
+            {tr(lang, 'Une catégorie', 'One category')}
           </button>
           <button type="button" onClick={() => setMode('multi')} className={segBtn(mode === 'multi')} aria-pressed={mode === 'multi'}>
-            {lang === 'fr' ? 'Toutes' : 'All'}
+            {tr(lang, 'Toutes', 'All')}
           </button>
         </div>
         <button type="button" onClick={toggleRoles} className={toolBtn} aria-pressed={showRoles}>
           {showRoles ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-          {lang === 'fr' ? 'Rôles sous les noms' : 'Roles under names'}
+          {tr(lang, 'Rôles sous les noms', 'Roles under names')}
         </button>
         <button type="button" onClick={handleExport} disabled={exporting} className={`${toolBtn} disabled:opacity-50`}>
           {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
@@ -324,16 +317,14 @@ export default function OrgChartPage({
       {/* Niveau 0 : hôte(s) */}
       <div>
         <LevelLabel>
-          {lang === 'fr'
-            ? (chart.hosts.length > 1 ? 'Hôtes' : 'Hôte')
-            : (chart.hosts.length > 1 ? 'Hosts' : 'Host')}
+          {tr(lang, chart.hosts.length > 1 ? 'Hôtes' : 'Hôte', chart.hosts.length > 1 ? 'Hosts' : 'Host')}
         </LevelLabel>
         <div className="flex flex-wrap justify-center gap-2">
           {chart.hosts.length > 0 ? (
             chart.hosts.map(n => <AlterCard key={n.alter.id} node={n} {...card} />)
           ) : (
             <div className="rounded-xl border border-dashed border-app-border px-4 py-3 text-xs text-app-muted font-bold">
-              {lang === 'fr' ? 'Aucun hôte défini' : 'No host defined'}
+              {tr(lang, 'Aucun hôte défini', 'No host defined')}
             </div>
           )}
         </div>
@@ -344,7 +335,7 @@ export default function OrgChartPage({
         <div>
           <div className="-mt-6"><Stem /></div>
           <div>
-            <LevelLabel>{lang === 'fr' ? 'Co-hôtes' : 'Co-hosts'}</LevelLabel>
+            <LevelLabel>{tr(lang, 'Co-hôtes', 'Co-hosts')}</LevelLabel>
             <div className="flex flex-wrap justify-center gap-2">
               {chart.coHosts.map(n => <AlterCard key={n.alter.id} node={n} {...card} />)}
             </div>

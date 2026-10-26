@@ -8,6 +8,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Plus, X, Save, GitBranch } from 'lucide-react';
 import { SavedAlter } from './types';
 import { readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
+import { tr, type Lang } from './i18n';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -90,7 +91,7 @@ function getRoleLabel(alter: SavedAlter): string {
 
 interface MappingPageProps {
   savedAlters: SavedAlter[];
-  lang: 'fr' | 'en';
+  lang: Lang;
   activeSystemId?: string;
   dek?: CryptoKey | null;
   vaultActive?: boolean;
@@ -131,23 +132,23 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [selectedRelId, setSelectedRelId] = useState<string | null>(null);
 
   const t = {
-    title: lang === 'fr' ? 'Mapping du Système' : 'System Mapping',
-    subtitle: lang === 'fr' ? 'Visualise les relations entre les membres de ton système.' : 'Visualize relationships between system members.',
-    addRelation: lang === 'fr' ? 'Ajouter une relation' : 'Add a relation',
-    source: lang === 'fr' ? 'Alter source' : 'Source alter',
-    target: lang === 'fr' ? 'Alter cible' : 'Target alter',
-    relType: lang === 'fr' ? 'Type de relation' : 'Relation type',
-    relLabel: lang === 'fr' ? 'Étiquette (optionnel)' : 'Label (optional)',
-    save: lang === 'fr' ? 'Enregistrer' : 'Save',
-    cancel: lang === 'fr' ? 'Annuler' : 'Cancel',
-    legend: lang === 'fr' ? 'Légende' : 'Legend',
-    noAlters: lang === 'fr' ? "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici." : 'No alters saved. Create alter cards to see them here.',
-    dragHint: lang === 'fr' ? 'Glisse les nœuds pour les repositionner · Clique sur une ligne pour la supprimer' : 'Drag nodes to reposition · Click a line to delete it',
-    positiveRels: lang === 'fr' ? 'Relations positives' : 'Positive relationships',
-    neutralRels: lang === 'fr' ? 'Relations neutres' : 'Neutral relationships',
-    negativeRels: lang === 'fr' ? 'Relations difficiles' : 'Difficult relationships',
-    searchAlter: lang === 'fr' ? 'Rechercher un alter…' : 'Search alter…',
-    noResults: lang === 'fr' ? 'Aucun résultat' : 'No results',
+    title: tr(lang, 'Mapping du Système', 'System Mapping'),
+    subtitle: tr(lang, 'Visualise les relations entre les membres de ton système.', 'Visualize relationships between system members.'),
+    addRelation: tr(lang, 'Ajouter une relation', 'Add a relation'),
+    source: tr(lang, 'Alter source', 'Source alter'),
+    target: tr(lang, 'Alter cible', 'Target alter'),
+    relType: tr(lang, 'Type de relation', 'Relation type'),
+    relLabel: tr(lang, 'Étiquette (optionnel)', 'Label (optional)'),
+    save: tr(lang, 'Enregistrer', 'Save'),
+    cancel: tr(lang, 'Annuler', 'Cancel'),
+    legend: tr(lang, 'Légende', 'Legend'),
+    noAlters: tr(lang, "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici.", 'No alters saved. Create alter cards to see them here.'),
+    dragHint: tr(lang, 'Glisse les nœuds pour les repositionner · Clique sur une ligne pour la supprimer', 'Drag nodes to reposition · Click a line to delete it'),
+    positiveRels: tr(lang, 'Relations positives', 'Positive relationships'),
+    neutralRels: tr(lang, 'Relations neutres', 'Neutral relationships'),
+    negativeRels: tr(lang, 'Relations difficiles', 'Difficult relationships'),
+    searchAlter: tr(lang, 'Rechercher un alter…', 'Search alter…'),
+    noResults: tr(lang, 'Aucun résultat', 'No results'),
   };
 
   useEffect(() => {
@@ -515,7 +516,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                     <line x1="0" y1="5" x2="36" y2="5" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
                     {cfg.arrow && <polygon points="28,2 36,5 28,8" fill={cfg.color} />}
                   </svg>
-                  <span className="text-xs text-app-muted">{lang === 'fr' ? cfg.label : cfg.labelEn}</span>
+                  <span className="text-xs text-app-muted">{tr(lang, cfg.label, cfg.labelEn)}</span>
                 </div>
               );
             })}
@@ -530,7 +531,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                     <line x1="0" y1="5" x2="36" y2="5" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
                     {cfg.arrow && <polygon points="28,2 36,5 28,8" fill={cfg.color} />}
                   </svg>
-                  <span className="text-xs text-app-muted">{lang === 'fr' ? cfg.label : cfg.labelEn}</span>
+                  <span className="text-xs text-app-muted">{tr(lang, cfg.label, cfg.labelEn)}</span>
                 </div>
               );
             })}
@@ -545,7 +546,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                     <line x1="0" y1="5" x2="36" y2="5" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
                     {cfg.arrow && <polygon points="28,2 36,5 28,8" fill={cfg.color} />}
                   </svg>
-                  <span className="text-xs text-app-muted">{lang === 'fr' ? cfg.label : cfg.labelEn}</span>
+                  <span className="text-xs text-app-muted">{tr(lang, cfg.label, cfg.labelEn)}</span>
                 </div>
               );
             })}
@@ -665,7 +666,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
               <label className="text-[10px] font-semibold uppercase tracking-widest text-app-muted">{t.relType}</label>
               <select value={newRel.type} onChange={e => setNewRel(p => ({ ...p, type: e.target.value as RelationType }))} className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none">
                 {(Object.entries(RELATION_CONFIG) as [RelationType, typeof RELATION_CONFIG[RelationType]][]).map(([type, cfg]) => (
-                  <option key={type} value={type}>{lang === 'fr' ? cfg.label : cfg.labelEn}</option>
+                  <option key={type} value={type}>{tr(lang, cfg.label, cfg.labelEn)}</option>
                 ))}
               </select>
             </div>
@@ -676,7 +677,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                 type="text"
                 value={newRel.label}
                 onChange={e => setNewRel(p => ({ ...p, label: e.target.value }))}
-                placeholder={lang === 'fr' ? 'ex: protège depuis l\'enfance' : 'ex: close since childhood'}
+                placeholder={tr(lang, 'ex: protège depuis l\'enfance', 'ex: close since childhood')}
                 className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none placeholder:text-app-muted/40"
               />
             </div>
@@ -687,7 +688,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                   <line x1="0" y1="5" x2="40" y2="5" stroke={RELATION_CONFIG[newRel.type].color} strokeWidth={RELATION_CONFIG[newRel.type].width} strokeDasharray={RELATION_CONFIG[newRel.type].dash === 'none' ? undefined : RELATION_CONFIG[newRel.type].dash} />
                   {RELATION_CONFIG[newRel.type].arrow && <polygon points="32,2 40,5 32,8" fill={RELATION_CONFIG[newRel.type].color} />}
                 </svg>
-                <span className="text-xs text-app-muted">{lang === 'fr' ? RELATION_CONFIG[newRel.type].label : RELATION_CONFIG[newRel.type].labelEn}</span>
+                <span className="text-xs text-app-muted">{tr(lang, RELATION_CONFIG[newRel.type].label, RELATION_CONFIG[newRel.type].labelEn)}</span>
               </div>
             )}
 

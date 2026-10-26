@@ -7,6 +7,7 @@ import {
   HeartPulse, Languages, Wallet, TreePine, Bug, Upload, X, CheckCircle2, AlertCircle, Loader2,
   Clock, MapPin, StickyNote, KeyRound, Network,
 } from 'lucide-react';
+import { tr, mergeDeep, LOCALE_PACKS, type Lang } from '../i18n';
 
 export type LegalPage = 'privacy' | 'about' | 'contact' | 'guide' | 'vocabulary' | 'roles' | 'functions';
 
@@ -14,7 +15,7 @@ interface LegalPagesProps {
   initialPage?: LegalPage;
   onBack?: () => void;
   onPageChange?: (page: LegalPage) => void;
-  lang: 'fr' | 'en';
+  lang: Lang;
 }
 
 export default function LegalPages({ initialPage = 'privacy', onBack, onPageChange, lang }: LegalPagesProps) {
@@ -84,7 +85,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
       fK: '✦ Export PNG',
       fL: '✦ Synchronisation PluralKit',
       fM: '✦ Thèmes & personnalisation',
-      fN: '✦ Multilingue FR/EN',
+      fN: '✦ Multilingue : FR, EN (+ ES, DE, IT en cours)',
       fO: '✦ Installable PWA / Mobile',
       fP: '✦ Planning Bullet Journal',
       fQ: '✦ Matrice d\'Eisenhower',
@@ -250,7 +251,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
       fK: '✦ PNG Export',
       fL: '✦ PluralKit Sync',
       fM: '✦ Themes & Customization',
-      fN: '✦ Multilingual EN/FR',
+      fN: '✦ Multilingual: EN, FR (+ ES, DE, IT in progress)',
       fO: '✦ Installable PWA / Mobile',
       fP: '✦ Bullet Journal Planning',
       fQ: '✦ Eisenhower Matrix',
@@ -359,7 +360,8 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
     }
   };
 
-  const currentT = t[lang];
+  // fr / en : textes ci-dessus. es / de / it : l'anglais, surchargé par les textes traduits (locales/<langue>.ts → dict.legal).
+  const currentT = lang === 'fr' || lang === 'en' ? t[lang] : mergeDeep(t.en, LOCALE_PACKS[lang].dict.legal as Record<string, unknown> | undefined);
 
   const [copied, setCopied] = useState(false);
   const [guideSearch, setGuideSearch] = useState('');
@@ -426,7 +428,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
 
   const handleBugSubmit = async () => {
     if (!bugTitle.trim() || !bugDescription.trim()) {
-      setBugErrorMsg(lang === 'fr' ? 'Merci de renseigner un titre et une description.' : 'Please fill in a title and a description.');
+      setBugErrorMsg(tr(lang, 'Merci de renseigner un titre et une description.', 'Please fill in a title and a description.'));
       setBugStatus('error');
       return;
     }
@@ -438,14 +440,14 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
       formData.append('_subject', `[Haven Space] Rapport de bug : ${bugTitle.trim()}`);
       formData.append('_template', 'table');
       formData.append('_captcha', 'false');
-      formData.append(lang === 'fr' ? 'Titre du bug' : 'Bug title', bugTitle.trim());
-      formData.append(lang === 'fr' ? 'Description' : 'Description', bugDescription.trim());
+      formData.append(tr(lang, 'Titre du bug', 'Bug title'), bugTitle.trim());
+      formData.append(tr(lang, 'Description', 'Description'), bugDescription.trim());
       formData.append(
-        lang === 'fr' ? 'Email de réponse' : 'Reply email',
-        bugEmail.trim() || (lang === 'fr' ? 'Non renseigné (anonyme)' : 'Not provided (anonymous)')
+        tr(lang, 'Email de réponse', 'Reply email'),
+        bugEmail.trim() || (tr(lang, 'Non renseigné (anonyme)', 'Not provided (anonymous)'))
       );
       bugPhotos.forEach((dataUrl, i) => {
-        formData.append(`${lang === 'fr' ? 'Capture' : 'Screenshot'} ${i + 1}`, dataUrlToBlob(dataUrl), `capture-${i + 1}.jpg`);
+        formData.append(`${tr(lang, 'Capture', 'Screenshot')} ${i + 1}`, dataUrlToBlob(dataUrl), `capture-${i + 1}.jpg`);
       });
 
       const res = await fetch('https://formsubmit.co/ajax/systeme.chaos@outlook.fr', {
@@ -462,9 +464,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
       setBugPhotos([]);
     } catch {
       setBugStatus('error');
-      setBugErrorMsg(lang === 'fr'
-        ? "L'envoi a échoué. Tu peux réessayer ou nous écrire directement par email."
-        : 'Sending failed. You can try again or email us directly.');
+      setBugErrorMsg(tr(lang, "L'envoi a échoué. Tu peux réessayer ou nous écrire directement par email.", 'Sending failed. You can try again or email us directly.'));
     } finally {
       setBugSubmitting(false);
     }
@@ -1090,19 +1090,15 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
                 {currentT.functions}
               </div>
               <h1 className="text-3xl md:text-4xl font-black uppercase tracking-wider">
-                {lang === 'fr' ? 'Le lexique des fonctions.' : 'The functions lexicon.'}
+                {tr(lang, 'Le lexique des fonctions.', 'The functions lexicon.')}
               </h1>
               <p className="text-xs text-app-muted font-bold uppercase tracking-widest">
-                {lang === 'fr'
-                  ? "Switch rapide, walk-in, bleedover... le fonctionnement interne du système, en profondeur"
-                  : 'Rapid switching, walk-ins, bleedover... the internal mechanics of the system, in depth'}
+                {tr(lang, "Switch rapide, walk-in, bleedover... le fonctionnement interne du système, en profondeur", 'Rapid switching, walk-ins, bleedover... the internal mechanics of the system, in depth')}
               </p>
             </div>
 
             <p className="text-xs text-app-muted leading-relaxed bg-app-card border border-app-border/40 rounded-2xl p-4">
-              {lang === 'fr'
-                ? "Ce lexique va plus loin que les mécanismes de base déjà présentés dans le Vocabulaire (switch, front, co-conscience...). Il couvre des dynamiques internes plus spécifiques : structure du monde intérieur, communication interne, gouvernance, fusion..."
-                : "This lexicon goes further than the basic mechanics already covered in the Vocabulary (switching, fronting, co-consciousness...). It covers more specific internal dynamics: inner-world structure, internal communication, governance, fusion..."}
+              {tr(lang, "Ce lexique va plus loin que les mécanismes de base déjà présentés dans le Vocabulaire (switch, front, co-conscience...). Il couvre des dynamiques internes plus spécifiques : structure du monde intérieur, communication interne, gouvernance, fusion...", "This lexicon goes further than the basic mechanics already covered in the Vocabulary (switching, fronting, co-consciousness...). It covers more specific internal dynamics: inner-world structure, internal communication, governance, fusion...")}
             </p>
 
             <div className="relative">
@@ -1111,13 +1107,13 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
                 type="text"
                 value={functionSearch}
                 onChange={e => setFunctionSearch(e.target.value)}
-                placeholder={lang === 'fr' ? 'Rechercher une fonction...' : 'Search a function...'}
+                placeholder={tr(lang, 'Rechercher une fonction...', 'Search a function...')}
                 className="w-full bg-app-card border border-app-border rounded-2xl pl-11 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-app-accent/20"
               />
             </div>
 
             {filteredCategories.length === 0 && (
-              <p className="text-sm text-app-muted italic px-1">{lang === 'fr' ? 'Aucune fonction ne correspond à ta recherche.' : 'No function matches your search.'}</p>
+              <p className="text-sm text-app-muted italic px-1">{tr(lang, 'Aucune fonction ne correspond à ta recherche.', 'No function matches your search.')}</p>
             )}
 
             <div className="space-y-10">
@@ -1139,7 +1135,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
             </div>
 
             <p className="text-[10px] text-app-muted leading-relaxed pt-6 border-t border-app-border/20">
-              {lang === 'fr' ? 'Définitions reformulées à partir de' : 'Definitions rephrased from'}{' '}
+              {tr(lang, 'Définitions reformulées à partir de', 'Definitions rephrased from')}{' '}
               <a
                 href="https://pluralpedia.org/w/Category:System_Function_Terms"
                 target="_blank"
@@ -1148,9 +1144,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
               >
                 Pluralpedia — Category: System Function Terms
               </a>
-              {lang === 'fr'
-                ? ', sous licence Creative Commons BY-SA 3.0. Cette liste n\'est pas exhaustive et sera complétée avec le temps.'
-                : ', under Creative Commons BY-SA 3.0. This list is not exhaustive and will grow over time.'}
+              {tr(lang, ', sous licence Creative Commons BY-SA 3.0. Cette liste n\'est pas exhaustive et sera complétée avec le temps.', ', under Creative Commons BY-SA 3.0. This list is not exhaustive and will grow over time.')}
             </p>
           </div>
         );
@@ -1381,35 +1375,33 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
           <div className="p-6 bg-app-card border border-app-border rounded-2xl space-y-4 shadow-sm">
             <div className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
               <Bug size={15} className="text-app-accent" />
-              <span>{lang === 'fr' ? 'Rapport de bug' : 'Bug report'}</span>
+              <span>{tr(lang, 'Rapport de bug', 'Bug report')}</span>
             </div>
             <p className="text-xs leading-relaxed text-app-muted font-medium">
-              {lang === 'fr'
-                ? "Un truc qui plante ou qui fait n'importe quoi ? Décris-le ici, captures d'écran bienvenues. Pas besoin de laisser ton email si tu préfères rester anonyme."
-                : "Something crashing or acting weird? Describe it here, screenshots welcome. No need to leave your email if you'd rather stay anonymous."}
+              {tr(lang, "Un truc qui plante ou qui fait n'importe quoi ? Décris-le ici, captures d'écran bienvenues. Pas besoin de laisser ton email si tu préfères rester anonyme.", "Something crashing or acting weird? Describe it here, screenshots welcome. No need to leave your email if you'd rather stay anonymous.")}
             </p>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                {lang === 'fr' ? 'Titre du bug' : 'Bug title'}
+                {tr(lang, 'Titre du bug', 'Bug title')}
               </label>
               <input
                 type="text"
                 value={bugTitle}
                 onChange={e => setBugTitle(e.target.value)}
-                placeholder={lang === 'fr' ? "Ex : Le bouton Sauvegarder ne répond pas" : "E.g. The Save button doesn't respond"}
+                placeholder={tr(lang, "Ex : Le bouton Sauvegarder ne répond pas", "E.g. The Save button doesn't respond")}
                 className="w-full bg-app-bg border border-app-border/50 rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40"
               />
             </div>
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                {lang === 'fr' ? 'Explique le bug' : 'Explain the bug'}
+                {tr(lang, 'Explique le bug', 'Explain the bug')}
               </label>
               <textarea
                 value={bugDescription}
                 onChange={e => setBugDescription(e.target.value)}
-                placeholder={lang === 'fr' ? 'Que se passe-t-il ? Que faisais-tu juste avant ?' : 'What happens? What were you doing right before?'}
+                placeholder={tr(lang, 'Que se passe-t-il ? Que faisais-tu juste avant ?', 'What happens? What were you doing right before?')}
                 rows={4}
                 className="w-full bg-app-bg border border-app-border/50 rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40 resize-y"
               />
@@ -1417,20 +1409,20 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
 
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                {lang === 'fr' ? 'Ton email (optionnel, pour qu\u2019on puisse te répondre)' : 'Your email (optional, so we can reply)'}
+                {tr(lang, 'Ton email (optionnel, pour qu\u2019on puisse te répondre)', 'Your email (optional, so we can reply)')}
               </label>
               <input
                 type="email"
                 value={bugEmail}
                 onChange={e => setBugEmail(e.target.value)}
-                placeholder={lang === 'fr' ? 'Laisse vide pour rester anonyme' : 'Leave empty to stay anonymous'}
+                placeholder={tr(lang, 'Laisse vide pour rester anonyme', 'Leave empty to stay anonymous')}
                 className="w-full bg-app-bg border border-app-border/50 rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none focus:border-app-accent/40 placeholder:text-app-muted/40"
               />
             </div>
 
             <div className="space-y-2">
               <label className="text-[9px] font-black uppercase tracking-widest text-app-muted">
-                {lang === 'fr' ? 'Captures d\u2019écran (optionnel)' : 'Screenshots (optional)'}
+                {tr(lang, 'Captures d\u2019écran (optionnel)', 'Screenshots (optional)')}
               </label>
               {bugPhotos.length > 0 && (
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -1449,7 +1441,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
               )}
               <label className="w-full flex items-center justify-center gap-1.5 py-3 rounded-xl border-2 border-dashed border-app-border/50 text-[10px] font-black uppercase tracking-widest text-app-muted hover:text-app-accent hover:border-app-accent/40 cursor-pointer transition-colors">
                 <Upload className="w-3.5 h-3.5" />
-                {lang === 'fr' ? 'Ajouter des photos' : 'Add photos'}
+                {tr(lang, 'Ajouter des photos', 'Add photos')}
                 <input
                   type="file"
                   accept="image/*"
@@ -1466,7 +1458,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
             {bugStatus === 'success' && (
               <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-500 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                <span>{lang === 'fr' ? 'Rapport envoyé, merci !' : 'Report sent, thank you!'}</span>
+                <span>{tr(lang, 'Rapport envoyé, merci !', 'Report sent, thank you!')}</span>
               </div>
             )}
             {bugStatus === 'error' && bugErrorMsg && (
@@ -1483,7 +1475,7 @@ export default function LegalPages({ initialPage = 'privacy', onBack, onPageChan
               className="w-full px-5 py-3 bg-app-accent hover:opacity-90 disabled:opacity-50 font-extrabold uppercase text-xs tracking-widest text-white rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm cursor-pointer border-none"
             >
               {bugSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bug className="w-4 h-4" />}
-              <span>{bugSubmitting ? (lang === 'fr' ? 'Envoi en cours…' : 'Sending…') : (lang === 'fr' ? 'Envoyer le rapport' : 'Send report')}</span>
+              <span>{bugSubmitting ? (tr(lang, 'Envoi en cours…', 'Sending…')) : (tr(lang, 'Envoyer le rapport', 'Send report'))}</span>
             </button>
           </div>
 

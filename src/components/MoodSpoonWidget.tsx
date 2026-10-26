@@ -49,6 +49,7 @@
  */
 
 import React from 'react';
+import { tr, type Lang, trf } from '../i18n';
 
 // ─── Définition des humeurs ──────────────────────────────────────────────────
 
@@ -123,7 +124,7 @@ interface MoodSpoonWidgetProps {
   onSpoonsChange: (v: number) => void;
   selectedMoods: string[];
   onMoodsChange: (moods: string[]) => void;
-  lang: 'fr' | 'en';
+  lang: Lang;
 }
 
 const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
@@ -158,7 +159,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <label className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-            {lang === 'fr' ? 'Énergie disponible (Spoon Theory)' : 'Available Energy (Spoon Theory)'}
+            {tr(lang, 'Énergie disponible (Spoon Theory)', 'Available Energy (Spoon Theory)')}
           </label>
           <span
             className="text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-full border"
@@ -177,7 +178,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
         <div
           className="flex flex-wrap gap-1.5"
           role="group"
-          aria-label={lang === 'fr' ? 'Cuillères disponibles' : 'Available spoons'}
+          aria-label={tr(lang, 'Cuillères disponibles', 'Available spoons')}
         >
           {Array.from({ length: TOTAL_SPOONS }, (_, i) => {
             const index = i + 1;
@@ -188,9 +189,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
                 type="button"
                 aria-pressed={isFilled}
                 aria-label={
-                  lang === 'fr'
-                    ? `${index} cuillère${index > 1 ? 's' : ''}`
-                    : `${index} spoon${index > 1 ? 's' : ''}`
+                  trf(lang, `{0} cuillère{1}`, `{0} spoon{1}`, [index, index > 1 ? 's' : ''])
                 }
                 onClick={() =>
                   // Clic sur la cuillère active la plus haute → la désactive (toggle)
@@ -227,9 +226,9 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
               }
             >
               {v === 0
-                ? lang === 'fr' ? 'Vide' : 'Empty'
+                ? tr(lang, 'Vide', 'Empty')
                 : v === 12
-                ? lang === 'fr' ? 'Plein' : 'Full'
+                ? tr(lang, 'Plein', 'Full')
                 : v}
             </button>
           ))}
@@ -243,7 +242,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
       <div className="space-y-2.5">
         <div className="flex items-center justify-between">
           <label className="text-[10px] font-black uppercase tracking-widest text-app-muted">
-            {lang === 'fr' ? 'État(s) du moment' : 'Current State(s)'}
+            {tr(lang, 'État(s) du moment', 'Current State(s)')}
           </label>
           {selectedMoods.length > 0 && (
             <button
@@ -251,7 +250,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
               onClick={() => onMoodsChange([])}
               className="text-[9px] font-black uppercase tracking-widest text-app-muted hover:text-app-text transition-colors"
             >
-              {lang === 'fr' ? 'Effacer' : 'Clear'}
+              {tr(lang, 'Effacer', 'Clear')}
             </button>
           )}
         </div>
@@ -259,7 +258,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
         <div
           className="flex flex-wrap gap-1.5"
           role="group"
-          aria-label={lang === 'fr' ? "État(s) d'humeur" : 'Mood state(s)'}
+          aria-label={tr(lang, "État(s) d'humeur", 'Mood state(s)')}
         >
           {MOOD_OPTIONS.map(mood => {
             const isSelected = selectedMoods.includes(mood.id);
@@ -300,7 +299,7 @@ const MoodSpoonWidget: React.FC<MoodSpoonWidgetProps> = ({
                 >
                   {mood.glyph}
                 </span>
-                {lang === 'fr' ? mood.labelFr : mood.labelEn}
+                {tr(lang, mood.labelFr, mood.labelEn)}
               </button>
             );
           })}
@@ -317,7 +316,7 @@ export default MoodSpoonWidget;
 interface SwitchLogMoodDisplayProps {
   spoons?: number;
   moods?: string[];
-  lang: 'fr' | 'en';
+  lang: Lang;
 }
 
 export const SwitchLogMoodDisplay: React.FC<SwitchLogMoodDisplayProps> = ({
@@ -358,7 +357,7 @@ export const SwitchLogMoodDisplay: React.FC<SwitchLogMoodDisplayProps> = ({
                 }}
               >
                 <span style={{ fontSize: '9px' }}>{mood.glyph}</span>
-                {lang === 'fr' ? mood.labelFr : mood.labelEn}
+                {tr(lang, mood.labelFr, mood.labelEn)}
               </span>
             );
           })}

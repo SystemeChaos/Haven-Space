@@ -14,12 +14,13 @@ import {
   DAY_MS, ZOOM_LEVELS, buildAxisTicks, buildCalendarColumns, buildFrontIntervals, formatDuration,
   pxPerHourFor, resolveRange, toDateInput,
 } from '../switchCalendar';
+import { tr, localeOf, type Lang } from '../i18n';
 
 interface SwitchCalendarProps {
   switchLogs: SwitchLog[];
   savedAlters: SavedAlter[];
   unlockedAlterIds: string[];
-  lang: 'fr' | 'en';
+  lang: Lang;
   t: any;
   onEditLog?: (log: SwitchLog) => void;
 }
@@ -31,7 +32,7 @@ const BLEND_BG = 'linear-gradient(180deg, #a855f7, #ec4899, #6366f1)';
 const LOCKED_COLOR = '#9CA3AF';
 
 export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterIds, lang, t, onEditLog }: SwitchCalendarProps) {
-  const locale = lang === 'fr' ? 'fr-FR' : 'en-US';
+  const locale = localeOf(lang);
   const [now] = useState(() => Date.now());
   const [from, setFrom] = useState(() => toDateInput(now - 6 * DAY_MS));
   const [to, setTo] = useState(() => toDateInput(now));
@@ -64,24 +65,24 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
 
   const columnInfo = (key: string, alterId: string | undefined, index: number) => {
     if (key === 'blend') {
-      return { label: lang === 'fr' ? 'Flou' : 'Blend', color: LOCKED_COLOR, background: BLEND_BG, locked: false, image: '' };
+      return { label: tr(lang, 'Flou', 'Blend'), color: LOCKED_COLOR, background: BLEND_BG, locked: false, image: '' };
     }
     const alter = alterId ? alterById.get(alterId) : undefined;
-    if (!alter) return { label: lang === 'fr' ? 'Alter supprimé' : 'Deleted alter', color: LOCKED_COLOR, background: LOCKED_COLOR, locked: false, image: '' };
+    if (!alter) return { label: tr(lang, 'Alter supprimé', 'Deleted alter'), color: LOCKED_COLOR, background: LOCKED_COLOR, locked: false, image: '' };
     if (isAlterLocked(alter, unlockedAlterIds)) {
-      return { label: lang === 'fr' ? 'Verrouillé' : 'Locked', color: LOCKED_COLOR, background: LOCKED_COLOR, locked: true, image: '' };
+      return { label: tr(lang, 'Verrouillé', 'Locked'), color: LOCKED_COLOR, background: LOCKED_COLOR, locked: true, image: '' };
     }
     const color = alter.alterColor || PALETTE[index % PALETTE.length];
     return { label: alter.alterName || '?', color, background: color, locked: false, image: alter.profileImage || '' };
   };
 
   const detailNames = (log: SwitchLog): string => {
-    if (log.alterIds.length === 0) return lang === 'fr' ? 'Flou / Blend' : 'Blur / Blend';
+    if (log.alterIds.length === 0) return tr(lang, 'Flou / Blend', 'Blur / Blend');
     return log.alterIds
       .map(id => {
         const al = alterById.get(id);
-        if (!al) return lang === 'fr' ? 'Alter supprimé' : 'Deleted alter';
-        return isAlterLocked(al, unlockedAlterIds) ? (lang === 'fr' ? 'Fiche verrouillée' : 'Locked profile') : al.alterName;
+        if (!al) return tr(lang, 'Alter supprimé', 'Deleted alter');
+        return isAlterLocked(al, unlockedAlterIds) ? (tr(lang, 'Fiche verrouillée', 'Locked profile')) : al.alterName;
       })
       .join(', ');
   };
@@ -97,27 +98,27 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
       {/* Plage de dates, raccourcis et zoom */}
       <div className="flex flex-wrap items-center gap-3 bg-app-card/35 px-4 py-3 rounded-xl border border-app-border/15">
         <Calendar className="w-4 h-4 text-[#273F4F] shrink-0" />
-        <input type="date" value={from} max={to} onChange={e => { setFrom(e.target.value); setSelectedLogId(null); }} className={dateInput} aria-label={lang === 'fr' ? 'Du' : 'From'} />
+        <input type="date" value={from} max={to} onChange={e => { setFrom(e.target.value); setSelectedLogId(null); }} className={dateInput} aria-label={tr(lang, 'Du', 'From')} />
         <span className="text-app-muted text-xs">→</span>
-        <input type="date" value={to} min={from} max={toDateInput(now)} onChange={e => { setTo(e.target.value); setSelectedLogId(null); }} className={dateInput} aria-label={lang === 'fr' ? 'Au' : 'To'} />
+        <input type="date" value={to} min={from} max={toDateInput(now)} onChange={e => { setTo(e.target.value); setSelectedLogId(null); }} className={dateInput} aria-label={tr(lang, 'Au', 'To')} />
         <div className="flex gap-1">
-          <button type="button" onClick={() => setQuick(1)} className={chip(false)}>{lang === 'fr' ? "Aujourd'hui" : 'Today'}</button>
-          <button type="button" onClick={() => setQuick(7)} className={chip(false)}>{lang === 'fr' ? '7 j' : '7 d'}</button>
-          <button type="button" onClick={() => setQuick(30)} className={chip(false)}>{lang === 'fr' ? '30 j' : '30 d'}</button>
+          <button type="button" onClick={() => setQuick(1)} className={chip(false)}>{tr(lang, "Aujourd'hui", 'Today')}</button>
+          <button type="button" onClick={() => setQuick(7)} className={chip(false)}>{tr(lang, '7 j', '7 d')}</button>
+          <button type="button" onClick={() => setQuick(30)} className={chip(false)}>{tr(lang, '30 j', '30 d')}</button>
         </div>
         <div className="flex items-center gap-1 ml-auto" role="group" aria-label="Zoom">
-          <button type="button" onClick={() => setZoom(z => Math.max(0, z - 1))} disabled={zoom === 0} className="p-1.5 rounded-lg border border-app-border/20 bg-app-card text-app-muted hover:text-app-text disabled:opacity-30" aria-label={lang === 'fr' ? 'Dézoomer' : 'Zoom out'}><Minus className="w-3.5 h-3.5" /></button>
-          <button type="button" onClick={() => setZoom(z => Math.min(ZOOM_LEVELS.length - 1, z + 1))} disabled={zoom === ZOOM_LEVELS.length - 1} className="p-1.5 rounded-lg border border-app-border/20 bg-app-card text-app-muted hover:text-app-text disabled:opacity-30" aria-label={lang === 'fr' ? 'Zoomer' : 'Zoom in'}><Plus className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setZoom(z => Math.max(0, z - 1))} disabled={zoom === 0} className="p-1.5 rounded-lg border border-app-border/20 bg-app-card text-app-muted hover:text-app-text disabled:opacity-30" aria-label={tr(lang, 'Dézoomer', 'Zoom out')}><Minus className="w-3.5 h-3.5" /></button>
+          <button type="button" onClick={() => setZoom(z => Math.min(ZOOM_LEVELS.length - 1, z + 1))} disabled={zoom === ZOOM_LEVELS.length - 1} className="p-1.5 rounded-lg border border-app-border/20 bg-app-card text-app-muted hover:text-app-text disabled:opacity-30" aria-label={tr(lang, 'Zoomer', 'Zoom in')}><Plus className="w-3.5 h-3.5" /></button>
         </div>
       </div>
 
       {!range ? (
         <div className="text-center py-10 text-app-muted text-xs font-semibold">
-          {lang === 'fr' ? 'Choisis une plage de dates valide (pas dans le futur).' : 'Pick a valid date range (not in the future).'}
+          {tr(lang, 'Choisis une plage de dates valide (pas dans le futur).', 'Pick a valid date range (not in the future).')}
         </div>
       ) : columns.length === 0 ? (
         <div className="text-center py-10 bg-app-bg/30 rounded-xl border border-dashed border-app-border/40 text-app-muted text-xs font-semibold">
-          {lang === 'fr' ? 'Aucun front sur cette période.' : 'No fronting on this period.'}
+          {tr(lang, 'Aucun front sur cette période.', 'No fronting on this period.')}
         </div>
       ) : (
         <div className="overflow-auto max-h-[620px] rounded-xl border border-app-border/20 bg-app-card/50">
@@ -171,7 +172,7 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
                   <div key={col.key} className="relative">
                     {col.bars.map(bar => {
                       const selected = bar.logId === selectedLogId;
-                      const label = `${info.label} — ${fmtFull(bar.start)} → ${bar.ongoing ? (lang === 'fr' ? 'en cours' : 'ongoing') : fmtFull(bar.end)}`;
+                      const label = `${info.label} — ${fmtFull(bar.start)} → ${bar.ongoing ? (tr(lang, 'en cours', 'ongoing')) : fmtFull(bar.end)}`;
                       return (
                         <button
                           key={`${bar.logId}-${bar.top}`}
@@ -215,7 +216,7 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
                 </span>
               )}
             </div>
-            <button type="button" onClick={() => setSelectedLogId(null)} className="p-1 text-app-muted hover:text-app-text" aria-label={lang === 'fr' ? 'Fermer' : 'Close'}>
+            <button type="button" onClick={() => setSelectedLogId(null)} className="p-1 text-app-muted hover:text-app-text" aria-label={tr(lang, 'Fermer', 'Close')}>
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -224,7 +225,7 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
             return (
               <div className="text-[11px] font-mono text-app-muted space-y-0.5">
                 <div>↓ {fmtFull(selectedLog.timestamp)}</div>
-                {iv && <div>↑ {iv.ongoing ? (lang === 'fr' ? 'en cours' : 'ongoing') : fmtFull(iv.end)} · {formatDuration(iv.end - iv.start, lang)}</div>}
+                {iv && <div>↑ {iv.ongoing ? (tr(lang, 'en cours', 'ongoing')) : fmtFull(iv.end)} · {formatDuration(iv.end - iv.start, lang)}</div>}
               </div>
             );
           })()}
@@ -238,7 +239,7 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
               className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-app-accent text-white text-[10px] font-extrabold uppercase tracking-widest hover:opacity-90 transition-opacity"
             >
               <Pencil className="w-3.5 h-3.5" />
-              {lang === 'fr' ? 'Modifier ce switch' : 'Edit this switch'}
+              {tr(lang, 'Modifier ce switch', 'Edit this switch')}
             </button>
           )}
         </div>

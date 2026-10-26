@@ -14,11 +14,12 @@ import {
 } from 'lucide-react';
 import { SwitchLog, SavedAlter } from '../types';
 import SwitchCalendar from './SwitchCalendar';
+import { tr, localeOf, type Lang } from '../i18n';
 
 interface SwitchAnalyticsProps {
   switchLogs: SwitchLog[];
   savedAlters: SavedAlter[];
-  lang: 'fr' | 'en';
+  lang: Lang;
   t: any;
   /** Pour masquer les alters verrouillés dans le calendrier. */
   unlockedAlterIds?: string[];
@@ -36,21 +37,21 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
 
   // Helper date utility
   const formatTime = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    return new Date(timestamp).toLocaleTimeString(localeOf(lang), {
       hour: '2-digit',
       minute: '2-digit',
     });
   };
 
   const formatDateShort = (timestamp: number) => {
-    return new Date(timestamp).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    return new Date(timestamp).toLocaleDateString(localeOf(lang), {
       day: 'numeric',
       month: 'short',
     });
   };
 
   const formatWeekdayShort = (date: Date) => {
-    return date.toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-US', {
+    return date.toLocaleDateString(localeOf(lang), {
       weekday: 'short',
     });
   };
@@ -256,10 +257,10 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
         <div>
           <h3 className="text-sm font-black uppercase tracking-wider flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[#273F4F]" />
-            <span>{lang === 'fr' ? 'Analyse Continue & Diagrammes' : 'Continuous Analysis & Charts'}</span>
+            <span>{tr(lang, 'Analyse Continue & Diagrammes', 'Continuous Analysis & Charts')}</span>
           </h3>
           <p className="text-[10px] text-[#273F4F]/75 uppercase tracking-widest font-black font-mono mt-0.5">
-            {lang === 'fr' ? 'Visualisation temporelle et fréquences du système' : 'Temporal system visualization & frequencies'}
+            {tr(lang, 'Visualisation temporelle et fréquences du système', 'Temporal system visualization & frequencies')}
           </p>
         </div>
 
@@ -273,7 +274,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                 : 'text-[#273F4F]/70 hover:text-[#273F4F]'
             }`}
           >
-            {lang === 'fr' ? 'Chronologie (Ribbon)' : 'Timeline'}
+            {tr(lang, 'Chronologie (Ribbon)', 'Timeline')}
           </button>
           <button
             onClick={() => setActiveTab('frequency')}
@@ -283,7 +284,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                 : 'text-[#273F4F]/70 hover:text-[#273F4F]'
             }`}
           >
-            {lang === 'fr' ? 'Fréquence (7j)' : 'Frequency (7d)'}
+            {tr(lang, 'Fréquence (7j)', 'Frequency (7d)')}
           </button>
           <button
             onClick={() => setActiveTab('ratio')}
@@ -293,7 +294,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                 : 'text-[#273F4F]/70 hover:text-[#273F4F]'
             }`}
           >
-            {lang === 'fr' ? 'Parts de front' : 'Front Share'}
+            {tr(lang, 'Parts de front', 'Front Share')}
           </button>
           <button
             onClick={() => setActiveTab('calendar')}
@@ -303,7 +304,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                 : 'text-[#273F4F]/70 hover:text-[#273F4F]'
             }`}
           >
-            {lang === 'fr' ? 'Calendrier' : 'Calendar'}
+            {tr(lang, 'Calendrier', 'Calendar')}
           </button>
         </div>
       </div>
@@ -311,8 +312,8 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
       {switchLogs.length === 0 ? (
         <div className="text-center py-10 bg-app-bg/30 rounded-xl border border-dashed border-app-border/40 text-app-muted text-xs flex flex-col items-center justify-center space-y-2">
           <Clock className="w-8 h-8 opacity-45 text-[#273F4F]" />
-          <p className="font-semibold text-app-text/80">{lang === 'fr' ? 'Enregistrez votre premier switch pour générer le diagramme !' : 'Log your first switch to generate analytical diagrams!'}</p>
-          <p className="text-[10px] uppercase font-bold text-[#273F4F]/50">{lang === 'fr' ? 'Données locales en temps réel' : 'Real-time offline database tracking'}</p>
+          <p className="font-semibold text-app-text/80">{tr(lang, 'Enregistrez votre premier switch pour générer le diagramme !', 'Log your first switch to generate analytical diagrams!')}</p>
+          <p className="text-[10px] uppercase font-bold text-[#273F4F]/50">{tr(lang, 'Données locales en temps réel', 'Real-time offline database tracking')}</p>
         </div>
       ) : (
         <div className="bg-app-bg/30 p-5 rounded-2xl border border-app-border/10">
@@ -332,7 +333,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                 <div className="flex justify-between items-center bg-app-card/35 px-4 py-2.5 rounded-xl border border-app-border/15">
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#273F4F]/80 flex items-center gap-1.5">
                     <Clock className="w-4 h-4 text-[#273F4F]" />
-                    {lang === 'fr' ? 'Échelle temporelle :' : 'Scale range :'}
+                    {tr(lang, 'Échelle temporelle :', 'Scale range :')}
                   </span>
                   <div className="flex gap-1">
                     {(['24h', '3d', '7d'] as FilterRange[]).map(r => (
@@ -345,9 +346,9 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                             : 'bg-app-card hover:bg-app-bg text-[#273F4F]/70 border border-app-border/15'
                         }`}
                       >
-                        {r === '24h' && (lang === 'fr' ? 'Dernières 24h' : 'Last 24h')}
-                        {r === '3d' && (lang === 'fr' ? '3 jours' : '3 days')}
-                        {r === '7d' && (lang === 'fr' ? '7 jours' : '7 days')}
+                        {r === '24h' && (tr(lang, 'Dernières 24h', 'Last 24h'))}
+                        {r === '3d' && (tr(lang, '3 jours', '3 days'))}
+                        {r === '7d' && (tr(lang, '7 jours', '7 days'))}
                       </button>
                     ))}
                   </div>
@@ -356,14 +357,14 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                 {/* Timeline Visual Ribbon representation */}
                 {timelineSegments.length === 0 ? (
                   <div className="text-center py-8 text-xs font-semibold text-app-muted">
-                    {lang === 'fr' ? 'Aucun log dans la plage sélectionnée.' : 'No switch logs found in selected duration range.'}
+                    {tr(lang, 'Aucun log dans la plage sélectionnée.', 'No switch logs found in selected duration range.')}
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="text-[9px] font-mono font-bold uppercase tracking-widest text-app-muted flex justify-between px-1">
-                      <span>{lang === 'fr' ? 'Gauche : Plus ancien' : 'Left: Older'}</span>
+                      <span>{tr(lang, 'Gauche : Plus ancien', 'Left: Older')}</span>
                       <span className="flex items-center gap-1">
-                        {lang === 'fr' ? 'Aujourd\'hui (Maintenant) ' : 'Present / Now '}
+                        {tr(lang, 'Aujourd\'hui (Maintenant) ', 'Present / Now ')}
                         <ArrowRight className="w-3 h-3 text-[#273F4F]" />
                       </span>
                     </div>
@@ -410,7 +411,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                                   {formatDateShort(segment.startTime)} @ {formatTime(segment.startTime)}
                                 </p>
                                 <p className="font-black text-xs leading-tight line-clamp-2 text-white">{alterNames}</p>
-                                <p className="mt-1 text-white/80 font-semibold">{lang === 'fr' ? 'Durée :' : 'Duration :'} <strong>{formattedDuration}</strong></p>
+                                <p className="mt-1 text-white/80 font-semibold">{tr(lang, 'Durée :', 'Duration :')} <strong>{formattedDuration}</strong></p>
                                 {segment.status && segment.status !== 'none' && (
                                   <span className="mt-1 inline-block px-1 rounded bg-white/20 text-white font-black uppercase text-[7px]" style={{ fontSize: '7px' }}>
                                     {getStatusLabel(segment.status)}
@@ -426,7 +427,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                     {/* Summary listing inside timeline for clarity */}
                     <div className="space-y-2 max-h-[170px] overflow-y-auto pr-2">
                       <h4 className="text-[9px] font-black uppercase tracking-wider text-[#273F4F]/80 pb-1 border-b border-app-border/10">
-                        {lang === 'fr' ? 'Chronologie détaillée (Récents)' : 'Detailed ribbon list (Recent)'}
+                        {tr(lang, 'Chronologie détaillée (Récents)', 'Detailed ribbon list (Recent)')}
                       </h4>
                       {[...timelineSegments].reverse().map(segment => {
                         const durationHrs = Math.round(segment.durationMs / (1000 * 60)) / 60;
@@ -478,7 +479,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
               >
                 <div className="text-center">
                   <p className="text-xs text-[#273F4F]/90 font-black uppercase tracking-wider mb-2">
-                    {lang === 'fr' ? 'Nombre de switchs quotidiens sur les 7 derniers jours' : 'Frequency chart of switches over the past 7 days'}
+                    {tr(lang, 'Nombre de switchs quotidiens sur les 7 derniers jours', 'Frequency chart of switches over the past 7 days')}
                   </p>
                 </div>
 
@@ -585,7 +586,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                               activeTooltipIndex === idx || selectedDayIndex === idx ? 'opacity-100' : 'opacity-0'
                             }`}
                           >
-                            {d.count} {lang === 'fr' ? 'sw.' : 'sw.'}
+                            {d.count} {tr(lang, 'sw.', 'sw.')}
                           </text>
 
                           {/* Day label on X Axis */}
@@ -615,13 +616,13 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                           {weeklyFrequencyData[selectedDayIndex].label}
                         </span>
                         <span className="text-[9px] font-black uppercase tracking-widest bg-white text-[#273F4F] px-2.5 py-1 rounded-md border border-app-border/20">
-                          {weeklyFrequencyData[selectedDayIndex].count} {weeklyFrequencyData[selectedDayIndex].count > 1 ? (lang === 'fr' ? 'switchs enregistrés' : 'switches recorded') : (lang === 'fr' ? 'switch enregistré' : 'switch recorded')}
+                          {weeklyFrequencyData[selectedDayIndex].count} {weeklyFrequencyData[selectedDayIndex].count > 1 ? (tr(lang, 'switchs enregistrés', 'switches recorded')) : (tr(lang, 'switch enregistré', 'switch recorded'))}
                         </span>
                       </div>
 
                       {weeklyFrequencyData[selectedDayIndex].logs.length === 0 ? (
                         <p className="text-xs text-app-muted italic text-center py-2">
-                          {lang === 'fr' ? 'Aucun switch enregistré sur cette journée.' : 'No switch logs found for this day.'}
+                          {tr(lang, 'Aucun switch enregistré sur cette journée.', 'No switch logs found for this day.')}
                         </p>
                       ) : (
                         <div className="grid grid-cols-1 gap-2 max-h-[140px] overflow-y-auto pr-1">
@@ -644,7 +645,7 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
                     </div>
                   ) : (
                     <p className="text-xs text-app-muted text-center py-1.5 italic">
-                      {lang === 'fr' ? '💡 Cliquez sur les points du graphique pour inspecter les switchs d\'une journée.' : '💡 Click on any point in the chart to inspect switches on that specific day.'}
+                      {tr(lang, '💡 Cliquez sur les points du graphique pour inspecter les switchs d\'une journée.', '💡 Click on any point in the chart to inspect switches on that specific day.')}
                     </p>
                   )}
                 </div>
@@ -663,14 +664,14 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
               >
                 <div className="text-center">
                   <p className="text-xs text-[#273F4F]/90 font-black uppercase tracking-wider">
-                    {lang === 'fr' ? 'Temps ou taux d\'occupation estimé par alter (Durée relative)' : 'Estimated active fronting share per alter (Relative duration)'}
+                    {tr(lang, 'Temps ou taux d\'occupation estimé par alter (Durée relative)', 'Estimated active fronting share per alter (Relative duration)')}
                   </p>
                 </div>
 
                 <div className="space-y-3.5 max-h-[260px] overflow-y-auto pr-2">
                   {alterPresenceStats.length === 0 ? (
                     <div className="text-center py-8 text-xs text-app-muted">
-                      {lang === 'fr' ? 'Données insuffisantes.' : 'Not enough data.'}
+                      {tr(lang, 'Données insuffisantes.', 'Not enough data.')}
                     </div>
                   ) : (
                     alterPresenceStats.map((stat, idx) => {

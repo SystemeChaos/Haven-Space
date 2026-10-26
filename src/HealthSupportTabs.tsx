@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { Pencil, Phone, Plus, Trash2 } from 'lucide-react';
+import { tr, type Lang } from './i18n';
 
 export interface HealthProvider {
   id: string;
@@ -33,7 +34,7 @@ export interface HealthAid {
 
 interface HealthSupportTabsProps {
   tab: 'intervenants' | 'aides';
-  lang: 'fr' | 'en';
+  lang: Lang;
   providers: HealthProvider[];
   onProvidersChange: (next: HealthProvider[]) => void;
   aids: HealthAid[];
@@ -50,7 +51,7 @@ const inputCls = 'w-full bg-app-bg border border-app-border rounded-xl px-4 py-2
 const primaryBtn = 'flex items-center gap-2 px-4 py-2.5 bg-app-accent hover:opacity-90 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all';
 
 /** Suppression en deux temps, sur place : pas de fenêtre modale à brancher dans App.tsx. */
-function RowActions({ lang, onEdit, onDelete }: { lang: 'fr' | 'en'; onEdit: () => void; onDelete: () => void }) {
+function RowActions({ lang, onEdit, onDelete }: { lang: Lang; onEdit: () => void; onDelete: () => void }) {
   const [confirming, setConfirming] = React.useState(false);
   if (confirming) {
     return (
@@ -60,31 +61,31 @@ function RowActions({ lang, onEdit, onDelete }: { lang: 'fr' | 'en'; onEdit: () 
           onClick={onDelete}
           className="px-2.5 py-1 rounded-lg bg-red-500 text-white text-[10px] font-black uppercase tracking-wider hover:opacity-90 transition-opacity"
         >
-          {lang === 'fr' ? 'Supprimer' : 'Delete'}
+          {tr(lang, 'Supprimer', 'Delete')}
         </button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
           className="px-2.5 py-1 rounded-lg bg-app-bg border border-app-border text-[10px] font-bold text-app-muted hover:text-app-text transition-colors"
         >
-          {lang === 'fr' ? 'Annuler' : 'Cancel'}
+          {tr(lang, 'Annuler', 'Cancel')}
         </button>
       </div>
     );
   }
   return (
     <div className="flex items-center gap-1 shrink-0">
-      <button type="button" onClick={onEdit} className="p-1.5 text-app-muted hover:text-app-accent transition-colors" title={lang === 'fr' ? 'Modifier' : 'Edit'}>
+      <button type="button" onClick={onEdit} className="p-1.5 text-app-muted hover:text-app-accent transition-colors" title={tr(lang, 'Modifier', 'Edit')}>
         <Pencil className="w-3.5 h-3.5" />
       </button>
-      <button type="button" onClick={() => setConfirming(true)} className="p-1.5 text-app-muted hover:text-red-500 transition-colors" title={lang === 'fr' ? 'Supprimer' : 'Delete'}>
+      <button type="button" onClick={() => setConfirming(true)} className="p-1.5 text-app-muted hover:text-red-500 transition-colors" title={tr(lang, 'Supprimer', 'Delete')}>
         <Trash2 className="w-3.5 h-3.5" />
       </button>
     </div>
   );
 }
 
-function ProvidersPanel({ lang, providers, onChange }: { lang: 'fr' | 'en'; providers: HealthProvider[]; onChange: (next: HealthProvider[]) => void }) {
+function ProvidersPanel({ lang, providers, onChange }: { lang: Lang; providers: HealthProvider[]; onChange: (next: HealthProvider[]) => void }) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [name, setName] = React.useState('');
@@ -116,38 +117,38 @@ function ProvidersPanel({ lang, providers, onChange }: { lang: 'fr' | 'en'; prov
       {!formOpen ? (
         <button type="button" onClick={() => open()} className={primaryBtn}>
           <Plus className="w-3.5 h-3.5" />
-          {lang === 'fr' ? 'Ajouter un intervenant' : 'Add a provider'}
+          {tr(lang, 'Ajouter un intervenant', 'Add a provider')}
         </button>
       ) : (
         <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
           <div className="space-y-1.5">
-            <label className={labelCls}>{lang === 'fr' ? 'Nom' : 'Name'}</label>
+            <label className={labelCls}>{tr(lang, 'Nom', 'Name')}</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} className={inputCls}
-              placeholder={lang === 'fr' ? 'Dr Martin, cabinet des Lilas…' : 'Dr Smith, Lakeside clinic…'} />
+              placeholder={tr(lang, 'Dr Martin, cabinet des Lilas…', 'Dr Smith, Lakeside clinic…')} />
           </div>
           <div className="space-y-1.5">
-            <label className={labelCls}>{lang === 'fr' ? 'Rôle' : 'Role'}</label>
+            <label className={labelCls}>{tr(lang, 'Rôle', 'Role')}</label>
             <input type="text" value={role} onChange={e => setRole(e.target.value)} className={inputCls}
-              placeholder={lang === 'fr' ? 'Psychiatre, médecin traitant, kiné…' : 'Psychiatrist, GP, physio…'} />
+              placeholder={tr(lang, 'Psychiatre, médecin traitant, kiné…', 'Psychiatrist, GP, physio…')} />
           </div>
           <div className="space-y-1.5">
-            <label className={labelCls}>{lang === 'fr' ? 'Téléphone' : 'Phone'}</label>
+            <label className={labelCls}>{tr(lang, 'Téléphone', 'Phone')}</label>
             <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className={inputCls}
-              placeholder={lang === 'fr' ? '01 23 45 67 89' : '555 123 4567'} />
+              placeholder={tr(lang, '01 23 45 67 89', '555 123 4567')} />
           </div>
           <div className="space-y-1.5">
             <label className={labelCls}>Note</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} className={`${inputCls} resize-none`}
-              placeholder={lang === 'fr' ? 'Adresse, horaires, prochain rendez-vous… (facultatif)' : 'Address, hours, next appointment… (optional)'} />
+              placeholder={tr(lang, 'Adresse, horaires, prochain rendez-vous… (facultatif)', 'Address, hours, next appointment… (optional)')} />
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={save} disabled={!name.trim()}
               className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-              {lang === 'fr' ? 'Enregistrer' : 'Save'}
+              {tr(lang, 'Enregistrer', 'Save')}
             </button>
             <button type="button" onClick={() => { setFormOpen(false); setEditingId(null); }}
               className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
-              {lang === 'fr' ? 'Annuler' : 'Cancel'}
+              {tr(lang, 'Annuler', 'Cancel')}
             </button>
           </div>
         </div>
@@ -155,7 +156,7 @@ function ProvidersPanel({ lang, providers, onChange }: { lang: 'fr' | 'en'; prov
 
       {sorted.length === 0 ? (
         <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
-          {lang === 'fr' ? 'Aucun intervenant enregistré.' : 'No providers logged.'}
+          {tr(lang, 'Aucun intervenant enregistré.', 'No providers logged.')}
         </div>
       ) : (
         <div className="space-y-3">
@@ -185,7 +186,7 @@ function ProvidersPanel({ lang, providers, onChange }: { lang: 'fr' | 'en'; prov
   );
 }
 
-function AidsPanel({ lang, aids, onChange }: { lang: 'fr' | 'en'; aids: HealthAid[]; onChange: (next: HealthAid[]) => void }) {
+function AidsPanel({ lang, aids, onChange }: { lang: Lang; aids: HealthAid[]; onChange: (next: HealthAid[]) => void }) {
   const [formOpen, setFormOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [name, setName] = React.useState('');
@@ -193,7 +194,7 @@ function AidsPanel({ lang, aids, onChange }: { lang: 'fr' | 'en'; aids: HealthAi
   const [note, setNote] = React.useState('');
 
   const kindLabel = (k: HealthAidKind) =>
-    k === 'aid' ? (lang === 'fr' ? 'Aide' : 'Aid') : (lang === 'fr' ? 'Stratégie' : 'Strategy');
+    k === 'aid' ? (tr(lang, 'Aide', 'Aid')) : (tr(lang, 'Stratégie', 'Strategy'));
 
   const open = (a?: HealthAid) => {
     setEditingId(a?.id ?? null);
@@ -219,7 +220,7 @@ function AidsPanel({ lang, aids, onChange }: { lang: 'fr' | 'en'; aids: HealthAi
       {!formOpen ? (
         <button type="button" onClick={() => open()} className={primaryBtn}>
           <Plus className="w-3.5 h-3.5" />
-          {lang === 'fr' ? 'Ajouter une aide ou une stratégie' : 'Add an aid or a strategy'}
+          {tr(lang, 'Ajouter une aide ou une stratégie', 'Add an aid or a strategy')}
         </button>
       ) : (
         <div className="p-5 bg-app-card border border-app-border/40 rounded-2xl space-y-4">
@@ -242,25 +243,25 @@ function AidsPanel({ lang, aids, onChange }: { lang: 'fr' | 'en'; aids: HealthAi
             </div>
           </div>
           <div className="space-y-1.5">
-            <label className={labelCls}>{lang === 'fr' ? 'Nom' : 'Name'}</label>
+            <label className={labelCls}>{tr(lang, 'Nom', 'Name')}</label>
             <input type="text" value={name} onChange={e => setName(e.target.value)} className={inputCls}
               placeholder={kind === 'aid'
-                ? (lang === 'fr' ? 'Canne, casque anti-bruit, couverture lestée…' : 'Cane, noise-cancelling headphones, weighted blanket…')
-                : (lang === 'fr' ? 'Pause au calme, respiration, liste de courses…' : 'Quiet break, breathing, shopping list…')} />
+                ? (tr(lang, 'Canne, casque anti-bruit, couverture lestée…', 'Cane, noise-cancelling headphones, weighted blanket…'))
+                : (tr(lang, 'Pause au calme, respiration, liste de courses…', 'Quiet break, breathing, shopping list…'))} />
           </div>
           <div className="space-y-1.5">
             <label className={labelCls}>Note</label>
             <textarea value={note} onChange={e => setNote(e.target.value)} rows={2} className={`${inputCls} resize-none`}
-              placeholder={lang === 'fr' ? "Quand et comment l'utiliser… (facultatif)" : 'When and how to use it… (optional)'} />
+              placeholder={tr(lang, "Quand et comment l'utiliser… (facultatif)", 'When and how to use it… (optional)')} />
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={save} disabled={!name.trim()}
               className="flex-1 py-2.5 bg-app-accent hover:opacity-90 disabled:opacity-40 text-white font-extrabold uppercase text-[10px] tracking-widest rounded-xl transition-all">
-              {lang === 'fr' ? 'Enregistrer' : 'Save'}
+              {tr(lang, 'Enregistrer', 'Save')}
             </button>
             <button type="button" onClick={() => { setFormOpen(false); setEditingId(null); }}
               className="px-4 py-2.5 bg-app-bg border border-app-border rounded-xl text-[10px] font-bold text-app-muted hover:text-app-text transition-colors">
-              {lang === 'fr' ? 'Annuler' : 'Cancel'}
+              {tr(lang, 'Annuler', 'Cancel')}
             </button>
           </div>
         </div>
@@ -268,7 +269,7 @@ function AidsPanel({ lang, aids, onChange }: { lang: 'fr' | 'en'; aids: HealthAi
 
       {sorted.length === 0 ? (
         <div className="text-center p-10 bg-app-card/35 rounded-2xl border border-app-border/25 text-app-muted uppercase tracking-widest text-[10px]">
-          {lang === 'fr' ? 'Aucune aide ou stratégie enregistrée.' : 'No aids or strategies logged.'}
+          {tr(lang, 'Aucune aide ou stratégie enregistrée.', 'No aids or strategies logged.')}
         </div>
       ) : (
         <div className="space-y-3">

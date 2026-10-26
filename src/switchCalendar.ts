@@ -10,6 +10,7 @@
  */
 
 import { SwitchLog } from './types';
+import { tr, type Lang } from './i18n';
 
 export const HOUR_MS = 3_600_000;
 export const DAY_MS = 86_400_000;
@@ -187,12 +188,12 @@ export function buildCalendarColumns(
   return { columns, bodyHeight };
 }
 
-export function formatDuration(ms: number, lang: 'fr' | 'en'): string {
+export function formatDuration(ms: number, lang: Lang): string {
   const mins = Math.max(0, Math.round(ms / 60000));
   const days = Math.floor(mins / 1440);
   const hours = Math.floor((mins % 1440) / 60);
   const rest = mins % 60;
-  if (days > 0) return `${days}${lang === 'fr' ? ' j' : 'd'} ${hours}h`;
+  if (days > 0) return `${days}${tr(lang, ' j', 'd')} ${hours}h`;
   if (hours > 0) return `${hours}h ${String(rest).padStart(2, '0')}m`;
-  return `${rest} ${lang === 'fr' ? 'min' : 'min'}`;
+  return `${rest} ${tr(lang, 'min', 'min')}`;
 }
