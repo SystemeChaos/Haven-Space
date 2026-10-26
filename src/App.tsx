@@ -9113,7 +9113,7 @@ export default function App() {
           {
             icon: Languages,
             kind: 'language',
-            title: 'Langue · Language',
+            title: tr(lang, 'Langue', 'Language'),
             text: tr(lang, "Choisis la langue de l'app. Tu pourras la changer plus tard dans les Paramètres.", 'Choose the app language. You can change it later in Settings.'),
           },
           {
