@@ -36,6 +36,7 @@ export const BACKUP_SECTIONS: SectionDef[] = [
   { label: { fr: 'Antécédents', en: 'History' }, fields: [['healthHistory', 'array']] },
   { label: { fr: 'Intervenants', en: 'Providers' }, fields: [['healthProviders', 'array']] },
   { label: { fr: 'Aides et stratégies', en: 'Aids & strategies' }, fields: [['healthAids', 'array']] },
+  { label: { fr: 'Fiches en attente', en: 'Pending profiles' }, fields: [['unknownProfiles', 'array']] },
   { label: { fr: 'Urgence', en: 'Emergency' }, fields: [['emergencyInfo', 'object']] },
   { label: { fr: 'Planning', en: 'Planning' }, fields: [['planningEntries', 'array']] },
   { label: { fr: 'Matrice d\'Eisenhower', en: 'Eisenhower matrix' }, fields: [['eisenhowerTasks', 'array']] },
@@ -54,7 +55,7 @@ export function missingSectionLabels(data: any, lang: Lang): string[] {
 }
 
 // --- Comparaison fichier / système actuel ----------------------------------------------------------
-export type CountKey = 'alters' | 'subsystems' | 'chats' | 'switches' | 'journals' | 'health' | 'wallet' | 'innerworld' | 'spectrum';
+export type CountKey = 'alters' | 'subsystems' | 'chats' | 'switches' | 'journals' | 'health' | 'wallet' | 'innerworld' | 'spectrum' | 'unknown';
 
 export interface CompareRow {
   key: CountKey;
@@ -80,6 +81,7 @@ export interface CurrentState {
   healthProviders: ArrayLike<unknown>;
   healthAids: ArrayLike<unknown>;
   walletEntries: ArrayLike<unknown>;
+  unknownProfiles: ArrayLike<unknown>;
   /** Pages Innerworld actuellement enregistrées. */
   innerworldPlaces: number;
   /** Critères du Spectrum Tool, tous systèmes confondus. */
@@ -120,6 +122,7 @@ export function compareBackup(data: any, current: CurrentState): CompareRow[] {
     row('health', { fr: 'Santé', en: 'Health' }, presentHealth.length > 0,
       presentHealth.reduce((s, [f]) => s + len(data[f]), 0), presentHealth.reduce((s, [, cur]) => s + cur.length, 0)),
     row('wallet', { fr: 'Portefeuille', en: 'Wallet' }, Array.isArray(data?.walletEntries), len(data?.walletEntries), current.walletEntries.length),
+    row('unknown', { fr: 'Fiches en attente', en: 'Pending profiles' }, Array.isArray(data?.unknownProfiles), len(data?.unknownProfiles), current.unknownProfiles.length),
     row('innerworld', { fr: 'Innerworld', en: 'Innerworld' }, innerworldPresent, innerworldIncoming, current.innerworldPlaces),
     row('spectrum', { fr: 'Spectrum Tool', en: 'Spectrum Tool' }, isPresent(data, 'spectrumBySystem', 'object'),
       countSpectrumCriteria(data?.spectrumBySystem), current.spectrumCriteria),

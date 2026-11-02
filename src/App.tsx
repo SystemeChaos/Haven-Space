@@ -5,6 +5,8 @@ import { compareBackup, missingSectionLabels, countSpectrumCriteria } from './im
 import { RestorePointMeta, readRestorePointMeta, saveRestorePoint, loadRestorePoint, deleteRestorePoint, encryptRestorePointIfNeeded, createVaultRestoreStore } from './restorePoint';
 import { toDateTimeLocal, isCurrentFront, checkSwitchTimes } from './switchLogic';
 import HealthSupportTabs, { HealthProvider, HealthAid } from './HealthSupportTabs';
+import UnknownProfilePage from './UnknownProfilePage';
+import { UnknownProfile, UNKNOWN_PROFILES_KEY, buildAlterFromProfile } from './unknownProfiles';
 import { reconcileRoleOrder, placeAlter, getRoleFamily, FAMILY_ORDER, FAMILY_LABEL, BAND_META, FunctionFamily } from './orgChart';
 import { createVault, unlockWithPin, unlockWithSecurityAnswer, changePin, changeSecurityAnswer, VaultMetadata } from './cryptoEngine';
 import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhower, PlanningEntry, EisenhowerTask, REMINDED_STORAGE_KEY } from './PlanningPage';
@@ -1521,7 +1523,7 @@ export default function App() {
   // système/alter/page). Utilisé uniquement pour la désactivation volontaire du chiffrement
   // ci-dessous : sans ce déchiffrement explicite, désactiver le code orphelinerait pour de bon
   // les données déjà chiffrées (plus aucun moyen de redonner la clé à l'app par la suite).
-  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'kalimbaSequences', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'hs-health-providers', 'hs-health-aids', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
+  const FIXED_VAULT_KEYS = ['savedAlters', 'journalEntries', 'habits', 'habitLogs', 'kalimbaSequences', 'landingNotes', 'hs-health-emergency', 'hs-health-history', 'hs-health-meds', 'hs-health-providers', 'hs-health-aids', 'hs-unknown-profiles', 'subsystems', 'customRoles', 'customTraits', 'customDisorders', 'customGenders', 'customPronouns', 'customSexualities', 'parallelSystems', 'chatMessages', 'chatSalons', 'hs-conversations', 'hs-direct-messages', 'hs-memories', 'hs-wallet-custom-categories', 'hs-wallet-entries', 'switchLogs', 'trustedContacts', 'wheelHistory', 'mainSystemName', 'spectrumTool', 'pk_token', 'hs-dm-last-seen'];
   const DYNAMIC_VAULT_PREFIXES = ['heaven_space_mapping', 'haven_innerworld_', 'heaven_space_planning', 'heaven_space_eisenhower', 'haven_alter_'];
 
   const decryptVaultToPlain = async (currentDek: CryptoKey) => {
@@ -1686,7 +1688,7 @@ export default function App() {
   const [importPreview, setImportPreview] = useState<any | null>(null);
 
   // --- DID LocalStorage Tabs & State ---
-  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'orgchart' | 'innerworld' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
+  const [currentTab, setCurrentTab] = useState<'home' | 'creator' | 'system' | 'chat' | 'switch' | 'mapping' | 'orgchart' | 'innerworld' | 'whoami' | 'journal' | 'messaging' | 'grounding' | 'relax' | 'health' | 'wallet' | 'pluralkit' | 'planning'>('home');
   const [innerworldTargetAlterId, setInnerworldTargetAlterId] = useState<string | null>(null);
   // Mémorise l'onglet d'origine quand on charge une fiche dans le créateur,
   // pour que le bouton "retour" ramène là où on était plutôt qu'au dashboard.
@@ -2709,6 +2711,7 @@ export default function App() {
         healthHistory,
         healthProviders,
         healthAids,
+        unknownProfiles,
         emergencyInfo,
         mappingData: await loadMapping('main', dek),
         walletEntries,
@@ -2805,7 +2808,7 @@ export default function App() {
         const currentInnerworldPlaces = (await listVaultKeys('haven_innerworld_place_')).length;
         const rows = compareBackup(parsed, {
           savedAlters, subsystems, chatMessages, switchLogs, journalEntries,
-          medications, healthHistory, healthProviders, healthAids, walletEntries,
+          medications, healthHistory, healthProviders, healthAids, walletEntries, unknownProfiles,
           innerworldPlaces: currentInnerworldPlaces,
           spectrumCriteria: countSpectrumCriteria(spectrumBySystem),
         });
@@ -2904,6 +2907,7 @@ export default function App() {
       }
       if (Array.isArray(data.healthProviders)) setHealthProviders(data.healthProviders);
       if (Array.isArray(data.healthAids)) setHealthAids(data.healthAids);
+      if (Array.isArray(data.unknownProfiles)) setUnknownProfiles(data.unknownProfiles);
 
       if (Array.isArray(data.planningEntries)) {
         await savePlanning(data.planningEntries, planningSystemId, dek, !!vaultMeta);
@@ -3285,6 +3289,7 @@ export default function App() {
       };
       setHealthProviders(mergeById(healthProviders, data.healthProviders));
       setHealthAids(mergeById(healthAids, data.healthAids));
+      setUnknownProfiles(mergeById(unknownProfiles, data.unknownProfiles));
 
       // 10. Planning : fusion des entrées uniques par id
       const incomingPlanningEntries = Array.isArray(data.planningEntries) ? data.planningEntries : [];
@@ -4743,7 +4748,9 @@ export default function App() {
       const emerg = await readMaybeEncrypted<EmergencyInfo>('hs-health-emergency', dek, { conditions: '', allergies: '', bloodType: '', note: '', showQuickAccess: false });
       const providers = await readMaybeEncrypted<HealthProvider[]>('hs-health-providers', dek, []);
       const aids = await readMaybeEncrypted<HealthAid[]>('hs-health-aids', dek, []);
+      const unknown = await readMaybeEncrypted<UnknownProfile[]>(UNKNOWN_PROFILES_KEY, dek, []);
       if (cancelled) return;
+      setUnknownProfiles(unknown);
       setMedications(meds);
       setHealthProviders(providers);
       setHealthAids(aids);
@@ -4764,6 +4771,8 @@ export default function App() {
         if (rawProv && !rawProv.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-providers', providers, dek, true);
         const rawAids = localStorage.getItem('hs-health-aids');
         if (rawAids && !rawAids.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted('hs-health-aids', aids, dek, true);
+        const rawUnknown = localStorage.getItem(UNKNOWN_PROFILES_KEY);
+        if (rawUnknown && !rawUnknown.includes(HS_ENCRYPTED_MARKER)) await writeMaybeEncrypted(UNKNOWN_PROFILES_KEY, unknown, dek, true);
       }
     })();
     return () => { cancelled = true; };
@@ -4966,6 +4975,10 @@ export default function App() {
   useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-providers', healthProviders, dek, !!vaultMeta); }, [healthProviders]);
   const [healthAids, setHealthAids] = useState<HealthAid[]>([]);
   useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted('hs-health-aids', healthAids, dek, !!vaultMeta); }, [healthAids]);
+
+  // « Qui suis-je ? » : fiches en attente, à part de savedAlters tant qu'elles ne sont pas rattachées (voir unknownProfiles.ts).
+  const [unknownProfiles, setUnknownProfiles] = useState<UnknownProfile[]>([]);
+  useEffect(() => { if (healthDataLoaded) writeMaybeEncrypted(UNKNOWN_PROFILES_KEY, unknownProfiles, dek, !!vaultMeta); }, [unknownProfiles]);
 
   const [healthSubTab, setHealthSubTab] = useState<'traitements' | 'antecedents' | 'intervenants' | 'aides' | 'urgence'>('traitements');
   const [medFormOpen, setMedFormOpen] = useState(false);
@@ -9113,7 +9126,7 @@ export default function App() {
           {
             icon: Languages,
             kind: 'language',
-            title: tr(lang, 'Langue', 'Language'),
+            title: 'Langue · Language',
             text: tr(lang, "Choisis la langue de l'app. Tu pourras la changer plus tard dans les Paramètres.", 'Choose the app language. You can change it later in Settings.'),
           },
           {
@@ -12625,6 +12638,7 @@ export default function App() {
             { value: 'mapping',   label: t.menuMapping,    icon: GitBranch,          desc: tr(lang, 'Visualiser le système', 'Visualise the system') },
             { value: 'orgchart',  label: tr(lang, 'Organigramme', 'Org chart'), icon: Network, desc: tr(lang, 'Hiérarchie du système par rôles', 'System hierarchy by roles') },
             { value: 'innerworld', label: tr(lang, 'Innerworld', 'Innerworld'), icon: TreePine, desc: tr(lang, 'Le monde intérieur, lieu par lieu', "The inner world, place by place") },
+            { value: 'whoami',    label: tr(lang, 'Qui suis-je ?', 'Who am I?'), icon: HelpCircle, desc: tr(lang, 'Identité inconnue', 'Unknown identity') },
             { value: 'chat',      label: t.menuChat,       icon: MessageSquareQuote, desc: tr(lang, 'Discussion interne', 'Internal discussion') },
             { value: 'messaging', label: t.menuMessaging,  icon: Mail,               desc: tr(lang, 'Messages directs entre alters', 'Direct messages between alters') },
             { value: 'journal',   label: t.menuJournal,    icon: Book,               desc: tr(lang, 'Journal de bord du système', 'System journal') },
@@ -14709,6 +14723,25 @@ export default function App() {
         )}
 
         {/* --- ORG CHART VIEW --- */}
+        {currentTab === 'whoami' && (
+          <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
+            <UnknownProfilePage
+              lang={lang}
+              profiles={unknownProfiles}
+              onProfilesChange={setUnknownProfiles}
+              subsystems={subsystems}
+              parallelSystems={parallelSystems}
+              mainSystemName={mainSystemName || undefined}
+              onAttach={(profile, name, target) => {
+                setSavedAlters(prev => [...prev, buildAlterFromProfile(profile, { name, target, lang })]);
+                setUnknownProfiles(prev => prev.filter(p => p.id !== profile.id));
+              }}
+              onOpenSystem={() => setCurrentTab('system')}
+              onGoGrounding={() => { setSosMode(true); setCurrentTab('grounding'); }}
+            />
+          </div>
+        )}
+
         {currentTab === 'orgchart' && (
           <div className="max-w-5xl mx-auto w-full animate-fade-in duration-300">
             <OrgChartPage
@@ -18827,7 +18860,7 @@ export default function App() {
                       </div>
                     )}
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-10 gap-3">
                       {(importPreview.rows || []).map((r: any) => (
                         <div
                           key={r.key}

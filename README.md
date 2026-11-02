@@ -16,6 +16,8 @@
 - **Mapping** du système (visualisation graphique des alters)
 - **Organigramme** généré automatiquement à partir des rôles : hôte en haut, co-hôtes en dessous, puis les alters rangés par catégorie (protecteurs, persécuteurs, soignants, gardiens et gestion, ancres et médiateurs, social, alters sexuels). Un panneau « Ordre de priorité » dans la fiche décide de la catégorie d'un alter (le premier rôle de fonction compte), les rôles personnalisés peuvent avoir leur propre catégorie, un mode « Toutes » place chaque alter dans toutes ses catégories, les sous-systèmes apparaissent en blocs imbriqués, et l'ensemble s'exporte en PNG
 
+- **Qui suis-je ?** (« Identité inconnue ») : pour les alters qui arrivent au front sans savoir qui ils sont. Un court parcours de 7 questions, toutes facultatives (curseurs, pastilles, « je ne sais pas / passer »), crée une **fiche en attente** (Fiche 1, Fiche 2…) qui reste **à part de Mon Système** tant qu'on ne l'a pas rattachée au système principal, à un sous-système ou à un système parallèle. Au rattachement, les réponses sont copiées dans les notes de la nouvelle fiche, sans rien déduire (ni genre, ni rôle). Inclus dans la sauvegarde, l'import et le point de restauration
+
 ### 🔄 Registre des switchs
 - Déclaration de fronts avec statut (co-front, fronteur principal, dormant…)
 - **Entrée et sortie** de chaque switch en date et heure, **rétrodatage** possible, **modification** d'un switch existant, et « Flou / Blend » réglable comme un switch normal. Un switch rétrodaté ne change pas qui est au front maintenant
