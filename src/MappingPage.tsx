@@ -124,8 +124,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [zoom, setZoom] = useState(0.6);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showAddRelation, setShowAddRelation] = useState(false);
-  const [newRel, setNewRel] = useState<{ sourceId: string; targetId: string; type: RelationType; label: string }>({
-    sourceId: '', targetId: '', type: 'friend', label: '',
+  const [newRel, setNewRel] = useState<{ sourceId: string; targetIds: string[]; type: RelationType; label: string }>({
+    sourceId: '', targetIds: [], type: 'friend', label: '',
   });
   const [sourceSearch, setSourceSearch] = useState('');
   const [targetSearch, setTargetSearch] = useState('');
@@ -141,6 +141,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     deleteRelation: tr(lang, 'Supprimer la relation', 'Delete relation'),
     source: tr(lang, 'Alter source', 'Source alter'),
     target: tr(lang, 'Alter cible', 'Target alter'),
+    targets: tr(lang, 'Alters cibles (plusieurs possibles)', 'Target alters (multiple allowed)'),
+    addAnother: tr(lang, 'Ajouter un autre alter…', 'Add another alter…'),
     relType: tr(lang, 'Type de relation', 'Relation type'),
     relLabel: tr(lang, 'Étiquette (optionnel)', 'Label (optional)'),
     save: tr(lang, 'Enregistrer', 'Save'),
@@ -325,14 +327,14 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const resetRelForm = () => {
     setShowAddRelation(false);
     setEditingRelId(null);
-    setNewRel({ sourceId: '', targetId: '', type: 'friend', label: '' });
+    setNewRel({ sourceId: '', targetIds: [], type: 'friend', label: '' });
     setSourceSearch('');
     setTargetSearch('');
   };
 
   const openAddRelation = () => {
     setEditingRelId(null);
-    setNewRel({ sourceId: '', targetId: '', type: 'friend', label: '' });
+    setNewRel({ sourceId: '', targetIds: [], type: 'friend', label: '' });
     setSourceSearch('');
     setTargetSearch('');
     setShowAddRelation(true);
@@ -340,29 +342,38 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
   const openEditRelation = (rel: MappingRelation) => {
     setEditingRelId(rel.id);
-    setNewRel({ sourceId: rel.sourceId, targetId: rel.targetId, type: rel.type, label: rel.label ?? '' });
+    setNewRel({ sourceId: rel.sourceId, targetIds: [rel.targetId], type: rel.type, label: rel.label ?? '' });
     setSourceSearch('');
     setTargetSearch('');
     setSelectedRelId(null);
     setShowAddRelation(true);
   };
 
-  // Ajoute une nouvelle relation, ou met à jour celle en cours de modification
+  // Ajoute une ou plusieurs relations (une par alter cible), ou met à jour celle en cours de modification
   const handleSaveRelation = () => {
-    if (!newRel.sourceId || !newRel.targetId || newRel.sourceId === newRel.targetId) return;
+    const targetIds = newRel.targetIds.filter(id => id !== newRel.sourceId);
+    if (!newRel.sourceId || targetIds.length === 0) return;
     const label = newRel.label.trim() || undefined;
     setMapping(prev => {
-      const relations = editingRelId
-        ? prev.relations.map(r => r.id === editingRelId
-            ? { ...r, sourceId: newRel.sourceId, targetId: newRel.targetId, type: newRel.type, label }
-            : r)
-        : [...prev.relations, {
+      let relations: MappingRelation[];
+      if (editingRelId) {
+        relations = prev.relations.map(r => r.id === editingRelId
+          ? { ...r, sourceId: newRel.sourceId, targetId: targetIds[0], type: newRel.type, label }
+          : r);
+      } else {
+        // on ignore les doublons exacts (même source, même cible, même type)
+        const existing = new Set(prev.relations.map(r => `${r.sourceId}|${r.targetId}|${r.type}`));
+        const created: MappingRelation[] = targetIds
+          .filter(tid => !existing.has(`${newRel.sourceId}|${tid}|${newRel.type}`))
+          .map(tid => ({
             id: Math.random().toString(36).substring(2, 11),
             sourceId: newRel.sourceId,
-            targetId: newRel.targetId,
+            targetId: tid,
             type: newRel.type,
             label,
-          } as MappingRelation];
+          }));
+        relations = [...prev.relations, ...created];
+      }
       const updated = { ...prev, relations };
       saveMapping(updated, activeSystemId, dek, vaultActive);
       return updated;
@@ -635,7 +646,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                       <button
                         key={a.id}
                         type="button"
-                        onClick={() => { setNewRel(p => ({ ...p, sourceId: a.id })); setSourceSearch(''); }}
+                        onClick={() => { setNewRel(p => ({ ...p, sourceId: a.id, targetIds: p.targetIds.filter(id => id !== a.id) })); setSourceSearch(''); }}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
                       >
                         {a.profileImage
@@ -653,39 +664,47 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
             </div>
 
             <div className="space-y-1 relative">
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-app-muted">{t.target}</label>
-              {newRel.targetId ? (
-                <div className="w-full flex items-center justify-between gap-2 bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text">
-                  <span className="font-semibold">{savedAlters.find(a => a.id === newRel.targetId)?.alterName}</span>
-                  <button
-                    type="button"
-                    onClick={() => { setNewRel(p => ({ ...p, targetId: '' })); setTargetSearch(''); }}
-                    className="text-app-muted hover:text-app-text transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+              <label className="text-[10px] font-semibold uppercase tracking-widest text-app-muted">{editingRelId ? t.target : t.targets}</label>
+              {newRel.targetIds.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {newRel.targetIds.map(tid => (
+                    <span key={tid} className="inline-flex items-center gap-1.5 bg-app-bg border border-app-border rounded-xl pl-3 pr-2 py-1.5 text-xs font-semibold text-app-text">
+                      {savedAlters.find(a => a.id === tid)?.alterName}
+                      <button
+                        type="button"
+                        onClick={() => setNewRel(p => ({ ...p, targetIds: p.targetIds.filter(id => id !== tid) }))}
+                        className="text-app-muted hover:text-app-text transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
                 </div>
-              ) : (
+              )}
+              {(!editingRelId || newRel.targetIds.length === 0) && (
                 <input
                   type="text"
                   value={targetSearch}
                   onChange={e => setTargetSearch(e.target.value)}
-                  placeholder={t.searchAlter}
+                  placeholder={newRel.targetIds.length > 0 ? t.addAnother : t.searchAlter}
                   className="w-full bg-app-bg border border-app-border rounded-xl px-3 py-2.5 text-sm text-app-text focus:outline-none placeholder:text-app-muted/40"
                 />
               )}
-              {!newRel.targetId && targetSearch.trim().length > 0 && (
-                <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
-                  {[...savedAlters]
-                    .filter(a => a.id !== newRel.sourceId)
-                    .filter(a => (a.alterName || '').toLowerCase().includes(targetSearch.toLowerCase()))
-                    .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang))
-                    .slice(0, 8)
-                    .map(a => (
+              {targetSearch.trim().length > 0 && (() => {
+                const matches = [...savedAlters]
+                  .filter(a => a.id !== newRel.sourceId && !newRel.targetIds.includes(a.id))
+                  .filter(a => (a.alterName || '').toLowerCase().includes(targetSearch.toLowerCase()))
+                  .sort((a, b) => (a.alterName || '').localeCompare(b.alterName || '', lang));
+                return (
+                  <div className="absolute left-0 right-0 mt-1 z-20 bg-app-card border border-app-border/50 rounded-2xl shadow-xl overflow-hidden max-h-48 overflow-y-auto">
+                    {matches.slice(0, 8).map(a => (
                       <button
                         key={a.id}
                         type="button"
-                        onClick={() => { setNewRel(p => ({ ...p, targetId: a.id })); setTargetSearch(''); }}
+                        onClick={() => {
+                          setNewRel(p => ({ ...p, targetIds: editingRelId ? [a.id] : [...p.targetIds, a.id] }));
+                          setTargetSearch('');
+                        }}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs font-semibold hover:bg-app-bg transition-colors text-left text-app-text"
                       >
                         {a.profileImage
@@ -695,11 +714,12 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                         {a.alterName}
                       </button>
                     ))}
-                  {[...savedAlters].filter(a => a.id !== newRel.sourceId).filter(a => (a.alterName || '').toLowerCase().includes(targetSearch.toLowerCase())).length === 0 && (
-                    <p className="px-4 py-3 text-xs text-app-muted">{t.noResults}</p>
-                  )}
-                </div>
-              )}
+                    {matches.length === 0 && (
+                      <p className="px-4 py-3 text-xs text-app-muted">{t.noResults}</p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="space-y-1">
@@ -738,7 +758,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
               </button>
               <button
                 onClick={handleSaveRelation}
-                disabled={!newRel.sourceId || !newRel.targetId || newRel.sourceId === newRel.targetId}
+                disabled={!newRel.sourceId || newRel.targetIds.filter(id => id !== newRel.sourceId).length === 0}
                 className="flex-1 py-2.5 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               >
                 <Save className="w-4 h-4" />
