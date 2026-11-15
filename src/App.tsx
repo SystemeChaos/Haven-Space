@@ -2790,8 +2790,8 @@ if (!isHavenBackup(parsed)) {
     parseDescription: (d) => parsePluralKitDescription(d),
   });
   if (!ext) throw new Error(tr(lang,
-    "Fichier non reconnu : ni sauvegarde Haven Space, ni export d'alters d'une autre app.",
-    "Unrecognized file: neither a Haven Space backup nor another app's alter export."));
+  `Fichier non reconnu : ni sauvegarde Haven Space, ni export d'alters d'une autre app. (clés trouvées : ${Object.keys(parsed).slice(0, 8).join(', ')})`,
+  `Unrecognized file: neither a Haven Space backup nor another app's alter export. (keys found: ${Object.keys(parsed).slice(0, 8).join(', ')})`));
   if (ext.alters.length === 0) throw new Error(tr(lang,
     `Aucune nouvelle fiche : les ${ext.total} alter(s) du fichier existent déjà.`,
     `No new profile: the ${ext.total} alter(s) in the file already exist.`));

@@ -16,11 +16,13 @@ import { tr, type Lang } from './i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────────────────────────
 
-export type ExternalFormat = 'pluralkit' | 'tupperbox' | 'simplyplural' | 'generic';
+export type ExternalFormat = 'pluralkit' | 'ourcana' | 'tupperbox' | 'simplyplural' | 'generic';
 
 /** Fiche neutre : ce que TOUTES les apps savent fournir. Les champs sans équivalent vont dans `extra`. */
 export interface ImportedAlter {
   externalId?: string;
+  /** Id PluralKit (5-6 lettres) quand la fiche en vient : sert à relier la synchro API plus tard. */
+  pkId?: string;
   name: string;
   pronouns?: string;
   description?: string;
@@ -30,6 +32,8 @@ export interface ImportedAlter {
   /** « AAAA-MM-JJ » ou vide. */
   birthday?: string;
   archived?: boolean;
+  /** Étiquettes libres (→ SavedAlter.tags). */
+  tags?: string[];
   /** Champs sans équivalent dans Haven Space : conservés comme champs personnalisés, jamais perdus. */
   extra: Array<{ label: string; value: string }>;
 }
@@ -90,6 +94,12 @@ const normUrl = (v: unknown): string => {
 };
 const named = (e: ImportedAlter): boolean => e.name.length > 0;
 
+/** Clé de comparaison des noms : sans emoji, ponctuation, espaces, accents ni casse (« Frost ❄️ » = « frost »). */
+const nameKey = (name: string): string => {
+  const k = name.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+  return k || name.trim().toLowerCase();
+};
+
 // ─── Détection ────────────────────────────────────────────────────────────────────────────────────
 
 /** Vrai pour une sauvegarde Haven Space (gérée par le flux d'import existant, pas par ce module). */
@@ -114,6 +124,9 @@ const memberList = (p: any): any[] => {
 export function detectExternalFormat(p: any): ExternalFormat | null {
   if (isHavenBackup(p)) return null;
   const o = asObj(p);
+
+  // Ourcana : { format: 'ourcana', graph: { nodes: [ {type:'member', properties} … ], edges } }
+  if (o && o.format === 'ourcana' && Array.isArray(asObj(o.graph)?.nodes)) return 'ourcana';
 
   // Tupperbox : { tuppers: [ { name, brackets, … } ], groups }
   if (o && Array.isArray(o.tuppers)) return 'tupperbox';
@@ -143,12 +156,58 @@ function fromPluralKit(p: any): ImportedAlter[] {
     if (display && display !== name) extra.push({ label: 'Display name', value: display });
     return {
       externalId: str(m.id) || undefined,
+      pkId: str(m.id) || undefined,
       name,
       pronouns: str(m.pronouns),
       description: typeof m.description === 'string' ? m.description.trim() : '',
       color: normColor(m.color),
       avatarUrl: normUrl(m.avatar_url) || normUrl(m.webhook_avatar_url),
       birthday: normDate(m.birthday),
+      extra,
+    };
+  }).filter(named);
+}
+
+/**
+ * Ourcana (format v3) : les fiches sont des nœuds `member` d'un graphe ; les étiquettes sont des nœuds `tag`
+ * reliés au membre par une arête `taggedWith` (membre → étiquette). Les champs suivent ceux de PluralKit.
+ * Ignorés volontairement : historique de front (frontEvent / *SwitchAtom), préférences, proxy tags.
+ */
+function fromOurcana(p: any): ImportedAlter[] {
+  const g = asObj(asObj(p)?.graph);
+  const nodes = asArr(g?.nodes).map(asObj).filter(Boolean) as Array<Record<string, any>>;
+  const edges = asArr(g?.edges).map(asObj).filter(Boolean) as Array<Record<string, any>>;
+
+  const tagLabel = new Map<string, string>();
+  for (const n of nodes) {
+    if (n.type === 'tag') { const l = str(asObj(n.properties)?.label); if (l) tagLabel.set(str(n.id), l); }
+  }
+  const tagsOf = new Map<string, string[]>();
+  for (const e of edges) {
+    if (e.type !== 'taggedWith') continue;
+    const label = tagLabel.get(str(e.to));
+    if (!label) continue;
+    const from = str(e.from);
+    tagsOf.set(from, [...(tagsOf.get(from) ?? []), label]);
+  }
+
+  return nodes.filter(n => n.type === 'member').map((n): ImportedAlter => {
+    const m = asObj(n.properties) ?? {};
+    const extra: ImportedAlter['extra'] = [];
+    const display = str(m.displayName);
+    if (display && display !== str(m.name)) extra.push({ label: 'Display name', value: display });
+    const pkId = str(m.pkId);
+    return {
+      externalId: str(m.ourcanaId) || str(n.id) || undefined,
+      pkId: pkId || undefined,
+      name: str(m.name),
+      pronouns: str(m.pronouns),
+      description: typeof m.desc === 'string' ? m.desc.trim() : '',
+      color: normColor(m.color),
+      avatarUrl: normUrl(m.avatarUrl) || normUrl(m.webhookAvatarUrl),
+      birthday: normDate(m.birthday),
+      archived: m.archived === true,
+      tags: tagsOf.get(str(n.id)),
       extra,
     };
   }).filter(named);
@@ -222,6 +281,7 @@ function fromGeneric(p: any): ImportedAlter[] {
 
 const ADAPTERS: Record<ExternalFormat, { label: string; read: (p: any) => ImportedAlter[] }> = {
   pluralkit: { label: 'PluralKit', read: fromPluralKit },
+  ourcana: { label: 'Ourcana', read: fromOurcana },
   tupperbox: { label: 'Tupperbox', read: fromTupperbox },
   simplyplural: { label: 'SimplyPlural', read: fromSimplyPlural },
   generic: { label: '?', read: fromGeneric },
@@ -233,7 +293,8 @@ const newId = () => Date.now().toString() + Math.random().toString(36).substring
 
 function toSavedAlter(e: ImportedAlter, format: ExternalFormat, opts: ExternalImportOptions): SavedAlter {
   // Les descriptions PluralKit peuvent contenir rôles/genre/traits : on les extrait si on a le parseur.
-  const parsed = format === 'pluralkit' && opts.parseDescription ? opts.parseDescription(e.description || null) : null;
+  // (Ourcana en fait autant : ses descriptions viennent de PluralKit, donc du même format.)
+  const parsed = (format === 'pluralkit' || format === 'ourcana') && opts.parseDescription ? opts.parseDescription(e.description || null) : null;
 
   const customFields: CustomField[] = e.extra.map(x => ({ id: newId(), label: x.label, value: x.value }));
 
@@ -260,7 +321,8 @@ function toSavedAlter(e: ImportedAlter, format: ExternalFormat, opts: ExternalIm
     birthday: e.birthday || '',
     alterColor: e.color || undefined,
     // Lien PluralKit : permet la synchro API de retrouver cette fiche plus tard au lieu de la dupliquer.
-    ...(format === 'pluralkit' ? { pkId: e.externalId, pkColor: e.color || '' } : {}),
+    ...(e.pkId ? { pkId: e.pkId, pkColor: e.color || '' } : {}),
+    ...(e.tags && e.tags.length > 0 ? { tags: e.tags } : {}),
     ...(customFields.length > 0 ? { customFields } : {}),
     ...(e.archived ? { archived: true } : {}),
     systemId: opts.systemId,
@@ -279,14 +341,14 @@ export function importExternalAlters(parsed: any, opts: ExternalImportOptions): 
   const read = adapter.read(parsed);
   if (read.length === 0) return null;
 
-  const knownNames = new Set(opts.existing.map(a => a.alterName.trim().toLowerCase()));
+  const knownNames = new Set(opts.existing.map(a => nameKey(a.alterName)));
   const knownPk = new Set(opts.existing.map(a => a.pkId).filter(Boolean) as string[]);
 
   const alters: SavedAlter[] = [];
   const skippedNames: string[] = [];
   for (const e of read) {
-    const key = e.name.toLowerCase();
-    const dupPk = format === 'pluralkit' && !!e.externalId && knownPk.has(e.externalId);
+    const key = nameKey(e.name);
+    const dupPk = !!e.pkId && knownPk.has(e.pkId);
     if (knownNames.has(key) || dupPk) { skippedNames.push(e.name); continue; }
     knownNames.add(key); // évite aussi les doublons à l'intérieur du fichier
     alters.push(toSavedAlter(e, format, opts));
