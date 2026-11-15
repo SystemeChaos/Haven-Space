@@ -5,7 +5,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Plus, X, Save, GitBranch } from 'lucide-react';
+import { Plus, X, Save, GitBranch, Pencil, Trash2 } from 'lucide-react';
 import { SavedAlter } from './types';
 import { readMaybeEncrypted, writeMaybeEncrypted } from './vaultStorage';
 import { tr, type Lang } from './i18n';
@@ -132,6 +132,11 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [selectedRelId, setSelectedRelId] = useState<string | null>(null);
   // id de la relation en cours de modification (null = mode ajout)
   const [editingRelId, setEditingRelId] = useState<string | null>(null);
+  // alter dont on consulte le panneau de relations (clic sur une pastille)
+  const [focusedAlterId, setFocusedAlterId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  // distingue un simple clic d'un drag sur une pastille
+  const nodeClick = useRef<{ id: string; x: number; y: number; moved: boolean } | null>(null);
 
   const t = {
     title: tr(lang, 'Mapping du Système', 'System Mapping'),
@@ -143,13 +148,16 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     target: tr(lang, 'Alter cible', 'Target alter'),
     targets: tr(lang, 'Alters cibles (plusieurs possibles)', 'Target alters (multiple allowed)'),
     addAnother: tr(lang, 'Ajouter un autre alter…', 'Add another alter…'),
+    addRelations: tr(lang, 'Ajouter des relations', 'Add relations'),
+    noRelFor: tr(lang, 'Aucune relation pour le moment.', 'No relations yet.'),
+    confirm: tr(lang, 'Confirmer ?', 'Confirm?'),
     relType: tr(lang, 'Type de relation', 'Relation type'),
     relLabel: tr(lang, 'Étiquette (optionnel)', 'Label (optional)'),
     save: tr(lang, 'Enregistrer', 'Save'),
     cancel: tr(lang, 'Annuler', 'Cancel'),
     legend: tr(lang, 'Légende', 'Legend'),
     noAlters: tr(lang, "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici.", 'No alters saved. Create alter cards to see them here.'),
-    dragHint: tr(lang, 'Glisse les nœuds pour les repositionner · Clique sur une ligne pour la modifier ou la supprimer', 'Drag nodes to reposition · Click a line to edit or delete it'),
+    dragHint: tr(lang, 'Glisse les nœuds pour les repositionner · Clique sur un alter pour voir ses relations · Clique sur une ligne pour la modifier ou la supprimer', 'Drag nodes to reposition · Click an alter to see its relations · Click a line to edit or delete it'),
     positiveRels: tr(lang, 'Relations positives', 'Positive relationships'),
     neutralRels: tr(lang, 'Relations neutres', 'Neutral relationships'),
     negativeRels: tr(lang, 'Relations difficiles', 'Difficult relationships'),
@@ -209,6 +217,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     const rect = svg.getBoundingClientRect();
     const node = mapping.nodes.find(n => n.id === id);
     if (!node) return;
+    nodeClick.current = { id, x: e.clientX, y: e.clientY, moved: false };
     dragging.current = {
       id,
       offsetX: (e.clientX - rect.left) / zoom - pan.x - node.x,
@@ -224,6 +233,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     const node = mapping.nodes.find(n => n.id === id);
     if (!node) return;
     const touch = e.touches[0];
+    nodeClick.current = { id, x: touch.clientX, y: touch.clientY, moved: false };
     dragging.current = {
       id,
       offsetX: (touch.clientX - rect.left) / zoom - pan.x - node.x,
@@ -257,6 +267,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     if (dragging.current && canvasRef.current) {
+      const nc = nodeClick.current;
+      if (nc && !nc.moved && Math.hypot(e.clientX - nc.x, e.clientY - nc.y) > 5) nc.moved = true;
       const rect = canvasRef.current.getBoundingClientRect();
       const x = (e.clientX - rect.left) / zoom - pan.x - dragging.current.offsetX;
       const y = (e.clientY - rect.top) / zoom - pan.y - dragging.current.offsetY;
@@ -281,6 +293,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     if (dragging.current && canvasRef.current && e.touches.length === 1) {
       const rect = canvasRef.current.getBoundingClientRect();
       const touch = e.touches[0];
+      const nc = nodeClick.current;
+      if (nc && !nc.moved && Math.hypot(touch.clientX - nc.x, touch.clientY - nc.y) > 8) nc.moved = true;
       const x = (touch.clientX - rect.left) / zoom - pan.x - dragging.current.offsetX;
       const y = (touch.clientY - rect.top) / zoom - pan.y - dragging.current.offsetY;
       const id = dragging.current.id;
@@ -307,10 +321,18 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     }
   }, [zoom, pan]);
 
-  const onMouseUp = useCallback(() => {
+  const onMouseUp = useCallback((e?: React.SyntheticEvent) => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    if (dragging.current) {
+    const click = nodeClick.current;
+    nodeClick.current = null;
+    // sauvegarde seulement si la pastille a vraiment bougé
+    if (dragging.current && (!click || click.moved)) {
       setMapping(prev => { saveMapping(prev, activeSystemId, dek, vaultActive); return prev; });
+    }
+    // simple clic (sans déplacement) sur une pastille → panneau de relations
+    if (click && !click.moved && (e?.type === 'mouseup' || e?.type === 'touchend')) {
+      setFocusedAlterId(click.id);
+      setSelectedRelId(null);
     }
     dragging.current = null;
     panning.current = null;
@@ -332,9 +354,9 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     setTargetSearch('');
   };
 
-  const openAddRelation = () => {
+  const openAddRelation = (sourceId: string = '') => {
     setEditingRelId(null);
-    setNewRel({ sourceId: '', targetIds: [], type: 'friend', label: '' });
+    setNewRel({ sourceId, targetIds: [], type: 'friend', label: '' });
     setSourceSearch('');
     setTargetSearch('');
     setShowAddRelation(true);
@@ -401,6 +423,19 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
   const NODE_R = 38;
 
+  const focusedAlter = focusedAlterId ? savedAlters.find(a => a.id === focusedAlterId) : undefined;
+  const focusedRels = focusedAlter
+    ? mapping.relations
+        .filter(r => r.sourceId === focusedAlter.id || r.targetId === focusedAlter.id)
+        .map(r => {
+          const outgoing = r.sourceId === focusedAlter.id;
+          const otherId = outgoing ? r.targetId : r.sourceId;
+          return { rel: r, outgoing, otherName: savedAlters.find(a => a.id === otherId)?.alterName || '?' };
+        })
+        .sort((a, b) => a.otherName.localeCompare(b.otherName, lang))
+    : [];
+  const closeFocusPanel = () => { setFocusedAlterId(null); setConfirmDeleteId(null); };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -409,7 +444,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
           <p className="text-xs text-app-muted mt-1">{t.dragHint}</p>
         </div>
         <button
-          onClick={openAddRelation}
+          onClick={() => openAddRelation()}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -604,6 +639,75 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
           </div>
         </div>
       </div>
+
+      {/* Panneau des relations d'un alter */}
+      {focusedAlter && (
+        <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={closeFocusPanel}>
+          <div className="bg-app-card border border-app-border rounded-2xl p-6 w-full max-w-md max-h-[85vh] flex flex-col gap-4 relative" onClick={e => e.stopPropagation()}>
+            <button onClick={closeFocusPanel} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
+              <X className="w-4 h-4" />
+            </button>
+            <div className="flex items-center gap-3 pr-6">
+              {focusedAlter.profileImage
+                ? <img src={focusedAlter.profileImage} className="w-10 h-10 rounded-full object-cover flex-shrink-0" alt="" style={{ border: `2px solid ${getAlterColor(focusedAlter)}` }} />
+                : <div className="w-10 h-10 rounded-full bg-app-accent/20 flex items-center justify-center text-sm font-black text-app-accent flex-shrink-0">{(focusedAlter.alterName || '?').charAt(0).toUpperCase()}</div>
+              }
+              <h3 className="text-sm font-bold uppercase tracking-widest text-app-text truncate">
+                {tr(lang, `Relations de ${focusedAlter.alterName}`, `${focusedAlter.alterName}'s relations`)}
+              </h3>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+              {focusedRels.length === 0 && (
+                <p className="text-xs text-app-muted py-4 text-center">{t.noRelFor}</p>
+              )}
+              {focusedRels.map(({ rel, outgoing, otherName }) => {
+                const cfg = RELATION_CONFIG[rel.type];
+                const arrow = cfg.arrow ? (outgoing ? '→' : '←') : '↔';
+                const confirming = confirmDeleteId === rel.id;
+                return (
+                  <div key={rel.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-app-bg border border-app-border">
+                    <svg width="28" height="10" className="flex-shrink-0">
+                      <line x1="0" y1="5" x2="28" y2="5" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
+                    </svg>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-semibold text-app-text truncate">{arrow} {otherName}</p>
+                      <p className="text-[10px] text-app-muted truncate">
+                        {tr(lang, cfg.label, cfg.labelEn)}{rel.label ? ` · ${rel.label}` : ''}
+                      </p>
+                    </div>
+                    {confirming ? (
+                      <button
+                        onClick={() => { handleDeleteRelation(rel.id); setConfirmDeleteId(null); }}
+                        className="text-[10px] font-bold px-2 py-1 rounded-lg border border-red-400 text-red-400 hover:bg-red-400/10 transition-colors"
+                      >
+                        {t.confirm}
+                      </button>
+                    ) : (
+                      <>
+                        <button onClick={() => openEditRelation(rel)} title={t.editRelation} className="text-app-muted hover:text-app-text transition-colors p-1">
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button onClick={() => setConfirmDeleteId(rel.id)} title={t.deleteRelation} className="text-app-muted hover:text-red-400 transition-colors p-1">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => openAddRelation(focusedAlter.id)}
+              className="w-full py-2.5 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {t.addRelations}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modal */}
       {showAddRelation && (
