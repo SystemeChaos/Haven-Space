@@ -130,11 +130,15 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [sourceSearch, setSourceSearch] = useState('');
   const [targetSearch, setTargetSearch] = useState('');
   const [selectedRelId, setSelectedRelId] = useState<string | null>(null);
+  // id de la relation en cours de modification (null = mode ajout)
+  const [editingRelId, setEditingRelId] = useState<string | null>(null);
 
   const t = {
     title: tr(lang, 'Mapping du Système', 'System Mapping'),
     subtitle: tr(lang, 'Visualise les relations entre les membres de ton système.', 'Visualize relationships between system members.'),
     addRelation: tr(lang, 'Ajouter une relation', 'Add a relation'),
+    editRelation: tr(lang, 'Modifier la relation', 'Edit relation'),
+    deleteRelation: tr(lang, 'Supprimer la relation', 'Delete relation'),
     source: tr(lang, 'Alter source', 'Source alter'),
     target: tr(lang, 'Alter cible', 'Target alter'),
     relType: tr(lang, 'Type de relation', 'Relation type'),
@@ -143,7 +147,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     cancel: tr(lang, 'Annuler', 'Cancel'),
     legend: tr(lang, 'Légende', 'Legend'),
     noAlters: tr(lang, "Aucun alter enregistré. Crée des fiches d'alters pour les voir ici.", 'No alters saved. Create alter cards to see them here.'),
-    dragHint: tr(lang, 'Glisse les nœuds pour les repositionner · Clique sur une ligne pour la supprimer', 'Drag nodes to reposition · Click a line to delete it'),
+    dragHint: tr(lang, 'Glisse les nœuds pour les repositionner · Clique sur une ligne pour la modifier ou la supprimer', 'Drag nodes to reposition · Click a line to edit or delete it'),
     positiveRels: tr(lang, 'Relations positives', 'Positive relationships'),
     neutralRels: tr(lang, 'Relations neutres', 'Neutral relationships'),
     negativeRels: tr(lang, 'Relations difficiles', 'Difficult relationships'),
@@ -310,7 +314,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     panning.current = null;
     touchPan.current = null;
     pinch.current = null;
-  }, []);
+  }, [activeSystemId, dek, vaultActive]);
 
   const zoomIn = () => setZoom(prev => Math.min(3, prev + 0.2));
   const zoomOut = () => setZoom(prev => Math.max(0.3, prev - 0.2));
@@ -318,24 +322,52 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
 
 
-  const handleAddRelation = () => {
-    if (!newRel.sourceId || !newRel.targetId || newRel.sourceId === newRel.targetId) return;
-    const rel: MappingRelation = {
-      id: Math.random().toString(36).substring(2, 11),
-      sourceId: newRel.sourceId,
-      targetId: newRel.targetId,
-      type: newRel.type,
-      label: newRel.label.trim() || undefined,
-    };
-    setMapping(prev => {
-      const updated = { ...prev, relations: [...prev.relations, rel] };
-      saveMapping(updated, activeSystemId, dek, vaultActive);
-      return updated;
-    });
+  const resetRelForm = () => {
     setShowAddRelation(false);
+    setEditingRelId(null);
     setNewRel({ sourceId: '', targetId: '', type: 'friend', label: '' });
     setSourceSearch('');
     setTargetSearch('');
+  };
+
+  const openAddRelation = () => {
+    setEditingRelId(null);
+    setNewRel({ sourceId: '', targetId: '', type: 'friend', label: '' });
+    setSourceSearch('');
+    setTargetSearch('');
+    setShowAddRelation(true);
+  };
+
+  const openEditRelation = (rel: MappingRelation) => {
+    setEditingRelId(rel.id);
+    setNewRel({ sourceId: rel.sourceId, targetId: rel.targetId, type: rel.type, label: rel.label ?? '' });
+    setSourceSearch('');
+    setTargetSearch('');
+    setSelectedRelId(null);
+    setShowAddRelation(true);
+  };
+
+  // Ajoute une nouvelle relation, ou met à jour celle en cours de modification
+  const handleSaveRelation = () => {
+    if (!newRel.sourceId || !newRel.targetId || newRel.sourceId === newRel.targetId) return;
+    const label = newRel.label.trim() || undefined;
+    setMapping(prev => {
+      const relations = editingRelId
+        ? prev.relations.map(r => r.id === editingRelId
+            ? { ...r, sourceId: newRel.sourceId, targetId: newRel.targetId, type: newRel.type, label }
+            : r)
+        : [...prev.relations, {
+            id: Math.random().toString(36).substring(2, 11),
+            sourceId: newRel.sourceId,
+            targetId: newRel.targetId,
+            type: newRel.type,
+            label,
+          } as MappingRelation];
+      const updated = { ...prev, relations };
+      saveMapping(updated, activeSystemId, dek, vaultActive);
+      return updated;
+    });
+    resetRelForm();
   };
 
   const handleDeleteRelation = (id: string) => {
@@ -366,7 +398,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
           <p className="text-xs text-app-muted mt-1">{t.dragHint}</p>
         </div>
         <button
-          onClick={() => setShowAddRelation(true)}
+          onClick={openAddRelation}
           className="flex items-center gap-2 px-4 py-2 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all"
         >
           <Plus className="w-4 h-4" />
@@ -446,10 +478,18 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                   </text>
                 )}
                 {isSelected && (
-                  <g onClick={e => { e.stopPropagation(); handleDeleteRelation(rel.id); }} style={{ cursor: 'pointer' }}>
-                    <circle cx={midX} cy={midY} r="11" fill="var(--color-app-card)" stroke={cfg.color} strokeWidth="1.5" />
-                    <text x={midX} y={midY + 4.5} textAnchor="middle" fontSize="13" fontWeight="bold" fill={cfg.color} style={{ pointerEvents: 'none' }}>×</text>
-                  </g>
+                  <>
+                    <g onClick={e => { e.stopPropagation(); openEditRelation(rel); }} style={{ cursor: 'pointer' }}>
+                      <title>{t.editRelation}</title>
+                      <circle cx={midX - 15} cy={midY} r="11" fill="var(--color-app-card)" stroke={cfg.color} strokeWidth="1.5" />
+                      <text x={midX - 15} y={midY + 4.5} textAnchor="middle" fontSize="13" fill={cfg.color} style={{ pointerEvents: 'none' }}>✎</text>
+                    </g>
+                    <g onClick={e => { e.stopPropagation(); handleDeleteRelation(rel.id); }} style={{ cursor: 'pointer' }}>
+                      <title>{t.deleteRelation}</title>
+                      <circle cx={midX + 15} cy={midY} r="11" fill="var(--color-app-card)" stroke={cfg.color} strokeWidth="1.5" />
+                      <text x={midX + 15} y={midY + 4.5} textAnchor="middle" fontSize="13" fontWeight="bold" fill={cfg.color} style={{ pointerEvents: 'none' }}>×</text>
+                    </g>
+                  </>
                 )}
               </g>
             );
@@ -558,10 +598,10 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
       {showAddRelation && (
         <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-app-card border border-app-border rounded-2xl p-6 w-full max-w-md space-y-4 relative">
-            <button onClick={() => { setShowAddRelation(false); setSourceSearch(''); setTargetSearch(''); }} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
+            <button onClick={resetRelForm} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
               <X className="w-4 h-4" />
             </button>
-            <h3 className="text-sm font-bold uppercase tracking-widest text-app-text">{t.addRelation}</h3>
+            <h3 className="text-sm font-bold uppercase tracking-widest text-app-text">{editingRelId ? t.editRelation : t.addRelation}</h3>
 
             <div className="space-y-1 relative">
               <label className="text-[10px] font-semibold uppercase tracking-widest text-app-muted">{t.source}</label>
@@ -693,11 +733,11 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
             )}
 
             <div className="flex gap-3 pt-1">
-              <button onClick={() => { setShowAddRelation(false); setSourceSearch(''); setTargetSearch(''); }} className="flex-1 py-2.5 rounded-xl border border-app-border text-sm text-app-muted hover:text-app-text transition-all">
+              <button onClick={resetRelForm} className="flex-1 py-2.5 rounded-xl border border-app-border text-sm text-app-muted hover:text-app-text transition-all">
                 {t.cancel}
               </button>
               <button
-                onClick={handleAddRelation}
+                onClick={handleSaveRelation}
                 disabled={!newRel.sourceId || !newRel.targetId || newRel.sourceId === newRel.targetId}
                 className="flex-1 py-2.5 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all disabled:opacity-40 flex items-center justify-center gap-2"
               >
