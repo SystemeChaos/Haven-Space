@@ -2,6 +2,7 @@ import MappingPage, { loadMapping, saveMapping, MappingRelation, MappingNode, Ma
 import InnerworldPage from './InnerworldPage';
 import OrgChartPage from './OrgChartPage';
 import { compareBackup, missingSectionLabels, countSpectrumCriteria } from './importCompare';
+import { importExternalAlters, isHavenBackup } from './alterImporters';
 import { RestorePointMeta, readRestorePointMeta, saveRestorePoint, loadRestorePoint, deleteRestorePoint, encryptRestorePointIfNeeded, createVaultRestoreStore } from './restorePoint';
 import { toDateTimeLocal, isCurrentFront, checkSwitchTimes } from './switchLogic';
 import HealthSupportTabs, { HealthProvider, HealthAid } from './HealthSupportTabs';
@@ -2773,11 +2774,34 @@ export default function App() {
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
-        const parsed = JSON.parse(text);
+        let parsed = JSON.parse(text.replace(/^\uFEFF/, '')); // retire le BOM que certains exports Windows ajoutent
 
         if (!parsed || typeof parsed !== 'object') {
           throw new Error(tr(lang, "Le fichier n'contient pas un objet JSON valide.", "The file does not contain a valid JSON object."));
         }
+        // Export d'une autre app (Ourcana, PluralKit, Tupperbox, SimplyPlural…) : on traduit les fiches en SavedAlter
+let externalMsg = '';
+if (!isHavenBackup(parsed)) {
+  const ext = importExternalAlters(parsed, {
+    lang,
+    existing: savedAlters,
+    systemId: activeSystemId,
+    cleanRoles: cleanAlterRoles,
+    parseDescription: (d) => parsePluralKitDescription(d),
+  });
+  if (!ext) throw new Error(tr(lang,
+    "Fichier non reconnu : ni sauvegarde Haven Space, ni export d'alters d'une autre app.",
+    "Unrecognized file: neither a Haven Space backup nor another app's alter export."));
+  if (ext.alters.length === 0) throw new Error(tr(lang,
+    `Aucune nouvelle fiche : les ${ext.total} alter(s) du fichier existent déjà.`,
+    `No new profile: the ${ext.total} alter(s) in the file already exist.`));
+  // On présente « tes alters actuels + les nouveaux » : Fusionner comme Écraser restent sans danger pour tes fiches.
+  parsed = { savedAlters: [...savedAlters, ...ext.alters] };
+  externalMsg = tr(lang,
+    `${ext.formatLabel} : ${ext.alters.length} nouvelle(s) fiche(s)${ext.skippedNames.length ? `, ${ext.skippedNames.length} ignorée(s) (déjà présentes)` : ''}`,
+    `${ext.formatLabel}: ${ext.alters.length} new profile(s)${ext.skippedNames.length ? `, ${ext.skippedNames.length} skipped (already present)` : ''}`)
+    + ' → ' + ext.alters.map(a => a.alterName).join(', ');
+}
 
         const altersCount = Array.isArray(parsed.savedAlters) ? parsed.savedAlters.length : 0;
         const subsystemsCount = Array.isArray(parsed.subsystems) ? parsed.subsystems.length : 0;
@@ -2829,6 +2853,7 @@ export default function App() {
           spectrumCount,
           systemName: parsed.mainSystemName || (tr(lang, 'Système Importé', 'Imported System'))
         });
+        if (externalMsg) setJsonSuccess(externalMsg);
       } catch (err: any) {
         setJsonError(trf(lang, `Erreur de lecture du JSON : {0}`, `JSON Error parsing: {0}`, [err.message]));
       }
