@@ -642,22 +642,22 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
       {/* Panneau des relations d'un alter */}
       {focusedAlter && (
-        <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={closeFocusPanel}>
-          <div className="bg-app-card border border-app-border rounded-2xl p-6 w-full max-w-md max-h-[85vh] flex flex-col gap-4 relative" onClick={e => e.stopPropagation()}>
-            <button onClick={closeFocusPanel} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
-              <X className="w-4 h-4" />
-            </button>
-            <div className="flex items-center gap-3 pr-6">
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={closeFocusPanel}>
+          <div className="bg-app-card border border-app-border rounded-2xl p-4 w-full max-w-md flex flex-col gap-3" style={{ maxHeight: '75dvh' }} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 flex-shrink-0">
               {focusedAlter.profileImage
-                ? <img src={focusedAlter.profileImage} className="w-10 h-10 rounded-full object-cover flex-shrink-0" alt="" style={{ border: `2px solid ${getAlterColor(focusedAlter)}` }} />
-                : <div className="w-10 h-10 rounded-full bg-app-accent/20 flex items-center justify-center text-sm font-black text-app-accent flex-shrink-0">{(focusedAlter.alterName || '?').charAt(0).toUpperCase()}</div>
+                ? <img src={focusedAlter.profileImage} className="w-9 h-9 rounded-full object-cover flex-shrink-0" alt="" style={{ border: `2px solid ${getAlterColor(focusedAlter)}` }} />
+                : <div className="w-9 h-9 rounded-full bg-app-accent/20 flex items-center justify-center text-sm font-black text-app-accent flex-shrink-0">{(focusedAlter.alterName || '?').charAt(0).toUpperCase()}</div>
               }
-              <h3 className="text-sm font-bold uppercase tracking-widest text-app-text truncate">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-app-text truncate flex-1 min-w-0">
                 {tr(lang, `Relations de ${focusedAlter.alterName}`, `${focusedAlter.alterName}'s relations`)}
               </h3>
+              <button onClick={closeFocusPanel} aria-label={tr(lang, 'Fermer', 'Close')} className="flex-shrink-0 w-8 h-8 rounded-lg border border-app-border text-app-muted hover:text-app-text flex items-center justify-center transition-colors">
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
+            <div className="flex-1 overflow-y-auto space-y-1.5 min-h-0">
               {focusedRels.length === 0 && (
                 <p className="text-xs text-app-muted py-4 text-center">{t.noRelFor}</p>
               )}
@@ -666,7 +666,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                 const arrow = cfg.arrow ? (outgoing ? '→' : '←') : '↔';
                 const confirming = confirmDeleteId === rel.id;
                 return (
-                  <div key={rel.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-app-bg border border-app-border">
+                  <div key={rel.id} className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-app-bg border border-app-border">
                     <svg width="28" height="10" className="flex-shrink-0">
                       <line x1="0" y1="5" x2="28" y2="5" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
                     </svg>
@@ -700,7 +700,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
             <button
               onClick={() => openAddRelation(focusedAlter.id)}
-              className="w-full py-2.5 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2"
+              className="w-full py-2.5 rounded-xl bg-app-accent text-app-card text-sm font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-2 flex-shrink-0"
             >
               <Plus className="w-4 h-4" />
               {t.addRelations}
@@ -711,8 +711,8 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
       {/* Modal */}
       {showAddRelation && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-app-card border border-app-border rounded-2xl p-6 w-full max-w-md space-y-4 relative">
+        <div className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-app-card border border-app-border rounded-2xl p-6 w-full max-w-md space-y-4 relative overflow-y-auto" style={{ maxHeight: '90dvh' }}>
             <button onClick={resetRelForm} className="absolute top-4 right-4 text-app-muted hover:text-app-text transition-colors">
               <X className="w-4 h-4" />
             </button>
