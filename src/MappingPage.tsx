@@ -478,11 +478,11 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
       </div>
 
       {/* Filtres par type + alter mis en avant */}
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex flex-wrap items-center gap-1.5">
         {highlightedAlter && (
           <button
             onClick={() => setHighlightId(null)}
-            className="flex-shrink-0 inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-app-accent text-app-card text-xs font-semibold"
+            className="inline-flex items-center gap-1.5 pl-2.5 pr-2 py-0.5 rounded-full bg-app-accent text-app-card text-[11px] font-semibold"
           >
             {tr(lang, 'Focus', 'Focus')} : {highlightedAlter.alterName}
             <X className="w-3 h-3" />
@@ -496,19 +496,19 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
               <button
                 key={type}
                 onClick={() => toggleType(type)}
-                className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-app-border bg-app-card text-[11px] font-semibold text-app-text transition-opacity ${hidden ? 'opacity-40 line-through' : ''}`}
+                className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-app-border bg-app-card text-[10px] font-semibold text-app-text transition-opacity ${hidden ? 'opacity-40 line-through' : ''}`}
               >
-                <svg width="16" height="6">
-                  <line x1="0" y1="3" x2="16" y2="3" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
+                <svg width="14" height="6">
+                  <line x1="0" y1="3" x2="14" y2="3" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
                 </svg>
-                {tr(lang, cfg.label, cfg.labelEn)} ({typeCounts[type]})
+                {tr(lang, cfg.label, cfg.labelEn)} <span className="text-app-muted font-normal">{typeCounts[type]}</span>
               </button>
             );
           })}
         {hiddenTypes.length > 0 && (
           <button
             onClick={() => setHiddenTypes([])}
-            className="flex-shrink-0 px-2.5 py-1 rounded-full border border-dashed border-app-border text-[11px] text-app-muted hover:text-app-text"
+            className="px-2 py-0.5 rounded-full border border-dashed border-app-border text-[10px] text-app-muted hover:text-app-text"
           >
             {tr(lang, 'Tout afficher', 'Show all')}
           </button>
