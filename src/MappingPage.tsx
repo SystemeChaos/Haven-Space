@@ -133,6 +133,10 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
   const [editingRelId, setEditingRelId] = useState<string | null>(null);
   // alter dont on consulte le panneau de relations (clic sur une pastille)
   const [focusedAlterId, setFocusedAlterId] = useState<string | null>(null);
+  // alter mis en avant sur le graphe (reste actif après fermeture du panneau)
+  const [highlightRaw, setHighlightId] = useState<string | null>(null);
+  // types de relation masqués sur le graphe (filtre d'affichage uniquement)
+  const [hiddenTypes, setHiddenTypes] = useState<RelationType[]>([]);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   // alters cochés dans la section « pas encore de lien » du panneau
   const [pendingTargets, setPendingTargets] = useState<string[]>([]);
@@ -333,6 +337,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
     // simple clic (sans déplacement) sur une pastille → panneau de relations
     if (click && !click.moved && (e?.type === 'mouseup' || e?.type === 'touchend')) {
       setFocusedAlterId(click.id);
+      setHighlightId(click.id);
     }
     dragging.current = null;
     panning.current = null;
@@ -433,6 +438,21 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
         })
         .sort((a, b) => a.otherName.localeCompare(b.otherName, lang))
     : [];
+  const typeCounts = mapping.relations.reduce((acc, r) => { acc[r.type] = (acc[r.type] || 0) + 1; return acc; }, {} as Record<string, number>);
+  // ignore le focus si l'alter a été supprimé entre-temps
+  const highlightId = highlightRaw && savedAlters.some(a => a.id === highlightRaw) ? highlightRaw : null;
+  const connectedIds = new Set<string>();
+  if (highlightId) {
+    mapping.relations.forEach(r => {
+      if (hiddenTypes.includes(r.type)) return;
+      if (r.sourceId === highlightId) connectedIds.add(r.targetId);
+      if (r.targetId === highlightId) connectedIds.add(r.sourceId);
+    });
+  }
+  const highlightedAlter = highlightId ? savedAlters.find(a => a.id === highlightId) : undefined;
+  const toggleType = (type: RelationType) =>
+    setHiddenTypes(prev => prev.includes(type) ? prev.filter(x => x !== type) : [...prev, type]);
+
   const linkedIds = new Set(focusedRels.map(r => r.otherId));
   const unlinkedAlters = focusedAlter
     ? [...savedAlters]
@@ -455,6 +475,44 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
           <Plus className="w-4 h-4" />
           {t.addRelation}
         </button>
+      </div>
+
+      {/* Filtres par type + alter mis en avant */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin' }}>
+        {highlightedAlter && (
+          <button
+            onClick={() => setHighlightId(null)}
+            className="flex-shrink-0 inline-flex items-center gap-1.5 pl-3 pr-2 py-1 rounded-full bg-app-accent text-app-card text-xs font-semibold"
+          >
+            {tr(lang, 'Focus', 'Focus')} : {highlightedAlter.alterName}
+            <X className="w-3 h-3" />
+          </button>
+        )}
+        {(Object.entries(RELATION_CONFIG) as [RelationType, typeof RELATION_CONFIG[RelationType]][])
+          .filter(([type]) => (typeCounts[type] || 0) > 0)
+          .map(([type, cfg]) => {
+            const hidden = hiddenTypes.includes(type);
+            return (
+              <button
+                key={type}
+                onClick={() => toggleType(type)}
+                className={`flex-shrink-0 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-app-border bg-app-card text-[11px] font-semibold text-app-text transition-opacity ${hidden ? 'opacity-40 line-through' : ''}`}
+              >
+                <svg width="16" height="6">
+                  <line x1="0" y1="3" x2="16" y2="3" stroke={cfg.color} strokeWidth={cfg.width} strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash} />
+                </svg>
+                {tr(lang, cfg.label, cfg.labelEn)} ({typeCounts[type]})
+              </button>
+            );
+          })}
+        {hiddenTypes.length > 0 && (
+          <button
+            onClick={() => setHiddenTypes([])}
+            className="flex-shrink-0 px-2.5 py-1 rounded-full border border-dashed border-app-border text-[11px] text-app-muted hover:text-app-text"
+          >
+            {tr(lang, 'Tout afficher', 'Show all')}
+          </button>
+        )}
       </div>
 
       <div ref={containerRef} className="relative rounded-2xl border border-app-border overflow-hidden bg-app-card" style={{ userSelect: 'none' }}>
@@ -498,6 +556,9 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
             const source = mapping.nodes.find(n => n.id === rel.sourceId);
             const target = mapping.nodes.find(n => n.id === rel.targetId);
             if (!source || !target) return null;
+            if (hiddenTypes.includes(rel.type)) return null;
+            const touches = !!highlightId && (rel.sourceId === highlightId || rel.targetId === highlightId);
+            const dim = !!highlightId && !touches;
             const cfg = RELATION_CONFIG[rel.type];
             const dx = target.x - source.x;
             const dy = target.y - source.y;
@@ -512,16 +573,16 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
             const midY = (y1 + y2) / 2;
 
             return (
-              <g key={rel.id} style={{ pointerEvents: 'none' }}>
+              <g key={rel.id} style={{ pointerEvents: 'none', opacity: dim ? 0.05 : 1, transition: 'opacity 0.2s' }}>
                 <line
                   x1={x1} y1={y1} x2={x2} y2={y2}
                   stroke={cfg.color}
-                  strokeWidth={cfg.width}
+                  strokeWidth={touches ? cfg.width + 0.7 : cfg.width}
                   strokeDasharray={cfg.dash === 'none' ? undefined : cfg.dash}
-                  opacity={0.7}
+                  opacity={touches ? 1 : 0.7}
                   markerEnd={cfg.arrow ? `url(#arrow-${rel.type})` : undefined}
                 />
-                {rel.label && (
+                {rel.label && !dim && (
                   <text x={midX} y={midY - 7} textAnchor="middle" fontSize="10" fill={cfg.color} opacity="0.9" style={{ fontFamily: 'inherit' }}>
                     {rel.label}
                   </text>
@@ -542,7 +603,11 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
                 transform={`translate(${node.x},${node.y})`}
                 onMouseDown={e => onNodeMouseDown(e, node.id)}
                 onTouchStart={e => onNodeTouchStart(e, node.id)}
-                style={{ cursor: 'grab' }}
+                style={{
+                  cursor: 'grab',
+                  opacity: highlightId && node.id !== highlightId && !connectedIds.has(node.id) ? 0.3 : 1,
+                  transition: 'opacity 0.2s',
+                }}
               >
                 <circle r={NODE_R + 5} fill={color} opacity="0.07" />
                 <circle r={NODE_R} fill="var(--color-app-card)" stroke={color} strokeWidth="2.5" />
@@ -631,7 +696,7 @@ export default function MappingPage({ savedAlters, lang, activeSystemId = 'main'
 
       {/* Panneau des relations d'un alter */}
       {focusedAlter && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4" onClick={closeFocusPanel}>
+        <div className="fixed inset-0 z-50 bg-black/25 flex items-center justify-center p-4" onClick={closeFocusPanel}>
           <div className="bg-app-card border border-app-border rounded-2xl p-4 w-full max-w-md flex flex-col gap-3" style={{ maxHeight: '75dvh' }} onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-3 flex-shrink-0">
               {focusedAlter.profileImage
