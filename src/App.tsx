@@ -13795,7 +13795,7 @@ if (!isHavenBackup(parsed)) {
                       initial={{ opacity: 0, y: 15, height: 0 }}
                       animate={{ opacity: 1, y: 0, height: 'auto' }}
                       exit={{ opacity: 0, y: 15, height: 0 }}
-                      className="border-t border-app-border/40 bg-app-card/95 p-5 space-y-4 overflow-hidden"
+                      className="border-t border-app-border/40 bg-app-card p-5 space-y-4 overflow-y-auto shrink-0 max-h-[60%]"
                     >
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-2">
@@ -13880,8 +13880,8 @@ if (!isHavenBackup(parsed)) {
                               type="number"
                               min="1"
                               required
-                              value={pollDuration}
-                              onChange={(e) => setPollDuration(Math.max(1, Number(e.target.value) || 1))}
+                              value={pollDuration || ''}
+                              onChange={(e) => setPollDuration(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
                               className="w-full bg-app-bg border border-app-border rounded-xl px-4 py-2.5 text-xs focus:ring-1 focus:ring-app-accent focus:outline-none"
                             />
                           </div>
@@ -13901,7 +13901,12 @@ if (!isHavenBackup(parsed)) {
                           </div>
                         </div>
 
-                        <div className="flex gap-2.5 pt-2 border-t border-app-border/20 justify-end">
+                        <div className="sticky bottom-0 z-10 -mx-5 -mb-5 px-5 pb-4 pt-3 bg-app-card border-t border-app-border/20 flex flex-wrap items-center justify-end gap-2.5">
+                          {pollOptions.filter(o => o.trim() !== '').length < 2 && (
+                            <span className="mr-auto text-[9px] text-app-muted">
+                              {tr(lang, 'Remplis au moins 2 options.', 'Fill in at least 2 options.')}
+                            </span>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -13915,7 +13920,8 @@ if (!isHavenBackup(parsed)) {
                           </button>
                           <button
                             type="submit"
-                            className="px-5 py-2 bg-app-text text-app-bg hover:opacity-90 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md"
+                            disabled={!pollQuestion.trim() || pollOptions.filter(o => o.trim() !== '').length < 2}
+                            className="px-5 py-2 bg-app-text text-app-bg hover:opacity-90 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all shadow-md disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             {tr(lang, 'Créer le Sondage', 'Create Poll')}
                           </button>
