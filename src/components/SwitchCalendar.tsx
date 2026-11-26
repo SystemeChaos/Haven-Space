@@ -26,7 +26,8 @@ interface SwitchCalendarProps {
 }
 
 const GUTTER = 56;
-const COL_MIN = 76;
+const COL_W = 64;  // largeur fixe d'une colonne d'alter (px) : plus de colonnes étirées quand il y en a peu
+const BAR_W = 28;  // largeur d'une barre de front (px), centrée dans sa colonne
 const PALETTE = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316'];
 const BLEND_BG = 'linear-gradient(180deg, #a855f7, #ec4899, #6366f1)';
 const LOCKED_COLOR = '#9CA3AF';
@@ -61,7 +62,7 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
     setSelectedLogId(null);
   };
 
-  const gridCols = `${GUTTER}px repeat(${Math.max(columns.length, 1)}, minmax(${COL_MIN}px, 1fr))`;
+  const gridCols = `${GUTTER}px repeat(${Math.max(columns.length, 1)}, ${COL_W}px)`;
 
   const columnInfo = (key: string, alterId: string | undefined, index: number) => {
     if (key === 'blend') {
@@ -122,7 +123,7 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
         </div>
       ) : (
         <div className="overflow-auto max-h-[620px] rounded-xl border border-app-border/20 bg-app-card/50">
-          <div style={{ minWidth: GUTTER + columns.length * COL_MIN }}>
+          <div style={{ minWidth: GUTTER + columns.length * COL_W }}>
             {/* En-tête collant : un avatar par colonne */}
             <div className="sticky top-0 z-20 grid bg-app-card border-b border-app-border/20" style={{ gridTemplateColumns: gridCols }}>
               <div />
@@ -172,7 +173,9 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
                   <div key={col.key} className="relative">
                     {col.bars.map(bar => {
                       const selected = bar.logId === selectedLogId;
-                      const label = `${info.label} — ${fmtFull(bar.start)} → ${bar.ongoing ? (tr(lang, 'en cours', 'ongoing')) : fmtFull(bar.end)}`;
+                      const dormant = bar.status === 'dormant';
+                      const statusText = bar.status && bar.status !== 'none' ? (t?.frontStatuses?.[bar.status] || bar.status) : '';
+                      const label = `${info.label}${statusText ? ` (${statusText})` : ''} — ${fmtFull(bar.start)} → ${bar.ongoing ? (tr(lang, 'en cours', 'ongoing')) : fmtFull(bar.end)}`;
                       return (
                         <button
                           key={`${bar.logId}-${bar.top}`}
@@ -183,12 +186,16 @@ export default function SwitchCalendar({ switchLogs, savedAlters, unlockedAlterI
                           onClick={() => setSelectedLogId(selected ? null : bar.logId)}
                           className="absolute transition-shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-app-accent"
                           style={{
-                            left: '14%',
-                            width: '72%',
+                            left: '50%',
+                            width: BAR_W,
+                            marginLeft: -BAR_W / 2,
                             top: bar.top,
                             height: bar.height,
-                            background: info.background,
-                            opacity: selectedLogId && !selected ? 0.4 : 0.92,
+                            // « dormant » : barre hachurée et pâle, pour la distinguer d'un vrai front
+                            background: dormant
+                              ? `repeating-linear-gradient(45deg, rgba(255,255,255,0.45) 0 4px, transparent 4px 8px), ${info.background}`
+                              : info.background,
+                            opacity: selectedLogId && !selected ? 0.4 : (dormant ? 0.6 : 0.92),
                             borderRadius: `${bar.clippedTop ? 0 : 8}px ${bar.clippedTop ? 0 : 8}px ${bar.clippedBottom ? 0 : 8}px ${bar.clippedBottom ? 0 : 8}px`,
                             boxShadow: selected ? '0 0 0 2px var(--color-app-text)' : undefined,
                             borderTop: bar.ongoing ? '3px dotted rgba(255,255,255,0.8)' : undefined,

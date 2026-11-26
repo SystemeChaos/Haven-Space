@@ -4,9 +4,13 @@
  * Logique pure du « Calendrier de front » (colonnes par alter, temps qui défile verticalement, le plus
  * récent en haut) : sans React, sans stockage, testable seule.
  *
- * Règle de durée d'un switch — la MÊME que la chronologie (ribbon) et la durée affichée dans l'historique :
+ * Règle de durée d'un switch :
  *   fin = « sortie » saisie si elle est valide, sinon début du switch suivant, sinon maintenant.
  * Un switch « none » (retrait du front) ne dessine rien : il sert uniquement de borne de fin.
+ *
+ * Exception « dormant » (alter en sommeil) : ce n'est pas un passage au front. Un switch « dormant » ne
+ * ferme donc PAS le front en cours d'un autre alter, et il ne se termine qu'à la sortie saisie, au prochain
+ * switch du même alter, ou à maintenant. Sans ça, enregistrer « Axel dormant » arrêtait le front de l'hôte.
  */
 
 import { SwitchLog } from './types';
@@ -27,6 +31,8 @@ export interface FrontInterval {
   ongoing: boolean;
 }
 
+const isDormant = (log: SwitchLog): boolean => log.status === 'dormant';
+
 export function buildFrontIntervals(logs: ReadonlyArray<SwitchLog>, now: number): FrontInterval[] {
   const sorted = [...logs].sort((a, b) => a.timestamp - b.timestamp);
   const out: FrontInterval[] = [];
@@ -34,7 +40,14 @@ export function buildFrontIntervals(logs: ReadonlyArray<SwitchLog>, now: number)
     if (log.status === 'none') return;
     const isBlend = log.status === 'blend' && log.alterIds.length === 0;
     if (!isBlend && log.alterIds.length === 0) return; // personne : rien à dessiner
-    const next = sorted[i + 1];
+    // Prochain switch qui ferme celui-ci : n'importe quel switch « actif » (hors dormant) ; pour un dormant,
+    // seulement un switch qui concerne le même alter.
+    let next: SwitchLog | undefined;
+    for (let j = i + 1; j < sorted.length; j++) {
+      const cand = sorted[j];
+      const closes = isDormant(log) ? cand.alterIds.some(id => log.alterIds.includes(id)) : !isDormant(cand);
+      if (closes) { next = cand; break; }
+    }
     const explicitEnd = log.endTimestamp !== undefined && log.endTimestamp > log.timestamp ? log.endTimestamp : undefined;
     const rawEnd = explicitEnd ?? next?.timestamp ?? now;
     const end = Math.min(rawEnd, now); // le calendrier ne montre jamais le futur
