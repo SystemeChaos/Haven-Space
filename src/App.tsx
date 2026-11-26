@@ -14514,9 +14514,11 @@ if (!isHavenBackup(parsed)) {
                   <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                     {(() => {
                     // Même règle de durée que le calendrier (voir switchCalendar.ts), calculée une seule fois pour toute la liste.
-                    const frontIntervals = new Map(buildFrontIntervals(switchLogs, Date.now()).map(iv => [iv.logId, iv]));
+                    // Objet simple plutôt que new Map() : l'icône lucide « Map » masque le Map natif dans ce fichier.
+                    const frontIntervals: Record<string, ReturnType<typeof buildFrontIntervals>[number]> = {};
+                    buildFrontIntervals(switchLogs, Date.now()).forEach(iv => { frontIntervals[iv.logId] = iv; });
                     return switchLogs.map((log) => {
-                      const iv = frontIntervals.get(log.id);
+                      const iv = frontIntervals[log.id];
                       const durationStr = iv ? formatDuration(iv.end - iv.start, lang) : '';
 
                       return (
