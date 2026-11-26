@@ -14,6 +14,7 @@ import PlanningPage, { loadPlanning, savePlanning, loadEisenhower, saveEisenhowe
 import { buildJournalFolders, isAlterLocked, alterFolderKey, folderAlterId } from './journalFolders';
 import { isNativeApp, buildReminders, reminderSignature, syncNativeReminders, cancelAllNativeReminders, getExactAlarmStatus, openExactAlarmSettings, notifyRemindersDirty, REMINDERS_DIRTY_EVENT, ReminderTarget, ExactAlarmStatus } from './nativeReminders';
 import SpectrumTool, { SpectrumCriterion } from './components/SpectrumTool';
+import { buildFrontIntervals, formatDuration } from './switchCalendar';
 import React, { useState, useRef, useCallback, useEffect, JSX } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toPng } from 'html-to-image';
@@ -14511,19 +14512,12 @@ if (!isHavenBackup(parsed)) {
                   </div>
                 ) : (
                   <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                    {switchLogs.map((log, index) => {
-                      const nextLog = switchLogs[index - 1]; // because switchLogs is sorted descending, the next chronograph occurs "previous" in array
-                      let durationStr = '';
-                      if (nextLog) {
-                        const seconds = Math.floor((nextLog.timestamp - log.timestamp) / 1000);
-                        const hours = Math.floor(seconds / 3600);
-                        const mins = Math.floor((seconds % 3600) / 60);
-                        if (hours > 0) {
-                          durationStr = trf(lang, `{0}h {1}m`, `{0}h {1}m`, [hours, mins]);
-                        } else {
-                          durationStr = trf(lang, `{0} m`, `{0} mins`, [mins]);
-                        }
-                      }
+                    {(() => {
+                    // Même règle de durée que le calendrier (voir switchCalendar.ts), calculée une seule fois pour toute la liste.
+                    const frontIntervals = new Map(buildFrontIntervals(switchLogs, Date.now()).map(iv => [iv.logId, iv]));
+                    return switchLogs.map((log) => {
+                      const iv = frontIntervals.get(log.id);
+                      const durationStr = iv ? formatDuration(iv.end - iv.start, lang) : '';
 
                       return (
                         <div key={log.id} className="p-4 bg-app-card/65 rounded-xl border border-app-border/30 flex justify-between gap-4">
@@ -14591,13 +14585,14 @@ if (!isHavenBackup(parsed)) {
 
                             {durationStr && (
                               <span className="text-[9px] font-black uppercase tracking-widest bg-app-accent/15 text-app-accent px-2 py-1 rounded-full border border-app-accent/20">
-                                {durationStr}
+                                {iv?.ongoing ? `${tr(lang, 'en cours', 'ongoing')} · ` : ''}{durationStr}
                               </span>
                             )}
                           </div>
                         </div>
                       );
-                    })}
+                    });
+                    })()}
                   </div>
                 )}
               </div>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { SwitchLog, SavedAlter } from '../types';
 import SwitchCalendar from './SwitchCalendar';
+import { closingIndex, isDormant } from '../switchCalendar';
 import { tr, localeOf, type Lang } from '../i18n';
 
 interface SwitchAnalyticsProps {
@@ -103,9 +104,11 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
 
     for (let i = 0; i < chronologicalLogs.length; i++) {
       const log = chronologicalLogs[i];
-      const nextLog = chronologicalLogs[i + 1];
+      // Un alter « dormant » n'est pas au front : pas de segment, et il ne coupe pas le front en cours.
+      if (isDormant(log)) continue;
+      const ci = closingIndex(chronologicalLogs, i);
       const logStart = log.timestamp;
-      const logEnd = nextLog ? nextLog.timestamp : now;
+      const logEnd = ci >= 0 ? chronologicalLogs[ci].timestamp : now;
 
       // Check if this interval falls within or overlaps our range
       if (logEnd > thresholdTime) {
@@ -181,8 +184,9 @@ export default function SwitchAnalytics({ switchLogs = [], savedAlters = [], lan
 
     for (let i = 0; i < chronologicalLogs.length; i++) {
       const log = chronologicalLogs[i];
-      const nextLog = chronologicalLogs[i + 1];
-      const durationMs = (nextLog ? nextLog.timestamp : now) - log.timestamp;
+      if (isDormant(log)) continue; // en sommeil : ne compte pas comme temps de front
+      const ci = closingIndex(chronologicalLogs, i);
+      const durationMs = (ci >= 0 ? chronologicalLogs[ci].timestamp : now) - log.timestamp;
 
       log.alterIds.forEach(id => {
         if (!totals[id]) {
